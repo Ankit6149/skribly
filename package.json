@@ -1,0 +1,21 @@
+{
+  "name": "skribly",
+  "version": "0.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "extensions/*"
+  ],
+  "scripts": {
+    "dev": "npm --workspace @skribly/desktop run dev",
+    "tauri": "npm --workspace @skribly/desktop run tauri",
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

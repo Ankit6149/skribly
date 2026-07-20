@@ -1,0 +1,14 @@
+:root {
+  --paper: #fff9eb;
+  --sticky: #fde68a;
+  --peach: #ffd6c6;
+  --mint: #cdeed9;
+  --sky: #d6e8ff;
+  --lavender: #e6d8ff;
+  --ink: #1f2937;
+  --muted: #6b7280;
+  --font-ui: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --shadow-s: 0 2px 6px rgb(31 41 55 / 8%);
+  --shadow-m: 0 8px 20px rgb(31 41 55 / 12%);
+  --shadow-l: 0 18px 48px rgb(31 41 55 / 14%);
+}

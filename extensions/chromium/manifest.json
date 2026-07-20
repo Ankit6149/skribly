@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "Skribly Context Bridge",
+  "version": "0.0.0",
+  "description": "Precise, local webpage anchoring for Skribly.",
+  "permissions": ["activeTab", "storage"],
+  "host_permissions": [],
+  "background": {
+    "service_worker": "dist/background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "Add a Skrib"
+  }
+}

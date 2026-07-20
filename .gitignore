@@ -1,0 +1,49 @@
+# Node
+node_modules/
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+
+# Builds
+dist/
+build/
+target/
+*.app
+*.dmg
+*.msi
+*.exe
+
+# Tauri generated
+apps/desktop/src-tauri/gen/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Editors
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Databases and local user data
+*.db
+*.db-shm
+*.db-wal
+local-data/
+
+# Coverage
+coverage/
+
+# Signing material — never commit
+*.p12
+*.pfx
+*.cer
+*.key
+*.mobileprovision
+signing/

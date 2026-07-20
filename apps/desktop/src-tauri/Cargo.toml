@@ -1,0 +1,31 @@
+[package]
+name = "skribly"
+version = "0.0.0"
+description = "Contextual desktop annotations for Windows and macOS"
+authors = ["Ankit Bhardwaj"]
+edition = "2021"
+
+[lib]
+name = "skribly_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.61", features = [
+  "Win32_Foundation",
+  "Win32_UI_Accessibility",
+  "Win32_UI_WindowsAndMessaging"
+] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-app-kit = "0.3"
+objc2-foundation = "0.3"
