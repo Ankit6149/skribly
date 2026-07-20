@@ -7,8 +7,8 @@
 - [x] component inventory
 - [x] provisional architecture
 - [x] business/tax working notes
-- [ ] create private GitHub repository
-- [ ] push this scaffold
+- [ ] make GitHub repository private
+- [x] push this scaffold
 
 ## Phase 1 — cross-platform overlay spike
 
