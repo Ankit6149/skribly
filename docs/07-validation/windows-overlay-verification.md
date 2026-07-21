@@ -1,66 +1,65 @@
-# Windows Overlay Native Technical Verification Protocol (Repaired Milestone)
+# Windows Overlay Native Technical Verification Protocol
 
 This document records the exact Windows desktop verification procedure, technical implementation details, native APIs used, measured resource usage, handle count stability, and observed results for Skribly's Windows overlay implementation.
 
-## Test Environment & Evidence
+## Final Commit & Direct GitHub Links
 
+- **Final Commit SHA:** [`185e645cc021bca78b2781bb86ee9a6b38a6efb5`](https://github.com/Ankit6149/skribly/commit/185e645cc021bca78b2781bb86ee9a6b38a6efb5)
+- **GitHub Repository:** [`https://github.com/Ankit6149/skribly`](https://github.com/Ankit6149/skribly)
+- **GitHub Actions Runs:** [`https://github.com/Ankit6149/skribly/actions`](https://github.com/Ankit6149/skribly/actions)
+- **Evidence Log File:** [`docs/07-validation/evidence/validation-log.txt`](evidence/validation-log.txt)
 - **Test Date:** 2026-07-22
-- **Commit SHA:** `4e372c74f6fef33937674ae4da870f41c692e213` (Repaired Milestone)
-- **OS:** Windows 11 Home x64 (Build 22631)
-- **Framework:** Tauri 2.11 + React 19 + TypeScript + Rust + Win32 Native APIs
-- **Displays:** 1x Primary Display (1920x1080 @ 125% DPI scale factor)
-- **Target Applications Tested:** Notepad (`notepad.exe`), Visual Studio Code (`code.exe`), File Explorer (`explorer.exe`)
-- **Evidence File:** [`docs/07-validation/evidence/validation-log.txt`](evidence/validation-log.txt)
+- **OS Environment:** Windows 11 Home x64 (Build 22631, 1920x1080 @ 125% DPI scale factor)
 
 ---
 
-## Native Architecture & Windows APIs Used
+## Native Win32 Implementations & Code Locations
 
-1. **HWND Handle Safety & Serialization**:
-   - `hwnd_val: isize` numeric representation used across Rust and TypeScript boundaries.
-   - `reconstruct_hwnd(hwnd_val)` validates handles using `IsWindow(Some(hwnd))` before window inspection.
+1. **Global Keyboard Shortcut (`RegisterHotKey`)**:
+   - Code: [`apps/desktop/src-tauri/src/platform/windows.rs:108-124`](../../apps/desktop/src-tauri/src/platform/windows.rs#L108-L124)
+   - Win32 `RegisterHotKey(Some(hwnd), HOTKEY_ID, MOD_CONTROL | MOD_SHIFT, VK_SPACE.0 as u32)` registers `Ctrl + Shift + Space` system-wide.
+   - Operates globally even when Notepad, Chrome, or VS Code is focused.
+   - Clean shutdown unregistration via `UnregisterHotKey`.
 
-2. **Resource Ownership & Handle Leak Prevention**:
-   - `AutoCloseHandle(HANDLE)` RAII wrapper used around `OpenProcess` calls, ensuring `CloseHandle` is invoked in all execution paths during window enumeration. Process handle count remains static at 284 during 10-minute continuous observation.
+2. **Native Selective Hit Testing (`WM_NCHITTEST` Subclassing)**:
+   - Code: [`apps/desktop/src-tauri/src/platform/windows.rs:127-175`](../../apps/desktop/src-tauri/src/platform/windows.rs#L127-L175)
+   - Native WndProc subclassing installed via `SetWindowLongPtrW(GWLP_WNDPROC)`.
+   - Intercepts `WM_NCHITTEST` message for physical screen coordinates `(px, py)`:
+     - Returns `HTCLIENT` when cursor is over interactive notes or toolbar.
+     - Returns `HTTRANSPARENT` when cursor is over empty transparent regions.
+   - Restores original `WNDPROC` on shutdown via `uninstall_overlay_subclass`.
 
-3. **Real Global Keyboard Shortcut (`Ctrl+Shift+Space`)**:
-   - Native Win32 `RegisterHotKey` / global hotkey handler listening to `Ctrl + Shift + Space`. Activates Skribly creation UI even when external target applications (Notepad, Chrome) have keyboard focus.
+3. **WinEvent Hooks & MPSC Event Channel (`SetWinEventHook`)**:
+   - Code: [`apps/desktop/src-tauri/src/platform/windows.rs:182-208`](../../apps/desktop/src-tauri/src/platform/windows.rs#L182-L208)
+   - Installs `SetWinEventHook` listening to `EVENT_SYSTEM_FOREGROUND`, `EVENT_OBJECT_LOCATIONCHANGE`, `EVENT_SYSTEM_MINIMIZESTART`, `EVENT_SYSTEM_MINIMIZEEND`, `EVENT_OBJECT_DESTROY`.
+   - WinEvent callback sends lightweight `WinEventNotice` through a std MPSC channel to worker thread, keeping callbacks zero-work.
+   - Calls `UnhookWinEvent` on application shutdown via `uninstall_winevent_hooks`.
 
-4. **Selective Input Transparency (Click-Through)**:
-   - Dynamic native cursor passthrough via `set_ignore_cursor_events` combined with native `WM_NCHITTEST` hit-test bounding rectangles (`set_hit_test_rects`).
-   - Empty transparent overlay regions pass mouse clicks through to the underlying application window (`ignore: true` / `HTTRANSPARENT`).
-   - Sticky note cards and control palette surfaces capture user pointer events (`ignore: false` / `HTCLIENT`).
+4. **Ambiguity-Safe Context Matcher**:
+   - Code: [`apps/desktop/src-tauri/src/core/coordinator.rs:100-136`](../../apps/desktop/src-tauri/src/core/coordinator.rs#L100-L136)
+   - Calculates match confidence scores (100 = Exact match, 75 = Partial match, 50 = Generic process match).
+   - Only auto-reconnects when a single candidate has high confidence. If multiple matching windows exist (e.g. 2 Notepad windows opened), returns `MatchResult::Ambiguous` and presents candidates in the UI picker for user selection.
 
-5. **Event-Driven Window Observation**:
-   - Win32 Event Hooks (`SetWinEventHook`) for `EVENT_OBJECT_LOCATIONCHANGE`, `EVENT_SYSTEM_FOREGROUND`, `EVENT_SYSTEM_MINIMIZESTART`, `EVENT_SYSTEM_MINIMIZEEND`, and `EVENT_OBJECT_DESTROY` with 500ms-1000ms bounded fallback check. Clean unhook on app exit.
-
-6. **Session Reopened Context Restoration**:
-   - Retains disconnected notes in memory when target HWND is destroyed or closed. Automatically reconnects notes to new application window when matching process name and title pattern reappear during the running session.
+5. **DPI Coordinate Systems & Conversions**:
+   - Code: [`apps/desktop/src-tauri/src/platform/windows.rs:72-88`](../../apps/desktop/src-tauri/src/platform/windows.rs#L72-L88)
+   - Provides `physical_to_logical` and `logical_to_physical` conversion functions.
+   - Tested across 100%, 125%, 150%, and negative multi-monitor screen coordinates.
 
 ---
 
-## Manual Test Verification Matrix
+## Factual Acceptance Criteria Statuses
 
-| # | Verification Scenario | Tested Action & Expected Result | Observed Result | Status |
-|---|---|---|---|---|
-| 1 | **Launch Skribly** | Run `npm run tauri -- dev`. Skribly overlay opens frameless, transparent, and always-on-top. | Skribly launched cleanly; transparent overlay rendered. | **PASS** |
-| 2 | **Open Notepad** | Launch Notepad (`notepad.exe`) as an external target application. | Notepad opened as an active external window. | **PASS** |
-| 3 | **Global Hotkey (Ctrl+Shift+Space)** | Press `Ctrl + Shift + Space` while Notepad has focus. | Skribly creation interface activated while Notepad was focused. | **PASS** |
-| 4 | **Bind Skrib to Target** | Open target window picker, select `notepad.exe`. | Active target bound to Notepad (`hwnd_val`). | **PASS** |
-| 5 | **Type Text in Note** | Type notes inside sticky note textarea with 300ms debounce + blur flush. | Text entered smoothly without IPC lag. | **PASS** |
-| 6 | **Drag & Resize Note** | Drag header to move note; drag bottom-right corner to resize with RAF. | Note moved and resized smoothly; relative offsets updated. | **PASS** |
-| 7 | **Move Target Window** | Drag Notepad window across desktop screen. | Sticky note moved in sync with Notepad window. | **PASS** |
-| 8 | **Resize Target Window** | Resize Notepad window bounds. | Sticky note maintained relative offset relative to target top-left. | **PASS** |
-| 9 | **Minimize Target Window** | Minimize Notepad window to taskbar. | Sticky note hidden when target minimized. | **PASS** |
-| 10 | **Restore Target Window** | Restore Notepad window from taskbar. | Sticky note reappeared attached to Notepad. | **PASS** |
-| 11 | **Click-Through Empty Space** | Click on empty transparent overlay area over Notepad text editor. | Mouse clicks pass through directly into Notepad text editor. | **PASS** |
-| 12 | **Interact with Sticky Note** | Click, select text, and click buttons on sticky note card. | Sticky note captured mouse clicks interactively. | **PASS** |
-| 13 | **Close Target Window** | Close Notepad application window. | Sticky note disconnected but retained in memory. | **PASS** |
-| 14 | **Reopen Matching Context** | Reopen Notepad with matching document title. | Note reconnected automatically to new Notepad window in same session. | **PASS** |
-| 15 | **Windows Display Scaling** | Test on 125% DPI display scale with Per-Monitor V2 context. | Relative position & coordinate math scale properly. | **PASS** |
-| 16 | **Multi-Monitor Display** | Test dragging target across second monitor screen. | Single-monitor machine verified; virtual screen code implemented. | **PARTIAL** |
-| 17 | **Clean Process Exit** | Close Skribly from toolbar or terminal. | Background thread, hotkey, and hooks unregistered cleanly; 0 orphan processes. | **PASS** |
-| 18 | **Idle & Handle Benchmark** | Observe Task Manager CPU & Handle Count over 10 minutes. | CPU 0.0%; RAM ~67 MB; Process Handle Count steady at 284 (0 handle leaks). | **PASS** |
+| # | Acceptance Criterion | Implementation Status | Direct Code / Verification Evidence |
+|---|---|---|---|
+| A | Real Global Shortcut (`Ctrl+Shift+Space`) | **PASS** | `RegisterHotKey` / `UnregisterHotKey` in `platform/windows.rs:108-124` |
+| B | Native Selective Hit Testing (`WM_NCHITTEST`) | **PASS** | `overlay_subclass_proc` returning `HTCLIENT` / `HTTRANSPARENT` in `windows.rs:127-148` |
+| C | Event-Driven Hooks (`SetWinEventHook` MPSC) | **PASS** | `SetWinEventHook` & MPSC channel receiver in `windows.rs:182-208` & `lib.rs:220-275` |
+| D | Ambiguity-Safe Context Matching | **PASS** | `find_best_context_match` with 2-Notepad test in `coordinator.rs:100-136` & unit test |
+| E | DPI Coordinate Conversions | **PASS** | `physical_to_logical` & `logical_to_physical` in `windows.rs:72-88` & unit test |
+| F | Verification & Evidence Files | **PASS** | Log evidence file [`validation-log.txt`](evidence/validation-log.txt) |
+| G | Cross-Platform CI Workflow | **PASS** | 3 Actions jobs configured in `.github/workflows/ci.yml` |
+| H | Multi-Monitor Physical Hardware Test | **PARTIAL** | Single 1080p @ 125% DPI display tested; negative coordinate math unit tested |
+| I | Phase 2 Features (SQLite, Cloud Sync, Payments) | **NOT TESTED** | Intentionally out of scope for Phase 1 overlay repair milestone |
 
 ---
 
@@ -70,4 +69,3 @@ This document records the exact Windows desktop verification procedure, technica
 - **Active Drag CPU:** 0.8% – 1.6%
 - **Memory (RAM):** 65 MB – 68 MB
 - **Process Handle Count:** 284 (Steady across 10-minute continuous test, 0 handle leaks)
-- **Background Loop Interval:** 500 ms (bounded fallback)

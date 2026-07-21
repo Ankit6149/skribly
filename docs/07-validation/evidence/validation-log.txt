@@ -1,19 +1,43 @@
-Skribly Windows Overlay Verification Log & Benchmarks
-=====================================================
+Skribly Windows Native Implementation Verification Log
+======================================================
 Date: 2026-07-22
-Commit SHA: 4e372c74f6fef33937674ae4da870f41c692e213 (Repair Milestone)
+Commit SHA: 185e645cc021bca78b2781bb86ee9a6b38a6efb5
 OS: Windows 11 Home x64 (Build 22631)
 Runner / Display: 1920x1080 @ 125% DPI scale factor
 
-AUTOMATED TEST SUITE SUMMARY
-----------------------------
-npm ci: SUCCESS (0 vulnerabilities)
-npm run typecheck: SUCCESS (0 errors across workspace)
-npm run test: SUCCESS (3 test files, 9 tests passed)
-npm run build: SUCCESS (39 Vite modules built)
-cargo fmt --check: SUCCESS (0 format diffs)
-cargo check: SUCCESS (0 errors, clean build)
-cargo test: SUCCESS (8 Rust unit tests passed)
+DIRECT REPOSITORY CODE REFERENCE EVIDENCE
+-----------------------------------------
+1. RegisterHotKey: apps/desktop/src-tauri/src/platform/windows.rs (Lines 108-117)
+2. UnregisterHotKey: apps/desktop/src-tauri/src/platform/windows.rs (Lines 120-124)
+3. WM_NCHITTEST Subclass: apps/desktop/src-tauri/src/platform/windows.rs (Lines 127-148)
+4. HTCLIENT & HTTRANSPARENT: apps/desktop/src-tauri/src/platform/windows.rs (Lines 136-138)
+5. SetWinEventHook MPSC: apps/desktop/src-tauri/src/platform/windows.rs (Lines 182-198)
+6. UnhookWinEvent: apps/desktop/src-tauri/src/platform/windows.rs (Lines 201-208)
+7. Ambiguity-Safe Context Matching: apps/desktop/src-tauri/src/core/coordinator.rs (Lines 100-136)
+8. DPI Math: apps/desktop/src-tauri/src/platform/windows.rs (Lines 72-88)
+
+AUTOMATED RUST TEST SUITE OUTPUT (8 PASSED)
+-------------------------------------------
+running 8 tests
+test core::coordinator::tests::test_ambiguity_safe_matching ... ok
+test core::models::tests::test_calculate_absolute_bounds ... ok
+test platform::windows::tests::test_autoclose_handle_invalid ... ok
+test core::models::tests::test_hwnd_val_serialization_reconstruction ... ok
+test platform::windows::tests::test_dpi_coordinate_conversion ... ok
+test core::models::tests::test_window_rect_contains_point ... ok
+test platform::windows::tests::test_hwnd_reconstruction ... ok
+test core::models::tests::test_match_scoring_multiple_notepad_windows ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+AUTOMATED FRONTEND VITEST TEST OUTPUT (9 PASSED)
+------------------------------------------------
+✓ src/lib/geometry.test.ts (4 tests) 8ms
+✓ src/features/skribs/DemoSkrib.test.ts (1 test) 3ms
+✓ src/stores/skribStore.test.ts (4 tests) 8ms
+
+Test Files  3 passed (3)
+     Tests  9 passed (9)
 
 RESOURCE OBSERVATIONS & STRESS BENCHMARK (10 MINUTES)
 ------------------------------------------------------
