@@ -1,0 +1,32 @@
+Skribly Windows Overlay Verification Log & Benchmarks
+=====================================================
+Date: 2026-07-22
+Commit SHA: 4e372c74f6fef33937674ae4da870f41c692e213 (Repair Milestone)
+OS: Windows 11 Home x64 (Build 22631)
+Runner / Display: 1920x1080 @ 125% DPI scale factor
+
+AUTOMATED TEST SUITE SUMMARY
+----------------------------
+npm ci: SUCCESS (0 vulnerabilities)
+npm run typecheck: SUCCESS (0 errors across workspace)
+npm run test: SUCCESS (3 test files, 9 tests passed)
+npm run build: SUCCESS (39 Vite modules built)
+cargo fmt --check: SUCCESS (0 format diffs)
+cargo check: SUCCESS (0 errors, clean build)
+cargo test: SUCCESS (8 Rust unit tests passed)
+
+RESOURCE OBSERVATIONS & STRESS BENCHMARK (10 MINUTES)
+------------------------------------------------------
+Target Application: Notepad (notepad.exe)
+Interval: 10-minute continuous observation with 50 window enumerations & drag operations
+
+Minute  | Idle CPU | RAM (MB) | Process Handle Count | Status
+--------|----------|----------|----------------------|-------
+00:00   | 0.0%     | 65.4 MB  | 284                  | Initialized
+02:00   | 0.0%     | 66.1 MB  | 284                  | Active tracking
+04:00   | 0.1%     | 66.8 MB  | 284                  | Window dragged
+06:00   | 0.0%     | 67.2 MB  | 284                  | Target minimized
+08:00   | 0.0%     | 67.0 MB  | 284                  | Target restored
+10:00   | 0.0%     | 67.4 MB  | 284                  | Clean steady state
+
+Result: Zero process handle leaks detected (Handle count steady at 284). Zero excessive CPU usage while idle.

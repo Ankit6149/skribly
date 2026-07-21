@@ -33,6 +33,34 @@ button, textarea {
   pointer-events: none;
 }
 
+/* Error Toast Alert Banner */
+.overlay-error-toast {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  z-index: 10000;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  color: #991b1b;
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: var(--shadow-m);
+}
+
+.overlay-error-toast button {
+  border: 0;
+  background: transparent;
+  color: #991b1b;
+  cursor: pointer;
+  font-weight: bold;
+}
+
 /* Floating Toolbar at Top */
 .overlay-toolbar {
   position: fixed;

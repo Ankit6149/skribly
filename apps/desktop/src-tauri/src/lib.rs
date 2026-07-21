@@ -1,19 +1,23 @@
 mod core;
 mod platform;
 
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
-use tauri::{Emitter, Manager, State, WebviewWindow};
+use tauri::{Emitter, Manager, RunEvent, State, WebviewWindow};
 
 use core::coordinator::Coordinator;
-use core::models::{OverlayStatePayload, SkribNote, TargetWindowInfo};
+use core::models::{HitTestRect, OverlayStatePayload, SkribNote, TargetWindowInfo};
 
 #[cfg(target_os = "windows")]
 use platform::windows::{
     get_foreground_target_window, inspect_target_window, list_candidate_target_windows,
+    reconstruct_hwnd, set_dpi_awareness,
 };
 
 pub struct AppState {
     pub coordinator: Coordinator,
+    pub running: Arc<AtomicBool>,
 }
 
 #[tauri::command]
@@ -53,6 +57,7 @@ fn build_overlay_payload(coordinator: &Coordinator) -> OverlayStatePayload {
         active_target,
         skribs,
         available_windows,
+        is_shortcut_active: false,
     }
 }
 
@@ -115,6 +120,11 @@ fn delete_skrib_note(state: State<'_, AppState>, id: String) -> OverlayStatePayl
 }
 
 #[tauri::command]
+fn set_hit_test_rects(state: State<'_, AppState>, rects: Vec<HitTestRect>) {
+    state.coordinator.set_hit_test_rects(rects);
+}
+
+#[tauri::command]
 fn set_ignore_cursor_events(window: WebviewWindow, ignore: bool) -> Result<(), String> {
     window
         .set_ignore_cursor_events(ignore)
@@ -126,14 +136,23 @@ fn refresh_target_state(state: State<'_, AppState>) -> OverlayStatePayload {
     #[cfg(target_os = "windows")]
     {
         if let Some(target) = state.coordinator.get_active_target() {
-            // Re-inspect HWND
-            if let Ok(hwnd_ptr) = target.hwnd_id.parse::<usize>() {
-                let hwnd = windows::Win32::Foundation::HWND(hwnd_ptr as *mut _);
+            if let Some(hwnd) = reconstruct_hwnd(target.hwnd_val) {
                 if let Some(updated_target) = inspect_target_window(hwnd) {
                     state.coordinator.set_active_target(Some(updated_target));
                 } else {
-                    // Window closed or un-inspectable
+                    // Window closed or destroyed
                     state.coordinator.set_active_target(None);
+                }
+            } else {
+                state.coordinator.set_active_target(None);
+            }
+        } else {
+            // Check for disconnected context return
+            let candidates = list_candidate_target_windows();
+            for cand in candidates {
+                if state.coordinator.find_disconnected_context_match(&cand) {
+                    state.coordinator.set_active_target(Some(cand));
+                    break;
                 }
             }
         }
@@ -143,10 +162,19 @@ fn refresh_target_state(state: State<'_, AppState>) -> OverlayStatePayload {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let coordinator = Coordinator::new();
-    let app_state = AppState { coordinator };
+    #[cfg(target_os = "windows")]
+    {
+        set_dpi_awareness();
+    }
 
-    tauri::Builder::default()
+    let coordinator = Coordinator::new();
+    let running = Arc::new(AtomicBool::new(true));
+    let app_state = AppState {
+        coordinator,
+        running: running.clone(),
+    };
+
+    let app = tauri::Builder::default()
         .manage(app_state)
         .invoke_handler(tauri::generate_handler![
             get_foreground_window,
@@ -158,40 +186,59 @@ pub fn run() {
             update_skrib_color,
             toggle_skrib_collapse,
             delete_skrib_note,
+            set_hit_test_rects,
             set_ignore_cursor_events,
             refresh_target_state,
         ])
         .setup(|app| {
             let app_handle = app.handle().clone();
             let coordinator = app.state::<AppState>().coordinator.clone();
+            let running_flag = app.state::<AppState>().running.clone();
 
-            // Background window tracking thread
+            // Background window tracking & context return observer thread
             std::thread::spawn(move || {
-                loop {
-                    std::thread::sleep(Duration::from_millis(120));
+                while running_flag.load(Ordering::Relaxed) {
+                    std::thread::sleep(Duration::from_millis(500));
 
                     #[cfg(target_os = "windows")]
                     {
                         if let Some(target) = coordinator.get_active_target() {
-                            if let Ok(hwnd_ptr) = target.hwnd_id.parse::<usize>() {
-                                let hwnd = windows::Win32::Foundation::HWND(hwnd_ptr as *mut _);
+                            if let Some(hwnd) = reconstruct_hwnd(target.hwnd_val) {
                                 if let Some(updated_target) = inspect_target_window(hwnd) {
                                     coordinator.set_active_target(Some(updated_target.clone()));
                                     let payload = OverlayStatePayload {
                                         active_target: Some(updated_target.clone()),
                                         skribs: coordinator.get_skribs_for_target(&updated_target),
-                                        available_windows: list_candidate_target_windows(),
+                                        available_windows: Vec::new(),
+                                        is_shortcut_active: false,
                                     };
                                     let _ = app_handle.emit("skribly://overlay-update", payload);
                                 } else {
-                                    // Target closed or disappeared
+                                    // Target window closed or un-inspectable: mark context disconnected
                                     coordinator.set_active_target(None);
                                     let payload = OverlayStatePayload {
                                         active_target: None,
                                         skribs: Vec::new(),
-                                        available_windows: list_candidate_target_windows(),
+                                        available_windows: Vec::new(),
+                                        is_shortcut_active: false,
                                     };
                                     let _ = app_handle.emit("skribly://overlay-update", payload);
+                                }
+                            }
+                        } else {
+                            // Check for same-session reopened context return
+                            let candidates = list_candidate_target_windows();
+                            for cand in candidates {
+                                if coordinator.find_disconnected_context_match(&cand) {
+                                    coordinator.set_active_target(Some(cand.clone()));
+                                    let payload = OverlayStatePayload {
+                                        active_target: Some(cand.clone()),
+                                        skribs: coordinator.get_skribs_for_target(&cand),
+                                        available_windows: Vec::new(),
+                                        is_shortcut_active: false,
+                                    };
+                                    let _ = app_handle.emit("skribly://overlay-update", payload);
+                                    break;
                                 }
                             }
                         }
@@ -201,6 +248,12 @@ pub fn run() {
 
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running Skribly");
+        .build(tauri::generate_context!())
+        .expect("error while building Skribly");
+
+    app.run(move |_app_handle, event| {
+        if let RunEvent::Exit = event {
+            running.store(false, Ordering::Relaxed);
+        }
+    });
 }

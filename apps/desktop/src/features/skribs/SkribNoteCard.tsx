@@ -30,6 +30,9 @@ export const SkribNoteCard: React.FC<SkribNoteCardProps> = ({ note, target }) =>
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
 
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const rafIdRef = useRef<number | null>(null);
+
   const dragStartRef = useRef<{ mouseX: number; mouseY: number; startRelX: number; startRelY: number }>({
     mouseX: 0,
     mouseY: 0,
@@ -52,7 +55,21 @@ export const SkribNoteCard: React.FC<SkribNoteCardProps> = ({ note, target }) =>
     ? calculateAbsolutePosition(target.bounds, note.rel_x, note.rel_y)
     : { x: Math.round(note.rel_x), y: Math.round(note.rel_y) };
 
-  // Dragging logic
+  // Debounced text update
+  const handleTextChange = (newText: string) => {
+    setText(newText);
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    debounceTimerRef.current = setTimeout(() => {
+      updateSkribText(note.id, newText);
+    }, 300);
+  };
+
+  const handleBlurText = () => {
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    updateSkribText(note.id, text);
+  };
+
+  // Dragging logic with requestAnimationFrame
   const handleMouseDownHeader = (e: React.MouseEvent) => {
     if ((e.target as HTMLElement).tagName === 'BUTTON' || (e.target as HTMLElement).tagName === 'TEXTAREA') return;
     e.preventDefault();
@@ -69,15 +86,19 @@ export const SkribNoteCard: React.FC<SkribNoteCardProps> = ({ note, target }) =>
     if (!isDragging) return;
 
     const handleMouseMove = (e: MouseEvent) => {
-      const dx = e.clientX - dragStartRef.current.mouseX;
-      const dy = e.clientY - dragStartRef.current.mouseY;
-      const newRelX = dragStartRef.current.startRelX + dx;
-      const newRelY = dragStartRef.current.startRelY + dy;
-      updateSkribPosition(note.id, newRelX, newRelY, note.width, note.height);
+      if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = requestAnimationFrame(() => {
+        const dx = e.clientX - dragStartRef.current.mouseX;
+        const dy = e.clientY - dragStartRef.current.mouseY;
+        const newRelX = dragStartRef.current.startRelX + dx;
+        const newRelY = dragStartRef.current.startRelY + dy;
+        updateSkribPosition(note.id, newRelX, newRelY, note.width, note.height);
+      });
     };
 
     const handleMouseUp = () => {
       setIsDragging(false);
+      if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
     };
 
     window.addEventListener('mousemove', handleMouseMove);
@@ -85,10 +106,11 @@ export const SkribNoteCard: React.FC<SkribNoteCardProps> = ({ note, target }) =>
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
+      if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
     };
   }, [isDragging, note.id, note.width, note.height, updateSkribPosition]);
 
-  // Resizing logic
+  // Resizing logic with requestAnimationFrame
   const handleMouseDownResize = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -105,15 +127,19 @@ export const SkribNoteCard: React.FC<SkribNoteCardProps> = ({ note, target }) =>
     if (!isResizing) return;
 
     const handleMouseMove = (e: MouseEvent) => {
-      const dw = e.clientX - resizeStartRef.current.mouseX;
-      const dh = e.clientY - resizeStartRef.current.mouseY;
-      const newW = Math.max(220, resizeStartRef.current.startW + dw);
-      const newH = Math.max(140, resizeStartRef.current.startH + dh);
-      updateSkribPosition(note.id, note.rel_x, note.rel_y, newW, newH);
+      if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = requestAnimationFrame(() => {
+        const dw = e.clientX - resizeStartRef.current.mouseX;
+        const dh = e.clientY - resizeStartRef.current.mouseY;
+        const newW = Math.max(220, resizeStartRef.current.startW + dw);
+        const newH = Math.max(140, resizeStartRef.current.startH + dh);
+        updateSkribPosition(note.id, note.rel_x, note.rel_y, newW, newH);
+      });
     };
 
     const handleMouseUp = () => {
       setIsResizing(false);
+      if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
     };
 
     window.addEventListener('mousemove', handleMouseMove);
@@ -121,6 +147,7 @@ export const SkribNoteCard: React.FC<SkribNoteCardProps> = ({ note, target }) =>
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
+      if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
     };
   }, [isResizing, note.id, note.rel_x, note.rel_y, updateSkribPosition]);
 
@@ -223,10 +250,8 @@ export const SkribNoteCard: React.FC<SkribNoteCardProps> = ({ note, target }) =>
         aria-label="Skrib text"
         value={text}
         placeholder="Type thoughts here..."
-        onChange={(e) => {
-          setText(e.target.value);
-          updateSkribText(note.id, e.target.value);
-        }}
+        onChange={(e) => handleTextChange(e.target.value)}
+        onBlur={handleBlurText}
       />
 
       <footer className="skrib-footer">

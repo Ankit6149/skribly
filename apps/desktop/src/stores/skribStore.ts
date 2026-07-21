@@ -7,6 +7,7 @@ export interface OverlayStatePayload {
   active_target: TargetWindowInfo | null;
   skribs: SkribNote[];
   available_windows: TargetWindowInfo[];
+  is_shortcut_active: boolean;
 }
 
 interface SkribStoreState {
@@ -16,9 +17,11 @@ interface SkribStoreState {
   isPickingTarget: boolean;
   isInteractiveHover: boolean;
   isTauriAvailable: boolean;
+  errorMessage: string | null;
 
   // Actions
   setPickingTarget: (picking: boolean) => void;
+  clearError: () => void;
   fetchTargetWindows: () => Promise<void>;
   bindTarget: (target: TargetWindowInfo | null) => Promise<void>;
   addSkrib: (text?: string, color?: SkribNote['color']) => Promise<void>;
@@ -34,6 +37,9 @@ interface SkribStoreState {
   toggleSkribCollapse: (id: string) => Promise<void>;
   deleteSkrib: (id: string) => Promise<void>;
   setInteractiveHover: (isHovering: boolean) => Promise<void>;
+  updateHitTestRects: (
+    rects: Array<{ x: number; y: number; width: number; height: number }>
+  ) => Promise<void>;
   initTauri: () => Promise<void>;
 }
 
@@ -44,9 +50,14 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
   isPickingTarget: false,
   isInteractiveHover: false,
   isTauriAvailable: typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window,
+  errorMessage: null,
 
   setPickingTarget: (picking: boolean) => {
     set({ isPickingTarget: picking });
+  },
+
+  clearError: () => {
+    set({ errorMessage: null });
   },
 
   fetchTargetWindows: async () => {
@@ -55,7 +66,8 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
       const windows = await invoke<TargetWindowInfo[]>('list_target_windows');
       set({ availableWindows: windows });
     } catch (e) {
-      console.warn('Failed to list target windows:', e);
+      const msg = e instanceof Error ? e.message : String(e);
+      set({ errorMessage: `Failed to list target windows: ${msg}` });
     }
   },
 
@@ -70,7 +82,8 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
         availableWindows: payload.available_windows,
       });
     } catch (e) {
-      console.warn('Failed to bind target:', e);
+      const msg = e instanceof Error ? e.message : String(e);
+      set({ errorMessage: `Failed to bind target: ${msg}` });
     }
   },
 
@@ -99,7 +112,8 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
       const payload = await invoke<OverlayStatePayload>('upsert_skrib_note', { note: newNote });
       set({ skribs: payload.skribs });
     } catch (e) {
-      console.warn('Failed to add skrib:', e);
+      const msg = e instanceof Error ? e.message : String(e);
+      set({ errorMessage: `Failed to add Skrib: ${msg}` });
     }
   },
 
@@ -113,14 +127,15 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
     try {
       const payload = await invoke<OverlayStatePayload>('update_skrib_position', {
         id,
-        relX: rel_x,
-        relY: rel_y,
+        rel_x,
+        rel_y,
         width,
         height,
       });
       set({ skribs: payload.skribs });
     } catch (e) {
-      console.warn('Failed to update position:', e);
+      const msg = e instanceof Error ? e.message : String(e);
+      set({ errorMessage: `Failed to update note position: ${msg}` });
     }
   },
 
@@ -135,7 +150,8 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
       const payload = await invoke<OverlayStatePayload>('update_skrib_text', { id, text });
       set({ skribs: payload.skribs });
     } catch (e) {
-      console.warn('Failed to update text:', e);
+      const msg = e instanceof Error ? e.message : String(e);
+      set({ errorMessage: `Failed to sync text: ${msg}` });
     }
   },
 
@@ -150,7 +166,8 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
       const payload = await invoke<OverlayStatePayload>('update_skrib_color', { id, color });
       set({ skribs: payload.skribs });
     } catch (e) {
-      console.warn('Failed to update color:', e);
+      const msg = e instanceof Error ? e.message : String(e);
+      set({ errorMessage: `Failed to update color: ${msg}` });
     }
   },
 
@@ -165,7 +182,8 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
       const payload = await invoke<OverlayStatePayload>('toggle_skrib_collapse', { id });
       set({ skribs: payload.skribs });
     } catch (e) {
-      console.warn('Failed to toggle collapse:', e);
+      const msg = e instanceof Error ? e.message : String(e);
+      set({ errorMessage: `Failed to toggle collapse: ${msg}` });
     }
   },
 
@@ -178,7 +196,8 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
       const payload = await invoke<OverlayStatePayload>('delete_skrib_note', { id });
       set({ skribs: payload.skribs });
     } catch (e) {
-      console.warn('Failed to delete skrib:', e);
+      const msg = e instanceof Error ? e.message : String(e);
+      set({ errorMessage: `Failed to delete Skrib: ${msg}` });
     }
   },
 
@@ -186,10 +205,18 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
     set({ isInteractiveHover: isHovering });
     if (!get().isTauriAvailable) return;
     try {
-      // ignore = false when hovering over interactive UI element; ignore = true over empty transparent space
       await invoke('set_ignore_cursor_events', { ignore: !isHovering });
     } catch (e) {
-      console.warn('Failed to set ignore_cursor_events:', e);
+      // Ignore click-through hover errors silently
+    }
+  },
+
+  updateHitTestRects: async (rects) => {
+    if (!get().isTauriAvailable) return;
+    try {
+      await invoke('set_hit_test_rects', { rects });
+    } catch (e) {
+      // Ignore hit test update errors
     }
   },
 
@@ -197,13 +224,12 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
     if (!get().isTauriAvailable) return;
     try {
       await get().fetchTargetWindows();
-      // Listen to background updates from Rust thread
       await listen<OverlayStatePayload>('skribly://overlay-update', (event) => {
         const payload = event.payload;
         set({
           activeTarget: payload.active_target,
           skribs: payload.skribs,
-          availableWindows: payload.available_windows,
+          availableWindows: payload.available_windows.length > 0 ? payload.available_windows : get().availableWindows,
         });
       });
     } catch (e) {

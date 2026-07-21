@@ -15,8 +15,22 @@ impl WindowRect {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct HitTestRect {
+    pub x: i32,
+    pub y: i32,
+    pub width: i32,
+    pub height: i32,
+}
+
+impl HitTestRect {
+    pub fn contains_point(&self, px: i32, py: i32) -> bool {
+        px >= self.x && px <= (self.x + self.width) && py >= self.y && py <= (self.y + self.height)
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TargetWindowInfo {
-    pub hwnd_id: String,
+    pub hwnd_val: isize,
     pub title: String,
     pub process_name: String,
     pub class_name: String,
@@ -86,6 +100,7 @@ pub struct OverlayStatePayload {
     pub active_target: Option<TargetWindowInfo>,
     pub skribs: Vec<SkribNote>,
     pub available_windows: Vec<TargetWindowInfo>,
+    pub is_shortcut_active: bool,
 }
 
 #[cfg(test)]
@@ -108,9 +123,37 @@ mod tests {
     }
 
     #[test]
+    fn test_hwnd_val_serialization_reconstruction() {
+        let raw_handle: isize = 0x000204AE;
+        let win = TargetWindowInfo {
+            hwnd_val: raw_handle,
+            title: "Test Notepad".into(),
+            process_name: "notepad.exe".into(),
+            class_name: "Notepad".into(),
+            bounds: WindowRect {
+                x: 0,
+                y: 0,
+                width: 800,
+                height: 600,
+            },
+            is_minimized: false,
+            is_focused: true,
+            dpi: 96,
+            scale_factor: 1.0,
+        };
+
+        let json = serde_json::to_string(&win).expect("Serialization failed");
+        let decoded: TargetWindowInfo =
+            serde_json::from_str(&json).expect("Deserialization failed");
+
+        assert_eq!(decoded.hwnd_val, raw_handle);
+        assert_eq!(decoded.hwnd_val as usize, 0x000204AE);
+    }
+
+    #[test]
     fn test_context_fingerprint() {
         let win = TargetWindowInfo {
-            hwnd_id: "123".into(),
+            hwnd_val: 12345,
             title: "Untitled - Notepad".into(),
             process_name: "notepad.exe".into(),
             class_name: "Notepad".into(),
@@ -134,7 +177,7 @@ mod tests {
     #[test]
     fn test_calculate_absolute_bounds() {
         let win = TargetWindowInfo {
-            hwnd_id: "123".into(),
+            hwnd_val: 12345,
             title: "Test".into(),
             process_name: "test.exe".into(),
             class_name: "TestClass".into(),

@@ -1,6 +1,7 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useSkribStore } from '../../stores/skribStore';
 import { SkribNoteCard } from '../skribs/SkribNoteCard';
+import { calculateAbsolutePosition } from '../../lib/geometry';
 
 export const OverlayHost: React.FC = () => {
   const {
@@ -8,19 +9,59 @@ export const OverlayHost: React.FC = () => {
     availableWindows,
     skribs,
     isPickingTarget,
+    errorMessage,
+    clearError,
     setPickingTarget,
     fetchTargetWindows,
     bindTarget,
     addSkrib,
     setInteractiveHover,
+    updateHitTestRects,
     initTauri,
   } = useSkribStore();
+
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     initTauri();
   }, [initTauri]);
 
-  // Global shortcut listener (e.g. Ctrl+Shift+Space)
+  // Synchronize interactive bounding boxes to Rust for native WM_NCHITTEST
+  useEffect(() => {
+    const rects: Array<{ x: number; y: number; width: number; height: number }> = [];
+
+    // Toolbar rect
+    if (toolbarRef.current) {
+      const b = toolbarRef.current.getBoundingClientRect();
+      rects.push({ x: Math.round(b.x), y: Math.round(b.y), width: Math.round(b.width), height: Math.round(b.height) });
+    }
+
+    // Modal rect
+    if (isPickingTarget && modalRef.current) {
+      const b = modalRef.current.getBoundingClientRect();
+      rects.push({ x: Math.round(b.x), y: Math.round(b.y), width: Math.round(b.width), height: Math.round(b.height) });
+    }
+
+    // Skrib note rects
+    skribs.forEach((note) => {
+      if (note.collapsed) {
+        const absPos = activeTarget
+          ? calculateAbsolutePosition(activeTarget.bounds, note.rel_x, note.rel_y)
+          : { x: Math.round(note.rel_x), y: Math.round(note.rel_y) };
+        rects.push({ x: absPos.x, y: absPos.y, width: 180, height: 32 });
+      } else {
+        const absPos = activeTarget
+          ? calculateAbsolutePosition(activeTarget.bounds, note.rel_x, note.rel_y)
+          : { x: Math.round(note.rel_x), y: Math.round(note.rel_y) };
+        rects.push({ x: absPos.x, y: absPos.y, width: Math.round(note.width), height: Math.round(note.height) });
+      }
+    });
+
+    updateHitTestRects(rects);
+  }, [skribs, activeTarget, isPickingTarget, updateHitTestRects]);
+
+  // Keyboard shortcut listener
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.shiftKey && e.code === 'Space') {
@@ -34,8 +75,21 @@ export const OverlayHost: React.FC = () => {
 
   return (
     <div className="overlay-root">
+      {/* Error Alert Toast */}
+      {errorMessage && (
+        <div
+          className="overlay-error-toast"
+          onMouseEnter={() => setInteractiveHover(true)}
+          onMouseLeave={() => setInteractiveHover(false)}
+        >
+          <span>⚠️ {errorMessage}</span>
+          <button type="button" onClick={clearError}>✕</button>
+        </div>
+      )}
+
       {/* Top Floating Control Bar */}
       <header
+        ref={toolbarRef}
         className="overlay-toolbar"
         onMouseEnter={() => setInteractiveHover(true)}
         onMouseLeave={() => setInteractiveHover(false)}
@@ -43,7 +97,7 @@ export const OverlayHost: React.FC = () => {
         <div className="toolbar-brand">
           <span className="brand-logo">🏷️</span>
           <strong>Skribly</strong>
-          <span className="brand-badge">WIN32 OVERLAY SPIKE</span>
+          <span className="brand-badge">WIN32 OVERLAY REPAIRED</span>
         </div>
 
         <div className="toolbar-actions">
@@ -87,7 +141,7 @@ export const OverlayHost: React.FC = () => {
           onMouseEnter={() => setInteractiveHover(true)}
           onMouseLeave={() => setInteractiveHover(false)}
         >
-          <div className="target-picker-modal">
+          <div ref={modalRef} className="target-picker-modal">
             <header className="modal-header">
               <h2>Select Application Window to Bind</h2>
               <button
@@ -111,9 +165,9 @@ export const OverlayHost: React.FC = () => {
               ) : (
                 availableWindows.map((win) => (
                   <button
-                    key={win.hwnd_id}
+                    key={win.hwnd_val}
                     type="button"
-                    className={`window-item-card ${activeTarget?.hwnd_id === win.hwnd_id ? 'active' : ''}`}
+                    className={`window-item-card ${activeTarget?.hwnd_val === win.hwnd_val ? 'active' : ''}`}
                     onClick={() => bindTarget(win)}
                   >
                     <div className="window-icon">🪟</div>

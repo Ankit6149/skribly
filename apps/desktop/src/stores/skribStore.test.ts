@@ -11,11 +11,12 @@ describe('skribStore', () => {
       isPickingTarget: false,
       isInteractiveHover: false,
       isTauriAvailable: false,
+      errorMessage: null,
     });
   });
 
   const sampleTarget: TargetWindowInfo = {
-    hwnd_id: '12345',
+    hwnd_val: 12345,
     title: 'Untitled - Notepad',
     process_name: 'notepad.exe',
     class_name: 'Notepad',

@@ -6,8 +6,8 @@ on:
     branches: [main]
 
 jobs:
-  validate:
-    name: Validate scaffold
+  frontend:
+    name: Cross-platform frontend checks
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -19,13 +19,52 @@ jobs:
           node-version: 20
 
       - name: Install workspace dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci
 
       - name: Type-check all workspaces
         run: npm run typecheck
 
-      - name: Run tests
+      - name: Run frontend tests
         run: npm run test
 
       - name: Build production bundles
         run: npm run build
+
+  cargo-fmt:
+    name: Rust formatting check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - name: Check Rust formatting
+        run: cargo fmt --manifest-path apps/desktop/src-tauri/Cargo.toml --check
+
+  windows-rust:
+    name: Windows native Rust validation
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install workspace dependencies
+        run: npm ci
+
+      - name: Run cargo check
+        run: cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml
+
+      - name: Run cargo test
+        run: cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml

@@ -6,7 +6,7 @@ export interface WindowRect {
 }
 
 export interface TargetWindowInfo {
-  hwnd_id: string;
+  hwnd_val: number;
   title: string;
   process_name: string;
   class_name: string;
