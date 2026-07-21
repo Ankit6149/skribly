@@ -5,6 +5,7 @@ on:
     types: [opened, synchronize, reopened]
     paths:
       - "assets/design/.repair-trigger"
+      - "assets/design/.repair-trigger-note"
       - "assets/design/.upload-webp/**"
       - ".github/workflows/install-design-asset.yml"
 
@@ -35,12 +36,40 @@ jobs:
             echo "needed=false" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Verify upload chunks
+        if: steps.state.outputs.needed == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat <<'EOF' | sha256sum --check --strict
+          c9fb2fbc3365282361c337213477b6b32413f92d0b6170dd72056d626e9dcc67  assets/design/.upload-webp/chunk-00.txt
+          112adb843fb7b85b2973ecfd7aef488a873e68e8783a4e48663121846a8b2f2a  assets/design/.upload-webp/chunk-01.txt
+          7a344c51ea6c34bbe535460bda12cdbffd315e489ab2692ccc62251d4a5921cc  assets/design/.upload-webp/chunk-02.txt
+          eeaa44320b8790d5be7af345d9d6a160e2001edd1926018647273515541b694b  assets/design/.upload-webp/chunk-03.txt
+          99af611305f22072507ad1582bcc7a802c8d7e20734ea8beee5e12b1d8851231  assets/design/.upload-webp/chunk-04.txt
+          08284fe52b6ff601ea7a4bba237dfde6eb9ccf50b2e618adc1e4d35922b45c50  assets/design/.upload-webp/chunk-05.txt
+          181a1120263e2a8623080726daeec71c351f56624fb4cbadb7c725f024d6068e  assets/design/.upload-webp/chunk-06.txt
+          74636267b7d3c302858971769ca20244666e2d3e48eb5a18e32cc74cbcace9a0  assets/design/.upload-webp/chunk-07-00.txt
+          f9b39dca301f21f4e8c5da1d1c92db1ed3eaf4345e5a83b60bacbb30b8c0a7b1  assets/design/.upload-webp/chunk-07-01.txt
+          a317c7a72ea4d62b2791ae02f2c589ce5f8eb86ccdfe01aac959d67ad42168b8  assets/design/.upload-webp/chunk-07-02.txt
+          EOF
+
       - name: Reconstruct and verify approved design
         if: steps.state.outputs.needed == 'true'
         shell: bash
         run: |
           set -euo pipefail
-          cat assets/design/.upload-webp/chunk-*.txt \
+          cat \
+            assets/design/.upload-webp/chunk-00.txt \
+            assets/design/.upload-webp/chunk-01.txt \
+            assets/design/.upload-webp/chunk-02.txt \
+            assets/design/.upload-webp/chunk-03.txt \
+            assets/design/.upload-webp/chunk-04.txt \
+            assets/design/.upload-webp/chunk-05.txt \
+            assets/design/.upload-webp/chunk-06.txt \
+            assets/design/.upload-webp/chunk-07-00.txt \
+            assets/design/.upload-webp/chunk-07-01.txt \
+            assets/design/.upload-webp/chunk-07-02.txt \
             | base64 --decode \
             > assets/design/direction-1-soft-paper-play.webp
 
@@ -73,6 +102,7 @@ jobs:
           rm -f assets/design/full-resolution-upload-instructions.txt
           rm -f assets/design/full-resolution-design-note.md
           rm -f assets/design/.repair-trigger
+          rm -f assets/design/.repair-trigger-note
           rm -f .github/workflows/install-design-asset.yml
 
       - name: Commit clean repaired repository
