@@ -1,0 +1,67 @@
+name: Install approved design asset
+
+on:
+  push:
+    paths:
+      - "assets/design/.upload-webp/**"
+      - ".github/workflows/install-design-asset.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  install:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Reconstruct and verify approved design
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat assets/design/.upload-webp/chunk-*.txt \
+            | base64 --decode \
+            > assets/design/direction-1-soft-paper-play.webp
+
+          test "$(stat -c '%s' assets/design/direction-1-soft-paper-play.webp)" = "56930"
+          echo "82866cda993f48f4f82bbdb74ca14ba7a8717218918a4404c1156f3895aa73c8  assets/design/direction-1-soft-paper-play.webp" \
+            | sha256sum --check --strict
+
+          python - <<'PY'
+          from pathlib import Path
+
+          image = Path("assets/design/direction-1-soft-paper-play.webp")
+          data = image.read_bytes()
+          assert data[:4] == b"RIFF", "Invalid RIFF header"
+          assert data[8:12] == b"WEBP", "Invalid WebP header"
+          print(f"Verified clear WebP asset: {len(data)} bytes")
+          PY
+
+      - name: Update references and remove repair files
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          grep -rl --exclude-dir=.git 'direction-1-soft-paper-play.jpg' . \
+            | xargs -r sed -i 's/direction-1-soft-paper-play\.jpg/direction-1-soft-paper-play.webp/g'
+
+          rm -f assets/design/direction-1-soft-paper-play.jpg
+          rm -rf assets/design/.upload assets/design/.upload-webp
+          rm -f assets/design/.upload-base64.txt
+          rm -f assets/design/full-resolution-upload-instructions.txt
+          rm -f assets/design/full-resolution-design-note.md
+          rm -f .github/workflows/install-design-asset.yml
+
+      - name: Commit clean repaired repository
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix: install clear Soft Paper Play design asset"
+          git push origin HEAD:main
