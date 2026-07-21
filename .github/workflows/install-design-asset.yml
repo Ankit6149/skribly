@@ -1,8 +1,10 @@
 name: Install approved design asset
 
 on:
-  push:
+  pull_request:
+    types: [opened, synchronize, reopened]
     paths:
+      - "assets/design/.repair-trigger"
       - "assets/design/.upload-webp/**"
       - ".github/workflows/install-design-asset.yml"
 
@@ -11,15 +13,30 @@ permissions:
 
 jobs:
   install:
-    if: github.actor != 'github-actions[bot]'
+    if: >-
+      github.actor != 'github-actions[bot]' &&
+      github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
-      - name: Check out repository
+      - name: Check out repair branch
         uses: actions/checkout@v4
         with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.ref }}
           fetch-depth: 0
 
+      - name: Check whether installation is needed
+        id: state
+        shell: bash
+        run: |
+          if [ -d assets/design/.upload-webp ]; then
+            echo "needed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "needed=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Reconstruct and verify approved design
+        if: steps.state.outputs.needed == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -42,6 +59,7 @@ jobs:
           PY
 
       - name: Update references and remove repair files
+        if: steps.state.outputs.needed == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -54,14 +72,18 @@ jobs:
           rm -f assets/design/.upload-base64.txt
           rm -f assets/design/full-resolution-upload-instructions.txt
           rm -f assets/design/full-resolution-design-note.md
+          rm -f assets/design/.repair-trigger
           rm -f .github/workflows/install-design-asset.yml
 
       - name: Commit clean repaired repository
+        if: steps.state.outputs.needed == 'true'
         shell: bash
+        env:
+          REPAIR_BRANCH: ${{ github.event.pull_request.head.ref }}
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
           git commit -m "fix: install clear Soft Paper Play design asset"
-          git push origin HEAD:main
+          git push origin "HEAD:${REPAIR_BRANCH}"
