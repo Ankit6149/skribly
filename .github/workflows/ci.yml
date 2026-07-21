@@ -14,9 +14,10 @@ jobs:
         with:
           node-version: 20
           cache: npm
-      - run: npm install
+      - run: npm install --no-audit --no-fund
       - run: npm run typecheck
       - run: npm run test
+      - run: npm run build
 
   rust-check:
     strategy:
