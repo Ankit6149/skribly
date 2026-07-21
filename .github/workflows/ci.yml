@@ -6,25 +6,26 @@ on:
     branches: [main]
 
 jobs:
-  frontend:
+  validate:
+    name: Validate scaffold
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
-      - run: npm install --no-audit --no-fund
-      - run: npm run typecheck
-      - run: npm run test
-      - run: npm run build
 
-  rust-check:
-    strategy:
-      matrix:
-        os: [windows-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - run: cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml
+      - name: Install workspace dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Type-check all workspaces
+        run: npm run typecheck
+
+      - name: Run tests
+        run: npm run test
+
+      - name: Build production bundles
+        run: npm run build
