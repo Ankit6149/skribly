@@ -1,60 +1,397 @@
 @import "@skribly/design-system/tokens.css";
 
-* { box-sizing: border-box; }
-html, body, #root { min-height: 100%; margin: 0; }
+* {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: transparent !important;
+}
+
 body {
   font-family: var(--font-ui);
   color: var(--ink);
-  background: var(--paper);
+  user-select: none;
 }
-button, textarea { font: inherit; }
 
-.app-shell {
-  min-height: 100vh;
-  display: grid;
-  place-items: center;
-  padding: 32px;
-  background:
-    radial-gradient(circle at 10% 10%, var(--peach) 0, transparent 24%),
-    radial-gradient(circle at 90% 80%, var(--sky) 0, transparent 25%),
-    var(--paper);
+button, textarea {
+  font: inherit;
 }
-.prototype-card {
-  width: min(760px, 100%);
-  padding: 32px;
-  border: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
-  border-radius: 24px;
-  background: color-mix(in srgb, var(--paper) 88%, white);
-  box-shadow: var(--shadow-l);
+
+.app-overlay-root,
+.overlay-root {
+  width: 100vw;
+  height: 100vh;
+  position: relative;
+  overflow: hidden;
+  background: transparent !important;
+  pointer-events: none;
 }
-.eyebrow { letter-spacing: .12em; font-size: 12px; font-weight: 700; }
-h1 { font-size: clamp(34px, 6vw, 64px); margin: 8px 0; line-height: 1; }
-.skrib-card {
-  width: 320px;
-  min-height: 230px;
-  margin-top: 32px;
-  padding: 18px;
-  border-radius: 10px 10px 20px 10px;
-  background: var(--sticky);
+
+/* Floating Toolbar at Top */
+.overlay-toolbar {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 9999;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--paper) 92%, white);
+  border: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
   box-shadow: var(--shadow-m);
-  transform: rotate(-1deg);
+  backdrop-filter: blur(12px);
 }
-.skrib-card header, .skrib-card footer {
+
+.toolbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.brand-badge {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--sticky) 60%, white);
+  color: var(--ink);
+}
+
+.toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toolbar-btn {
+  border: 1px solid color-mix(in srgb, var(--ink) 15%, transparent);
+  background: white;
+  color: var(--ink);
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.toolbar-btn:hover {
+  background: var(--paper);
+  transform: translateY(-1px);
+}
+
+.toolbar-btn.primary-btn {
+  background: var(--sticky);
+  border-color: color-mix(in srgb, var(--ink) 20%, transparent);
+}
+
+.toolbar-btn.primary-btn:hover {
+  background: color-mix(in srgb, var(--sticky) 90%, black);
+}
+
+.toolbar-btn.target-btn {
+  background: var(--sky);
+}
+
+.toolbar-btn.clear-btn {
+  background: color-mix(in srgb, var(--peach) 80%, white);
+  border-color: transparent;
+}
+
+/* Skrib Sticky Note Card */
+.skrib-card {
+  pointer-events: auto;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  padding: 14px;
+  border-radius: 10px 10px 20px 10px;
+  box-shadow: var(--shadow-m);
+  transition: box-shadow 0.2s ease, transform 0.15s ease;
+  border: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
+}
+
+.skrib-card.is-dragging {
+  box-shadow: var(--shadow-l);
+  cursor: grabbing;
+  z-index: 1000;
+}
+
+/* Color Palette Themes */
+.skrib-color-yellow { background: var(--sticky); }
+.skrib-color-peach { background: var(--peach); }
+.skrib-color-mint { background: var(--mint); }
+.skrib-color-sky { background: var(--sky); }
+.skrib-color-lavender { background: var(--lavender); }
+
+.skrib-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  cursor: grab;
+  padding-bottom: 6px;
+  border-bottom: 1px dashed color-mix(in srgb, var(--ink) 15%, transparent);
 }
-.skrib-card button { border: 0; background: transparent; cursor: pointer; }
-.skrib-card textarea {
+
+.skrib-header-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ink);
+}
+
+.skrib-drag-grip {
+  opacity: 0.5;
+  font-size: 10px;
+  letter-spacing: -2px;
+}
+
+.skrib-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  position: relative;
+}
+
+.skrib-action-btn {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  opacity: 0.7;
+  transition: opacity 0.15s, background 0.15s;
+}
+
+.skrib-action-btn:hover {
+  opacity: 1;
+  background: color-mix(in srgb, white 40%, transparent);
+}
+
+.skrib-delete-btn:hover {
+  background: color-mix(in srgb, red 15%, transparent);
+  color: #b91c1c;
+}
+
+/* Color Picker Popover */
+.skrib-color-picker-popover {
+  position: absolute;
+  top: 28px;
+  right: 0;
+  z-index: 200;
+  display: flex;
+  gap: 6px;
+  padding: 6px;
+  background: white;
+  border-radius: 999px;
+  box-shadow: var(--shadow-m);
+  border: 1px solid color-mix(in srgb, var(--ink) 15%, transparent);
+}
+
+.color-swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--ink) 20%, transparent);
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.15s;
+}
+
+.color-swatch:hover,
+.color-swatch.active {
+  transform: scale(1.25);
+  box-shadow: 0 0 0 2px white, 0 0 0 3px var(--ink);
+}
+
+/* Text Editor Area */
+.skrib-textarea {
+  flex: 1;
   width: 100%;
-  min-height: 130px;
-  margin: 14px 0;
+  margin: 10px 0;
   resize: none;
   border: 0;
   outline: 0;
   background: transparent;
-  color: inherit;
+  color: var(--ink);
   line-height: 1.5;
+  font-size: 13px;
+  cursor: text;
 }
-.skrib-card footer { font-size: 11px; color: var(--muted); }
+
+.skrib-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--muted);
+  padding-top: 4px;
+}
+
+.skrib-resize-handle {
+  cursor: se-resize;
+  opacity: 0.5;
+  font-size: 11px;
+}
+
+.skrib-resize-handle:hover {
+  opacity: 1;
+}
+
+/* Collapsed Note State */
+.skrib-card-collapsed {
+  pointer-events: auto;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  box-shadow: var(--shadow-s);
+  border: 1px solid color-mix(in srgb, var(--ink) 15%, transparent);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  transition: transform 0.15s ease;
+}
+
+.skrib-card-collapsed:hover {
+  transform: scale(1.06);
+  box-shadow: var(--shadow-m);
+}
+
+/* Target Window Picker Modal */
+.target-picker-backdrop {
+  pointer-events: auto;
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  display: grid;
+  place-items: center;
+  background: rgb(0 0 0 / 25%);
+  backdrop-filter: blur(4px);
+}
+
+.target-picker-modal {
+  width: min(600px, 90vw);
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+  border-radius: 20px;
+  background: var(--paper);
+  border: 1px solid color-mix(in srgb, var(--ink) 15%, transparent);
+  box-shadow: var(--shadow-l);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.close-modal-btn {
+  border: 0;
+  background: transparent;
+  font-size: 16px;
+  cursor: pointer;
+  opacity: 0.6;
+}
+
+.close-modal-btn:hover {
+  opacity: 1;
+}
+
+.modal-subtitle {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 8px 0 16px 0;
+}
+
+.window-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-right: 4px;
+}
+
+.window-item-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
+  background: white;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+}
+
+.window-item-card:hover,
+.window-item-card.active {
+  border-color: var(--ink);
+  background: color-mix(in srgb, var(--sticky) 30%, white);
+  transform: translateX(2px);
+}
+
+.window-icon {
+  font-size: 20px;
+}
+
+.window-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+}
+
+.window-title {
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 420px;
+}
+
+.window-bounds {
+  font-size: 10px;
+  color: color-mix(in srgb, var(--muted) 70%, transparent);
+}
+
+.no-windows-msg {
+  padding: 24px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
+}

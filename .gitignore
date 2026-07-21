@@ -12,6 +12,7 @@ target/
 *.dmg
 *.msi
 *.exe
+*.tsbuildinfo
 
 # Tauri generated
 apps/desktop/src-tauri/gen/

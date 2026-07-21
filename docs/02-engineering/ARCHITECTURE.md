@@ -49,6 +49,13 @@ Planned tables:
 - `settings`
 - `migration_history`
 
+## Implementation Status (Windows Overlay Milestone)
+
+The initial Windows technical proof has been fully implemented:
+- **Rust Core Coordinator (`apps/desktop/src-tauri/src/core/coordinator.rs`)**: Manages in-memory context matching, active targets, relative coordinate calculations, and context restoration.
+- **Win32 Platform Adapter (`apps/desktop/src-tauri/src/platform/windows.rs`)**: Implements `GetForegroundWindow`, `EnumWindows`, `GetWindowTextW`, `K32GetModuleFileNameExW`, `GetWindowRect`, `IsIconic`, `GetDpiForWindow`, and selective cursor passthrough via `set_ignore_cursor_events`.
+- **Soft Paper Play UI (`apps/desktop/src/features`)**: React 19 + Zustand overlay host, sticky notes with drag, corner resize, color swatches (yellow, peach, mint, sky, lavender), collapse/expand, and delete.
+
 ## Platform boundaries
 
 The shared core must not contain platform conditionals outside a defined adapter layer. Windows and macOS implementations expose the same operations:

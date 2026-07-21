@@ -14,15 +14,15 @@
 
 No database, browser extension, payments, AI, or full library UI.
 
-- [ ] transparent overlay on Windows
+- [x] transparent overlay on Windows
 - [ ] transparent overlay on macOS
-- [ ] empty-region click-through
-- [ ] interactive yellow Skrib
-- [ ] follow target-window movement
-- [ ] minimize/hide/restore
-- [ ] close/reopen same-context return using temporary memory
-- [ ] performance measurements
-- [ ] architecture go/no-go decision
+- [x] empty-region click-through
+- [x] interactive yellow Skrib
+- [x] follow target-window movement
+- [x] minimize/hide/restore
+- [x] close/reopen same-context return using temporary memory
+- [x] performance measurements
+- [ ] architecture go/no-go decision (pending macOS spike validation)
 
 ## Phase 2 — durable local MVP
 

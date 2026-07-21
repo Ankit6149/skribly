@@ -14,11 +14,14 @@
       {
         "label": "main",
         "title": "Skribly",
-        "width": 960,
-        "height": 720,
+        "width": 1280,
+        "height": 800,
         "visible": true,
-        "decorations": true,
-        "transparent": false
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "maximized": true,
+        "shadow": false
       }
     ],
     "security": {
