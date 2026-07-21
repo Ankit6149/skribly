@@ -16,9 +16,9 @@ Skribly is a lightweight, local-first desktop annotation layer for Windows and m
 
 ## Selected design direction
 
-![Skribly Direction 1 — Soft Paper Play](assets/design/direction-1-soft-paper-play.jpg)
+![Skribly Direction 1 — Soft Paper Play](assets/design/direction-1-soft-paper-play.webp)
 
-The source image is preserved at [`assets/design/direction-1-soft-paper-play.jpg`](assets/design/direction-1-soft-paper-play.jpg). Detailed UI behavior is documented in [`docs/01-design`](docs/01-design/).
+The source image is preserved at [`assets/design/direction-1-soft-paper-play.webp`](assets/design/direction-1-soft-paper-play.webp). Detailed UI behavior is documented in [`docs/01-design`](docs/01-design/).
 
 ## Provisional stack
 

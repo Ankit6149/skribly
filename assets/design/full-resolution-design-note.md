@@ -1,1 +1,0 @@
-The approved design source is being replaced with a high-resolution binary-safe asset.

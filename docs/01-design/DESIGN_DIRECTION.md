@@ -1,6 +1,6 @@
 # Selected design direction: Soft Paper Play
 
-![Direction 1 — Soft Paper Play](../../assets/design/direction-1-soft-paper-play.jpg)
+![Direction 1 — Soft Paper Play](../../assets/design/direction-1-soft-paper-play.webp)
 
 ## Intent
 
