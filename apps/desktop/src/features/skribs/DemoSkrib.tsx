@@ -1,7 +1,9 @@
 import { useState } from "react";
 
+export const DEFAULT_SKRIB_TEXT = "This Skrib will return with its context.";
+
 export function DemoSkrib() {
-  const [text, setText] = useState("This Skrib will return with its context.");
+  const [text, setText] = useState(DEFAULT_SKRIB_TEXT);
 
   return (
     <article className="skrib-card">
