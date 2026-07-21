@@ -9,6 +9,7 @@ export const OverlayHost: React.FC = () => {
     availableWindows,
     skribs,
     isPickingTarget,
+    isAmbiguous,
     errorMessage,
     clearError,
     setPickingTarget,
@@ -61,7 +62,7 @@ export const OverlayHost: React.FC = () => {
     updateHitTestRects(rects);
   }, [skribs, activeTarget, isPickingTarget, updateHitTestRects]);
 
-  // Keyboard shortcut listener
+  // Keyboard shortcut listener (in-window convenience shortcut)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.shiftKey && e.code === 'Space') {
@@ -143,7 +144,7 @@ export const OverlayHost: React.FC = () => {
         >
           <div ref={modalRef} className="target-picker-modal">
             <header className="modal-header">
-              <h2>Select Application Window to Bind</h2>
+              <h2>{isAmbiguous ? '⚠️ Multiple Matching Windows Found' : 'Select Application Window to Bind'}</h2>
               <button
                 type="button"
                 className="close-modal-btn"
@@ -154,7 +155,9 @@ export const OverlayHost: React.FC = () => {
             </header>
 
             <p className="modal-subtitle">
-              Skribly sticky notes will attach to this external window, follow its movement, and restore with its context.
+              {isAmbiguous
+                ? 'Multiple candidate windows matched your disconnected note context. Please select which window to bind to.'
+                : 'Skribly sticky notes attach to this external window, follow its movement, and restore with its context.'}
             </p>
 
             <div className="window-list">

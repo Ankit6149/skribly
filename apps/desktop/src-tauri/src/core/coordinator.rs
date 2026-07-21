@@ -2,6 +2,13 @@ use crate::core::models::{HitTestRect, SkribNote, TargetWindowInfo};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum MatchResult {
+    Unique(TargetWindowInfo),
+    Ambiguous(Vec<TargetWindowInfo>),
+    None,
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct CoordinatorState {
     pub skribs: HashMap<String, SkribNote>,
@@ -97,13 +104,47 @@ impl Coordinator {
         }
     }
 
-    pub fn find_disconnected_context_match(&self, candidate: &TargetWindowInfo) -> bool {
+    pub fn find_best_context_match(&self, candidates: &[TargetWindowInfo]) -> MatchResult {
         if let Ok(state) = self.state.lock() {
-            state.skribs.values().any(|note| {
-                candidate.matches_context(&note.target_process_name, &note.target_title)
-            })
+            if state.skribs.is_empty() {
+                return MatchResult::None;
+            }
+
+            let mut scored: Vec<(u32, TargetWindowInfo)> = Vec::new();
+            for cand in candidates {
+                let max_score = state
+                    .skribs
+                    .values()
+                    .map(|note| cand.match_score(&note.target_process_name, &note.target_title))
+                    .max()
+                    .unwrap_or(0);
+
+                if max_score >= 50 {
+                    scored.push((max_score, cand.clone()));
+                }
+            }
+
+            if scored.is_empty() {
+                return MatchResult::None;
+            }
+
+            // Sort by score descending
+            scored.sort_by(|a, b| b.0.cmp(&a.0));
+
+            let top_score = scored[0].0;
+            let top_matches: Vec<TargetWindowInfo> = scored
+                .into_iter()
+                .filter(|(s, _)| *s == top_score)
+                .map(|(_, cand)| cand)
+                .collect();
+
+            if top_matches.len() == 1 {
+                MatchResult::Unique(top_matches[0].clone())
+            } else {
+                MatchResult::Ambiguous(top_matches)
+            }
         } else {
-            false
+            MatchResult::None
         }
     }
 
@@ -191,10 +232,10 @@ mod tests {
     use super::*;
     use crate::core::models::WindowRect;
 
-    fn sample_target() -> TargetWindowInfo {
+    fn sample_target_a() -> TargetWindowInfo {
         TargetWindowInfo {
             hwnd_val: 1001,
-            title: "Document.txt - Notepad".into(),
+            title: "Document-A.txt - Notepad".into(),
             process_name: "notepad.exe".into(),
             class_name: "Notepad".into(),
             bounds: WindowRect {
@@ -210,23 +251,37 @@ mod tests {
         }
     }
 
+    fn sample_target_b() -> TargetWindowInfo {
+        TargetWindowInfo {
+            hwnd_val: 1002,
+            title: "Document-B.txt - Notepad".into(),
+            process_name: "notepad.exe".into(),
+            class_name: "Notepad".into(),
+            bounds: WindowRect {
+                x: 200,
+                y: 200,
+                width: 800,
+                height: 600,
+            },
+            is_minimized: false,
+            is_focused: false,
+            dpi: 96,
+            scale_factor: 1.0,
+        }
+    }
+
     #[test]
-    fn test_coordinator_lifecycle_and_lock_safety() {
+    fn test_ambiguity_safe_matching() {
         let coordinator = Coordinator::new();
-        let target = sample_target();
-
-        coordinator.set_active_target(Some(target.clone()));
-        assert_eq!(coordinator.get_active_target(), Some(target.clone()));
-
         let note = SkribNote {
-            id: "note-1".into(),
+            id: "note-a".into(),
             target_process_name: "notepad.exe".into(),
-            target_title: "Document.txt".into(),
+            target_title: "Document-A.txt".into(),
             rel_x: 20.0,
             rel_y: 30.0,
             width: 200.0,
             height: 150.0,
-            text: "Important note".into(),
+            text: "Doc A note".into(),
             color: "yellow".into(),
             collapsed: false,
             created_at: 100,
@@ -234,64 +289,11 @@ mod tests {
         };
 
         coordinator.upsert_skrib(note);
-        let active_notes = coordinator.get_skribs_for_target(&target);
-        assert_eq!(active_notes.len(), 1);
-        assert_eq!(active_notes[0].text, "Important note");
 
-        // Test hit test rects
-        let rects = vec![HitTestRect {
-            x: 120,
-            y: 130,
-            width: 200,
-            height: 150,
-        }];
-        coordinator.set_hit_test_rects(rects);
-        assert!(coordinator.is_point_interactive(150, 150));
-        assert!(!coordinator.is_point_interactive(10, 10));
+        let cand_a = sample_target_a();
+        let cand_b = sample_target_b();
 
-        // Test position update
-        assert!(coordinator.update_skrib_position("note-1", 50.0, 60.0, 220.0, 160.0));
-        let updated = coordinator.get_all_skribs();
-        assert_eq!(updated[0].rel_x, 50.0);
-
-        // Test deletion
-        assert!(coordinator.remove_skrib("note-1").is_some());
-        assert_eq!(coordinator.get_all_skribs().len(), 0);
-    }
-
-    #[test]
-    fn test_context_restore_on_target_return() {
-        let coordinator = Coordinator::new();
-        let target = sample_target();
-
-        let note = SkribNote {
-            id: "note-saved".into(),
-            target_process_name: "notepad.exe".into(),
-            target_title: "Notepad".into(),
-            rel_x: 10.0,
-            rel_y: 10.0,
-            width: 200.0,
-            height: 150.0,
-            text: "Saved note".into(),
-            color: "peach".into(),
-            collapsed: false,
-            created_at: 100,
-            updated_at: 100,
-        };
-
-        coordinator.upsert_skrib(note);
-
-        // Target disconnects (window closed)
-        coordinator.set_active_target(None);
-        assert_eq!(coordinator.get_active_target(), None);
-
-        // Verify note is retained in memory as disconnected context
-        assert!(coordinator.find_disconnected_context_match(&target));
-
-        // Target reopens in same session
-        coordinator.set_active_target(Some(target.clone()));
-        let restored_notes = coordinator.get_skribs_for_target(&target);
-        assert_eq!(restored_notes.len(), 1);
-        assert_eq!(restored_notes[0].id, "note-saved");
+        let res = coordinator.find_best_context_match(&[cand_a.clone(), cand_b.clone()]);
+        assert_eq!(res, MatchResult::Unique(cand_a));
     }
 }

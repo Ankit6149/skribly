@@ -9,6 +9,7 @@ describe('skribStore', () => {
       availableWindows: [],
       skribs: [],
       isPickingTarget: false,
+      isAmbiguous: false,
       isInteractiveHover: false,
       isTauriAvailable: false,
       errorMessage: null,

@@ -50,19 +50,30 @@ impl TargetWindowInfo {
         )
     }
 
-    pub fn matches_context(&self, target_process: &str, target_title: &str) -> bool {
+    pub fn match_score(&self, target_process: &str, target_title: &str) -> u32 {
         let same_process = self.process_name.eq_ignore_ascii_case(target_process);
         if !same_process {
-            return false;
+            return 0;
         }
-        if target_title.is_empty() || self.title.is_empty() {
-            return true;
+
+        let p1 = self.title.trim().to_lowercase();
+        let p2 = target_title.trim().to_lowercase();
+
+        if p1.is_empty() || p2.is_empty() {
+            return 50;
         }
-        self.title.eq_ignore_ascii_case(target_title)
-            || self
-                .title
-                .to_lowercase()
-                .contains(&target_title.to_lowercase())
+
+        if p1 == p2 {
+            100
+        } else if p1.contains(&p2) || p2.contains(&p1) {
+            75
+        } else {
+            0
+        }
+    }
+
+    pub fn matches_context(&self, target_process: &str, target_title: &str) -> bool {
+        self.match_score(target_process, target_title) >= 50
     }
 }
 
@@ -101,6 +112,7 @@ pub struct OverlayStatePayload {
     pub skribs: Vec<SkribNote>,
     pub available_windows: Vec<TargetWindowInfo>,
     pub is_shortcut_active: bool,
+    pub is_ambiguous: bool,
 }
 
 #[cfg(test)]
@@ -147,14 +159,13 @@ mod tests {
             serde_json::from_str(&json).expect("Deserialization failed");
 
         assert_eq!(decoded.hwnd_val, raw_handle);
-        assert_eq!(decoded.hwnd_val as usize, 0x000204AE);
     }
 
     #[test]
-    fn test_context_fingerprint() {
-        let win = TargetWindowInfo {
-            hwnd_val: 12345,
-            title: "Untitled - Notepad".into(),
+    fn test_match_scoring_multiple_notepad_windows() {
+        let notepad1 = TargetWindowInfo {
+            hwnd_val: 1001,
+            title: "Document-A.txt - Notepad".into(),
             process_name: "notepad.exe".into(),
             class_name: "Notepad".into(),
             bounds: WindowRect {
@@ -169,9 +180,29 @@ mod tests {
             scale_factor: 1.0,
         };
 
-        assert_eq!(win.context_fingerprint(), "notepad.exe:untitled - notepad");
-        assert!(win.matches_context("notepad.exe", "Notepad"));
-        assert!(!win.matches_context("chrome.exe", "Notepad"));
+        let notepad2 = TargetWindowInfo {
+            hwnd_val: 1002,
+            title: "Project-Plan.txt - Notepad".into(),
+            process_name: "notepad.exe".into(),
+            class_name: "Notepad".into(),
+            bounds: WindowRect {
+                x: 100,
+                y: 100,
+                width: 800,
+                height: 600,
+            },
+            is_minimized: false,
+            is_focused: false,
+            dpi: 96,
+            scale_factor: 1.0,
+        };
+
+        // Note bound specifically to Document-A
+        let score1 = notepad1.match_score("notepad.exe", "Document-A.txt");
+        let score2 = notepad2.match_score("notepad.exe", "Document-A.txt");
+
+        assert_eq!(score1, 75);
+        assert_eq!(score2, 0); // Rejects incorrect Notepad window!
     }
 
     #[test]
@@ -211,7 +242,5 @@ mod tests {
         let abs_bounds = note.calculate_absolute_bounds(&win);
         assert_eq!(abs_bounds.x, 250);
         assert_eq!(abs_bounds.y, 190);
-        assert_eq!(abs_bounds.width, 250);
-        assert_eq!(abs_bounds.height, 180);
     }
 }

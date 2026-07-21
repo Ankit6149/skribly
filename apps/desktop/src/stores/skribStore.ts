@@ -8,6 +8,7 @@ export interface OverlayStatePayload {
   skribs: SkribNote[];
   available_windows: TargetWindowInfo[];
   is_shortcut_active: boolean;
+  is_ambiguous: boolean;
 }
 
 interface SkribStoreState {
@@ -15,6 +16,7 @@ interface SkribStoreState {
   availableWindows: TargetWindowInfo[];
   skribs: SkribNote[];
   isPickingTarget: boolean;
+  isAmbiguous: boolean;
   isInteractiveHover: boolean;
   isTauriAvailable: boolean;
   errorMessage: string | null;
@@ -48,6 +50,7 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
   availableWindows: [],
   skribs: [],
   isPickingTarget: false,
+  isAmbiguous: false,
   isInteractiveHover: false,
   isTauriAvailable: typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window,
   errorMessage: null,
@@ -72,7 +75,7 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
   },
 
   bindTarget: async (target: TargetWindowInfo | null) => {
-    set({ activeTarget: target, isPickingTarget: false });
+    set({ activeTarget: target, isPickingTarget: false, isAmbiguous: false });
     if (!get().isTauriAvailable) return;
     try {
       const payload = await invoke<OverlayStatePayload>('set_active_target', { target });
@@ -80,6 +83,7 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
         activeTarget: payload.active_target,
         skribs: payload.skribs,
         availableWindows: payload.available_windows,
+        isAmbiguous: payload.is_ambiguous,
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -230,6 +234,8 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
           activeTarget: payload.active_target,
           skribs: payload.skribs,
           availableWindows: payload.available_windows.length > 0 ? payload.available_windows : get().availableWindows,
+          isAmbiguous: payload.is_ambiguous,
+          isPickingTarget: payload.is_ambiguous ? true : get().isPickingTarget,
         });
       });
     } catch (e) {
