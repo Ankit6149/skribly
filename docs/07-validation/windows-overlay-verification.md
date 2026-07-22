@@ -6,7 +6,7 @@ A Win32 API call, unit test, or written report is not enough to mark cross-proce
 
 ## Candidate under test
 
-- **Latest application-code candidate:** [`eab1566df4827b24a54577eab2be45911c20f2c7`](https://github.com/Ankit6149/skribly/commit/eab1566df4827b24a54577eab2be45911c20f2c7)
+- **Latest application-code candidate:** [`dfe8c1414ff3a1a92179c94d84f82bcfa040ab4d`](https://github.com/Ankit6149/skribly/commit/dfe8c1414ff3a1a92179c94d84f82bcfa040ab4d)
 - **Repository:** <https://github.com/Ankit6149/skribly>
 - **Actions:** <https://github.com/Ankit6149/skribly/actions>
 - **Runtime metrics script:** [`scripts/windows/capture-runtime-evidence.ps1`](../../scripts/windows/capture-runtime-evidence.ps1)
@@ -28,6 +28,7 @@ The candidate includes:
 - local drag and resize preview with one persistence call on release
 - idempotent Tauri listener initialization
 - interactive hit-test coverage for the toolbar, picker, notes, and error alert
+- store tests aligned with the current state model
 
 These items are **implementation facts**, not runtime PASS results.
 
