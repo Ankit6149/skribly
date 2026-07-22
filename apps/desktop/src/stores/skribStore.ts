@@ -205,7 +205,8 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
         initStatus: payload.init_status || get().initStatus,
       });
     } catch (e) {
-      // Ignore transient position update errors
+      const msg = e instanceof Error ? e.message : String(e);
+      set({ errorMessage: `Failed to save Skrib position: ${msg}` });
     }
   },
 
@@ -301,8 +302,6 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
 
     if (!listenerSetupPromise) {
       listenerSetupPromise = (async () => {
-        await Promise.all([get().fetchTargetWindows(), get().fetchOverlayMetrics()]);
-
         const overlayUnlisten = await listen<OverlayStatePayload>('skribly://overlay-update', (event) => {
           const payload = event.payload;
           set({
@@ -340,6 +339,17 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
         });
 
         unlistenCallbacks.push(overlayUnlisten, shortcutUnlisten, hotkeyErrorUnlisten, initStatusUnlisten);
+
+        // Subscribe before fetching state so a fast native startup event cannot be missed.
+        const payload = await invoke<OverlayStatePayload>('refresh_target_state');
+        set({
+          activeTarget: payload.active_target,
+          skribs: payload.skribs,
+          availableWindows: payload.available_windows,
+          isAmbiguous: payload.is_ambiguous,
+          overlayMetrics: payload.overlay_metrics,
+          initStatus: payload.init_status || get().initStatus,
+        });
 
         if (!cleanupInstalled && typeof window !== 'undefined') {
           window.addEventListener('beforeunload', disposeTauriListeners, { once: true });
