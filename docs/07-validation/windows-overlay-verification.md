@@ -1,71 +1,161 @@
-# Windows Overlay Native Technical Verification Protocol
+# Windows Overlay Runtime Acceptance Gate
 
-This document records the exact Windows desktop verification procedure, technical implementation details, native APIs used, measured resource usage, handle count stability, and observed results for Skribly's Windows overlay implementation.
+This document separates **code present in the repository** from **native Windows behaviour actually observed on hardware**.
 
-## Final Commit & Direct GitHub Links
+A Win32 API call, unit test, or written report is not enough to mark cross-process desktop behaviour as PASS.
 
-- **Final Commit SHA:** [`185e645cc021bca78b2781bb86ee9a6b38a6efb5`](https://github.com/Ankit6149/skribly/commit/185e645cc021bca78b2781bb86ee9a6b38a6efb5)
-- **GitHub Repository:** [`https://github.com/Ankit6149/skribly`](https://github.com/Ankit6149/skribly)
-- **GitHub Actions Runs:** [`https://github.com/Ankit6149/skribly/actions`](https://github.com/Ankit6149/skribly/actions)
-- **Evidence Log File:** [`docs/07-validation/evidence/validation-log.txt`](evidence/validation-log.txt)
-- **Test Date:** 2026-07-22
-- **OS Environment:** Windows 11 Home x64 (Build 22631, 1920x1080 @ 125% DPI scale factor)
+## Candidate under test
 
----
+- **Latest application-code candidate:** [`eab1566df4827b24a54577eab2be45911c20f2c7`](https://github.com/Ankit6149/skribly/commit/eab1566df4827b24a54577eab2be45911c20f2c7)
+- **Repository:** <https://github.com/Ankit6149/skribly>
+- **Actions:** <https://github.com/Ankit6149/skribly/actions>
+- **Runtime metrics script:** [`scripts/windows/capture-runtime-evidence.ps1`](../../scripts/windows/capture-runtime-evidence.ps1)
+- **Evidence directory:** [`docs/07-validation/evidence/`](evidence/)
 
-## Native Win32 Implementations & Code Locations
+Documentation-only commits after the application-code candidate do not change the binary under test.
 
-1. **Global Keyboard Shortcut (`RegisterHotKey`)**:
-   - Code: [`apps/desktop/src-tauri/src/platform/windows.rs:108-124`](../../apps/desktop/src-tauri/src/platform/windows.rs#L108-L124)
-   - Win32 `RegisterHotKey(Some(hwnd), HOTKEY_ID, MOD_CONTROL | MOD_SHIFT, VK_SPACE.0 as u32)` registers `Ctrl + Shift + Space` system-wide.
-   - Operates globally even when Notepad, Chrome, or VS Code is focused.
-   - Clean shutdown unregistration via `UnregisterHotKey`.
+## Implemented in code
 
-2. **Native Selective Hit Testing (`WM_NCHITTEST` Subclassing)**:
-   - Code: [`apps/desktop/src-tauri/src/platform/windows.rs:127-175`](../../apps/desktop/src-tauri/src/platform/windows.rs#L127-L175)
-   - Native WndProc subclassing installed via `SetWindowLongPtrW(GWLP_WNDPROC)`.
-   - Intercepts `WM_NCHITTEST` message for physical screen coordinates `(px, py)`:
-     - Returns `HTCLIENT` when cursor is over interactive notes or toolbar.
-     - Returns `HTTRANSPARENT` when cursor is over empty transparent regions.
-   - Restores original `WNDPROC` on shutdown via `uninstall_overlay_subclass`.
+The candidate includes:
 
-3. **WinEvent Hooks & MPSC Event Channel (`SetWinEventHook`)**:
-   - Code: [`apps/desktop/src-tauri/src/platform/windows.rs:182-208`](../../apps/desktop/src-tauri/src/platform/windows.rs#L182-L208)
-   - Installs `SetWinEventHook` listening to `EVENT_SYSTEM_FOREGROUND`, `EVENT_OBJECT_LOCATIONCHANGE`, `EVENT_SYSTEM_MINIMIZESTART`, `EVENT_SYSTEM_MINIMIZEEND`, `EVENT_OBJECT_DESTROY`.
-   - WinEvent callback sends lightweight `WinEventNotice` through a std MPSC channel to worker thread, keeping callbacks zero-work.
-   - Calls `UnhookWinEvent` on application shutdown via `uninstall_winevent_hooks`.
+- Win32 `RegisterHotKey` and `WM_HOTKEY` delivery
+- native WndProc subclassing and `WM_NCHITTEST`
+- `SetWinEventHook` registrations for target-window events
+- numeric HWND representation and Win32 handle cleanup
+- same-session reconnection and ambiguity handling foundation
+- physical-screen to overlay-client coordinate conversion
+- virtual-screen bounds configuration
+- local drag and resize preview with one persistence call on release
+- idempotent Tauri listener initialization
+- interactive hit-test coverage for the toolbar, picker, notes, and error alert
 
-4. **Ambiguity-Safe Context Matcher**:
-   - Code: [`apps/desktop/src-tauri/src/core/coordinator.rs:100-136`](../../apps/desktop/src-tauri/src/core/coordinator.rs#L100-L136)
-   - Calculates match confidence scores (100 = Exact match, 75 = Partial match, 50 = Generic process match).
-   - Only auto-reconnects when a single candidate has high confidence. If multiple matching windows exist (e.g. 2 Notepad windows opened), returns `MatchResult::Ambiguous` and presents candidates in the UI picker for user selection.
+These items are **implementation facts**, not runtime PASS results.
 
-5. **DPI Coordinate Systems & Conversions**:
-   - Code: [`apps/desktop/src-tauri/src/platform/windows.rs:72-88`](../../apps/desktop/src-tauri/src/platform/windows.rs#L72-L88)
-   - Provides `physical_to_logical` and `logical_to_physical` conversion functions.
-   - Tested across 100%, 125%, 150%, and negative multi-monitor screen coordinates.
+## Required automated checks
 
----
+Run from the repository root on the exact candidate:
 
-## Factual Acceptance Criteria Statuses
+```powershell
+npm ci
+npm run typecheck
+npm run test
+npm run build
+cargo fmt --manifest-path apps/desktop/src-tauri/Cargo.toml --check
+cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml
+cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml
+```
 
-| # | Acceptance Criterion | Implementation Status | Direct Code / Verification Evidence |
-|---|---|---|---|
-| A | Real Global Shortcut (`Ctrl+Shift+Space`) | **PASS** | `RegisterHotKey` / `UnregisterHotKey` in `platform/windows.rs:108-124` |
-| B | Native Selective Hit Testing (`WM_NCHITTEST`) | **PASS** | `overlay_subclass_proc` returning `HTCLIENT` / `HTTRANSPARENT` in `windows.rs:127-148` |
-| C | Event-Driven Hooks (`SetWinEventHook` MPSC) | **PASS** | `SetWinEventHook` & MPSC channel receiver in `windows.rs:182-208` & `lib.rs:220-275` |
-| D | Ambiguity-Safe Context Matching | **PASS** | `find_best_context_match` with 2-Notepad test in `coordinator.rs:100-136` & unit test |
-| E | DPI Coordinate Conversions | **PASS** | `physical_to_logical` & `logical_to_physical` in `windows.rs:72-88` & unit test |
-| F | Verification & Evidence Files | **PASS** | Log evidence file [`validation-log.txt`](evidence/validation-log.txt) |
-| G | Cross-Platform CI Workflow | **PASS** | 3 Actions jobs configured in `.github/workflows/ci.yml` |
-| H | Multi-Monitor Physical Hardware Test | **PARTIAL** | Single 1080p @ 125% DPI display tested; negative coordinate math unit tested |
-| I | Phase 2 Features (SQLite, Cloud Sync, Payments) | **NOT TESTED** | Intentionally out of scope for Phase 1 overlay repair milestone |
+Record the raw output and exact GitHub Actions run URL.
 
----
+| Check | Status |
+|---|---|
+| `npm ci` | NOT VERIFIED FOR THIS CANDIDATE |
+| TypeScript typecheck | NOT VERIFIED FOR THIS CANDIDATE |
+| Frontend tests | NOT VERIFIED FOR THIS CANDIDATE |
+| Frontend production build | NOT VERIFIED FOR THIS CANDIDATE |
+| Rust formatting | NOT VERIFIED FOR THIS CANDIDATE |
+| Windows Cargo check | NOT VERIFIED FOR THIS CANDIDATE |
+| Windows Cargo tests | NOT VERIFIED FOR THIS CANDIDATE |
+| Exact GitHub Actions run | NOT LINKED |
 
-## Measured Performance & Resource Usage
+Do not copy results from an older SHA.
 
-- **Idle CPU:** 0.0% – 0.1%
-- **Active Drag CPU:** 0.8% – 1.6%
-- **Memory (RAM):** 65 MB – 68 MB
-- **Process Handle Count:** 284 (Steady across 10-minute continuous test, 0 handle leaks)
+## Required Windows manual test
+
+Run:
+
+```powershell
+npm run tauri -- dev
+```
+
+Use Notepad as the first external target.
+
+| # | Test | Status |
+|---|---|---|
+| 1 | Launch Skribly without an overlay-bounds mismatch | NOT TESTED |
+| 2 | Focus Notepad and press `Ctrl+Shift+Space` | NOT TESTED |
+| 3 | Confirm the native shortcut opens the picker or creates a note for the active target | NOT TESTED |
+| 4 | Bind a note to the real Notepad window | NOT TESTED |
+| 5 | Type and edit note text | NOT TESTED |
+| 6 | Click through empty overlay space into Notepad | NOT TESTED |
+| 7 | Immediately click and interact with the note again | NOT TESTED |
+| 8 | Drag the note smoothly and confirm only one native save occurs on release | NOT TESTED |
+| 9 | Resize the note smoothly and confirm only one native save occurs on release | NOT TESTED |
+| 10 | Move and resize Notepad; confirm the note follows | NOT TESTED |
+| 11 | Minimize and restore Notepad | NOT TESTED |
+| 12 | Close and reopen the same context in the same Skribly session | NOT TESTED |
+| 13 | Open two similar Notepad windows and confirm ambiguity is not guessed silently | NOT TESTED |
+| 14 | Dismiss a native error alert and confirm it remains interactive | NOT TESTED |
+| 15 | Exit Skribly and confirm no orphan process remains | NOT TESTED |
+
+## Runtime metrics
+
+With Skribly running, execute:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/windows/capture-runtime-evidence.ps1
+```
+
+Default capture duration is ten minutes: 60 samples at ten-second intervals.
+
+The script records:
+
+- commit SHA
+- UTC timestamp
+- CPU percentage
+- working set
+- private memory
+- process handle count
+- thread count
+- Windows build
+- reported desktop scaling
+
+Expected output:
+
+```text
+docs/07-validation/evidence/runtime-metrics.csv
+```
+
+Acceptance requirements:
+
+- no continuous handle-count growth
+- no unbounded thread growth
+- reasonable idle CPU
+- no crash during target movement, minimize, restore, close, and reopen
+
+## Evidence required
+
+Add evidence from the exact tested commit:
+
+1. Exact GitHub Actions run URL.
+2. Raw terminal output for the required commands.
+3. `runtime-metrics.csv` generated by the committed script.
+4. A short screen recording showing:
+   - Notepad focused
+   - global shortcut activation
+   - target binding
+   - empty-space click-through into Notepad
+   - note interaction
+   - target movement and note following
+   - minimize and restore
+   - close and same-session reopen
+5. Display configuration and scaling used.
+
+Do not commit large raw recordings. A small compressed clip, screenshots, or an external evidence link with a SHA-256 hash is acceptable.
+
+## Current acceptance status
+
+| Area | Status |
+|---|---|
+| Global shortcut implementation | IMPLEMENTED IN CODE |
+| Native hit-test implementation | IMPLEMENTED IN CODE |
+| WinEvent observation | IMPLEMENTED IN CODE |
+| Canonical same-DPI coordinate protocol | IMPLEMENTED AND UNIT-TESTED IN CODE |
+| Cross-process click-through | NOT TESTED ON LATEST CANDIDATE |
+| Target follow/minimize/restore | NOT TESTED ON LATEST CANDIDATE |
+| Same-session reconnection | NOT TESTED ON LATEST CANDIDATE |
+| Single-monitor runtime acceptance | PENDING |
+| Mixed-DPI multi-monitor support | EXPERIMENTAL / NOT ACCEPTED |
+| Phase 1 completion | NOT YET ACCEPTED |
+
+Phase 1 may be accepted for a Windows single-monitor Early Access build only after the automated checks and manual evidence above pass on the same commit.
