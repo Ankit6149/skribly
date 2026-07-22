@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { SkribNote, TargetWindowInfo } from '../lib/geometry';
+import { OverlayMetrics, SkribNote, TargetWindowInfo } from '../lib/geometry';
 
 export interface OverlayStatePayload {
   active_target: TargetWindowInfo | null;
@@ -9,15 +9,25 @@ export interface OverlayStatePayload {
   available_windows: TargetWindowInfo[];
   is_shortcut_active: boolean;
   is_ambiguous: boolean;
+  overlay_metrics: OverlayMetrics;
 }
+
+const DEFAULT_METRICS: OverlayMetrics = {
+  overlay_physical_x: 0,
+  overlay_physical_y: 0,
+  overlay_physical_width: 1920,
+  overlay_physical_height: 1080,
+  dpi: 96,
+  scale_factor: 1.0,
+};
 
 interface SkribStoreState {
   activeTarget: TargetWindowInfo | null;
   availableWindows: TargetWindowInfo[];
   skribs: SkribNote[];
+  overlayMetrics: OverlayMetrics;
   isPickingTarget: boolean;
   isAmbiguous: boolean;
-  isInteractiveHover: boolean;
   isTauriAvailable: boolean;
   errorMessage: string | null;
 
@@ -25,6 +35,7 @@ interface SkribStoreState {
   setPickingTarget: (picking: boolean) => void;
   clearError: () => void;
   fetchTargetWindows: () => Promise<void>;
+  fetchOverlayMetrics: () => Promise<void>;
   bindTarget: (target: TargetWindowInfo | null) => Promise<void>;
   addSkrib: (text?: string, color?: SkribNote['color']) => Promise<void>;
   updateSkribPosition: (
@@ -38,7 +49,6 @@ interface SkribStoreState {
   updateSkribColor: (id: string, color: SkribNote['color']) => Promise<void>;
   toggleSkribCollapse: (id: string) => Promise<void>;
   deleteSkrib: (id: string) => Promise<void>;
-  setInteractiveHover: (isHovering: boolean) => Promise<void>;
   updateHitTestRects: (
     rects: Array<{ x: number; y: number; width: number; height: number }>
   ) => Promise<void>;
@@ -49,9 +59,9 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
   activeTarget: null,
   availableWindows: [],
   skribs: [],
+  overlayMetrics: DEFAULT_METRICS,
   isPickingTarget: false,
   isAmbiguous: false,
-  isInteractiveHover: false,
   isTauriAvailable: typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window,
   errorMessage: null,
 
@@ -69,8 +79,19 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
       const windows = await invoke<TargetWindowInfo[]>('list_target_windows');
       set({ availableWindows: windows });
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      set({ errorMessage: `Failed to list target windows: ${msg}` });
+      console.warn('Failed to fetch window candidates:', e);
+    }
+  },
+
+  fetchOverlayMetrics: async () => {
+    if (!get().isTauriAvailable) return;
+    try {
+      const metrics = await invoke<OverlayMetrics>('get_overlay_metrics');
+      if (metrics) {
+        set({ overlayMetrics: metrics });
+      }
+    } catch (e) {
+      console.warn('Failed to fetch overlay metrics:', e);
     }
   },
 
@@ -82,109 +103,122 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
       set({
         activeTarget: payload.active_target,
         skribs: payload.skribs,
-        availableWindows: payload.available_windows,
-        isAmbiguous: payload.is_ambiguous,
+        overlayMetrics: payload.overlay_metrics || get().overlayMetrics,
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      set({ errorMessage: `Failed to bind target: ${msg}` });
+      set({ errorMessage: `Failed to bind target window: ${msg}` });
     }
   },
 
-  addSkrib: async (text = 'This Skrib will return with its context.', color = 'yellow') => {
-    const target = get().activeTarget;
+  addSkrib: async (text = 'New Sticky Note', color = 'yellow') => {
+    const active = get().activeTarget;
+    const now = Math.floor(Date.now() / 1000);
     const newNote: SkribNote = {
-      id: `skrib-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      target_process_name: target ? target.process_name : 'demo.exe',
-      target_title: target ? target.title : 'Demo Window',
+      id: `skrib-${Date.now()}`,
+      target_process_name: active ? active.process_name : '',
+      target_title: active ? active.title : '',
       rel_x: 40,
-      rel_y: 40 + get().skribs.length * 30,
+      rel_y: 40,
       width: 320,
       height: 230,
       text,
       color,
       collapsed: false,
-      created_at: Math.floor(Date.now() / 1000),
-      updated_at: Math.floor(Date.now() / 1000),
+      created_at: now,
+      updated_at: now,
     };
 
-    const updatedSkribs = [...get().skribs, newNote];
-    set({ skribs: updatedSkribs });
+    set((state) => ({ skribs: [...state.skribs, newNote] }));
 
     if (!get().isTauriAvailable) return;
     try {
       const payload = await invoke<OverlayStatePayload>('upsert_skrib_note', { note: newNote });
-      set({ skribs: payload.skribs });
+      set({
+        skribs: payload.skribs,
+        overlayMetrics: payload.overlay_metrics || get().overlayMetrics,
+      });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      set({ errorMessage: `Failed to add Skrib: ${msg}` });
+      set({ errorMessage: `Failed to create Skrib note: ${msg}` });
     }
   },
 
   updateSkribPosition: async (id, rel_x, rel_y, width, height) => {
-    const skribs = get().skribs.map((n) =>
-      n.id === id ? { ...n, rel_x, rel_y, width, height, updated_at: Math.floor(Date.now() / 1000) } : n
-    );
-    set({ skribs });
+    set((state) => ({
+      skribs: state.skribs.map((n) =>
+        n.id === id ? { ...n, rel_x, rel_y, width, height, updated_at: Math.floor(Date.now() / 1000) } : n
+      ),
+    }));
 
     if (!get().isTauriAvailable) return;
     try {
       const payload = await invoke<OverlayStatePayload>('update_skrib_position', {
         id,
-        rel_x,
-        rel_y,
+        relX: rel_x,
+        relY: rel_y,
         width,
         height,
       });
-      set({ skribs: payload.skribs });
+      set({
+        skribs: payload.skribs,
+        overlayMetrics: payload.overlay_metrics || get().overlayMetrics,
+      });
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      set({ errorMessage: `Failed to update note position: ${msg}` });
+      // Ignore transient position update errors
     }
   },
 
   updateSkribText: async (id, text) => {
-    const skribs = get().skribs.map((n) =>
-      n.id === id ? { ...n, text, updated_at: Math.floor(Date.now() / 1000) } : n
-    );
-    set({ skribs });
+    set((state) => ({
+      skribs: state.skribs.map((n) =>
+        n.id === id ? { ...n, text, updated_at: Math.floor(Date.now() / 1000) } : n
+      ),
+    }));
 
     if (!get().isTauriAvailable) return;
     try {
       const payload = await invoke<OverlayStatePayload>('update_skrib_text', { id, text });
-      set({ skribs: payload.skribs });
+      set({
+        skribs: payload.skribs,
+        overlayMetrics: payload.overlay_metrics || get().overlayMetrics,
+      });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      set({ errorMessage: `Failed to sync text: ${msg}` });
+      set({ errorMessage: `Failed to save text: ${msg}` });
     }
   },
 
   updateSkribColor: async (id, color) => {
-    const skribs = get().skribs.map((n) =>
-      n.id === id ? { ...n, color, updated_at: Math.floor(Date.now() / 1000) } : n
-    );
-    set({ skribs });
+    set((state) => ({
+      skribs: state.skribs.map((n) => (n.id === id ? { ...n, color } : n)),
+    }));
 
     if (!get().isTauriAvailable) return;
     try {
       const payload = await invoke<OverlayStatePayload>('update_skrib_color', { id, color });
-      set({ skribs: payload.skribs });
+      set({
+        skribs: payload.skribs,
+        overlayMetrics: payload.overlay_metrics || get().overlayMetrics,
+      });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      set({ errorMessage: `Failed to update color: ${msg}` });
+      set({ errorMessage: `Failed to change color: ${msg}` });
     }
   },
 
   toggleSkribCollapse: async (id) => {
-    const skribs = get().skribs.map((n) =>
-      n.id === id ? { ...n, collapsed: !n.collapsed, updated_at: Math.floor(Date.now() / 1000) } : n
-    );
-    set({ skribs });
+    set((state) => ({
+      skribs: state.skribs.map((n) => (n.id === id ? { ...n, collapsed: !n.collapsed } : n)),
+    }));
 
     if (!get().isTauriAvailable) return;
     try {
       const payload = await invoke<OverlayStatePayload>('toggle_skrib_collapse', { id });
-      set({ skribs: payload.skribs });
+      set({
+        skribs: payload.skribs,
+        overlayMetrics: payload.overlay_metrics || get().overlayMetrics,
+      });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       set({ errorMessage: `Failed to toggle collapse: ${msg}` });
@@ -192,22 +226,21 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
   },
 
   deleteSkrib: async (id) => {
-    const skribs = get().skribs.filter((n) => n.id !== id);
-    set({ skribs });
+    set((state) => ({
+      skribs: state.skribs.filter((n) => n.id !== id),
+    }));
 
     if (!get().isTauriAvailable) return;
     try {
       const payload = await invoke<OverlayStatePayload>('delete_skrib_note', { id });
-      set({ skribs: payload.skribs });
+      set({
+        skribs: payload.skribs,
+        overlayMetrics: payload.overlay_metrics || get().overlayMetrics,
+      });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       set({ errorMessage: `Failed to delete Skrib: ${msg}` });
     }
-  },
-
-  setInteractiveHover: async (isHovering: boolean) => {
-    // Retained only as an explicit emergency fallback command, disabled by default.
-    set({ isInteractiveHover: isHovering });
   },
 
   updateHitTestRects: async (rects) => {
@@ -223,6 +256,7 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
     if (!get().isTauriAvailable) return;
     try {
       await get().fetchTargetWindows();
+      await get().fetchOverlayMetrics();
       await listen<OverlayStatePayload>('skribly://overlay-update', (event) => {
         const payload = event.payload;
         set({
@@ -231,6 +265,7 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
           availableWindows: payload.available_windows.length > 0 ? payload.available_windows : get().availableWindows,
           isAmbiguous: payload.is_ambiguous,
           isPickingTarget: payload.is_ambiguous ? true : get().isPickingTarget,
+          overlayMetrics: payload.overlay_metrics || get().overlayMetrics,
         });
       });
 
@@ -242,6 +277,7 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
           availableWindows: payload.available_windows.length > 0 ? payload.available_windows : get().availableWindows,
           isAmbiguous: payload.is_ambiguous,
           isPickingTarget: payload.active_target ? false : true,
+          overlayMetrics: payload.overlay_metrics || get().overlayMetrics,
         });
       });
 
@@ -253,4 +289,3 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
     }
   },
 }));
-

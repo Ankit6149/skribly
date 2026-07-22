@@ -1,13 +1,14 @@
 import React, { useEffect, useRef } from 'react';
 import { useSkribStore } from '../../stores/skribStore';
 import { SkribNoteCard } from '../skribs/SkribNoteCard';
-import { calculateAbsolutePosition } from '../../lib/geometry';
+import { calculateNoteClientLogicalPosition } from '../../lib/geometry';
 
 export const OverlayHost: React.FC = () => {
   const {
     activeTarget,
     availableWindows,
     skribs,
+    overlayMetrics,
     isPickingTarget,
     isAmbiguous,
     errorMessage,
@@ -27,7 +28,7 @@ export const OverlayHost: React.FC = () => {
     initTauri();
   }, [initTauri]);
 
-  // Synchronize interactive bounding boxes to Rust for native WM_NCHITTEST
+  // Synchronize interactive bounding boxes in Client Logical DIPs to Rust for native WM_NCHITTEST
   useEffect(() => {
     const rects: Array<{ x: number; y: number; width: number; height: number }> = [];
 
@@ -43,23 +44,21 @@ export const OverlayHost: React.FC = () => {
       rects.push({ x: Math.round(b.left), y: Math.round(b.top), width: Math.round(b.width), height: Math.round(b.height) });
     }
 
-    // Skrib note rects
+    // Skrib note rects in Client Logical DIPs
     skribs.forEach((note) => {
+      const clientPos = activeTarget
+        ? calculateNoteClientLogicalPosition(activeTarget.bounds, overlayMetrics, note.rel_x, note.rel_y)
+        : { x: Math.round(note.rel_x), y: Math.round(note.rel_y) };
+
       if (note.collapsed) {
-        const absPos = activeTarget
-          ? calculateAbsolutePosition(activeTarget.bounds, note.rel_x, note.rel_y)
-          : { x: Math.round(note.rel_x), y: Math.round(note.rel_y) };
-        rects.push({ x: absPos.x, y: absPos.y, width: 180, height: 32 });
+        rects.push({ x: clientPos.x, y: clientPos.y, width: 180, height: 32 });
       } else {
-        const absPos = activeTarget
-          ? calculateAbsolutePosition(activeTarget.bounds, note.rel_x, note.rel_y)
-          : { x: Math.round(note.rel_x), y: Math.round(note.rel_y) };
-        rects.push({ x: absPos.x, y: absPos.y, width: Math.round(note.width), height: Math.round(note.height) });
+        rects.push({ x: clientPos.x, y: clientPos.y, width: Math.round(note.width), height: Math.round(note.height) });
       }
     });
 
     updateHitTestRects(rects);
-  }, [skribs, activeTarget, isPickingTarget, updateHitTestRects]);
+  }, [skribs, activeTarget, overlayMetrics, isPickingTarget, updateHitTestRects]);
 
   // Keyboard shortcut listener (in-window convenience shortcut)
   useEffect(() => {

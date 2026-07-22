@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { SkribNote, TargetWindowInfo, calculateAbsolutePosition } from '../../lib/geometry';
+import { SkribNote, TargetWindowInfo, calculateNoteClientLogicalPosition } from '../../lib/geometry';
 import { useSkribStore } from '../../stores/skribStore';
 
 interface SkribNoteCardProps {
@@ -17,6 +17,7 @@ const COLOR_OPTIONS: Array<{ key: SkribNote['color']; label: string; hex: string
 
 export const SkribNoteCard: React.FC<SkribNoteCardProps> = ({ note, target }) => {
   const {
+    overlayMetrics,
     updateSkribPosition,
     updateSkribText,
     updateSkribColor,
@@ -50,8 +51,8 @@ export const SkribNoteCard: React.FC<SkribNoteCardProps> = ({ note, target }) =>
     setText(note.text);
   }, [note.text]);
 
-  const absolutePos = target
-    ? calculateAbsolutePosition(target.bounds, note.rel_x, note.rel_y)
+  const clientPos = target
+    ? calculateNoteClientLogicalPosition(target.bounds, overlayMetrics, note.rel_x, note.rel_y)
     : { x: Math.round(note.rel_x), y: Math.round(note.rel_y) };
 
   // Debounced text update
@@ -156,8 +157,8 @@ export const SkribNoteCard: React.FC<SkribNoteCardProps> = ({ note, target }) =>
         className={`skrib-card-collapsed skrib-color-${note.color}`}
         style={{
           position: 'absolute',
-          left: `${absolutePos.x}px`,
-          top: `${absolutePos.y}px`,
+          left: `${clientPos.x}px`,
+          top: `${clientPos.y}px`,
         }}
         onClick={() => toggleSkribCollapse(note.id)}
         title="Click to expand Skrib"
@@ -173,8 +174,8 @@ export const SkribNoteCard: React.FC<SkribNoteCardProps> = ({ note, target }) =>
       className={`skrib-card skrib-color-${note.color} ${isDragging ? 'is-dragging' : ''}`}
       style={{
         position: 'absolute',
-        left: `${absolutePos.x}px`,
-        top: `${absolutePos.y}px`,
+        left: `${clientPos.x}px`,
+        top: `${clientPos.y}px`,
         width: `${note.width}px`,
         minHeight: `${note.height}px`,
       }}

@@ -5,6 +5,15 @@ export interface WindowRect {
   height: number;
 }
 
+export interface OverlayMetrics {
+  overlay_physical_x: number;
+  overlay_physical_y: number;
+  overlay_physical_width: number;
+  overlay_physical_height: number;
+  dpi: number;
+  scale_factor: number;
+}
+
 export interface TargetWindowInfo {
   hwnd_val: number;
   title: string;
@@ -32,25 +41,44 @@ export interface SkribNote {
   updated_at: number;
 }
 
-export function calculateAbsolutePosition(
+/**
+  * Calculate note position in Client Logical DIPs relative to overlay WebView top-left (0, 0).
+  * Formula:
+  * targetLogicalX = (targetPhysicalX - overlayPhysicalX) / scaleFactor
+  * clientLogicalX = targetLogicalX + noteRelLogicalX
+  */
+export function calculateNoteClientLogicalPosition(
   targetBounds: WindowRect,
+  overlayMetrics: OverlayMetrics,
   relX: number,
   relY: number
 ): { x: number; y: number } {
+  const scale = overlayMetrics.scale_factor > 0 ? overlayMetrics.scale_factor : 1.0;
+  const targetLogicalX = (targetBounds.x - overlayMetrics.overlay_physical_x) / scale;
+  const targetLogicalY = (targetBounds.y - overlayMetrics.overlay_physical_y) / scale;
+
   return {
-    x: Math.round(targetBounds.x + relX),
-    y: Math.round(targetBounds.y + relY),
+    x: Math.round(targetLogicalX + relX),
+    y: Math.round(targetLogicalY + relY),
   };
 }
 
-export function calculateRelativeOffset(
+/**
+  * Calculate relative note offset in Client Logical DIPs during drag/resize operations.
+  */
+export function calculateRelativeLogicalOffset(
   targetBounds: WindowRect,
-  absoluteX: number,
-  absoluteY: number
+  overlayMetrics: OverlayMetrics,
+  clientLogicalX: number,
+  clientLogicalY: number
 ): { rel_x: number; rel_y: number } {
+  const scale = overlayMetrics.scale_factor > 0 ? overlayMetrics.scale_factor : 1.0;
+  const targetLogicalX = (targetBounds.x - overlayMetrics.overlay_physical_x) / scale;
+  const targetLogicalY = (targetBounds.y - overlayMetrics.overlay_physical_y) / scale;
+
   return {
-    rel_x: Math.round(absoluteX - targetBounds.x),
-    rel_y: Math.round(absoluteY - targetBounds.y),
+    rel_x: Math.round(clientLogicalX - targetLogicalX),
+    rel_y: Math.round(clientLogicalY - targetLogicalY),
   };
 }
 
@@ -85,3 +113,4 @@ export function matchesContext(
   const t2 = noteTitle.toLowerCase().trim();
   return t1.includes(t2) || t2.includes(t1);
 }
+

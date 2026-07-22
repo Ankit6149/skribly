@@ -8,9 +8,10 @@ use std::os::windows::ffi::OsStringExt;
 use std::path::Path;
 use std::sync::atomic::{AtomicIsize, AtomicU64, Ordering};
 use std::sync::mpsc::Sender;
+use std::sync::OnceLock;
 
 use windows::core::BOOL;
-use windows::Win32::Foundation::{CloseHandle, HANDLE, HWND, LPARAM, LRESULT, RECT, WPARAM};
+use windows::Win32::Foundation::{CloseHandle, HANDLE, HMODULE, HWND, LPARAM, LRESULT, RECT, WPARAM};
 use windows::Win32::System::ProcessStatus::K32GetModuleFileNameExW;
 use windows::Win32::System::Threading::{OpenProcess, PROCESS_QUERY_INFORMATION, PROCESS_VM_READ};
 use windows::Win32::UI::Accessibility::{SetWinEventHook, UnhookWinEvent, HWINEVENTHOOK};
@@ -24,25 +25,12 @@ use windows::Win32::UI::WindowsAndMessaging::{
     CallWindowProcW, EnumWindows, GetClassNameW, GetForegroundWindow, GetSystemMetrics,
     GetWindowLongPtrW, GetWindowRect, GetWindowTextW, GetWindowThreadProcessId, IsIconic,
     IsWindow, IsWindowVisible, SetWindowLongPtrW, GWLP_WNDPROC, HTCLIENT, HTTRANSPARENT,
-    SM_CXVIRTUALSCREEN, SM_CYVIRTUALSCREEN, SM_XVIRTUALSCREEN, SM_YVIRTUALSCREEN, WM_HOTKEY,
-    WM_NCHITTEST, WNDPROC,
+    SM_CXVIRTUALSCREEN, SM_CYVIRTUALSCREEN, SM_XVIRTUALSCREEN, SM_YVIRTUALSCREEN,
+    WINEVENT_OUTOFCONTEXT, WINEVENT_SKIPOWNPROCESS, WM_HOTKEY, WM_NCHITTEST, WNDPROC,
 };
 
 use crate::core::coordinator::Coordinator;
-use crate::core::models::{HitTestRect, TargetWindowInfo, WindowRect};
-
-pub const WINEVENT_OUTOFCONTEXT: u32 = 0x0000;
-pub const WINEVENT_SKIPOWNPROCESS: u32 = 0x0002;
-pub const EVENT_SYSTEM_FOREGROUND: u32 = 0x0003;
-pub const EVENT_SYSTEM_MINIMIZESTART: u32 = 0x0016;
-pub const EVENT_SYSTEM_MINIMIZEEND: u32 = 0x0017;
-pub const EVENT_OBJECT_DESTROY: u32 = 0x8001;
-pub const EVENT_OBJECT_LOCATIONCHANGE: u32 = 0x800B;
-
-static ORIGINAL_WNDPROC: AtomicIsize = AtomicIsize::new(0);
-static ACTIVE_WINEVENT_HOOK: AtomicIsize = AtomicIsize::new(0);
-static GLOBAL_COORDINATOR: std::sync::OnceLock<Coordinator> = std::sync::OnceLock::new();
-static ENUMERATION_COUNT: AtomicU64 = AtomicU64::new(0);
+use crate::core::models::{HitTestRect, OverlayMetrics, TargetWindowInfo, WindowRect};
 
 #[derive(Debug, Clone)]
 pub struct WinEventNotice {
@@ -50,8 +38,18 @@ pub struct WinEventNotice {
     pub hwnd_val: isize,
 }
 
-static EVENT_SENDER: std::sync::OnceLock<Sender<WinEventNotice>> = std::sync::OnceLock::new();
-static HOTKEY_SENDER: std::sync::OnceLock<Sender<i32>> = std::sync::OnceLock::new();
+pub const EVENT_SYSTEM_FOREGROUND: u32 = 0x0003;
+pub const EVENT_SYSTEM_MINIMIZESTART: u32 = 0x0016;
+pub const EVENT_SYSTEM_MINIMIZEEND: u32 = 0x0017;
+pub const EVENT_OBJECT_DESTROY: u32 = 0x8001;
+pub const EVENT_OBJECT_LOCATIONCHANGE: u32 = 0x800B;
+
+static ORIGINAL_WNDPROC: AtomicIsize = AtomicIsize::new(0);
+static GLOBAL_COORDINATOR: OnceLock<Coordinator> = OnceLock::new();
+static EVENT_SENDER: OnceLock<Sender<WinEventNotice>> = OnceLock::new();
+static HOTKEY_SENDER: OnceLock<Sender<i32>> = OnceLock::new();
+static ACTIVE_WINEVENT_HOOKS: std::sync::Mutex<Vec<isize>> = std::sync::Mutex::new(Vec::new());
+static ENUMERATION_COUNT: AtomicU64 = AtomicU64::new(0);
 
 /// RAII wrapper for Win32 HANDLE to guarantee CloseHandle is invoked on drop.
 pub struct AutoCloseHandle(pub HANDLE);
@@ -104,6 +102,61 @@ pub fn get_virtual_screen_bounds() -> WindowRect {
             width,
             height,
         }
+    }
+}
+
+/// Query current overlay window physical metrics (position, size, DPI, scale factor).
+pub fn get_overlay_metrics(hwnd: HWND) -> OverlayMetrics {
+    unsafe {
+        let mut rect = RECT::default();
+        if GetWindowRect(hwnd, &mut rect).is_ok() {
+            let overlay_physical_x = rect.left;
+            let overlay_physical_y = rect.top;
+            let overlay_physical_width = (rect.right - rect.left).max(0);
+            let overlay_physical_height = (rect.bottom - rect.top).max(0);
+            let (dpi, scale_factor) = get_window_dpi(hwnd);
+
+            OverlayMetrics {
+                overlay_physical_x,
+                overlay_physical_y,
+                overlay_physical_width,
+                overlay_physical_height,
+                dpi,
+                scale_factor,
+            }
+        } else {
+            let vbounds = get_virtual_screen_bounds();
+            OverlayMetrics {
+                overlay_physical_x: vbounds.x,
+                overlay_physical_y: vbounds.y,
+                overlay_physical_width: vbounds.width,
+                overlay_physical_height: vbounds.height,
+                dpi: 96,
+                scale_factor: 1.0,
+            }
+        }
+    }
+}
+
+/// Verify that actual overlay HWND physical bounds match Windows Virtual Desktop bounds.
+pub fn verify_overlay_bounds(hwnd: HWND) -> Result<OverlayMetrics, String> {
+    let actual_metrics = get_overlay_metrics(hwnd);
+    let expected_vbounds = get_virtual_screen_bounds();
+
+    let matches = actual_metrics.overlay_physical_x == expected_vbounds.x
+        && actual_metrics.overlay_physical_y == expected_vbounds.y
+        && actual_metrics.overlay_physical_width == expected_vbounds.width
+        && actual_metrics.overlay_physical_height == expected_vbounds.height;
+
+    if matches {
+        Ok(actual_metrics)
+    } else {
+        Err(format!(
+            "Overlay native bounds mismatch! Expected: ({}, {}) {}x{}, Actual: ({}, {}) {}x{}",
+            expected_vbounds.x, expected_vbounds.y, expected_vbounds.width, expected_vbounds.height,
+            actual_metrics.overlay_physical_x, actual_metrics.overlay_physical_y,
+            actual_metrics.overlay_physical_width, actual_metrics.overlay_physical_height
+        ))
     }
 }
 
@@ -294,34 +347,48 @@ unsafe extern "system" fn win_event_proc(
 }
 
 /// Install WinEvent hooks for location change, minimize, restore, destroy, and foreground events.
+/// Install narrow WinEvent hooks specifically for target foreground and positioning events.
 pub fn install_winevent_hooks(sender: Sender<WinEventNotice>) -> bool {
     let _ = EVENT_SENDER.set(sender);
-    unsafe {
-        let hook = SetWinEventHook(
-            EVENT_SYSTEM_FOREGROUND,
-            EVENT_OBJECT_LOCATIONCHANGE,
-            None,
-            Some(win_event_proc),
-            0,
-            0,
-            WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS,
-        );
-        if hook.0 != std::ptr::null_mut() {
-            ACTIVE_WINEVENT_HOOK.store(hook.0 as isize, Ordering::Relaxed);
-            true
-        } else {
-            false
+    let target_events = [
+        EVENT_SYSTEM_FOREGROUND,
+        EVENT_SYSTEM_MINIMIZESTART,
+        EVENT_SYSTEM_MINIMIZEEND,
+        EVENT_OBJECT_DESTROY,
+        EVENT_OBJECT_LOCATIONCHANGE,
+    ];
+
+    let mut installed_any = false;
+    if let Ok(mut hooks_guard) = ACTIVE_WINEVENT_HOOKS.lock() {
+        unsafe {
+            for &evt in &target_events {
+                let hook = SetWinEventHook(
+                    evt,
+                    evt,
+                    None,
+                    Some(win_event_proc),
+                    0,
+                    0,
+                    WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS,
+                );
+                if hook.0 != std::ptr::null_mut() {
+                    hooks_guard.push(hook.0 as isize);
+                    installed_any = true;
+                }
+            }
         }
     }
+    installed_any
 }
 
 /// Unhook WinEvent hooks on application exit.
 pub fn uninstall_winevent_hooks() {
-    let raw = ACTIVE_WINEVENT_HOOK.swap(0, Ordering::Relaxed);
-    if raw != 0 {
-        unsafe {
-            let hook = HWINEVENTHOOK(raw as *mut _);
-            let _ = UnhookWinEvent(hook);
+    if let Ok(mut hooks_guard) = ACTIVE_WINEVENT_HOOKS.lock() {
+        for raw in hooks_guard.drain(..) {
+            unsafe {
+                let hook = HWINEVENTHOOK(raw as *mut _);
+                let _ = UnhookWinEvent(hook);
+            }
         }
     }
 }

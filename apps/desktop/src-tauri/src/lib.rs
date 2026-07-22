@@ -5,19 +5,19 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{channel, Receiver};
 use std::sync::Arc;
 use std::time::Duration;
-use tauri::{Emitter, Manager, RunEvent, State, WebviewWindow};
+use tauri::{AppHandle, Emitter, Manager, RunEvent, State};
 
 use core::coordinator::{Coordinator, MatchResult};
-use core::models::{HitTestRect, OverlayStatePayload, SkribNote, TargetWindowInfo};
+use core::models::{HitTestRect, OverlayMetrics, OverlayStatePayload, SkribNote, TargetWindowInfo};
 
 #[cfg(target_os = "windows")]
 use platform::windows::{
-    get_foreground_target_window, inspect_target_window, install_hotkey_sender,
-    install_overlay_subclass, install_winevent_hooks, list_candidate_target_windows,
-    reconstruct_hwnd, register_global_hotkey, set_dpi_awareness, uninstall_overlay_subclass,
-    uninstall_winevent_hooks, unregister_global_hotkey, WinEventNotice, EVENT_OBJECT_DESTROY,
-    EVENT_OBJECT_LOCATIONCHANGE, EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_MINIMIZEEND,
-    EVENT_SYSTEM_MINIMIZESTART,
+    get_foreground_target_window, get_overlay_metrics as query_overlay_metrics, inspect_target_window,
+    install_hotkey_sender, install_overlay_subclass, install_winevent_hooks,
+    list_candidate_target_windows, reconstruct_hwnd, register_global_hotkey, set_dpi_awareness,
+    uninstall_overlay_subclass, uninstall_winevent_hooks, unregister_global_hotkey,
+    verify_overlay_bounds, WinEventNotice, EVENT_OBJECT_DESTROY, EVENT_OBJECT_LOCATIONCHANGE,
+    EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_MINIMIZEEND, EVENT_SYSTEM_MINIMIZESTART,
 };
 
 pub struct AppState {
@@ -49,7 +49,29 @@ fn list_target_windows() -> Vec<TargetWindowInfo> {
     }
 }
 
-fn build_overlay_payload(coordinator: &Coordinator, is_ambiguous: bool) -> OverlayStatePayload {
+#[tauri::command]
+fn get_overlay_metrics(app_handle: AppHandle) -> OverlayMetrics {
+    get_current_overlay_metrics(&app_handle)
+}
+
+fn get_current_overlay_metrics(app_handle: &AppHandle) -> OverlayMetrics {
+    #[cfg(target_os = "windows")]
+    {
+        if let Some(window) = app_handle.get_webview_window("main") {
+            if let Ok(hwnd) = window.hwnd() {
+                let win_hwnd = windows::Win32::Foundation::HWND(hwnd.0 as *mut _);
+                return query_overlay_metrics(win_hwnd);
+            }
+        }
+    }
+    OverlayMetrics::default()
+}
+
+fn build_overlay_payload(
+    app_handle: &AppHandle,
+    coordinator: &Coordinator,
+    is_ambiguous: bool,
+) -> OverlayStatePayload {
     let active_target = coordinator.get_active_target();
     let skribs = if let Some(ref target) = active_target {
         coordinator.get_skribs_for_target(target)
@@ -57,6 +79,7 @@ fn build_overlay_payload(coordinator: &Coordinator, is_ambiguous: bool) -> Overl
         Vec::new()
     };
     let available_windows = list_target_windows();
+    let overlay_metrics = get_current_overlay_metrics(app_handle);
 
     OverlayStatePayload {
         active_target,
@@ -64,16 +87,22 @@ fn build_overlay_payload(coordinator: &Coordinator, is_ambiguous: bool) -> Overl
         available_windows,
         is_shortcut_active: false,
         is_ambiguous,
+        overlay_metrics,
     }
 }
 
-fn build_mutation_payload(coordinator: &Coordinator, is_ambiguous: bool) -> OverlayStatePayload {
+fn build_mutation_payload(
+    app_handle: &AppHandle,
+    coordinator: &Coordinator,
+    is_ambiguous: bool,
+) -> OverlayStatePayload {
     let active_target = coordinator.get_active_target();
     let skribs = if let Some(ref target) = active_target {
         coordinator.get_skribs_for_target(target)
     } else {
         coordinator.get_all_skribs()
     };
+    let overlay_metrics = get_current_overlay_metrics(app_handle);
 
     OverlayStatePayload {
         active_target,
@@ -81,26 +110,33 @@ fn build_mutation_payload(coordinator: &Coordinator, is_ambiguous: bool) -> Over
         available_windows: Vec::new(),
         is_shortcut_active: false,
         is_ambiguous,
+        overlay_metrics,
     }
 }
 
 #[tauri::command]
 fn set_active_target(
+    app_handle: AppHandle,
     state: State<'_, AppState>,
     target: Option<TargetWindowInfo>,
 ) -> OverlayStatePayload {
     state.coordinator.set_active_target(target);
-    build_overlay_payload(&state.coordinator, false)
+    build_overlay_payload(&app_handle, &state.coordinator, false)
 }
 
 #[tauri::command]
-fn upsert_skrib_note(state: State<'_, AppState>, note: SkribNote) -> OverlayStatePayload {
+fn upsert_skrib_note(
+    app_handle: AppHandle,
+    state: State<'_, AppState>,
+    note: SkribNote,
+) -> OverlayStatePayload {
     state.coordinator.upsert_skrib(note);
-    build_mutation_payload(&state.coordinator, false)
+    build_mutation_payload(&app_handle, &state.coordinator, false)
 }
 
 #[tauri::command]
 fn update_skrib_position(
+    app_handle: AppHandle,
     state: State<'_, AppState>,
     id: String,
     rel_x: f64,
@@ -111,35 +147,49 @@ fn update_skrib_position(
     state
         .coordinator
         .update_skrib_position(&id, rel_x, rel_y, width, height);
-    build_mutation_payload(&state.coordinator, false)
+    build_mutation_payload(&app_handle, &state.coordinator, false)
 }
 
 #[tauri::command]
-fn update_skrib_text(state: State<'_, AppState>, id: String, text: String) -> OverlayStatePayload {
+fn update_skrib_text(
+    app_handle: AppHandle,
+    state: State<'_, AppState>,
+    id: String,
+    text: String,
+) -> OverlayStatePayload {
     state.coordinator.update_skrib_text(&id, text);
-    build_mutation_payload(&state.coordinator, false)
+    build_mutation_payload(&app_handle, &state.coordinator, false)
 }
 
 #[tauri::command]
 fn update_skrib_color(
+    app_handle: AppHandle,
     state: State<'_, AppState>,
     id: String,
     color: String,
 ) -> OverlayStatePayload {
     state.coordinator.update_skrib_color(&id, color);
-    build_mutation_payload(&state.coordinator, false)
+    build_mutation_payload(&app_handle, &state.coordinator, false)
 }
 
 #[tauri::command]
-fn toggle_skrib_collapse(state: State<'_, AppState>, id: String) -> OverlayStatePayload {
+fn toggle_skrib_collapse(
+    app_handle: AppHandle,
+    state: State<'_, AppState>,
+    id: String,
+) -> OverlayStatePayload {
     state.coordinator.toggle_skrib_collapse(&id);
-    build_mutation_payload(&state.coordinator, false)
+    build_mutation_payload(&app_handle, &state.coordinator, false)
 }
 
 #[tauri::command]
-fn delete_skrib_note(state: State<'_, AppState>, id: String) -> OverlayStatePayload {
+fn delete_skrib_note(
+    app_handle: AppHandle,
+    state: State<'_, AppState>,
+    id: String,
+) -> OverlayStatePayload {
     state.coordinator.remove_skrib(&id);
-    build_mutation_payload(&state.coordinator, false)
+    build_mutation_payload(&app_handle, &state.coordinator, false)
 }
 
 #[tauri::command]
@@ -148,14 +198,7 @@ fn set_hit_test_rects(state: State<'_, AppState>, rects: Vec<HitTestRect>) {
 }
 
 #[tauri::command]
-fn set_ignore_cursor_events(window: WebviewWindow, ignore: bool) -> Result<(), String> {
-    window
-        .set_ignore_cursor_events(ignore)
-        .map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-fn refresh_target_state(state: State<'_, AppState>) -> OverlayStatePayload {
+fn refresh_target_state(app_handle: AppHandle, state: State<'_, AppState>) -> OverlayStatePayload {
     let mut is_ambiguous = false;
     #[cfg(target_os = "windows")]
     {
@@ -182,7 +225,7 @@ fn refresh_target_state(state: State<'_, AppState>) -> OverlayStatePayload {
             }
         }
     }
-    build_overlay_payload(&state.coordinator, is_ambiguous)
+    build_overlay_payload(&app_handle, &state.coordinator, is_ambiguous)
 }
 
 const GLOBAL_HOTKEY_ID: i32 = 0x534B; // 'SK'
@@ -216,6 +259,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_foreground_window,
             list_target_windows,
+            get_overlay_metrics,
             set_active_target,
             upsert_skrib_note,
             update_skrib_position,
@@ -224,7 +268,6 @@ pub fn run() {
             toggle_skrib_collapse,
             delete_skrib_note,
             set_hit_test_rects,
-            set_ignore_cursor_events,
             refresh_target_state,
         ])
         .setup(move |app| {
@@ -240,15 +283,29 @@ pub fn run() {
                     if let Ok(hwnd) = window.hwnd() {
                         let win_hwnd = windows::Win32::Foundation::HWND(hwnd.0 as *mut _);
 
-                        // Set Virtual Desktop overlay bounds for multi-monitor coverage
+                        // 1. Set Virtual Desktop overlay bounds for multi-monitor coverage
                         let vbounds = platform::windows::get_virtual_screen_bounds();
                         let _ = window.set_position(tauri::PhysicalPosition::new(vbounds.x, vbounds.y));
                         let _ = window.set_size(tauri::PhysicalSize::new(vbounds.width as u32, vbounds.height as u32));
 
-                        // 1. Install WM_NCHITTEST WndProc subclassing
+                        // 2. Read back native bounds and verify match against virtual-screen metrics
+                        match verify_overlay_bounds(win_hwnd) {
+                            Ok(metrics) => {
+                                println!(
+                                    "Overlay native bounds verified matching Virtual Desktop: ({}, {}) {}x{} @ DPI {}",
+                                    metrics.overlay_physical_x, metrics.overlay_physical_y,
+                                    metrics.overlay_physical_width, metrics.overlay_physical_height, metrics.dpi
+                                );
+                            }
+                            Err(err_msg) => {
+                                eprintln!("{}", err_msg);
+                            }
+                        }
+
+                        // 3. Install WM_NCHITTEST WndProc subclassing
                         install_overlay_subclass(win_hwnd, coordinator.clone());
 
-                        // 2. Install hotkey channel sender & Register Ctrl + Shift + Space global hotkey
+                        // 4. Install hotkey channel sender & Register Ctrl + Shift + Space global hotkey
                         install_hotkey_sender(hotkey_sender);
                         if let Err(err) = register_global_hotkey(win_hwnd, GLOBAL_HOTKEY_ID) {
                             let error_msg = format!("Global shortcut registration error: {}", err);
@@ -256,7 +313,7 @@ pub fn run() {
                             let _ = app_handle.emit("skribly://hotkey-error", error_msg);
                         }
 
-                        // 3. Install WinEvent hooks
+                        // 5. Install WinEvent hooks
                         let _ = install_winevent_hooks(event_sender);
                     }
                 }
@@ -299,25 +356,7 @@ pub fn run() {
                                 coordinator_hk.upsert_skrib(new_note);
                             }
 
-                            let skribs = if let Some(ref target) = active_target {
-                                coordinator_hk.get_skribs_for_target(target)
-                            } else {
-                                coordinator_hk.get_all_skribs()
-                            };
-
-                            let available_windows = if active_target.is_none() {
-                                list_target_windows()
-                            } else {
-                                Vec::new()
-                            };
-
-                            let payload = OverlayStatePayload {
-                                active_target: active_target.clone(),
-                                skribs,
-                                available_windows,
-                                is_shortcut_active: true,
-                                is_ambiguous: false,
-                            };
+                            let payload = build_overlay_payload(&app_handle_hk, &coordinator_hk, false);
                             let _ = app_handle_hk.emit("skribly://global-shortcut", payload);
                         }
                     }
@@ -345,23 +384,11 @@ pub fn run() {
                                         if let Some(hwnd) = reconstruct_hwnd(notice.hwnd_val) {
                                             if let Some(updated) = inspect_target_window(hwnd) {
                                                 coordinator.set_active_target(Some(updated.clone()));
-                                                let payload = OverlayStatePayload {
-                                                    active_target: Some(updated.clone()),
-                                                    skribs: coordinator.get_skribs_for_target(&updated),
-                                                    available_windows: Vec::new(),
-                                                    is_shortcut_active: false,
-                                                    is_ambiguous: false,
-                                                };
+                                                let payload = build_mutation_payload(&app_handle, &coordinator, false);
                                                 let _ = app_handle.emit("skribly://overlay-update", payload);
                                             } else {
                                                 coordinator.set_active_target(None);
-                                                let payload = OverlayStatePayload {
-                                                    active_target: None,
-                                                    skribs: Vec::new(),
-                                                    available_windows: Vec::new(),
-                                                    is_shortcut_active: false,
-                                                    is_ambiguous: false,
-                                                };
+                                                let payload = build_mutation_payload(&app_handle, &coordinator, false);
                                                 let _ = app_handle.emit("skribly://overlay-update", payload);
                                             }
                                         }
@@ -371,23 +398,12 @@ pub fn run() {
                                     match coordinator.find_best_context_match(&candidates) {
                                         MatchResult::Unique(best) => {
                                             coordinator.set_active_target(Some(best.clone()));
-                                            let payload = OverlayStatePayload {
-                                                active_target: Some(best.clone()),
-                                                skribs: coordinator.get_skribs_for_target(&best),
-                                                available_windows: Vec::new(),
-                                                is_shortcut_active: false,
-                                                is_ambiguous: false,
-                                            };
+                                            let payload = build_mutation_payload(&app_handle, &coordinator, false);
                                             let _ = app_handle.emit("skribly://overlay-update", payload);
                                         }
                                         MatchResult::Ambiguous(matched) => {
-                                            let payload = OverlayStatePayload {
-                                                active_target: None,
-                                                skribs: Vec::new(),
-                                                available_windows: matched,
-                                                is_shortcut_active: false,
-                                                is_ambiguous: true,
-                                            };
+                                            let mut payload = build_mutation_payload(&app_handle, &coordinator, true);
+                                            payload.available_windows = matched;
                                             let _ = app_handle.emit("skribly://overlay-update", payload);
                                         }
                                         MatchResult::None => {}
@@ -403,13 +419,7 @@ pub fn run() {
                                 if let Some(target) = coordinator.get_active_target() {
                                     if reconstruct_hwnd(target.hwnd_val).is_none() {
                                         coordinator.set_active_target(None);
-                                        let payload = OverlayStatePayload {
-                                            active_target: None,
-                                            skribs: Vec::new(),
-                                            available_windows: Vec::new(),
-                                            is_shortcut_active: false,
-                                            is_ambiguous: false,
-                                        };
+                                        let payload = build_mutation_payload(&app_handle, &coordinator, false);
                                         let _ = app_handle.emit("skribly://overlay-update", payload);
                                     }
                                 }
@@ -452,10 +462,21 @@ mod tests {
         #[cfg(target_os = "windows")]
         platform::windows::reset_window_enumeration_count();
 
-        let payload = build_mutation_payload(&coordinator, false);
+        let active_target = coordinator.get_active_target();
+        let skribs = coordinator.get_all_skribs();
+        let payload = OverlayStatePayload {
+            active_target,
+            skribs,
+            available_windows: Vec::new(),
+            is_shortcut_active: false,
+            is_ambiguous: false,
+            overlay_metrics: OverlayMetrics::default(),
+        };
+
         assert!(payload.available_windows.is_empty());
 
         #[cfg(target_os = "windows")]
         assert_eq!(platform::windows::get_window_enumeration_count(), 0);
     }
 }
+

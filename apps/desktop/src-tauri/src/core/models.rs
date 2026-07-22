@@ -106,6 +106,29 @@ impl SkribNote {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct OverlayMetrics {
+    pub overlay_physical_x: i32,
+    pub overlay_physical_y: i32,
+    pub overlay_physical_width: i32,
+    pub overlay_physical_height: i32,
+    pub dpi: u32,
+    pub scale_factor: f64,
+}
+
+impl Default for OverlayMetrics {
+    fn default() -> Self {
+        Self {
+            overlay_physical_x: 0,
+            overlay_physical_y: 0,
+            overlay_physical_width: 1920,
+            overlay_physical_height: 1080,
+            dpi: 96,
+            scale_factor: 1.0,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OverlayStatePayload {
     pub active_target: Option<TargetWindowInfo>,
@@ -113,6 +136,7 @@ pub struct OverlayStatePayload {
     pub available_windows: Vec<TargetWindowInfo>,
     pub is_shortcut_active: bool,
     pub is_ambiguous: bool,
+    pub overlay_metrics: OverlayMetrics,
 }
 
 #[cfg(test)]
