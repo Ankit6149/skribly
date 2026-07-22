@@ -1,6 +1,15 @@
-import { describe, expect, it, beforeEach } from 'vitest';
-import { useSkribStore } from './skribStore';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { TargetWindowInfo } from '../lib/geometry';
+import { useSkribStore } from './skribStore';
+
+const DEFAULT_METRICS = {
+  overlay_physical_x: 0,
+  overlay_physical_y: 0,
+  overlay_physical_width: 1920,
+  overlay_physical_height: 1080,
+  dpi: 96,
+  scale_factor: 1,
+};
 
 describe('skribStore', () => {
   beforeEach(() => {
@@ -8,9 +17,9 @@ describe('skribStore', () => {
       activeTarget: null,
       availableWindows: [],
       skribs: [],
+      overlayMetrics: DEFAULT_METRICS,
       isPickingTarget: false,
       isAmbiguous: false,
-      isInteractiveHover: false,
       isTauriAvailable: false,
       errorMessage: null,
     });
@@ -25,7 +34,7 @@ describe('skribStore', () => {
     is_minimized: false,
     is_focused: true,
     dpi: 96,
-    scale_factor: 1.0,
+    scale_factor: 1,
   };
 
   it('binds target window correctly', async () => {
@@ -38,7 +47,7 @@ describe('skribStore', () => {
     await useSkribStore.getState().addSkrib('Note test content', 'peach');
 
     const skribs = useSkribStore.getState().skribs;
-    expect(skribs.length).toBe(1);
+    expect(skribs).toHaveLength(1);
     expect(skribs[0]!.text).toBe('Note test content');
     expect(skribs[0]!.color).toBe('peach');
   });
@@ -60,6 +69,7 @@ describe('skribStore', () => {
     expect(useSkribStore.getState().skribs[0]!.rel_x).toBe(100);
     expect(useSkribStore.getState().skribs[0]!.rel_y).toBe(120);
     expect(useSkribStore.getState().skribs[0]!.width).toBe(350);
+    expect(useSkribStore.getState().skribs[0]!.height).toBe(240);
   });
 
   it('deletes a skrib note', async () => {
@@ -67,14 +77,17 @@ describe('skribStore', () => {
     const noteId = useSkribStore.getState().skribs[0]!.id;
 
     await useSkribStore.getState().deleteSkrib(noteId);
-    expect(useSkribStore.getState().skribs.length).toBe(0);
+    expect(useSkribStore.getState().skribs).toHaveLength(0);
   });
 
-  it('handles target selection requirement when active target is unbound', () => {
+  it('opens target selection when no target is bound', () => {
     useSkribStore.setState({ activeTarget: null, isPickingTarget: false });
-    // When no target is bound, opening target picker is triggered
     useSkribStore.getState().setPickingTarget(true);
     expect(useSkribStore.getState().isPickingTarget).toBe(true);
   });
-});
 
+  it('does not create a feedback error when hit-test sync is skipped outside Tauri', async () => {
+    await useSkribStore.getState().updateHitTestRects([{ x: 0, y: 0, width: 100, height: 100 }]);
+    expect(useSkribStore.getState().errorMessage).toBeNull();
+  });
+});
