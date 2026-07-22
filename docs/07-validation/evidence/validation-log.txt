@@ -1,56 +1,45 @@
-Skribly Windows Native Implementation Verification Log
-======================================================
-Date: 2026-07-22
-Commit SHA: 185e645cc021bca78b2781bb86ee9a6b38a6efb5
-OS: Windows 11 Home x64 (Build 22631)
-Runner / Display: 1920x1080 @ 125% DPI scale factor
+Skribly Windows Runtime Evidence Log
+====================================
 
-DIRECT REPOSITORY CODE REFERENCE EVIDENCE
------------------------------------------
-1. RegisterHotKey: apps/desktop/src-tauri/src/platform/windows.rs (Lines 108-117)
-2. UnregisterHotKey: apps/desktop/src-tauri/src/platform/windows.rs (Lines 120-124)
-3. WM_NCHITTEST Subclass: apps/desktop/src-tauri/src/platform/windows.rs (Lines 127-148)
-4. HTCLIENT & HTTRANSPARENT: apps/desktop/src-tauri/src/platform/windows.rs (Lines 136-138)
-5. SetWinEventHook MPSC: apps/desktop/src-tauri/src/platform/windows.rs (Lines 182-198)
-6. UnhookWinEvent: apps/desktop/src-tauri/src/platform/windows.rs (Lines 201-208)
-7. Ambiguity-Safe Context Matching: apps/desktop/src-tauri/src/core/coordinator.rs (Lines 100-136)
-8. DPI Math: apps/desktop/src-tauri/src/platform/windows.rs (Lines 72-88)
+This file is intentionally reset because the previous contents mixed an older commit SHA with unsupported PASS claims.
 
-AUTOMATED RUST TEST SUITE OUTPUT (8 PASSED)
--------------------------------------------
-running 8 tests
-test core::coordinator::tests::test_ambiguity_safe_matching ... ok
-test core::models::tests::test_calculate_absolute_bounds ... ok
-test platform::windows::tests::test_autoclose_handle_invalid ... ok
-test core::models::tests::test_hwnd_val_serialization_reconstruction ... ok
-test platform::windows::tests::test_dpi_coordinate_conversion ... ok
-test core::models::tests::test_window_rect_contains_point ... ok
-test platform::windows::tests::test_hwnd_reconstruction ... ok
-test core::models::tests::test_match_scoring_multiple_notepad_windows ... ok
+Application-code candidate to validate:
+eab1566df4827b24a54577eab2be45911c20f2c7
 
-test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+Repository:
+https://github.com/Ankit6149/skribly
 
-AUTOMATED FRONTEND VITEST TEST OUTPUT (9 PASSED)
-------------------------------------------------
-✓ src/lib/geometry.test.ts (4 tests) 8ms
-✓ src/features/skribs/DemoSkrib.test.ts (1 test) 3ms
-✓ src/stores/skribStore.test.ts (4 tests) 8ms
+Required evidence status
+------------------------
 
-Test Files  3 passed (3)
-     Tests  9 passed (9)
+[NOT CAPTURED] Exact GitHub Actions run URL for the candidate
+[NOT CAPTURED] npm ci output
+[NOT CAPTURED] npm run typecheck output
+[NOT CAPTURED] npm run test output
+[NOT CAPTURED] npm run build output
+[NOT CAPTURED] cargo fmt --check output
+[NOT CAPTURED] cargo check output
+[NOT CAPTURED] cargo test output
+[NOT CAPTURED] Windows version and display configuration
+[NOT CAPTURED] Native overlay HWND bounds
+[NOT CAPTURED] Cross-process click-through recording
+[NOT CAPTURED] Global shortcut recording with Notepad focused
+[NOT CAPTURED] Target move/minimize/restore/reopen recording
+[NOT CAPTURED] Runtime metrics CSV
 
-RESOURCE OBSERVATIONS & STRESS BENCHMARK (10 MINUTES)
-------------------------------------------------------
-Target Application: Notepad (notepad.exe)
-Interval: 10-minute continuous observation with 50 window enumerations & drag operations
+Capture runtime metrics
+-----------------------
 
-Minute  | Idle CPU | RAM (MB) | Process Handle Count | Status
---------|----------|----------|----------------------|-------
-00:00   | 0.0%     | 65.4 MB  | 284                  | Initialized
-02:00   | 0.0%     | 66.1 MB  | 284                  | Active tracking
-04:00   | 0.1%     | 66.8 MB  | 284                  | Window dragged
-06:00   | 0.0%     | 67.2 MB  | 284                  | Target minimized
-08:00   | 0.0%     | 67.0 MB  | 284                  | Target restored
-10:00   | 0.0%     | 67.4 MB  | 284                  | Clean steady state
+1. Start the latest Skribly candidate.
+2. From the repository root run:
 
-Result: Zero process handle leaks detected (Handle count steady at 284). Zero excessive CPU usage while idle.
+   powershell -ExecutionPolicy Bypass -File scripts/windows/capture-runtime-evidence.ps1
+
+3. Commit the generated file only after confirming it belongs to the exact candidate:
+
+   docs/07-validation/evidence/runtime-metrics.csv
+
+Acceptance rule
+---------------
+
+Do not replace any NOT CAPTURED entry with PASS unless the corresponding raw output or runtime evidence is attached and identifies the exact tested commit SHA.
