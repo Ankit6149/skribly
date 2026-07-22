@@ -18,6 +18,7 @@ describe('skribStore', () => {
       availableWindows: [],
       skribs: [],
       overlayMetrics: DEFAULT_METRICS,
+      initStatus: { type: 'Initializing' },
       isPickingTarget: false,
       isAmbiguous: false,
       isTauriAvailable: false,

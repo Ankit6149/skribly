@@ -14,6 +14,11 @@ export interface OverlayMetrics {
   scale_factor: number;
 }
 
+export type OverlayInitializationStatus =
+  | { type: 'Initializing' }
+  | { type: 'Ready'; payload: OverlayMetrics }
+  | { type: 'Failed'; payload: string };
+
 export interface TargetWindowInfo {
   hwnd_val: number;
   title: string;

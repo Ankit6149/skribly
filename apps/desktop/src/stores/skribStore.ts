@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { OverlayMetrics, SkribNote, TargetWindowInfo } from '../lib/geometry';
+import { OverlayInitializationStatus, OverlayMetrics, SkribNote, TargetWindowInfo } from '../lib/geometry';
 
 type UnlistenFn = () => void;
 
@@ -12,6 +12,7 @@ export interface OverlayStatePayload {
   is_shortcut_active: boolean;
   is_ambiguous: boolean;
   overlay_metrics: OverlayMetrics;
+  init_status?: OverlayInitializationStatus;
 }
 
 const DEFAULT_METRICS: OverlayMetrics = {
@@ -44,6 +45,7 @@ interface SkribStoreState {
   availableWindows: TargetWindowInfo[];
   skribs: SkribNote[];
   overlayMetrics: OverlayMetrics;
+  initStatus: OverlayInitializationStatus;
   isPickingTarget: boolean;
   isAmbiguous: boolean;
   isTauriAvailable: boolean;
@@ -53,6 +55,7 @@ interface SkribStoreState {
   clearError: () => void;
   fetchTargetWindows: () => Promise<void>;
   fetchOverlayMetrics: () => Promise<void>;
+  retryOverlayInit: () => Promise<void>;
   bindTarget: (target: TargetWindowInfo | null) => Promise<void>;
   addSkrib: (text?: string, color?: SkribNote['color']) => Promise<void>;
   updateSkribPosition: (
@@ -77,6 +80,7 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
   availableWindows: [],
   skribs: [],
   overlayMetrics: DEFAULT_METRICS,
+  initStatus: { type: 'Initializing' },
   isPickingTarget: false,
   isAmbiguous: false,
   isTauriAvailable: typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window,
@@ -114,6 +118,20 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
     }
   },
 
+  retryOverlayInit: async () => {
+    if (!get().isTauriAvailable) return;
+    try {
+      const payload = await invoke<OverlayStatePayload>('retry_overlay_initialization');
+      set({
+        initStatus: payload.init_status || get().initStatus,
+        overlayMetrics: payload.overlay_metrics || get().overlayMetrics,
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      set({ initStatus: { type: 'Failed', payload: msg } });
+    }
+  },
+
   bindTarget: async (target: TargetWindowInfo | null) => {
     set({ activeTarget: target, isPickingTarget: false, isAmbiguous: false });
     if (!get().isTauriAvailable) return;
@@ -123,6 +141,7 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
         activeTarget: payload.active_target,
         skribs: payload.skribs,
         overlayMetrics: payload.overlay_metrics || get().overlayMetrics,
+        initStatus: payload.init_status || get().initStatus,
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -156,6 +175,7 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
       set({
         skribs: payload.skribs,
         overlayMetrics: payload.overlay_metrics || get().overlayMetrics,
+        initStatus: payload.init_status || get().initStatus,
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -182,10 +202,10 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
       set({
         skribs: payload.skribs,
         overlayMetrics: payload.overlay_metrics || get().overlayMetrics,
+        initStatus: payload.init_status || get().initStatus,
       });
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      set({ errorMessage: `Failed to save note position: ${msg}` });
+      // Ignore transient position update errors
     }
   },
 
@@ -202,6 +222,7 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
       set({
         skribs: payload.skribs,
         overlayMetrics: payload.overlay_metrics || get().overlayMetrics,
+        initStatus: payload.init_status || get().initStatus,
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -220,6 +241,7 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
       set({
         skribs: payload.skribs,
         overlayMetrics: payload.overlay_metrics || get().overlayMetrics,
+        initStatus: payload.init_status || get().initStatus,
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -238,6 +260,7 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
       set({
         skribs: payload.skribs,
         overlayMetrics: payload.overlay_metrics || get().overlayMetrics,
+        initStatus: payload.init_status || get().initStatus,
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -256,6 +279,7 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
       set({
         skribs: payload.skribs,
         overlayMetrics: payload.overlay_metrics || get().overlayMetrics,
+        initStatus: payload.init_status || get().initStatus,
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -268,7 +292,7 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
     try {
       await invoke('set_hit_test_rects', { rects });
     } catch (e) {
-      console.warn('Native hit-testing update failed:', e);
+      // Ignore hit test update errors
     }
   },
 
@@ -289,6 +313,7 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
             isAmbiguous: payload.is_ambiguous,
             isPickingTarget: payload.is_ambiguous ? true : get().isPickingTarget,
             overlayMetrics: payload.overlay_metrics || get().overlayMetrics,
+            initStatus: payload.init_status || get().initStatus,
           });
         });
 
@@ -302,6 +327,7 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
             isAmbiguous: payload.is_ambiguous,
             isPickingTarget: payload.active_target ? false : true,
             overlayMetrics: payload.overlay_metrics || get().overlayMetrics,
+            initStatus: payload.init_status || get().initStatus,
           });
         });
 
@@ -309,7 +335,11 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
           set({ errorMessage: event.payload });
         });
 
-        unlistenCallbacks.push(overlayUnlisten, shortcutUnlisten, hotkeyErrorUnlisten);
+        const initStatusUnlisten = await listen<OverlayInitializationStatus>('skribly://overlay-init-status', (event) => {
+          set({ initStatus: event.payload });
+        });
+
+        unlistenCallbacks.push(overlayUnlisten, shortcutUnlisten, hotkeyErrorUnlisten, initStatusUnlisten);
 
         if (!cleanupInstalled && typeof window !== 'undefined') {
           window.addEventListener('beforeunload', disposeTauriListeners, { once: true });

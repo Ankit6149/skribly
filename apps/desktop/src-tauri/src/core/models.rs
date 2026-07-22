@@ -107,6 +107,20 @@ impl SkribNote {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(tag = "type", content = "payload")]
+pub enum OverlayInitializationStatus {
+    Initializing,
+    Ready(OverlayMetrics),
+    Failed(String),
+}
+
+impl Default for OverlayInitializationStatus {
+    fn default() -> Self {
+        Self::Initializing
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct OverlayMetrics {
     pub overlay_physical_x: i32,
     pub overlay_physical_y: i32,
@@ -137,6 +151,7 @@ pub struct OverlayStatePayload {
     pub is_shortcut_active: bool,
     pub is_ambiguous: bool,
     pub overlay_metrics: OverlayMetrics,
+    pub init_status: OverlayInitializationStatus,
 }
 
 #[cfg(test)]

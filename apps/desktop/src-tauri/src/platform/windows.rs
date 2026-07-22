@@ -11,7 +11,7 @@ use std::sync::mpsc::Sender;
 use std::sync::OnceLock;
 
 use windows::core::BOOL;
-use windows::Win32::Foundation::{CloseHandle, HANDLE, HMODULE, HWND, LPARAM, LRESULT, RECT, WPARAM};
+use windows::Win32::Foundation::{CloseHandle, HANDLE, HWND, LPARAM, LRESULT, RECT, WPARAM};
 use windows::Win32::System::ProcessStatus::K32GetModuleFileNameExW;
 use windows::Win32::System::Threading::{OpenProcess, PROCESS_QUERY_INFORMATION, PROCESS_VM_READ};
 use windows::Win32::UI::Accessibility::{SetWinEventHook, UnhookWinEvent, HWINEVENTHOOK};
@@ -23,10 +23,10 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     CallWindowProcW, EnumWindows, GetClassNameW, GetForegroundWindow, GetSystemMetrics,
-    GetWindowLongPtrW, GetWindowRect, GetWindowTextW, GetWindowThreadProcessId, IsIconic,
-    IsWindow, IsWindowVisible, SetWindowLongPtrW, GWLP_WNDPROC, HTCLIENT, HTTRANSPARENT,
-    SM_CXVIRTUALSCREEN, SM_CYVIRTUALSCREEN, SM_XVIRTUALSCREEN, SM_YVIRTUALSCREEN,
-    WINEVENT_OUTOFCONTEXT, WINEVENT_SKIPOWNPROCESS, WM_HOTKEY, WM_NCHITTEST, WNDPROC,
+    GetWindowLongPtrW, GetWindowRect, GetWindowTextW, GetWindowThreadProcessId, IsIconic, IsWindow,
+    IsWindowVisible, SetWindowLongPtrW, GWLP_WNDPROC, HTCLIENT, HTTRANSPARENT, SM_CXVIRTUALSCREEN,
+    SM_CYVIRTUALSCREEN, SM_XVIRTUALSCREEN, SM_YVIRTUALSCREEN, WINEVENT_OUTOFCONTEXT,
+    WINEVENT_SKIPOWNPROCESS, WM_HOTKEY, WM_NCHITTEST, WNDPROC,
 };
 
 use crate::core::coordinator::Coordinator;
@@ -73,7 +73,11 @@ pub fn set_dpi_awareness() {
 
 /// Convert Physical screen coordinates to Logical DIP coordinates.
 pub fn physical_to_logical(px: i32, py: i32, scale_factor: f64) -> (i32, i32) {
-    let scale = if scale_factor > 0.0 { scale_factor } else { 1.0 };
+    let scale = if scale_factor > 0.0 {
+        scale_factor
+    } else {
+        1.0
+    };
     (
         (px as f64 / scale).round() as i32,
         (py as f64 / scale).round() as i32,
@@ -82,7 +86,11 @@ pub fn physical_to_logical(px: i32, py: i32, scale_factor: f64) -> (i32, i32) {
 
 /// Convert Logical DIP coordinates to Physical screen coordinates.
 pub fn logical_to_physical(lx: i32, ly: i32, scale_factor: f64) -> (i32, i32) {
-    let scale = if scale_factor > 0.0 { scale_factor } else { 1.0 };
+    let scale = if scale_factor > 0.0 {
+        scale_factor
+    } else {
+        1.0
+    };
     (
         (lx as f64 * scale).round() as i32,
         (ly as f64 * scale).round() as i32,
@@ -153,10 +161,63 @@ pub fn verify_overlay_bounds(hwnd: HWND) -> Result<OverlayMetrics, String> {
     } else {
         Err(format!(
             "Overlay native bounds mismatch! Expected: ({}, {}) {}x{}, Actual: ({}, {}) {}x{}",
-            expected_vbounds.x, expected_vbounds.y, expected_vbounds.width, expected_vbounds.height,
-            actual_metrics.overlay_physical_x, actual_metrics.overlay_physical_y,
-            actual_metrics.overlay_physical_width, actual_metrics.overlay_physical_height
+            expected_vbounds.x,
+            expected_vbounds.y,
+            expected_vbounds.width,
+            expected_vbounds.height,
+            actual_metrics.overlay_physical_x,
+            actual_metrics.overlay_physical_y,
+            actual_metrics.overlay_physical_width,
+            actual_metrics.overlay_physical_height
         ))
+    }
+}
+
+pub fn attempt_overlay_bounds_initialization(
+    window: &tauri::WebviewWindow,
+) -> Result<OverlayMetrics, String> {
+    let vbounds = get_virtual_screen_bounds();
+
+    window
+        .set_position(tauri::PhysicalPosition::new(vbounds.x, vbounds.y))
+        .map_err(|e| format!("set_position failed: {}", e))?;
+
+    window
+        .set_size(tauri::PhysicalSize::new(
+            vbounds.width as u32,
+            vbounds.height as u32,
+        ))
+        .map_err(|e| format!("set_size failed: {}", e))?;
+
+    std::thread::sleep(std::time::Duration::from_millis(50));
+
+    if let Ok(hwnd) = window.hwnd() {
+        let win_hwnd = HWND(hwnd.0 as *mut _);
+        verify_overlay_bounds(win_hwnd)
+    } else {
+        Err("Failed to acquire native HWND from WebviewWindow".into())
+    }
+}
+
+pub fn initialize_overlay_with_retry(
+    window: &tauri::WebviewWindow,
+) -> Result<OverlayMetrics, String> {
+    match attempt_overlay_bounds_initialization(window) {
+        Ok(metrics) => Ok(metrics),
+        Err(err1) => {
+            eprintln!(
+                "Overlay initialization Attempt 1 failed: {}. Retrying...",
+                err1
+            );
+            std::thread::sleep(std::time::Duration::from_millis(100));
+            match attempt_overlay_bounds_initialization(window) {
+                Ok(metrics) => Ok(metrics),
+                Err(err2) => Err(format!(
+                    "Overlay bounds initialization failed after 2 attempts. Attempt 1: [{}]. Attempt 2: [{}]",
+                    err1, err2
+                )),
+            }
+        }
     }
 }
 
@@ -218,7 +279,11 @@ pub fn check_hit_test_rect_math(
     px: i32,
     py: i32,
 ) -> bool {
-    let scale = if scale_factor > 0.0 { scale_factor } else { 1.0 };
+    let scale = if scale_factor > 0.0 {
+        scale_factor
+    } else {
+        1.0
+    };
     for r in rects {
         let phys_left = overlay_x + (r.x as f64 * scale).round() as i32;
         let phys_top = overlay_y + (r.y as f64 * scale).round() as i32;
@@ -301,7 +366,11 @@ pub fn install_overlay_subclass(hwnd: HWND, coordinator: Coordinator) {
         let old_proc = GetWindowLongPtrW(hwnd, GWLP_WNDPROC);
         if old_proc != 0 && old_proc != (overlay_subclass_proc as *const () as isize) {
             ORIGINAL_WNDPROC.store(old_proc, Ordering::Relaxed);
-            SetWindowLongPtrW(hwnd, GWLP_WNDPROC, overlay_subclass_proc as *const () as isize);
+            SetWindowLongPtrW(
+                hwnd,
+                GWLP_WNDPROC,
+                overlay_subclass_proc as *const () as isize,
+            );
         }
     }
 }
@@ -434,7 +503,8 @@ pub fn get_window_process_name(hwnd: HWND) -> String {
             return String::new();
         }
 
-        if let Ok(raw_handle) = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, false, pid) {
+        if let Ok(raw_handle) = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, false, pid)
+        {
             let handle = AutoCloseHandle(raw_handle);
             let mut buf = [0u16; 1024];
             let len = K32GetModuleFileNameExW(Some(handle.0), None, &mut buf);

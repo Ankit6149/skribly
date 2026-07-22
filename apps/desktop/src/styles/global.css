@@ -53,6 +53,36 @@ button, textarea {
   box-shadow: var(--shadow-m);
 }
 
+.overlay-init-failure-banner {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 10001;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 18px;
+  border-radius: 12px;
+  background: #fff1f2;
+  border: 1.5px solid #f43f5e;
+  color: #9f1239;
+  font-size: 13px;
+  box-shadow: var(--shadow-l);
+  max-width: 420px;
+}
+
+.overlay-init-failure-banner p {
+  margin: 0;
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+.overlay-init-failure-banner button {
+  align-self: flex-start;
+  margin-top: 4px;
+}
+
 .overlay-error-toast button {
   border: 0;
   background: transparent;

@@ -9,12 +9,14 @@ export const OverlayHost: React.FC = () => {
     availableWindows,
     skribs,
     overlayMetrics,
+    initStatus,
     isPickingTarget,
     isAmbiguous,
     errorMessage,
     clearError,
     setPickingTarget,
     fetchTargetWindows,
+    retryOverlayInit,
     bindTarget,
     addSkrib,
     updateHitTestRects,
@@ -24,6 +26,7 @@ export const OverlayHost: React.FC = () => {
   const toolbarRef = useRef<HTMLDivElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
   const errorToastRef = useRef<HTMLDivElement>(null);
+  const initFailureRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     void initTauri();
@@ -62,6 +65,16 @@ export const OverlayHost: React.FC = () => {
       });
     }
 
+    if (initStatus.type === 'Failed' && initFailureRef.current) {
+      const b = initFailureRef.current.getBoundingClientRect();
+      rects.push({
+        x: Math.round(b.left),
+        y: Math.round(b.top),
+        width: Math.round(b.width),
+        height: Math.round(b.height),
+      });
+    }
+
     skribs.forEach((note) => {
       const clientPos = activeTarget
         ? calculateNoteClientLogicalPosition(activeTarget.bounds, overlayMetrics, note.rel_x, note.rel_y)
@@ -80,7 +93,7 @@ export const OverlayHost: React.FC = () => {
     });
 
     void updateHitTestRects(rects);
-  }, [skribs, activeTarget, overlayMetrics, isPickingTarget, errorMessage, updateHitTestRects]);
+  }, [skribs, activeTarget, overlayMetrics, isPickingTarget, errorMessage, initStatus, updateHitTestRects]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -106,6 +119,20 @@ export const OverlayHost: React.FC = () => {
           <span>⚠️ {errorMessage}</span>
           <button type="button" onClick={clearError} aria-label="Dismiss error">
             ✕
+          </button>
+        </div>
+      )}
+
+      {initStatus.type === 'Failed' && (
+        <div ref={initFailureRef} className="overlay-init-failure-banner" role="alert">
+          <strong>⚠️ Overlay Positioning Initialization Failed</strong>
+          <p>{initStatus.payload}</p>
+          <button
+            type="button"
+            className="toolbar-btn primary-btn"
+            onClick={() => void retryOverlayInit()}
+          >
+            🔄 Retry Overlay Initialization
           </button>
         </div>
       )}
