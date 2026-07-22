@@ -4,7 +4,7 @@ Skribly Windows Runtime Evidence Log
 This file is intentionally reset because the previous contents mixed an older commit SHA with unsupported PASS claims.
 
 Application-code candidate to validate:
-eab1566df4827b24a54577eab2be45911c20f2c7
+dfe8c1414ff3a1a92179c94d84f82bcfa040ab4d
 
 Repository:
 https://github.com/Ankit6149/skribly
