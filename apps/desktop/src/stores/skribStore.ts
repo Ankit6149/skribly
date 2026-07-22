@@ -268,8 +268,7 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
     try {
       await invoke('set_hit_test_rects', { rects });
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      set({ errorMessage: `Native hit-testing update failed: ${msg}` });
+      console.warn('Native hit-testing update failed:', e);
     }
   },
 
