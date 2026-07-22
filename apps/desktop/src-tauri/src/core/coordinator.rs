@@ -73,6 +73,15 @@ impl Coordinator {
         }
     }
 
+    pub fn replace_all_skribs(&self, notes: Vec<SkribNote>) {
+        if let Ok(mut state) = self.state.lock() {
+            state.skribs = notes
+                .into_iter()
+                .map(|note| (note.id.clone(), note))
+                .collect();
+        }
+    }
+
     pub fn remove_skrib(&self, id: &str) -> Option<SkribNote> {
         if let Ok(mut state) = self.state.lock() {
             state.skribs.remove(id)

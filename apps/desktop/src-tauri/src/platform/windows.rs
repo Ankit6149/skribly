@@ -360,19 +360,25 @@ unsafe extern "system" fn overlay_subclass_proc(
 }
 
 /// Install native WM_NCHITTEST subclassing on overlay window HWND.
-pub fn install_overlay_subclass(hwnd: HWND, coordinator: Coordinator) {
+pub fn install_overlay_subclass(hwnd: HWND, coordinator: Coordinator) -> Result<(), String> {
     let _ = GLOBAL_COORDINATOR.set(coordinator);
     unsafe {
-        let old_proc = GetWindowLongPtrW(hwnd, GWLP_WNDPROC);
-        if old_proc != 0 && old_proc != (overlay_subclass_proc as *const () as isize) {
-            ORIGINAL_WNDPROC.store(old_proc, Ordering::Relaxed);
-            SetWindowLongPtrW(
-                hwnd,
-                GWLP_WNDPROC,
-                overlay_subclass_proc as *const () as isize,
-            );
+        let current_proc = GetWindowLongPtrW(hwnd, GWLP_WNDPROC);
+        let subclass_proc = overlay_subclass_proc as *const () as isize;
+        if current_proc == subclass_proc {
+            return Ok(());
         }
+        if current_proc == 0 {
+            return Err("Failed to read the overlay window procedure".into());
+        }
+
+        let replaced_proc = SetWindowLongPtrW(hwnd, GWLP_WNDPROC, subclass_proc);
+        if replaced_proc == 0 {
+            return Err("Failed to install selective click-through hit testing".into());
+        }
+        ORIGINAL_WNDPROC.store(current_proc, Ordering::Relaxed);
     }
+    Ok(())
 }
 
 /// Restore original WndProc on shutdown.
@@ -427,7 +433,7 @@ pub fn install_winevent_hooks(sender: Sender<WinEventNotice>) -> bool {
         EVENT_OBJECT_LOCATIONCHANGE,
     ];
 
-    let mut installed_any = false;
+    let mut installed_count = 0;
     if let Ok(mut hooks_guard) = ACTIVE_WINEVENT_HOOKS.lock() {
         unsafe {
             for &evt in &target_events {
@@ -442,12 +448,18 @@ pub fn install_winevent_hooks(sender: Sender<WinEventNotice>) -> bool {
                 );
                 if hook.0 != std::ptr::null_mut() {
                     hooks_guard.push(hook.0 as isize);
-                    installed_any = true;
+                    installed_count += 1;
                 }
             }
         }
     }
-    installed_any
+    if installed_count == target_events.len() {
+        true
+    } else {
+        // A partial hook set cannot support truthful runtime readiness.
+        uninstall_winevent_hooks();
+        false
+    }
 }
 
 /// Unhook WinEvent hooks on application exit.
