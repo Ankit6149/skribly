@@ -23,28 +23,45 @@ export const OverlayHost: React.FC = () => {
 
   const toolbarRef = useRef<HTMLDivElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
+  const errorToastRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    initTauri();
+    void initTauri();
   }, [initTauri]);
 
-  // Synchronize interactive bounding boxes in Client Logical DIPs to Rust for native WM_NCHITTEST
   useEffect(() => {
     const rects: Array<{ x: number; y: number; width: number; height: number }> = [];
 
-    // Toolbar rect
     if (toolbarRef.current) {
       const b = toolbarRef.current.getBoundingClientRect();
-      rects.push({ x: Math.round(b.left), y: Math.round(b.top), width: Math.round(b.width), height: Math.round(b.height) });
+      rects.push({
+        x: Math.round(b.left),
+        y: Math.round(b.top),
+        width: Math.round(b.width),
+        height: Math.round(b.height),
+      });
     }
 
-    // Modal rect
     if (isPickingTarget && modalRef.current) {
       const b = modalRef.current.getBoundingClientRect();
-      rects.push({ x: Math.round(b.left), y: Math.round(b.top), width: Math.round(b.width), height: Math.round(b.height) });
+      rects.push({
+        x: Math.round(b.left),
+        y: Math.round(b.top),
+        width: Math.round(b.width),
+        height: Math.round(b.height),
+      });
     }
 
-    // Skrib note rects in Client Logical DIPs
+    if (errorMessage && errorToastRef.current) {
+      const b = errorToastRef.current.getBoundingClientRect();
+      rects.push({
+        x: Math.round(b.left),
+        y: Math.round(b.top),
+        width: Math.round(b.width),
+        height: Math.round(b.height),
+      });
+    }
+
     skribs.forEach((note) => {
       const clientPos = activeTarget
         ? calculateNoteClientLogicalPosition(activeTarget.bounds, overlayMetrics, note.rel_x, note.rel_y)
@@ -53,48 +70,64 @@ export const OverlayHost: React.FC = () => {
       if (note.collapsed) {
         rects.push({ x: clientPos.x, y: clientPos.y, width: 180, height: 32 });
       } else {
-        rects.push({ x: clientPos.x, y: clientPos.y, width: Math.round(note.width), height: Math.round(note.height) });
+        rects.push({
+          x: clientPos.x,
+          y: clientPos.y,
+          width: Math.round(note.width),
+          height: Math.round(note.height),
+        });
       }
     });
 
-    updateHitTestRects(rects);
-  }, [skribs, activeTarget, overlayMetrics, isPickingTarget, updateHitTestRects]);
+    void updateHitTestRects(rects);
+  }, [skribs, activeTarget, overlayMetrics, isPickingTarget, errorMessage, updateHitTestRects]);
 
-  // Keyboard shortcut listener (in-window convenience shortcut)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.shiftKey && e.code === 'Space') {
-        e.preventDefault();
-        addSkrib();
+      if (!e.ctrlKey || !e.shiftKey || e.code !== 'Space') return;
+      e.preventDefault();
+
+      if (activeTarget) {
+        void addSkrib();
+        return;
       }
+
+      void fetchTargetWindows().then(() => setPickingTarget(true));
     };
+
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [addSkrib]);
+  }, [activeTarget, addSkrib, fetchTargetWindows, setPickingTarget]);
 
   return (
     <div className="overlay-root">
-      {/* Error Alert Toast */}
       {errorMessage && (
-        <div className="overlay-error-toast">
+        <div ref={errorToastRef} className="overlay-error-toast" role="alert">
           <span>⚠️ {errorMessage}</span>
-          <button type="button" onClick={clearError}>✕</button>
+          <button type="button" onClick={clearError} aria-label="Dismiss error">
+            ✕
+          </button>
         </div>
       )}
 
-      {/* Top Floating Control Bar */}
       <header ref={toolbarRef} className="overlay-toolbar">
         <div className="toolbar-brand">
           <span className="brand-logo">🏷️</span>
           <strong>Skribly</strong>
-          <span className="brand-badge">WIN32 OVERLAY REPAIRED</span>
+          <span className="brand-badge">WINDOWS EARLY ACCESS</span>
         </div>
 
         <div className="toolbar-actions">
           <button
             type="button"
             className="toolbar-btn primary-btn"
-            onClick={() => addSkrib()}
+            onClick={() => {
+              if (activeTarget) {
+                void addSkrib();
+              } else {
+                void fetchTargetWindows().then(() => setPickingTarget(true));
+              }
+            }}
             title="Create new Skrib note (Ctrl+Shift+Space)"
           >
             ➕ New Skrib
@@ -116,7 +149,7 @@ export const OverlayHost: React.FC = () => {
               type="button"
               className="toolbar-btn clear-btn"
               title="Unbind active window target"
-              onClick={() => bindTarget(null)}
+              onClick={() => void bindTarget(null)}
             >
               ✕ Unbind
             </button>
@@ -124,7 +157,6 @@ export const OverlayHost: React.FC = () => {
         </div>
       </header>
 
-      {/* Target Window Picker Dialog */}
       {isPickingTarget && (
         <div className="target-picker-backdrop">
           <div ref={modalRef} className="target-picker-modal">
@@ -134,6 +166,7 @@ export const OverlayHost: React.FC = () => {
                 type="button"
                 className="close-modal-btn"
                 onClick={() => setPickingTarget(false)}
+                aria-label="Close target picker"
               >
                 ✕
               </button>
@@ -141,14 +174,14 @@ export const OverlayHost: React.FC = () => {
 
             <p className="modal-subtitle">
               {isAmbiguous
-                ? 'Multiple candidate windows matched your disconnected note context. Please select which window to bind to.'
-                : 'Skribly sticky notes attach to this external window, follow its movement, and restore with its context.'}
+                ? 'Multiple candidate windows matched your disconnected note context. Select the correct window.'
+                : 'Skribly notes attach to an external window, follow its movement, and return with that context.'}
             </p>
 
             <div className="window-list">
               {availableWindows.length === 0 ? (
                 <div className="no-windows-msg">
-                  No active external application windows found. Open Notepad, File Explorer, or another app and click Refresh.
+                  No external application windows were found. Open Notepad, File Explorer, or another app and refresh.
                 </div>
               ) : (
                 availableWindows.map((win) => (
@@ -156,7 +189,7 @@ export const OverlayHost: React.FC = () => {
                     key={win.hwnd_val}
                     type="button"
                     className={`window-item-card ${activeTarget?.hwnd_val === win.hwnd_val ? 'active' : ''}`}
-                    onClick={() => bindTarget(win)}
+                    onClick={() => void bindTarget(win)}
                   >
                     <div className="window-icon">🪟</div>
                     <div className="window-details">
@@ -172,11 +205,7 @@ export const OverlayHost: React.FC = () => {
             </div>
 
             <footer className="modal-footer">
-              <button
-                type="button"
-                className="toolbar-btn"
-                onClick={() => fetchTargetWindows()}
-              >
+              <button type="button" className="toolbar-btn" onClick={() => void fetchTargetWindows()}>
                 🔄 Refresh Window List
               </button>
               <button
@@ -191,12 +220,8 @@ export const OverlayHost: React.FC = () => {
         </div>
       )}
 
-      {/* Render Active Skrib Sticky Notes */}
       {(!activeTarget || !activeTarget.is_minimized) &&
-        skribs.map((note) => (
-          <SkribNoteCard key={note.id} note={note} target={activeTarget} />
-        ))}
+        skribs.map((note) => <SkribNoteCard key={note.id} note={note} target={activeTarget} />)}
     </div>
   );
 };
-
