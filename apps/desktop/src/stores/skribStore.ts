@@ -206,13 +206,8 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
   },
 
   setInteractiveHover: async (isHovering: boolean) => {
+    // Retained only as an explicit emergency fallback command, disabled by default.
     set({ isInteractiveHover: isHovering });
-    if (!get().isTauriAvailable) return;
-    try {
-      await invoke('set_ignore_cursor_events', { ignore: !isHovering });
-    } catch (e) {
-      // Ignore click-through hover errors silently
-    }
   },
 
   updateHitTestRects: async (rects) => {
@@ -238,8 +233,24 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
           isPickingTarget: payload.is_ambiguous ? true : get().isPickingTarget,
         });
       });
+
+      await listen<OverlayStatePayload>('skribly://global-shortcut', (event) => {
+        const payload = event.payload;
+        set({
+          activeTarget: payload.active_target,
+          skribs: payload.skribs,
+          availableWindows: payload.available_windows.length > 0 ? payload.available_windows : get().availableWindows,
+          isAmbiguous: payload.is_ambiguous,
+          isPickingTarget: payload.active_target ? false : true,
+        });
+      });
+
+      await listen<string>('skribly://hotkey-error', (event) => {
+        set({ errorMessage: event.payload });
+      });
     } catch (e) {
       console.warn('Failed to initialize Tauri listeners:', e);
     }
   },
 }));
+

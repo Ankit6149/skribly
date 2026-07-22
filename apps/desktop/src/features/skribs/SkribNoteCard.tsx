@@ -22,7 +22,6 @@ export const SkribNoteCard: React.FC<SkribNoteCardProps> = ({ note, target }) =>
     updateSkribColor,
     toggleSkribCollapse,
     deleteSkrib,
-    setInteractiveHover,
   } = useSkribStore();
 
   const [text, setText] = useState(note.text);
@@ -160,8 +159,6 @@ export const SkribNoteCard: React.FC<SkribNoteCardProps> = ({ note, target }) =>
           left: `${absolutePos.x}px`,
           top: `${absolutePos.y}px`,
         }}
-        onMouseEnter={() => setInteractiveHover(true)}
-        onMouseLeave={() => setInteractiveHover(false)}
         onClick={() => toggleSkribCollapse(note.id)}
         title="Click to expand Skrib"
       >
@@ -180,12 +177,6 @@ export const SkribNoteCard: React.FC<SkribNoteCardProps> = ({ note, target }) =>
         top: `${absolutePos.y}px`,
         width: `${note.width}px`,
         minHeight: `${note.height}px`,
-      }}
-      onMouseEnter={() => setInteractiveHover(true)}
-      onMouseLeave={() => {
-        if (!isDragging && !isResizing) {
-          setInteractiveHover(false);
-        }
       }}
     >
       <header className="skrib-header" onMouseDown={handleMouseDownHeader}>

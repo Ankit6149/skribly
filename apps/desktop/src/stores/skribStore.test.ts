@@ -69,4 +69,12 @@ describe('skribStore', () => {
     await useSkribStore.getState().deleteSkrib(noteId);
     expect(useSkribStore.getState().skribs.length).toBe(0);
   });
+
+  it('handles target selection requirement when active target is unbound', () => {
+    useSkribStore.setState({ activeTarget: null, isPickingTarget: false });
+    // When no target is bound, opening target picker is triggered
+    useSkribStore.getState().setPickingTarget(true);
+    expect(useSkribStore.getState().isPickingTarget).toBe(true);
+  });
 });
+

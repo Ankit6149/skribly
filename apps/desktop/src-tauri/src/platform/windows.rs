@@ -6,7 +6,7 @@
 use std::ffi::OsString;
 use std::os::windows::ffi::OsStringExt;
 use std::path::Path;
-use std::sync::atomic::{AtomicIsize, Ordering};
+use std::sync::atomic::{AtomicIsize, AtomicU64, Ordering};
 use std::sync::mpsc::Sender;
 
 use windows::core::BOOL;
@@ -21,13 +21,15 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
     RegisterHotKey, UnregisterHotKey, MOD_CONTROL, MOD_SHIFT, VK_SPACE,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    CallWindowProcW, EnumWindows, GetClassNameW, GetForegroundWindow, GetWindowLongPtrW,
-    GetWindowRect, GetWindowTextW, GetWindowThreadProcessId, IsIconic, IsWindow, IsWindowVisible,
-    SetWindowLongPtrW, GWLP_WNDPROC, HTCLIENT, HTTRANSPARENT, WM_NCHITTEST, WNDPROC,
+    CallWindowProcW, EnumWindows, GetClassNameW, GetForegroundWindow, GetSystemMetrics,
+    GetWindowLongPtrW, GetWindowRect, GetWindowTextW, GetWindowThreadProcessId, IsIconic,
+    IsWindow, IsWindowVisible, SetWindowLongPtrW, GWLP_WNDPROC, HTCLIENT, HTTRANSPARENT,
+    SM_CXVIRTUALSCREEN, SM_CYVIRTUALSCREEN, SM_XVIRTUALSCREEN, SM_YVIRTUALSCREEN, WM_HOTKEY,
+    WM_NCHITTEST, WNDPROC,
 };
 
 use crate::core::coordinator::Coordinator;
-use crate::core::models::{TargetWindowInfo, WindowRect};
+use crate::core::models::{HitTestRect, TargetWindowInfo, WindowRect};
 
 pub const WINEVENT_OUTOFCONTEXT: u32 = 0x0000;
 pub const WINEVENT_SKIPOWNPROCESS: u32 = 0x0002;
@@ -40,6 +42,7 @@ pub const EVENT_OBJECT_LOCATIONCHANGE: u32 = 0x800B;
 static ORIGINAL_WNDPROC: AtomicIsize = AtomicIsize::new(0);
 static ACTIVE_WINEVENT_HOOK: AtomicIsize = AtomicIsize::new(0);
 static GLOBAL_COORDINATOR: std::sync::OnceLock<Coordinator> = std::sync::OnceLock::new();
+static ENUMERATION_COUNT: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Debug, Clone)]
 pub struct WinEventNotice {
@@ -48,6 +51,7 @@ pub struct WinEventNotice {
 }
 
 static EVENT_SENDER: std::sync::OnceLock<Sender<WinEventNotice>> = std::sync::OnceLock::new();
+static HOTKEY_SENDER: std::sync::OnceLock<Sender<i32>> = std::sync::OnceLock::new();
 
 /// RAII wrapper for Win32 HANDLE to guarantee CloseHandle is invoked on drop.
 pub struct AutoCloseHandle(pub HANDLE);
@@ -87,6 +91,31 @@ pub fn logical_to_physical(lx: i32, ly: i32, scale_factor: f64) -> (i32, i32) {
     )
 }
 
+/// Query virtual desktop screen bounds covering all monitors.
+pub fn get_virtual_screen_bounds() -> WindowRect {
+    unsafe {
+        let x = GetSystemMetrics(SM_XVIRTUALSCREEN);
+        let y = GetSystemMetrics(SM_YVIRTUALSCREEN);
+        let width = GetSystemMetrics(SM_CXVIRTUALSCREEN);
+        let height = GetSystemMetrics(SM_CYVIRTUALSCREEN);
+        WindowRect {
+            x,
+            y,
+            width,
+            height,
+        }
+    }
+}
+
+/// Track total window enumeration invocations for verification.
+pub fn get_window_enumeration_count() -> u64 {
+    ENUMERATION_COUNT.load(Ordering::Relaxed)
+}
+
+pub fn reset_window_enumeration_count() {
+    ENUMERATION_COUNT.store(0, Ordering::Relaxed);
+}
+
 /// Reconstruct HWND safely from numeric handle value.
 pub fn reconstruct_hwnd(hwnd_val: isize) -> Option<HWND> {
     if hwnd_val == 0 {
@@ -122,19 +151,80 @@ pub fn unregister_global_hotkey(hwnd: HWND, hotkey_id: i32) {
     }
 }
 
-/// Custom WndProc subclass function intercepting WM_NCHITTEST for selective click-through.
+/// Install sender channel for native global hotkey notifications.
+pub fn install_hotkey_sender(sender: Sender<i32>) {
+    let _ = HOTKEY_SENDER.set(sender);
+}
+
+/// Calculate hit-testing intersection between physical cursor and client DIP rectangles.
+pub fn check_hit_test_rect_math(
+    overlay_x: i32,
+    overlay_y: i32,
+    scale_factor: f64,
+    rects: &[HitTestRect],
+    px: i32,
+    py: i32,
+) -> bool {
+    let scale = if scale_factor > 0.0 { scale_factor } else { 1.0 };
+    for r in rects {
+        let phys_left = overlay_x + (r.x as f64 * scale).round() as i32;
+        let phys_top = overlay_y + (r.y as f64 * scale).round() as i32;
+        let phys_right = phys_left + (r.width as f64 * scale).round() as i32;
+        let phys_bottom = phys_top + (r.height as f64 * scale).round() as i32;
+
+        if px >= phys_left && px <= phys_right && py >= phys_top && py <= phys_bottom {
+            return true;
+        }
+    }
+    false
+}
+
+/// Perform DPI- and screen-origin-aware hit testing against client rects.
+pub fn check_hit_test_interactive(hwnd: HWND, px: i32, py: i32, rects: &[HitTestRect]) -> bool {
+    unsafe {
+        let mut window_rect = RECT::default();
+        if GetWindowRect(hwnd, &mut window_rect).is_err() {
+            return false;
+        }
+        let overlay_x = window_rect.left;
+        let overlay_y = window_rect.top;
+        let (_dpi, scale_factor) = get_window_dpi(hwnd);
+
+        check_hit_test_rect_math(overlay_x, overlay_y, scale_factor, rects, px, py)
+    }
+}
+
+/// Custom WndProc subclass function intercepting WM_HOTKEY and WM_NCHITTEST for selective click-through.
 unsafe extern "system" fn overlay_subclass_proc(
     hwnd: HWND,
     msg: u32,
     wparam: WPARAM,
     lparam: LPARAM,
 ) -> LRESULT {
+    if msg == WM_HOTKEY {
+        let hotkey_id = wparam.0 as i32;
+        static LAST_HOTKEY_MS: AtomicU64 = AtomicU64::new(0);
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64;
+        let last = LAST_HOTKEY_MS.load(Ordering::Relaxed);
+        if now > last + 300 {
+            LAST_HOTKEY_MS.store(now, Ordering::Relaxed);
+            if let Some(sender) = HOTKEY_SENDER.get() {
+                let _ = sender.send(hotkey_id);
+            }
+        }
+        return LRESULT(0);
+    }
+
     if msg == WM_NCHITTEST {
         let px = (lparam.0 as i32 & 0xFFFF) as i16 as i32;
         let py = ((lparam.0 as i32 >> 16) & 0xFFFF) as i16 as i32;
 
         if let Some(coordinator) = GLOBAL_COORDINATOR.get() {
-            if coordinator.is_point_interactive(px, py) {
+            let rects = coordinator.get_hit_test_rects();
+            if check_hit_test_interactive(hwnd, px, py, &rects) {
                 return LRESULT(HTCLIENT as isize);
             } else {
                 return LRESULT(HTTRANSPARENT as isize);
@@ -184,12 +274,21 @@ unsafe extern "system" fn win_event_proc(
     _dwms_event_time: u32,
 ) {
     if hwnd.0 != std::ptr::null_mut() {
-        if let Some(sender) = EVENT_SENDER.get() {
-            let notice = WinEventNotice {
-                event_type: event,
-                hwnd_val: hwnd.0 as isize,
-            };
-            let _ = sender.send(notice);
+        if matches!(
+            event,
+            EVENT_SYSTEM_FOREGROUND
+                | EVENT_SYSTEM_MINIMIZESTART
+                | EVENT_SYSTEM_MINIMIZEEND
+                | EVENT_OBJECT_DESTROY
+                | EVENT_OBJECT_LOCATIONCHANGE
+        ) {
+            if let Some(sender) = EVENT_SENDER.get() {
+                let notice = WinEventNotice {
+                    event_type: event,
+                    hwnd_val: hwnd.0 as isize,
+                };
+                let _ = sender.send(notice);
+            }
         }
     }
 }
@@ -372,6 +471,7 @@ pub fn get_foreground_target_window() -> Option<TargetWindowInfo> {
 
 /// Enumerate top-level application windows suitable for Skrib binding.
 pub fn list_candidate_target_windows() -> Vec<TargetWindowInfo> {
+    ENUMERATION_COUNT.fetch_add(1, Ordering::Relaxed);
     let mut candidates: Vec<TargetWindowInfo> = Vec::new();
     let ptr = &mut candidates as *mut Vec<TargetWindowInfo> as isize;
 
@@ -435,5 +535,48 @@ mod tests {
 
         // Negative multi-monitor coordinates
         assert_eq!(physical_to_logical(-1920, -1080, 1.0), (-1920, -1080));
+    }
+
+    #[test]
+    fn test_hit_test_rect_math_all_scales_and_origins() {
+        let toolbar_rect = HitTestRect {
+            x: 100,
+            y: 20,
+            width: 300,
+            height: 40,
+        };
+        let note_rect = HitTestRect {
+            x: 500,
+            y: 200,
+            width: 250,
+            height: 180,
+        };
+        let rects = vec![toolbar_rect.clone(), note_rect.clone()];
+
+        // 1. 100% DPI scale, overlay at (0, 0)
+        assert!(check_hit_test_rect_math(0, 0, 1.0, &rects, 150, 30));
+        assert!(check_hit_test_rect_math(0, 0, 1.0, &rects, 600, 250));
+        assert!(!check_hit_test_rect_math(0, 0, 1.0, &rects, 10, 10));
+
+        // 2. 125% DPI scale, overlay at (0, 0)
+        // Toolbar physical: [125..500, 25..75]
+        // Note physical: [625..938, 250..475]
+        assert!(check_hit_test_rect_math(0, 0, 1.25, &rects, 200, 40));
+        assert!(check_hit_test_rect_math(0, 0, 1.25, &rects, 700, 300));
+        assert!(!check_hit_test_rect_math(0, 0, 1.25, &rects, 100, 20)); // Below scaled threshold
+
+        // 3. 150% DPI scale, overlay at (0, 0)
+        // Toolbar physical: [150..600, 30..90]
+        assert!(check_hit_test_rect_math(0, 0, 1.5, &rects, 300, 50));
+
+        // 4. Negative screen origin: overlay at (-1920, 0), scale 1.0
+        // Toolbar physical: [-1820..-1520, 20..60]
+        assert!(check_hit_test_rect_math(-1920, 0, 1.0, &rects, -1800, 30));
+        assert!(!check_hit_test_rect_math(-1920, 0, 1.0, &rects, 150, 30));
+
+        // 5. Overlay window top-left is not (0, 0): overlay at (100, 200), scale 1.0
+        // Toolbar physical: [200..500, 220..260]
+        assert!(check_hit_test_rect_math(100, 200, 1.0, &rects, 250, 230));
+        assert!(!check_hit_test_rect_math(100, 200, 1.0, &rects, 150, 30));
     }
 }

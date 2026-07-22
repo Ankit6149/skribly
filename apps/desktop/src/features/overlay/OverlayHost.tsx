@@ -16,7 +16,6 @@ export const OverlayHost: React.FC = () => {
     fetchTargetWindows,
     bindTarget,
     addSkrib,
-    setInteractiveHover,
     updateHitTestRects,
     initTauri,
   } = useSkribStore();
@@ -35,13 +34,13 @@ export const OverlayHost: React.FC = () => {
     // Toolbar rect
     if (toolbarRef.current) {
       const b = toolbarRef.current.getBoundingClientRect();
-      rects.push({ x: Math.round(b.x), y: Math.round(b.y), width: Math.round(b.width), height: Math.round(b.height) });
+      rects.push({ x: Math.round(b.left), y: Math.round(b.top), width: Math.round(b.width), height: Math.round(b.height) });
     }
 
     // Modal rect
     if (isPickingTarget && modalRef.current) {
       const b = modalRef.current.getBoundingClientRect();
-      rects.push({ x: Math.round(b.x), y: Math.round(b.y), width: Math.round(b.width), height: Math.round(b.height) });
+      rects.push({ x: Math.round(b.left), y: Math.round(b.top), width: Math.round(b.width), height: Math.round(b.height) });
     }
 
     // Skrib note rects
@@ -78,23 +77,14 @@ export const OverlayHost: React.FC = () => {
     <div className="overlay-root">
       {/* Error Alert Toast */}
       {errorMessage && (
-        <div
-          className="overlay-error-toast"
-          onMouseEnter={() => setInteractiveHover(true)}
-          onMouseLeave={() => setInteractiveHover(false)}
-        >
+        <div className="overlay-error-toast">
           <span>⚠️ {errorMessage}</span>
           <button type="button" onClick={clearError}>✕</button>
         </div>
       )}
 
       {/* Top Floating Control Bar */}
-      <header
-        ref={toolbarRef}
-        className="overlay-toolbar"
-        onMouseEnter={() => setInteractiveHover(true)}
-        onMouseLeave={() => setInteractiveHover(false)}
-      >
+      <header ref={toolbarRef} className="overlay-toolbar">
         <div className="toolbar-brand">
           <span className="brand-logo">🏷️</span>
           <strong>Skribly</strong>
@@ -137,11 +127,7 @@ export const OverlayHost: React.FC = () => {
 
       {/* Target Window Picker Dialog */}
       {isPickingTarget && (
-        <div
-          className="target-picker-backdrop"
-          onMouseEnter={() => setInteractiveHover(true)}
-          onMouseLeave={() => setInteractiveHover(false)}
-        >
+        <div className="target-picker-backdrop">
           <div ref={modalRef} className="target-picker-modal">
             <header className="modal-header">
               <h2>{isAmbiguous ? '⚠️ Multiple Matching Windows Found' : 'Select Application Window to Bind'}</h2>
@@ -214,3 +200,4 @@ export const OverlayHost: React.FC = () => {
     </div>
   );
 };
+
