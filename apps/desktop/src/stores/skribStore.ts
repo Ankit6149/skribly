@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { invoke } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
+import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { OverlayMetrics, SkribNote, TargetWindowInfo } from '../lib/geometry';
 
 export interface OverlayStatePayload {
@@ -21,6 +21,22 @@ const DEFAULT_METRICS: OverlayMetrics = {
   scale_factor: 1.0,
 };
 
+let listenerSetupPromise: Promise<void> | null = null;
+let cleanupInstalled = false;
+const unlistenCallbacks: UnlistenFn[] = [];
+
+function disposeTauriListeners() {
+  while (unlistenCallbacks.length > 0) {
+    const unlisten = unlistenCallbacks.pop();
+    try {
+      unlisten?.();
+    } catch {
+      // The native window may already be shutting down.
+    }
+  }
+  listenerSetupPromise = null;
+}
+
 interface SkribStoreState {
   activeTarget: TargetWindowInfo | null;
   availableWindows: TargetWindowInfo[];
@@ -31,7 +47,6 @@ interface SkribStoreState {
   isTauriAvailable: boolean;
   errorMessage: string | null;
 
-  // Actions
   setPickingTarget: (picking: boolean) => void;
   clearError: () => void;
   fetchTargetWindows: () => Promise<void>;
@@ -79,7 +94,8 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
       const windows = await invoke<TargetWindowInfo[]>('list_target_windows');
       set({ availableWindows: windows });
     } catch (e) {
-      console.warn('Failed to fetch window candidates:', e);
+      const msg = e instanceof Error ? e.message : String(e);
+      set({ errorMessage: `Failed to load application windows: ${msg}` });
     }
   },
 
@@ -91,7 +107,8 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
         set({ overlayMetrics: metrics });
       }
     } catch (e) {
-      console.warn('Failed to fetch overlay metrics:', e);
+      const msg = e instanceof Error ? e.message : String(e);
+      set({ errorMessage: `Failed to read overlay bounds: ${msg}` });
     }
   },
 
@@ -165,7 +182,8 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
         overlayMetrics: payload.overlay_metrics || get().overlayMetrics,
       });
     } catch (e) {
-      // Ignore transient position update errors
+      const msg = e instanceof Error ? e.message : String(e);
+      set({ errorMessage: `Failed to save note position: ${msg}` });
     }
   },
 
@@ -248,44 +266,65 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
     try {
       await invoke('set_hit_test_rects', { rects });
     } catch (e) {
-      // Ignore hit test update errors
+      const msg = e instanceof Error ? e.message : String(e);
+      set({ errorMessage: `Native hit-testing update failed: ${msg}` });
     }
   },
 
   initTauri: async () => {
     if (!get().isTauriAvailable) return;
+
+    if (!listenerSetupPromise) {
+      listenerSetupPromise = (async () => {
+        await Promise.all([get().fetchTargetWindows(), get().fetchOverlayMetrics()]);
+
+        const overlayUnlisten = await listen<OverlayStatePayload>('skribly://overlay-update', (event) => {
+          const payload = event.payload;
+          set({
+            activeTarget: payload.active_target,
+            skribs: payload.skribs,
+            availableWindows:
+              payload.available_windows.length > 0 ? payload.available_windows : get().availableWindows,
+            isAmbiguous: payload.is_ambiguous,
+            isPickingTarget: payload.is_ambiguous ? true : get().isPickingTarget,
+            overlayMetrics: payload.overlay_metrics || get().overlayMetrics,
+          });
+        });
+
+        const shortcutUnlisten = await listen<OverlayStatePayload>('skribly://global-shortcut', (event) => {
+          const payload = event.payload;
+          set({
+            activeTarget: payload.active_target,
+            skribs: payload.skribs,
+            availableWindows:
+              payload.available_windows.length > 0 ? payload.available_windows : get().availableWindows,
+            isAmbiguous: payload.is_ambiguous,
+            isPickingTarget: payload.active_target ? false : true,
+            overlayMetrics: payload.overlay_metrics || get().overlayMetrics,
+          });
+        });
+
+        const hotkeyErrorUnlisten = await listen<string>('skribly://hotkey-error', (event) => {
+          set({ errorMessage: event.payload });
+        });
+
+        unlistenCallbacks.push(overlayUnlisten, shortcutUnlisten, hotkeyErrorUnlisten);
+
+        if (!cleanupInstalled && typeof window !== 'undefined') {
+          window.addEventListener('beforeunload', disposeTauriListeners, { once: true });
+          cleanupInstalled = true;
+        }
+      })().catch((error) => {
+        disposeTauriListeners();
+        throw error;
+      });
+    }
+
     try {
-      await get().fetchTargetWindows();
-      await get().fetchOverlayMetrics();
-      await listen<OverlayStatePayload>('skribly://overlay-update', (event) => {
-        const payload = event.payload;
-        set({
-          activeTarget: payload.active_target,
-          skribs: payload.skribs,
-          availableWindows: payload.available_windows.length > 0 ? payload.available_windows : get().availableWindows,
-          isAmbiguous: payload.is_ambiguous,
-          isPickingTarget: payload.is_ambiguous ? true : get().isPickingTarget,
-          overlayMetrics: payload.overlay_metrics || get().overlayMetrics,
-        });
-      });
-
-      await listen<OverlayStatePayload>('skribly://global-shortcut', (event) => {
-        const payload = event.payload;
-        set({
-          activeTarget: payload.active_target,
-          skribs: payload.skribs,
-          availableWindows: payload.available_windows.length > 0 ? payload.available_windows : get().availableWindows,
-          isAmbiguous: payload.is_ambiguous,
-          isPickingTarget: payload.active_target ? false : true,
-          overlayMetrics: payload.overlay_metrics || get().overlayMetrics,
-        });
-      });
-
-      await listen<string>('skribly://hotkey-error', (event) => {
-        set({ errorMessage: event.payload });
-      });
+      await listenerSetupPromise;
     } catch (e) {
-      console.warn('Failed to initialize Tauri listeners:', e);
+      const msg = e instanceof Error ? e.message : String(e);
+      set({ errorMessage: `Failed to initialize native event listeners: ${msg}` });
     }
   },
 }));
