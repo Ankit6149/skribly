@@ -1,10 +1,17 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { SkribNote, TargetWindowInfo, calculateNoteClientLogicalPosition } from '../../lib/geometry';
 import { useSkribStore } from '../../stores/skribStore';
 
 interface SkribNoteCardProps {
   note: SkribNote;
   target: TargetWindowInfo | null;
+}
+
+interface DraftGeometry {
+  relX: number;
+  relY: number;
+  width: number;
+  height: number;
 }
 
 const COLOR_OPTIONS: Array<{ key: SkribNote['color']; label: string; hex: string }> = [
@@ -29,7 +36,14 @@ export const SkribNoteCard: React.FC<SkribNoteCardProps> = ({ note, target }) =>
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
+  const [draftGeometry, setDraftGeometryState] = useState<DraftGeometry>({
+    relX: note.rel_x,
+    relY: note.rel_y,
+    width: note.width,
+    height: note.height,
+  });
 
+  const draftGeometryRef = useRef(draftGeometry);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rafIdRef = useRef<number | null>(null);
 
@@ -47,15 +61,49 @@ export const SkribNoteCard: React.FC<SkribNoteCardProps> = ({ note, target }) =>
     startH: 0,
   });
 
+  const setDraftGeometry = useCallback((next: DraftGeometry) => {
+    draftGeometryRef.current = next;
+    setDraftGeometryState(next);
+  }, []);
+
   useEffect(() => {
     setText(note.text);
   }, [note.text]);
 
-  const clientPos = target
-    ? calculateNoteClientLogicalPosition(target.bounds, overlayMetrics, note.rel_x, note.rel_y)
-    : { x: Math.round(note.rel_x), y: Math.round(note.rel_y) };
+  useEffect(() => {
+    if (isDragging || isResizing) return;
+    setDraftGeometry({
+      relX: note.rel_x,
+      relY: note.rel_y,
+      width: note.width,
+      height: note.height,
+    });
+  }, [
+    isDragging,
+    isResizing,
+    note.rel_x,
+    note.rel_y,
+    note.width,
+    note.height,
+    setDraftGeometry,
+  ]);
 
-  // Debounced text update
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
+    };
+  }, []);
+
+  const clientPos = target
+    ? calculateNoteClientLogicalPosition(
+        target.bounds,
+        overlayMetrics,
+        draftGeometry.relX,
+        draftGeometry.relY
+      )
+    : { x: Math.round(draftGeometry.relX), y: Math.round(draftGeometry.relY) };
+
   const handleTextChange = (newText: string) => {
     setText(newText);
     if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
@@ -66,39 +114,51 @@ export const SkribNoteCard: React.FC<SkribNoteCardProps> = ({ note, target }) =>
 
   const handleBlurText = () => {
     if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    debounceTimerRef.current = null;
     updateSkribText(note.id, text);
   };
 
-  // Dragging logic with requestAnimationFrame
   const handleMouseDownHeader = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).tagName === 'BUTTON' || (e.target as HTMLElement).tagName === 'TEXTAREA') return;
+    if ((e.target as HTMLElement).closest('button, textarea')) return;
     e.preventDefault();
     setIsDragging(true);
     dragStartRef.current = {
       mouseX: e.clientX,
       mouseY: e.clientY,
-      startRelX: note.rel_x,
-      startRelY: note.rel_y,
+      startRelX: draftGeometryRef.current.relX,
+      startRelY: draftGeometryRef.current.relY,
     };
   };
 
   useEffect(() => {
     if (!isDragging) return;
 
+    const calculateDraggedGeometry = (clientX: number, clientY: number): DraftGeometry => ({
+      ...draftGeometryRef.current,
+      relX: dragStartRef.current.startRelX + clientX - dragStartRef.current.mouseX,
+      relY: dragStartRef.current.startRelY + clientY - dragStartRef.current.mouseY,
+    });
+
     const handleMouseMove = (e: MouseEvent) => {
       if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
       rafIdRef.current = requestAnimationFrame(() => {
-        const dx = e.clientX - dragStartRef.current.mouseX;
-        const dy = e.clientY - dragStartRef.current.mouseY;
-        const newRelX = dragStartRef.current.startRelX + dx;
-        const newRelY = dragStartRef.current.startRelY + dy;
-        updateSkribPosition(note.id, newRelX, newRelY, note.width, note.height);
+        setDraftGeometry(calculateDraggedGeometry(e.clientX, e.clientY));
       });
     };
 
-    const handleMouseUp = () => {
-      setIsDragging(false);
+    const handleMouseUp = (e: MouseEvent) => {
       if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = null;
+      const finalGeometry = calculateDraggedGeometry(e.clientX, e.clientY);
+      setDraftGeometry(finalGeometry);
+      setIsDragging(false);
+      void updateSkribPosition(
+        note.id,
+        finalGeometry.relX,
+        finalGeometry.relY,
+        finalGeometry.width,
+        finalGeometry.height
+      );
     };
 
     window.addEventListener('mousemove', handleMouseMove);
@@ -108,9 +168,8 @@ export const SkribNoteCard: React.FC<SkribNoteCardProps> = ({ note, target }) =>
       window.removeEventListener('mouseup', handleMouseUp);
       if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
     };
-  }, [isDragging, note.id, note.width, note.height, updateSkribPosition]);
+  }, [isDragging, note.id, setDraftGeometry, updateSkribPosition]);
 
-  // Resizing logic with requestAnimationFrame
   const handleMouseDownResize = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -118,28 +177,40 @@ export const SkribNoteCard: React.FC<SkribNoteCardProps> = ({ note, target }) =>
     resizeStartRef.current = {
       mouseX: e.clientX,
       mouseY: e.clientY,
-      startW: note.width,
-      startH: note.height,
+      startW: draftGeometryRef.current.width,
+      startH: draftGeometryRef.current.height,
     };
   };
 
   useEffect(() => {
     if (!isResizing) return;
 
+    const calculateResizedGeometry = (clientX: number, clientY: number): DraftGeometry => ({
+      ...draftGeometryRef.current,
+      width: Math.max(220, resizeStartRef.current.startW + clientX - resizeStartRef.current.mouseX),
+      height: Math.max(140, resizeStartRef.current.startH + clientY - resizeStartRef.current.mouseY),
+    });
+
     const handleMouseMove = (e: MouseEvent) => {
       if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
       rafIdRef.current = requestAnimationFrame(() => {
-        const dw = e.clientX - resizeStartRef.current.mouseX;
-        const dh = e.clientY - resizeStartRef.current.mouseY;
-        const newW = Math.max(220, resizeStartRef.current.startW + dw);
-        const newH = Math.max(140, resizeStartRef.current.startH + dh);
-        updateSkribPosition(note.id, note.rel_x, note.rel_y, newW, newH);
+        setDraftGeometry(calculateResizedGeometry(e.clientX, e.clientY));
       });
     };
 
-    const handleMouseUp = () => {
-      setIsResizing(false);
+    const handleMouseUp = (e: MouseEvent) => {
       if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = null;
+      const finalGeometry = calculateResizedGeometry(e.clientX, e.clientY);
+      setDraftGeometry(finalGeometry);
+      setIsResizing(false);
+      void updateSkribPosition(
+        note.id,
+        finalGeometry.relX,
+        finalGeometry.relY,
+        finalGeometry.width,
+        finalGeometry.height
+      );
     };
 
     window.addEventListener('mousemove', handleMouseMove);
@@ -149,7 +220,7 @@ export const SkribNoteCard: React.FC<SkribNoteCardProps> = ({ note, target }) =>
       window.removeEventListener('mouseup', handleMouseUp);
       if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
     };
-  }, [isResizing, note.id, note.rel_x, note.rel_y, updateSkribPosition]);
+  }, [isResizing, note.id, setDraftGeometry, updateSkribPosition]);
 
   if (note.collapsed) {
     return (
@@ -176,8 +247,8 @@ export const SkribNoteCard: React.FC<SkribNoteCardProps> = ({ note, target }) =>
         position: 'absolute',
         left: `${clientPos.x}px`,
         top: `${clientPos.y}px`,
-        width: `${note.width}px`,
-        minHeight: `${note.height}px`,
+        width: `${draftGeometry.width}px`,
+        minHeight: `${draftGeometry.height}px`,
       }}
     >
       <header className="skrib-header" onMouseDown={handleMouseDownHeader}>
@@ -196,7 +267,6 @@ export const SkribNoteCard: React.FC<SkribNoteCardProps> = ({ note, target }) =>
           >
             🎨
           </button>
-
           <button
             type="button"
             className="skrib-action-btn"
@@ -206,7 +276,6 @@ export const SkribNoteCard: React.FC<SkribNoteCardProps> = ({ note, target }) =>
           >
             ➖
           </button>
-
           <button
             type="button"
             className="skrib-action-btn skrib-delete-btn"
