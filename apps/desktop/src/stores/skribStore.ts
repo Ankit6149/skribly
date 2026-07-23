@@ -50,9 +50,13 @@ interface SkribStoreState {
   isAmbiguous: boolean;
   isTauriAvailable: boolean;
   errorMessage: string | null;
+  allSkribs: SkribNote[];
+  isLibraryOpen: boolean;
 
   setPickingTarget: (picking: boolean) => void;
   clearError: () => void;
+  openLibrary: () => Promise<void>;
+  closeLibrary: () => void;
   fetchTargetWindows: () => Promise<void>;
   fetchOverlayMetrics: () => Promise<void>;
   retryOverlayInit: () => Promise<void>;
@@ -85,6 +89,8 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
   isAmbiguous: false,
   isTauriAvailable: typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window,
   errorMessage: null,
+  allSkribs: [],
+  isLibraryOpen: false,
 
   setPickingTarget: (picking: boolean) => {
     set({ isPickingTarget: picking });
@@ -93,6 +99,22 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
   clearError: () => {
     set({ errorMessage: null });
   },
+
+  openLibrary: async () => {
+    if (!get().isTauriAvailable) {
+      set({ allSkribs: get().skribs, isLibraryOpen: true });
+      return;
+    }
+    try {
+      const allSkribs = await invoke<SkribNote[]>('get_all_skribs');
+      set({ allSkribs, isLibraryOpen: true });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      set({ errorMessage: `Failed to open All Skribs: ${msg}` });
+    }
+  },
+
+  closeLibrary: () => set({ isLibraryOpen: false }),
 
   fetchTargetWindows: async () => {
     if (!get().isTauriAvailable) return;
@@ -334,11 +356,26 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
           set({ errorMessage: event.payload });
         });
 
+        const storageErrorUnlisten = await listen<string>('skribly://storage-error', (event) => {
+          set({ errorMessage: `Failed to save locally: ${event.payload}` });
+        });
+
         const initStatusUnlisten = await listen<OverlayInitializationStatus>('skribly://overlay-init-status', (event) => {
           set({ initStatus: event.payload });
         });
 
-        unlistenCallbacks.push(overlayUnlisten, shortcutUnlisten, hotkeyErrorUnlisten, initStatusUnlisten);
+        unlistenCallbacks.push(overlayUnlisten, shortcutUnlisten, hotkeyErrorUnlisten, storageErrorUnlisten, initStatusUnlisten);
+
+        // Subscribe before fetching state so a fast native startup event cannot be missed.
+        const payload = await invoke<OverlayStatePayload>('refresh_target_state');
+        set({
+          activeTarget: payload.active_target,
+          skribs: payload.skribs,
+          availableWindows: payload.available_windows,
+          isAmbiguous: payload.is_ambiguous,
+          overlayMetrics: payload.overlay_metrics,
+          initStatus: payload.init_status || get().initStatus,
+        });
 
         // Subscribe before fetching state so a fast native startup event cannot be missed.
         const payload = await invoke<OverlayStatePayload>('refresh_target_state');

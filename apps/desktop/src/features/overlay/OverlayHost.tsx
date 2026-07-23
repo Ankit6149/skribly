@@ -13,7 +13,11 @@ export const OverlayHost: React.FC = () => {
     isPickingTarget,
     isAmbiguous,
     errorMessage,
+    allSkribs,
+    isLibraryOpen,
     clearError,
+    openLibrary,
+    closeLibrary,
     setPickingTarget,
     fetchTargetWindows,
     retryOverlayInit,
@@ -27,6 +31,7 @@ export const OverlayHost: React.FC = () => {
   const modalRef = useRef<HTMLDivElement>(null);
   const errorToastRef = useRef<HTMLDivElement>(null);
   const initFailureRef = useRef<HTMLDivElement>(null);
+  const libraryRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     void initTauri();
@@ -75,6 +80,11 @@ export const OverlayHost: React.FC = () => {
       });
     }
 
+    if (isLibraryOpen && libraryRef.current) {
+      const b = libraryRef.current.getBoundingClientRect();
+      rects.push({ x: Math.round(b.left), y: Math.round(b.top), width: Math.round(b.width), height: Math.round(b.height) });
+    }
+
     skribs.forEach((note) => {
       const clientPos = activeTarget
         ? calculateNoteClientLogicalPosition(activeTarget.bounds, overlayMetrics, note.rel_x, note.rel_y)
@@ -93,7 +103,7 @@ export const OverlayHost: React.FC = () => {
     });
 
     void updateHitTestRects(rects);
-  }, [skribs, activeTarget, overlayMetrics, isPickingTarget, errorMessage, initStatus, updateHitTestRects]);
+  }, [skribs, activeTarget, overlayMetrics, isPickingTarget, isLibraryOpen, errorMessage, initStatus, updateHitTestRects]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -133,6 +143,10 @@ export const OverlayHost: React.FC = () => {
             onClick={() => void retryOverlayInit()}
           >
             🔄 Retry Overlay Initialization
+          </button>
+
+          <button type="button" className="toolbar-btn" onClick={() => void openLibrary()}>
+            📚 All Skribs
           </button>
         </div>
       )}
@@ -244,6 +258,35 @@ export const OverlayHost: React.FC = () => {
               </button>
             </footer>
           </div>
+        </div>
+      )}
+
+      {isLibraryOpen && (
+        <div className="library-backdrop">
+          <section ref={libraryRef} className="library-panel" aria-label="All Skribs">
+            <header className="library-header">
+              <div>
+                <span className="library-kicker">LOCAL RECOVERY</span>
+                <h2>All Skribs</h2>
+                <p>{allSkribs.length} saved locally on this computer</p>
+              </div>
+              <button type="button" className="close-modal-btn" onClick={closeLibrary} aria-label="Close All Skribs">✕</button>
+            </header>
+            <div className="library-list">
+              {allSkribs.length === 0 ? (
+                <div className="library-empty"><strong>No Skribs yet</strong><span>Create one over an application and it will be recoverable here.</span></div>
+              ) : allSkribs.map((note) => (
+                <article key={note.id} className={`library-item skrib-color-${note.color}`}>
+                  <div className="library-item-context">
+                    <strong>{note.target_process_name || 'Unbound context'}</strong>
+                    <span>{note.target_title || 'No window title'}</span>
+                  </div>
+                  <p>{note.text || 'Empty Skrib'}</p>
+                  <time>{new Date(note.updated_at * 1000).toLocaleString()}</time>
+                </article>
+              ))}
+            </div>
+          </section>
         </div>
       )}
 

@@ -167,6 +167,44 @@ button, textarea {
   border-color: transparent;
 }
 
+.library-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 12000;
+  pointer-events: auto;
+  background: rgb(31 34 30 / 18%);
+  display: flex;
+  justify-content: flex-end;
+  padding: 16px;
+  backdrop-filter: blur(3px);
+}
+
+.library-panel {
+  width: min(430px, calc(100vw - 32px));
+  height: 100%;
+  padding: 24px;
+  border-radius: 24px;
+  background: #fffdf7;
+  border: 1px solid rgb(31 34 30 / 12%);
+  box-shadow: var(--shadow-l);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.library-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.library-header h2 { margin: 4px 0; font-size: 28px; }
+.library-header p { margin: 0; opacity: .62; font-size: 12px; }
+.library-kicker { font-size: 10px; font-weight: 800; letter-spacing: .12em; opacity: .55; }
+.library-list { overflow: auto; display: grid; gap: 12px; padding-right: 4px; }
+.library-item { border: 1px solid rgb(31 34 30 / 10%); border-radius: 14px 14px 22px 14px; padding: 14px; box-shadow: var(--shadow-s); }
+.library-item-context { display: flex; flex-direction: column; gap: 2px; font-size: 11px; }
+.library-item-context span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; opacity: .62; }
+.library-item p { white-space: pre-wrap; user-select: text; margin: 14px 0; font-size: 14px; line-height: 1.45; }
+.library-item time { font-size: 10px; opacity: .5; }
+.library-empty { min-height: 240px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: 8px; opacity: .62; }
+.library-empty span { max-width: 260px; font-size: 12px; line-height: 1.5; }
+
 /* Skrib Sticky Note Card */
 .skrib-card {
   pointer-events: auto;

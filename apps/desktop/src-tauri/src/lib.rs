@@ -7,11 +7,12 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager, RunEvent, State};
 
-use core::coordinator::{Coordinator, MatchResult};
 use core::models::{
     HitTestRect, OverlayInitializationStatus, OverlayMetrics, OverlayStatePayload, SkribNote,
     TargetWindowInfo,
 };
+use core::coordinator::{Coordinator, MatchResult};
+use core::storage;
 
 #[cfg(target_os = "windows")]
 use platform::windows::{
@@ -28,8 +29,18 @@ pub struct AppState {
     pub coordinator: Coordinator,
     pub running: Arc<AtomicBool>,
     pub init_status: Mutex<OverlayInitializationStatus>,
+    pub storage_path: Mutex<std::path::PathBuf>,
     #[cfg(target_os = "windows")]
     pub win_event_sender: std::sync::mpsc::Sender<WinEventNotice>,
+}
+
+fn persist_skribs(state: &AppState) -> Result<(), String> {
+    let path = state
+        .storage_path
+        .lock()
+        .map_err(|_| "Local storage path is unavailable".to_string())?
+        .clone();
+    storage::save(&path, &state.coordinator.get_all_skribs())
 }
 
 impl AppState {
@@ -218,9 +229,10 @@ fn upsert_skrib_note(
     app_handle: AppHandle,
     state: State<'_, AppState>,
     note: SkribNote,
-) -> OverlayStatePayload {
+) -> Result<OverlayStatePayload, String> {
     state.coordinator.upsert_skrib(note);
-    build_mutation_payload(&app_handle, &state, false)
+    persist_skribs(&state)?;
+    Ok(build_mutation_payload(&app_handle, &state, false))
 }
 
 #[tauri::command]
@@ -232,11 +244,12 @@ fn update_skrib_position(
     rel_y: f64,
     width: f64,
     height: f64,
-) -> OverlayStatePayload {
+) -> Result<OverlayStatePayload, String> {
     state
         .coordinator
         .update_skrib_position(&id, rel_x, rel_y, width, height);
-    build_mutation_payload(&app_handle, &state, false)
+    persist_skribs(&state)?;
+    Ok(build_mutation_payload(&app_handle, &state, false))
 }
 
 #[tauri::command]
@@ -245,9 +258,10 @@ fn update_skrib_text(
     state: State<'_, AppState>,
     id: String,
     text: String,
-) -> OverlayStatePayload {
+) -> Result<OverlayStatePayload, String> {
     state.coordinator.update_skrib_text(&id, text);
-    build_mutation_payload(&app_handle, &state, false)
+    persist_skribs(&state)?;
+    Ok(build_mutation_payload(&app_handle, &state, false))
 }
 
 #[tauri::command]
@@ -256,9 +270,10 @@ fn update_skrib_color(
     state: State<'_, AppState>,
     id: String,
     color: String,
-) -> OverlayStatePayload {
+) -> Result<OverlayStatePayload, String> {
     state.coordinator.update_skrib_color(&id, color);
-    build_mutation_payload(&app_handle, &state, false)
+    persist_skribs(&state)?;
+    Ok(build_mutation_payload(&app_handle, &state, false))
 }
 
 #[tauri::command]
@@ -266,9 +281,10 @@ fn toggle_skrib_collapse(
     app_handle: AppHandle,
     state: State<'_, AppState>,
     id: String,
-) -> OverlayStatePayload {
+) -> Result<OverlayStatePayload, String> {
     state.coordinator.toggle_skrib_collapse(&id);
-    build_mutation_payload(&app_handle, &state, false)
+    persist_skribs(&state)?;
+    Ok(build_mutation_payload(&app_handle, &state, false))
 }
 
 #[tauri::command]
@@ -276,9 +292,17 @@ fn delete_skrib_note(
     app_handle: AppHandle,
     state: State<'_, AppState>,
     id: String,
-) -> OverlayStatePayload {
+) -> Result<OverlayStatePayload, String> {
     state.coordinator.remove_skrib(&id);
-    build_mutation_payload(&app_handle, &state, false)
+    persist_skribs(&state)?;
+    Ok(build_mutation_payload(&app_handle, &state, false))
+}
+
+#[tauri::command]
+fn get_all_skribs(state: State<'_, AppState>) -> Vec<SkribNote> {
+    let mut skribs = state.coordinator.get_all_skribs();
+    skribs.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
+    skribs
 }
 
 #[tauri::command]
@@ -335,10 +359,12 @@ pub fn run() {
 
     let coordinator = Coordinator::new();
     let running = Arc::new(AtomicBool::new(true));
+    let storage_path = std::env::temp_dir().join("skribly-uninitialized.json");
     let app_state = AppState {
         coordinator: coordinator.clone(),
         running: running.clone(),
         init_status: Mutex::new(OverlayInitializationStatus::Initializing),
+        storage_path: Mutex::new(storage_path),
         #[cfg(target_os = "windows")]
         win_event_sender: event_sender.clone(),
     };
@@ -357,11 +383,30 @@ pub fn run() {
             update_skrib_color,
             toggle_skrib_collapse,
             delete_skrib_note,
+            get_all_skribs,
             set_hit_test_rects,
             refresh_target_state,
         ])
         .setup(move |app| {
             let app_handle = app.handle().clone();
+            let data_dir = app.path().app_data_dir()?;
+            let storage_path = data_dir.join("skribs.json");
+            let loaded = storage::load(&storage_path).or_else(|primary_error| {
+                let backup = storage_path.with_extension("json.bak");
+                storage::load(&backup).map_err(|_| primary_error)
+            });
+            {
+                let state = app.state::<AppState>();
+                if let Ok(mut path) = state.storage_path.lock() {
+                    *path = storage_path;
+                }
+                match loaded {
+                    Ok(skribs) => state.coordinator.replace_all_skribs(skribs),
+                    Err(message) => {
+                        let _ = app_handle.emit("skribly://storage-error", message);
+                    }
+                }
+            }
             let coordinator = app.state::<AppState>().coordinator.clone();
             let running_flag = app.state::<AppState>().running.clone();
 
@@ -414,6 +459,10 @@ pub fn run() {
                                     updated_at: (timestamp / 1000) as u64,
                                 };
                                 coordinator_hk.upsert_skrib(new_note);
+                                let state_hk = app_handle_hk.state::<AppState>();
+                                if let Err(message) = persist_skribs(&state_hk) {
+                                    let _ = app_handle_hk.emit("skribly://storage-error", message);
+                                }
                             }
 
                             let state_hk = app_handle_hk.state::<AppState>();
@@ -550,6 +599,7 @@ mod tests {
             coordinator: Coordinator::new(),
             running: Arc::new(AtomicBool::new(true)),
             init_status: Mutex::new(OverlayInitializationStatus::Initializing),
+            storage_path: Mutex::new(std::env::temp_dir().join("skribly-test.json")),
             #[cfg(target_os = "windows")]
             win_event_sender: channel().0,
         };
