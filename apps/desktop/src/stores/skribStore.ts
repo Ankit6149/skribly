@@ -377,17 +377,6 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
           initStatus: payload.init_status || get().initStatus,
         });
 
-        // Subscribe before fetching state so a fast native startup event cannot be missed.
-        const payload = await invoke<OverlayStatePayload>('refresh_target_state');
-        set({
-          activeTarget: payload.active_target,
-          skribs: payload.skribs,
-          availableWindows: payload.available_windows,
-          isAmbiguous: payload.is_ambiguous,
-          overlayMetrics: payload.overlay_metrics,
-          initStatus: payload.init_status || get().initStatus,
-        });
-
         if (!cleanupInstalled && typeof window !== 'undefined') {
           window.addEventListener('beforeunload', disposeTauriListeners, { once: true });
           cleanupInstalled = true;
