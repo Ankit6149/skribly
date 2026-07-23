@@ -30,6 +30,7 @@ export const SkribNoteCard: React.FC<SkribNoteCardProps> = ({ note, target }) =>
     updateSkribColor,
     toggleSkribCollapse,
     deleteSkrib,
+    setActiveInteractionRect,
   } = useSkribStore();
 
   const [text, setText] = useState(note.text);
@@ -142,7 +143,17 @@ export const SkribNoteCard: React.FC<SkribNoteCardProps> = ({ note, target }) =>
     const handleMouseMove = (e: MouseEvent) => {
       if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
       rafIdRef.current = requestAnimationFrame(() => {
-        setDraftGeometry(calculateDraggedGeometry(e.clientX, e.clientY));
+        const nextGeo = calculateDraggedGeometry(e.clientX, e.clientY);
+        setDraftGeometry(nextGeo);
+        const cPos = target
+          ? calculateNoteClientLogicalPosition(target.bounds, overlayMetrics, nextGeo.relX, nextGeo.relY)
+          : { x: Math.round(nextGeo.relX), y: Math.round(nextGeo.relY) };
+        setActiveInteractionRect({
+          x: cPos.x,
+          y: cPos.y,
+          width: Math.round(nextGeo.width),
+          height: Math.round(nextGeo.height),
+        });
       });
     };
 
@@ -152,6 +163,7 @@ export const SkribNoteCard: React.FC<SkribNoteCardProps> = ({ note, target }) =>
       const finalGeometry = calculateDraggedGeometry(e.clientX, e.clientY);
       setDraftGeometry(finalGeometry);
       setIsDragging(false);
+      setActiveInteractionRect(null);
       void updateSkribPosition(
         note.id,
         finalGeometry.relX,
@@ -194,7 +206,17 @@ export const SkribNoteCard: React.FC<SkribNoteCardProps> = ({ note, target }) =>
     const handleMouseMove = (e: MouseEvent) => {
       if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
       rafIdRef.current = requestAnimationFrame(() => {
-        setDraftGeometry(calculateResizedGeometry(e.clientX, e.clientY));
+        const nextGeo = calculateResizedGeometry(e.clientX, e.clientY);
+        setDraftGeometry(nextGeo);
+        const cPos = target
+          ? calculateNoteClientLogicalPosition(target.bounds, overlayMetrics, nextGeo.relX, nextGeo.relY)
+          : { x: Math.round(nextGeo.relX), y: Math.round(nextGeo.relY) };
+        setActiveInteractionRect({
+          x: cPos.x,
+          y: cPos.y,
+          width: Math.round(nextGeo.width),
+          height: Math.round(nextGeo.height),
+        });
       });
     };
 
@@ -204,6 +226,7 @@ export const SkribNoteCard: React.FC<SkribNoteCardProps> = ({ note, target }) =>
       const finalGeometry = calculateResizedGeometry(e.clientX, e.clientY);
       setDraftGeometry(finalGeometry);
       setIsResizing(false);
+      setActiveInteractionRect(null);
       void updateSkribPosition(
         note.id,
         finalGeometry.relX,

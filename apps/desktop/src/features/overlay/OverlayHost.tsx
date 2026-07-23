@@ -15,6 +15,7 @@ export const OverlayHost: React.FC = () => {
     errorMessage,
     allSkribs,
     isLibraryOpen,
+    activeInteractionRect,
     clearError,
     openLibrary,
     closeLibrary,
@@ -100,10 +101,12 @@ export const OverlayHost: React.FC = () => {
           height: Math.round(note.height),
         });
       }
-    });
+    if (activeInteractionRect) {
+      rects.push(activeInteractionRect);
+    }
 
     void updateHitTestRects(rects);
-  }, [skribs, activeTarget, overlayMetrics, isPickingTarget, isLibraryOpen, errorMessage, initStatus, updateHitTestRects]);
+  }, [skribs, activeTarget, overlayMetrics, isPickingTarget, isLibraryOpen, errorMessage, initStatus, activeInteractionRect, updateHitTestRects]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

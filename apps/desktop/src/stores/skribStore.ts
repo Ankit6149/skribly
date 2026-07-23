@@ -53,6 +53,11 @@ interface SkribStoreState {
   allSkribs: SkribNote[];
   isLibraryOpen: boolean;
 
+  activeInteractionRect: { x: number; y: number; width: number; height: number } | null;
+  setActiveInteractionRect: (
+    rect: { x: number; y: number; width: number; height: number } | null
+  ) => void;
+
   setPickingTarget: (picking: boolean) => void;
   clearError: () => void;
   openLibrary: () => Promise<void>;
@@ -91,6 +96,11 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
   errorMessage: null,
   allSkribs: [],
   isLibraryOpen: false,
+  activeInteractionRect: null,
+
+  setActiveInteractionRect: (rect) => {
+    set({ activeInteractionRect: rect });
+  },
 
   setPickingTarget: (picking: boolean) => {
     set({ isPickingTarget: picking });

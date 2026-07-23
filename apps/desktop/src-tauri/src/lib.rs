@@ -439,7 +439,23 @@ pub fn run() {
                             }
 
                             let active_target = coordinator_hk.get_active_target();
-                            if let Some(ref target) = active_target {
+                            let target_to_use = match active_target {
+                                Some(t) => Some(t),
+                                None => {
+                                    #[cfg(target_os = "windows")]
+                                    {
+                                        get_foreground_target_window()
+                                    }
+                                    #[cfg(not(target_os = "windows"))]
+                                    {
+                                        None
+                                    }
+                                }
+                            };
+
+                            let state_hk = app_handle_hk.state::<AppState>();
+                            if let Some(ref target) = target_to_use {
+                                coordinator_hk.set_active_target(Some(target.clone()));
                                 let timestamp = std::time::SystemTime::now()
                                     .duration_since(std::time::UNIX_EPOCH)
                                     .unwrap_or_default()
@@ -452,22 +468,23 @@ pub fn run() {
                                     rel_y: 40.0,
                                     width: 320.0,
                                     height: 230.0,
-                                    text: "New Skrib created via Ctrl+Shift+Space".into(),
+                                    text: "New Skrib note".into(),
                                     color: "yellow".into(),
                                     collapsed: false,
                                     created_at: (timestamp / 1000) as u64,
                                     updated_at: (timestamp / 1000) as u64,
                                 };
                                 coordinator_hk.upsert_skrib(new_note);
-                                let state_hk = app_handle_hk.state::<AppState>();
                                 if let Err(message) = persist_skribs(&state_hk) {
                                     let _ = app_handle_hk.emit("skribly://storage-error", message);
                                 }
+                                let payload = build_overlay_payload(&app_handle_hk, &state_hk, false);
+                                let _ = app_handle_hk.emit("skribly://global-shortcut", payload);
+                            } else {
+                                let mut payload = build_overlay_payload(&app_handle_hk, &state_hk, false);
+                                payload.is_shortcut_active = true;
+                                let _ = app_handle_hk.emit("skribly://global-shortcut", payload);
                             }
-
-                            let state_hk = app_handle_hk.state::<AppState>();
-                            let payload = build_overlay_payload(&app_handle_hk, &state_hk, false);
-                            let _ = app_handle_hk.emit("skribly://global-shortcut", payload);
                         }
                     }
                 }
@@ -493,7 +510,11 @@ pub fn run() {
                             ) {
                                 if let Some(target) = coordinator.get_active_target() {
                                     if target.hwnd_val == notice.hwnd_val {
-                                        if let Some(hwnd) = reconstruct_hwnd(notice.hwnd_val) {
+                                        if notice.event_type == EVENT_OBJECT_DESTROY {
+                                            coordinator.set_active_target(None);
+                                            let payload = build_mutation_payload(&app_handle_ev, &state_ev, false);
+                                            let _ = app_handle_ev.emit("skribly://overlay-update", payload);
+                                        } else if let Some(hwnd) = reconstruct_hwnd(notice.hwnd_val) {
                                             if let Some(updated) = inspect_target_window(hwnd) {
                                                 coordinator.set_active_target(Some(updated.clone()));
                                                 let payload = build_mutation_payload(&app_handle_ev, &state_ev, false);
@@ -504,21 +525,43 @@ pub fn run() {
                                                 let _ = app_handle_ev.emit("skribly://overlay-update", payload);
                                             }
                                         }
+                                    } else if notice.event_type == EVENT_SYSTEM_FOREGROUND {
+                                        if let Some(hwnd) = reconstruct_hwnd(notice.hwnd_val) {
+                                            if let Some(new_target) = inspect_target_window(hwnd) {
+                                                let candidates = vec![new_target.clone()];
+                                                match coordinator.find_best_context_match(&candidates) {
+                                                    MatchResult::Unique(best) => {
+                                                        coordinator.set_active_target(Some(best));
+                                                    }
+                                                    _ => {
+                                                        coordinator.set_active_target(Some(new_target));
+                                                    }
+                                                }
+                                                let payload = build_mutation_payload(&app_handle_ev, &state_ev, false);
+                                                let _ = app_handle_ev.emit("skribly://overlay-update", payload);
+                                            }
+                                        }
                                     }
                                 } else if notice.event_type == EVENT_SYSTEM_FOREGROUND {
-                                    let candidates = list_candidate_target_windows();
-                                    match coordinator.find_best_context_match(&candidates) {
-                                        MatchResult::Unique(best) => {
-                                            coordinator.set_active_target(Some(best.clone()));
+                                    if let Some(hwnd) = reconstruct_hwnd(notice.hwnd_val) {
+                                        if let Some(new_target) = inspect_target_window(hwnd) {
+                                            let candidates = vec![new_target.clone()];
+                                            match coordinator.find_best_context_match(&candidates) {
+                                                MatchResult::Unique(best) => {
+                                                    coordinator.set_active_target(Some(best));
+                                                }
+                                                MatchResult::Ambiguous(matched) => {
+                                                    let mut payload = build_mutation_payload(&app_handle_ev, &state_ev, true);
+                                                    payload.available_windows = matched;
+                                                    let _ = app_handle_ev.emit("skribly://overlay-update", payload);
+                                                }
+                                                MatchResult::None => {
+                                                    coordinator.set_active_target(Some(new_target));
+                                                }
+                                            }
                                             let payload = build_mutation_payload(&app_handle_ev, &state_ev, false);
                                             let _ = app_handle_ev.emit("skribly://overlay-update", payload);
                                         }
-                                        MatchResult::Ambiguous(matched) => {
-                                            let mut payload = build_mutation_payload(&app_handle_ev, &state_ev, true);
-                                            payload.available_windows = matched;
-                                            let _ = app_handle_ev.emit("skribly://overlay-update", payload);
-                                        }
-                                        MatchResult::None => {}
                                     }
                                 }
                             }
