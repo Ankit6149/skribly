@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useSkribStore } from '../../stores/skribStore';
 import { useSkribUiStore } from '../../stores/skribUiStore';
 import { SkribNoteCard } from '../skribs/SkribNoteCard';
@@ -29,6 +29,8 @@ export const OverlayHost: React.FC = () => {
   const {
     previewNoteId,
     composerNoteId,
+    composerMode,
+    isNotesWidgetOpen,
     openComposer,
   } = useSkribUiStore();
 
@@ -38,6 +40,7 @@ export const OverlayHost: React.FC = () => {
   const initFailureRef = useRef<HTMLDivElement>(null);
   const initialSnapshotTakenRef = useRef(false);
   const knownNoteIdsRef = useRef<Set<string>>(new Set());
+  const [uiBoundsVersion, setUiBoundsVersion] = useState(0);
 
   useEffect(() => {
     void initTauri();
@@ -55,6 +58,19 @@ export const OverlayHost: React.FC = () => {
     knownNoteIdsRef.current = new Set(skribs.map((note) => note.id));
     if (created) openComposer(created.id, 'type');
   }, [initStatus.type, openComposer, skribs]);
+
+  useEffect(() => {
+    const observer = new ResizeObserver(() => {
+      setUiBoundsVersion((value) => value + 1);
+    });
+    const elements = [
+      document.querySelector<HTMLElement>('.skrib-composer'),
+      document.querySelector<HTMLElement>('.notes-widget'),
+    ].filter((element): element is HTMLElement => Boolean(element));
+    elements.forEach((element) => observer.observe(element));
+    setUiBoundsVersion((value) => value + 1);
+    return () => observer.disconnect();
+  }, [composerMode, composerNoteId, isNotesWidgetOpen]);
 
   const createNewSkrib = async () => {
     if (!activeTarget) {
@@ -126,13 +142,16 @@ export const OverlayHost: React.FC = () => {
   }, [
     activeInteractionRect,
     activeTarget,
+    composerMode,
     composerNoteId,
     errorMessage,
     initStatus,
+    isNotesWidgetOpen,
     isPickingTarget,
     overlayMetrics,
     previewNoteId,
     skribs,
+    uiBoundsVersion,
     updateHitTestRects,
   ]);
 
