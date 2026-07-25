@@ -29,6 +29,13 @@ const BETA_STATUS: LicenseStatus = {
   message: 'The current Windows beta is free while licence activation is validated.',
 };
 
+const PENDING_STATUS: LicenseStatus = {
+  ...BETA_STATUS,
+  enforcementEnabled: true,
+  canWrite: false,
+  message: 'Checking this device licence…',
+};
+
 let setupPromise: Promise<void> | null = null;
 
 interface LicenseStoreState {
@@ -43,7 +50,7 @@ interface LicenseStoreState {
 }
 
 export const useLicenseStore = create<LicenseStoreState>((set, get) => ({
-  status: BETA_STATUS,
+  status: PENDING_STATUS,
   isReady: false,
   isActivating: false,
   errorMessage: null,
@@ -95,7 +102,14 @@ export const useLicenseStore = create<LicenseStoreState>((set, get) => ({
       return;
     }
     set({ isActivating: true, errorMessage: null });
-    await emit('skribly://license-activate', { key: trimmed });
+    try {
+      await emit('skribly://license-activate', { key: trimmed });
+    } catch (error) {
+      set({
+        isActivating: false,
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
+    }
   },
 
   clearError: () => set({ errorMessage: null }),
