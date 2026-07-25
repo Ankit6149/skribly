@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useSkribStore } from '../../stores/skribStore';
 import { useSkribUiStore } from '../../stores/skribUiStore';
 import { SkribNoteCard } from '../skribs/SkribNoteCard';
@@ -60,6 +60,11 @@ export const OverlayHost: React.FC = () => {
   }, [initStatus.type, openComposer, skribs]);
 
   useEffect(() => {
+    if (typeof ResizeObserver === 'undefined') {
+      setUiBoundsVersion((value) => value + 1);
+      return;
+    }
+
     const observer = new ResizeObserver(() => {
       setUiBoundsVersion((value) => value + 1);
     });
@@ -72,8 +77,9 @@ export const OverlayHost: React.FC = () => {
     return () => observer.disconnect();
   }, [composerMode, composerNoteId, isNotesWidgetOpen]);
 
-  const createNewSkrib = async () => {
-    if (!activeTarget) {
+  const createNewSkrib = useCallback(async () => {
+    const currentTarget = useSkribStore.getState().activeTarget;
+    if (!currentTarget) {
       await fetchTargetWindows();
       setPickingTarget(true);
       return;
@@ -83,7 +89,7 @@ export const OverlayHost: React.FC = () => {
     await addSkrib('', 'yellow');
     const created = useSkribStore.getState().skribs.find((note) => !before.has(note.id));
     if (created) openComposer(created.id, 'type');
-  };
+  }, [addSkrib, fetchTargetWindows, openComposer, setPickingTarget]);
 
   useEffect(() => {
     const rects: Array<{ x: number; y: number; width: number; height: number }> = [];
@@ -164,7 +170,7 @@ export const OverlayHost: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  });
+  }, [createNewSkrib]);
 
   const composerNote = composerNoteId
     ? skribs.find((note) => note.id === composerNoteId) ?? null
