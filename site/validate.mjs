@@ -5,6 +5,9 @@ import { fileURLToPath } from 'node:url';
 const root = dirname(fileURLToPath(import.meta.url));
 const requiredFiles = [
   'index.html',
+  'privacy.html',
+  'release-notes.html',
+  'download-unavailable.html',
   'download-success.html',
   'styles.css',
   'success.css',
@@ -12,6 +15,11 @@ const requiredFiles = [
   'success.js',
   'commerce-config.js',
   'vercel.json',
+  'robots.txt',
+  'sitemap.xml',
+  'llms.txt',
+  'api/download.js',
+  'api/checkout.js',
   'assets/skribly-icon.svg',
   'assets/skribly-social-card.svg',
 ];
@@ -26,7 +34,14 @@ for (const file of requiredFiles) {
   }
 }
 
-const htmlFiles = ['index.html', 'download-success.html'];
+const htmlFiles = [
+  'index.html',
+  'privacy.html',
+  'release-notes.html',
+  'download-unavailable.html',
+  'download-success.html',
+];
+
 for (const htmlFile of htmlFiles) {
   const html = await readFile(join(root, htmlFile), 'utf8');
   if (!html.includes('<meta name="viewport"')) {
@@ -36,7 +51,9 @@ for (const htmlFile of htmlFiles) {
     failures.push(`${htmlFile} does not reference the Skribly icon.`);
   }
 
-  const references = [...html.matchAll(/(?:href|src)="(\.\/[^"?#]*)(?:[?#][^"]*)?"/g)].map((match) => match[1]);
+  const references = [...html.matchAll(/(?:href|src)="(\.\/[^"?#]*)(?:[?#][^"]*)?"/g)].map(
+    (match) => match[1]
+  );
   for (const reference of references) {
     if (reference === './' || reference === '.') continue;
     const absolute = resolve(root, reference);
@@ -48,23 +65,69 @@ for (const htmlFile of htmlFiles) {
   }
 }
 
+for (const canonicalPage of ['index.html', 'privacy.html', 'release-notes.html']) {
+  const html = await readFile(join(root, canonicalPage), 'utf8');
+  if (!html.includes('rel="canonical"')) {
+    failures.push(`${canonicalPage} is missing a canonical URL.`);
+  }
+}
+
 const config = await readFile(join(root, 'commerce-config.js'), 'utf8');
 const secretAssignmentPattern =
   /(?:secret|private[_-]?key|api[_-]?key)\s*[:=]\s*['"][^'"]+['"]/i;
 if (secretAssignmentPattern.test(config)) {
   failures.push('commerce-config.js appears to contain a secret-like field. Public config must contain no secrets.');
 }
-if (!config.includes("mode: 'public_release'")) {
-  failures.push('Founder Alpha site must remain in public_release mode until gated entitlement delivery exists.');
+if (!config.includes("mode: 'controlled_trial'")) {
+  failures.push('The site must use controlled_trial mode rather than a public repository release page.');
 }
-if (!config.includes('checkout.enabled') && !config.includes('enabled: false')) {
-  failures.push('commerce-config.js must explicitly define checkout enablement.');
+if (!config.includes("endpoint: '/api/download'")) {
+  failures.push('The public download must route through /api/download.');
+}
+if (!config.includes("endpoint: '/api/checkout'")) {
+  failures.push('Checkout must route through the provider-neutral /api/checkout endpoint.');
+}
+if (!config.includes('enforcedInApp: false')) {
+  failures.push('The beta must state truthfully whether the trial is enforced in the desktop app.');
 }
 
 const landing = await readFile(join(root, 'index.html'), 'utf8');
-for (const requiredSection of ['how-it-works', 'features', 'privacy', 'pricing', 'download']) {
+for (const requiredSection of ['product', 'features', 'privacy', 'pricing', 'faq', 'download']) {
   if (!landing.includes(`id="${requiredSection}"`)) {
     failures.push(`Landing page is missing required section #${requiredSection}.`);
+  }
+}
+if (!landing.includes('SoftwareApplication') || !landing.includes('FAQPage')) {
+  failures.push('Landing page must include SoftwareApplication and FAQPage structured data.');
+}
+if (!landing.includes('/api/download') || !landing.includes('/api/checkout')) {
+  failures.push('Landing page must use same-site download and checkout routes.');
+}
+if (/github\.com\/Ankit6149\/skribly/i.test(landing)) {
+  failures.push('The public landing page must not send customers to the source repository.');
+}
+
+for (const page of ['privacy.html', 'release-notes.html']) {
+  const html = await readFile(join(root, page), 'utf8');
+  if (/github\.com\/Ankit6149\/skribly/i.test(html)) {
+    failures.push(`${page} must not expose the source repository as the customer journey.`);
+  }
+}
+
+const robots = await readFile(join(root, 'robots.txt'), 'utf8');
+if (!robots.includes('Sitemap:')) failures.push('robots.txt must reference the sitemap.');
+
+const sitemap = await readFile(join(root, 'sitemap.xml'), 'utf8');
+for (const route of ['/', '/privacy', '/release-notes']) {
+  if (!sitemap.includes(`skribly-desktop.vercel.app${route}`)) {
+    failures.push(`sitemap.xml is missing ${route}.`);
+  }
+}
+
+const llms = await readFile(join(root, 'llms.txt'), 'utf8');
+for (const fact of ['contextual notes', 'Windows', 'seven-day full trial', 'one-time']) {
+  if (!llms.toLowerCase().includes(fact.toLowerCase())) {
+    failures.push(`llms.txt is missing a core answer-engine fact: ${fact}.`);
   }
 }
 
