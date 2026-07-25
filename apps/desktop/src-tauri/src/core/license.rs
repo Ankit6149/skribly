@@ -3,7 +3,8 @@ use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const LICENSE_STORAGE_VERSION: u32 = 1;
@@ -11,6 +12,8 @@ const TRIAL_DAYS: u64 = 7;
 const SECONDS_PER_DAY: u64 = 24 * 60 * 60;
 const CLOCK_ROLLBACK_TOLERANCE_SECONDS: u64 = 5 * 60;
 const PRODUCT_ID: &str = "skribly-personal-windows";
+
+static LICENSE_PATH: OnceLock<PathBuf> = OnceLock::new();
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -64,6 +67,22 @@ pub fn enforcement_enabled() -> bool {
         option_env!("SKRIBLY_TRIAL_ENFORCED"),
         Some("1") | Some("true") | Some("TRUE")
     )
+}
+
+fn beta_status(device_id: String) -> LicenseStatus {
+    LicenseStatus {
+        mode: LicenseMode::Beta,
+        enforcement_enabled: false,
+        can_write: true,
+        trial_days_total: TRIAL_DAYS,
+        trial_days_remaining: TRIAL_DAYS,
+        trial_expires_at: None,
+        device_id,
+        licensed_email: None,
+        updates_until: None,
+        message: "The current Windows beta is free while licence activation is validated."
+            .to_string(),
+    }
 }
 
 fn now_epoch_seconds() -> Result<u64, String> {
@@ -184,28 +203,13 @@ fn trial_days_remaining(expires_at: u64, now: u64) -> u64 {
     if now >= expires_at {
         return 0;
     }
-    expires_at.saturating_sub(now).div_ceil(SECONDS_PER_DAY)
+    let remaining = expires_at.saturating_sub(now);
+    (remaining + SECONDS_PER_DAY - 1) / SECONDS_PER_DAY
 }
 
-fn status_for_record(
-    record: &LicenseRecord,
-    enforced: bool,
-    now: u64,
-) -> LicenseStatus {
+fn status_for_record(record: &LicenseRecord, enforced: bool, now: u64) -> LicenseStatus {
     if !enforced {
-        return LicenseStatus {
-            mode: LicenseMode::Beta,
-            enforcement_enabled: false,
-            can_write: true,
-            trial_days_total: TRIAL_DAYS,
-            trial_days_remaining: TRIAL_DAYS,
-            trial_expires_at: None,
-            device_id: record.device_id.clone(),
-            licensed_email: None,
-            updates_until: None,
-            message: "The current Windows beta is free while licence activation is validated."
-                .to_string(),
-        };
+        return beta_status(record.device_id.clone());
     }
 
     if let Some(token) = record.activation_token.as_deref() {
@@ -312,6 +316,35 @@ pub fn activate(path: &Path, token: &str) -> Result<LicenseStatus, String> {
     record.last_seen_at = now;
     save_record(path, &record)?;
     current_status(path)
+}
+
+pub fn initialize_from_skrib_path(skrib_path: &Path) -> Result<LicenseStatus, String> {
+    let path = skrib_path.with_file_name("license.json");
+    let _ = LICENSE_PATH.set(path.clone());
+    current_status(&path)
+}
+
+pub fn current_global_status() -> Result<LicenseStatus, String> {
+    match LICENSE_PATH.get() {
+        Some(path) => current_status(path),
+        None if !enforcement_enabled() => Ok(beta_status("SKR-BETA".to_string())),
+        None => Err("Licence storage has not been initialized.".to_string()),
+    }
+}
+
+pub fn require_global_write_access() -> Result<LicenseStatus, String> {
+    match LICENSE_PATH.get() {
+        Some(path) => require_write_access(path),
+        None if !enforcement_enabled() => Ok(beta_status("SKR-BETA".to_string())),
+        None => Err("Licence storage has not been initialized.".to_string()),
+    }
+}
+
+pub fn activate_global(token: &str) -> Result<LicenseStatus, String> {
+    let path = LICENSE_PATH
+        .get()
+        .ok_or_else(|| "Licence storage has not been initialized.".to_string())?;
+    activate(path, token)
 }
 
 #[cfg(test)]
