@@ -1,20 +1,24 @@
 const RELEASES_API = 'https://api.github.com/repos/Ankit6149/skribly/releases?per_page=10';
 
-function githubHeaders() {
+function githubToken() {
+  return process.env.SKRIBLY_GITHUB_TOKEN || process.env.GITHUB_TOKEN || '';
+}
+
+function githubHeaders(accept = 'application/vnd.github+json') {
   const headers = {
-    accept: 'application/vnd.github+json',
-    'user-agent': 'SkriblyDownload/1.1',
+    accept,
+    'user-agent': 'SkriblyDownload/1.2',
     'x-github-api-version': '2022-11-28',
   };
 
-  const token = process.env.SKRIBLY_GITHUB_TOKEN || process.env.GITHUB_TOKEN;
+  const token = githubToken();
   if (token) headers.authorization = `Bearer ${token}`;
   return headers;
 }
 
 function scoreAsset(asset, requestedFormat) {
   const name = String(asset?.name || '').toLowerCase();
-  if (!asset?.browser_download_url) return -1;
+  if (!asset?.browser_download_url || !asset?.url) return -1;
   if (name.includes('sha256') || name.includes('checksum')) return -1;
 
   const isExe = name.endsWith('.exe');
@@ -53,7 +57,20 @@ async function resolveReleaseAsset(requestedFormat) {
     .sort((left, right) => right.score - left.score);
 
   if (ranked.length === 0) throw new Error('The latest Skribly release has no Windows installer asset.');
-  return ranked[0].asset.browser_download_url;
+  return ranked[0].asset;
+}
+
+async function resolvePrivateAssetRedirect(asset) {
+  const response = await fetch(asset.url, {
+    method: 'GET',
+    headers: githubHeaders('application/octet-stream'),
+    redirect: 'manual',
+  });
+
+  const location = response.headers.get('location');
+  if (location && response.status >= 300 && response.status < 400) return location;
+
+  throw new Error(`Private release asset redirect failed with ${response.status}.`);
 }
 
 module.exports = async function handler(request, response) {
@@ -66,8 +83,18 @@ module.exports = async function handler(request, response) {
   const explicitTarget = process.env.SKRIBLY_TRIAL_DOWNLOAD_URL;
 
   try {
-    const target = explicitTarget || (await resolveReleaseAsset(requestedFormat));
-    response.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=3600');
+    let target = explicitTarget;
+    if (!target) {
+      const asset = await resolveReleaseAsset(requestedFormat);
+      target = githubToken()
+        ? await resolvePrivateAssetRedirect(asset)
+        : asset.browser_download_url;
+    }
+
+    response.setHeader(
+      'Cache-Control',
+      githubToken() ? 'private, no-store' : 'public, s-maxage=300, stale-while-revalidate=3600'
+    );
     response.setHeader('X-Skribly-Download-Format', requestedFormat);
     return response.redirect(302, target);
   } catch (error) {
