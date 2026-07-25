@@ -8,63 +8,76 @@
     toast.textContent = message;
     toast.classList.add('is-visible');
     if (toastTimer) window.clearTimeout(toastTimer);
-    toastTimer = window.setTimeout(() => toast.classList.remove('is-visible'), 3200);
+    toastTimer = window.setTimeout(() => toast.classList.remove('is-visible'), 3800);
   };
 
   const setLink = (element, href) => {
     if (!element || !href) return;
     element.setAttribute('href', href);
-    if (/^https?:\/\//.test(href)) {
-      element.setAttribute('target', '_blank');
-      element.setAttribute('rel', 'noopener noreferrer');
-    }
   };
 
-  const releaseUrl =
-    config?.download?.directWindowsAssetUrl ||
-    config?.download?.latestReleaseUrl ||
-    'https://github.com/Ankit6149/skribly/releases/latest';
+  const downloadUrl = config?.download?.endpoint || '/api/download';
+  const checkoutUrl = config?.checkout?.endpoint || '/api/checkout';
+  const releaseNotesUrl = config?.links?.releaseNotes || '/release-notes';
+  const privacyUrl = config?.links?.privacy || '/privacy';
+  const trialIsEnforced = Boolean(config?.trial?.enforcedInApp);
 
   document.querySelectorAll('[data-download-link]').forEach((link) => {
-    setLink(link, releaseUrl);
+    setLink(link, downloadUrl);
     link.addEventListener('click', () => {
-      showToast('Opening the latest Skribly Windows release…');
+      showToast(trialIsEnforced ? 'Preparing your Skribly trial…' : 'Preparing the current Windows beta…');
     });
   });
 
   document.querySelectorAll('[data-release-notes-link]').forEach((link) => {
-    setLink(link, config?.download?.latestReleaseUrl || releaseUrl);
+    setLink(link, releaseNotesUrl);
+  });
+
+  document.querySelectorAll('[data-privacy-link]').forEach((link) => {
+    setLink(link, privacyUrl);
   });
 
   document.querySelectorAll('[data-version-label]').forEach((element) => {
-    element.textContent = config?.download?.versionLabel || 'Founder Alpha';
+    element.textContent = config?.download?.versionLabel || 'Windows beta';
   });
 
-  document.querySelectorAll('[data-founder-price]').forEach((element) => {
-    element.textContent = String(config?.product?.price ?? 499);
+  document.querySelectorAll('[data-launch-price]').forEach((element) => {
+    element.textContent = String(config?.product?.launchPrice ?? 999);
   });
 
-  const checkoutLink = document.querySelector('[data-checkout-link]');
-  const checkoutNote = document.querySelector('[data-checkout-note]');
-  const checkoutEnabled = Boolean(config?.checkout?.enabled && config?.checkout?.checkoutUrl);
+  document.querySelectorAll('[data-standard-price]').forEach((element) => {
+    element.textContent = String(config?.product?.standardPrice ?? 1499);
+  });
 
-  if (checkoutLink && checkoutEnabled) {
-    setLink(checkoutLink, config.checkout.checkoutUrl);
-    checkoutLink.textContent = 'Buy Founder Access';
-    if (checkoutNote) {
-      checkoutNote.textContent = `Secure checkout powered by ${config.checkout.provider}. Installer access is delivered after payment.`;
+  document.querySelectorAll('[data-trial-days]').forEach((element) => {
+    element.textContent = String(config?.trial?.days ?? 7);
+  });
+
+  document.querySelectorAll('[data-update-months]').forEach((element) => {
+    element.textContent = String(config?.product?.includedUpdateMonths ?? 12);
+  });
+
+  const checkoutEnabled = Boolean(config?.checkout?.enabled);
+  document.querySelectorAll('[data-checkout-link]').forEach((link) => {
+    setLink(link, checkoutUrl);
+    if (!checkoutEnabled) {
+      link.setAttribute('aria-disabled', 'true');
+      link.addEventListener('click', (event) => {
+        event.preventDefault();
+        showToast('Purchases open after licence activation is validated. The Windows beta is available to try now.');
+      });
     }
-  } else if (checkoutLink) {
-    checkoutLink.setAttribute('href', '#download');
-    checkoutLink.addEventListener('click', () => {
-      showToast('Paid Founder Access is not open yet. You can download the current public test build below.');
-    });
-  }
+  });
 
-  const downloadStatus = document.querySelector('[data-download-status]');
-  if (downloadStatus && config?.download?.mode === 'checkout_gated') {
-    downloadStatus.textContent = 'Purchase Founder Access to receive the latest Windows installer and future Founder Alpha updates.';
-  }
+  document.querySelectorAll('[data-trial-copy]').forEach((element) => {
+    element.textContent = trialIsEnforced
+      ? `Try every feature for ${config.trial.days} days. No card required.`
+      : 'The current beta is free while licence activation is being validated. The paid launch will include a 7-day full trial.';
+  });
+
+  document.querySelectorAll('[data-download-label]').forEach((element) => {
+    element.textContent = trialIsEnforced ? 'Download 7-day trial' : 'Download Windows beta';
+  });
 
   document.querySelectorAll('[data-demo-dot]').forEach((dot) => {
     dot.addEventListener('click', () => {
@@ -105,7 +118,7 @@
   if (!/win/i.test(platform)) {
     document.querySelectorAll('[data-download-link]').forEach((link) => {
       link.addEventListener('click', () => {
-        showToast('Skribly Founder Alpha currently supports Windows 10 and Windows 11.');
+        showToast('Skribly currently supports Windows 10 and Windows 11.');
       });
     });
   }
