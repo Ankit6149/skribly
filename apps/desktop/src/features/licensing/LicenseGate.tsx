@@ -19,6 +19,7 @@ export const LicenseGate: React.FC<LicenseGateProps> = ({ children }) => {
   const setActiveInteractionRect = useSkribStore((state) => state.setActiveInteractionRect);
   const [key, setKey] = useState('');
   const [readOnlyDismissed, setReadOnlyDismissed] = useState(false);
+  const [activationOpen, setActivationOpen] = useState(false);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -27,16 +28,21 @@ export const LicenseGate: React.FC<LicenseGateProps> = ({ children }) => {
 
   useEffect(() => {
     if (status.canWrite) setReadOnlyDismissed(false);
-  }, [status.canWrite]);
+    if (status.mode === 'licensed') {
+      setActivationOpen(false);
+      setKey('');
+    }
+  }, [status.canWrite, status.mode]);
 
-  const shouldShowBlockingPanel =
+  const isBlocking =
     isReady &&
     status.enforcementEnabled &&
     !status.canWrite &&
     !readOnlyDismissed;
+  const shouldShowPanel = isBlocking || (status.enforcementEnabled && activationOpen);
 
   useEffect(() => {
-    if (!shouldShowBlockingPanel) {
+    if (!shouldShowPanel) {
       setActiveInteractionRect(null);
       return;
     }
@@ -56,7 +62,7 @@ export const LicenseGate: React.FC<LicenseGateProps> = ({ children }) => {
       window.removeEventListener('resize', syncRect);
       setActiveInteractionRect(null);
     };
-  }, [setActiveInteractionRect, shouldShowBlockingPanel]);
+  }, [setActiveInteractionRect, shouldShowPanel]);
 
   const copyDeviceId = async () => {
     try {
@@ -68,29 +74,52 @@ export const LicenseGate: React.FC<LicenseGateProps> = ({ children }) => {
     }
   };
 
+  const closePanel = () => {
+    clearError();
+    setActivationOpen(false);
+    if (isBlocking) setReadOnlyDismissed(true);
+  };
+
+  const panelKicker = status.mode === 'clock_error'
+    ? 'CLOCK CHECK REQUIRED'
+    : isBlocking
+      ? 'TRIAL COMPLETE'
+      : 'PERSONAL LICENCE';
+  const panelHeading = status.mode === 'clock_error'
+    ? 'Correct your system clock to continue.'
+    : isBlocking
+      ? 'Keep your notes. Unlock editing when you are ready.'
+      : 'Already have a licence? Activate it on this device.';
+  const panelMessage = isBlocking
+    ? status.message
+    : `Your full trial remains active for ${status.trialDaysRemaining} day${status.trialDaysRemaining === 1 ? '' : 's'}. Activation will not remove or move any notes.`;
+
   return (
     <>
       {children}
 
       {isReady && status.mode === 'trial' && (
-        <div className="license-trial-badge" role="status">
+        <button
+          type="button"
+          className="license-trial-badge"
+          onClick={() => {
+            clearError();
+            setActivationOpen(true);
+          }}
+          aria-label={`${status.trialDaysRemaining} trial days remaining. Open licence activation.`}
+          title="Open licence activation"
+        >
           <strong>{status.trialDaysRemaining}</strong>
           <span>trial day{status.trialDaysRemaining === 1 ? '' : 's'} left</span>
-        </div>
+        </button>
       )}
 
-      {shouldShowBlockingPanel && (
+      {shouldShowPanel && (
         <div className="license-gate-backdrop">
           <section className="license-gate-panel" aria-label="Skribly licence">
-            <span className="license-gate-kicker">
-              {status.mode === 'clock_error' ? 'CLOCK CHECK REQUIRED' : 'TRIAL COMPLETE'}
-            </span>
-            <h1>
-              {status.mode === 'clock_error'
-                ? 'Correct your system clock to continue.'
-                : 'Keep your notes. Unlock editing when you are ready.'}
-            </h1>
-            <p>{status.message}</p>
+            <span className="license-gate-kicker">{panelKicker}</span>
+            <h1>{panelHeading}</h1>
+            <p>{panelMessage}</p>
 
             <div className="license-device-card">
               <span>THIS DEVICE</span>
@@ -118,12 +147,8 @@ export const LicenseGate: React.FC<LicenseGateProps> = ({ children }) => {
             )}
 
             <div className="license-gate-actions">
-              <button
-                type="button"
-                className="license-secondary"
-                onClick={() => setReadOnlyDismissed(true)}
-              >
-                Continue read-only
+              <button type="button" className="license-secondary" onClick={closePanel}>
+                {isBlocking ? 'Continue read-only' : 'Back to trial'}
               </button>
               <button
                 type="button"
