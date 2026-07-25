@@ -448,7 +448,8 @@ pub fn run() {
 
             std::thread::spawn(move || {
                 while running_flag_hk.load(Ordering::Relaxed) {
-                    if let Ok(hotkey_id) = hotkey_receiver.recv_timeout(Duration::from_millis(100)) {
+                    if let Ok(hotkey_id) = hotkey_receiver.recv_timeout(Duration::from_millis(100))
+                    {
                         if hotkey_id == GLOBAL_HOTKEY_ID {
                             if let Some(window) = app_handle_hk.get_webview_window("main") {
                                 let _ = window.show();
@@ -495,10 +496,12 @@ pub fn run() {
                                 if let Err(message) = persist_skribs(&state_hk) {
                                     let _ = app_handle_hk.emit("skribly://storage-error", message);
                                 }
-                                let payload = build_overlay_payload(&app_handle_hk, &state_hk, false);
+                                let payload =
+                                    build_overlay_payload(&app_handle_hk, &state_hk, false);
                                 let _ = app_handle_hk.emit("skribly://global-shortcut", payload);
                             } else {
-                                let mut payload = build_overlay_payload(&app_handle_hk, &state_hk, false);
+                                let mut payload =
+                                    build_overlay_payload(&app_handle_hk, &state_hk, false);
                                 payload.is_shortcut_active = true;
                                 let _ = app_handle_hk.emit("skribly://global-shortcut", payload);
                             }
@@ -528,12 +531,18 @@ pub fn run() {
                                     if target.hwnd_val == notice.hwnd_val {
                                         if notice.event_type == EVENT_OBJECT_DESTROY {
                                             coordinator.set_active_target(None);
-                                            let payload =
-                                                build_mutation_payload(&app_handle_ev, &state_ev, false);
-                                            let _ = app_handle_ev.emit("skribly://overlay-update", payload);
-                                        } else if let Some(hwnd) = reconstruct_hwnd(notice.hwnd_val) {
+                                            let payload = build_mutation_payload(
+                                                &app_handle_ev,
+                                                &state_ev,
+                                                false,
+                                            );
+                                            let _ = app_handle_ev
+                                                .emit("skribly://overlay-update", payload);
+                                        } else if let Some(hwnd) = reconstruct_hwnd(notice.hwnd_val)
+                                        {
                                             if let Some(updated) = inspect_target_window(hwnd) {
-                                                coordinator.set_active_target(Some(updated.clone()));
+                                                coordinator
+                                                    .set_active_target(Some(updated.clone()));
                                                 let payload = build_mutation_payload(
                                                     &app_handle_ev,
                                                     &state_ev,
@@ -556,7 +565,9 @@ pub fn run() {
                                         if let Some(hwnd) = reconstruct_hwnd(notice.hwnd_val) {
                                             if let Some(new_target) = inspect_target_window(hwnd) {
                                                 let candidates = vec![new_target.clone()];
-                                                match coordinator.find_best_context_match(&candidates) {
+                                                match coordinator
+                                                    .find_best_context_match(&candidates)
+                                                {
                                                     MatchResult::Unique(best) => {
                                                         coordinator.set_active_target(Some(best));
                                                     }

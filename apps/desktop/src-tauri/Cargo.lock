@@ -2724,7 +2724,7 @@ checksum = "8ee5873ec9cce0195efcb7a4e9507a04cd49aec9c83d0389df45b1ef7ba2e649"
 
 [[package]]
 name = "skribly"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "objc2",
  "objc2-app-kit",

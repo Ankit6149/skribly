@@ -6,7 +6,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
 pub fn focus_external_window(hwnd_val: isize) -> Result<(), String> {
     let hwnd = HWND(hwnd_val as *mut std::ffi::c_void);
     unsafe {
-        if hwnd.0.is_null() || !IsWindow(hwnd).as_bool() {
+        if hwnd.0.is_null() || !IsWindow(Some(hwnd)).as_bool() {
             return Err("The original application window is no longer available.".into());
         }
 

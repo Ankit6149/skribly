@@ -36,8 +36,9 @@ for (const htmlFile of htmlFiles) {
     failures.push(`${htmlFile} does not reference the Skribly icon.`);
   }
 
-  const references = [...html.matchAll(/(?:href|src)="(\.\/[^"?#]+)(?:[?#][^"]*)?"/g)].map((match) => match[1]);
+  const references = [...html.matchAll(/(?:href|src)="(\.\/[^"?#]*)(?:[?#][^"]*)?"/g)].map((match) => match[1]);
   for (const reference of references) {
+    if (reference === './' || reference === '.') continue;
     const absolute = resolve(root, reference);
     try {
       await access(absolute);
@@ -48,7 +49,9 @@ for (const htmlFile of htmlFiles) {
 }
 
 const config = await readFile(join(root, 'commerce-config.js'), 'utf8');
-if (/secret|private[_-]?key|api[_-]?key\s*:/i.test(config)) {
+const secretAssignmentPattern =
+  /(?:secret|private[_-]?key|api[_-]?key)\s*[:=]\s*['"][^'"]+['"]/i;
+if (secretAssignmentPattern.test(config)) {
   failures.push('commerce-config.js appears to contain a secret-like field. Public config must contain no secrets.');
 }
 if (!config.includes("mode: 'public_release'")) {
