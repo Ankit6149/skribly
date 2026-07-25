@@ -9,7 +9,7 @@ interface NotesWidgetProps {
   visibleNotes: SkribNote[];
 }
 
-function scoreContextMatch(note: SkribNote, target: TargetWindowInfo): number {
+export function scoreContextMatch(note: SkribNote, target: TargetWindowInfo): number {
   if (note.target_process_name.toLowerCase() !== target.process_name.toLowerCase()) return 0;
   const noteTitle = note.target_title.trim().toLowerCase();
   const targetTitle = target.title.trim().toLowerCase();
@@ -47,17 +47,17 @@ export const NotesWidget: React.FC<NotesWidgetProps> = ({ visibleNotes }) => {
   };
 
   useEffect(() => {
-    void refreshNotes();
-  }, [visibleNotes.length]);
-
-  useEffect(() => {
-    if (isNotesWidgetOpen) void refreshNotes();
-  }, [isNotesWidgetOpen]);
+    if (!isTauriAvailable) setNotes(visibleNotes);
+    else if (isNotesWidgetOpen) void refreshNotes();
+  }, [isNotesWidgetOpen, isTauriAvailable, visibleNotes]);
 
   const selectedNote = useMemo(
     () => notes.find((note) => note.id === widgetNoteId) ?? null,
     [notes, widgetNoteId]
   );
+  const selectedNoteIsVisible = selectedNote
+    ? visibleNotes.some((note) => note.id === selectedNote.id)
+    : false;
 
   useEffect(() => {
     setContextMessage(null);
@@ -65,14 +65,17 @@ export const NotesWidget: React.FC<NotesWidgetProps> = ({ visibleNotes }) => {
       setAttachmentCount(0);
       return;
     }
-    void countNoteAttachments(selectedNote.id)
-      .then(setAttachmentCount)
-      .catch(() => setAttachmentCount(0));
+    void countNoteAttachments(selectedNote.id).then(setAttachmentCount);
   }, [selectedNote?.id]);
 
-  const openSelectedNote = async () => {
+  const editSelectedNote = async () => {
     if (!selectedNote) return;
-    const count = await countNoteAttachments(selectedNote.id).catch(() => 0);
+    if (!selectedNoteIsVisible) {
+      setContextMessage('Reconnect this Skrib to its matching open app before editing it in place.');
+      return;
+    }
+
+    const count = await countNoteAttachments(selectedNote.id);
     closeNotesWidget();
     if (selectedNote.text.length > 280 || count > 0) {
       openComposer(selectedNote.id, count > 0 ? 'write' : 'type');
@@ -85,7 +88,7 @@ export const NotesWidget: React.FC<NotesWidgetProps> = ({ visibleNotes }) => {
     if (!selectedNote) return;
     setContextMessage(null);
     if (!isTauriAvailable) {
-      setContextMessage('Open the original application from the desktop build.');
+      setContextMessage('Reconnect to the original application from the desktop build.');
       return;
     }
     try {
@@ -160,12 +163,16 @@ export const NotesWidget: React.FC<NotesWidgetProps> = ({ visibleNotes }) => {
               </div>
               <div className="notes-widget-question">
                 <strong>Return to where this note belongs?</strong>
-                <span>Skribly will reconnect to a matching open window. It will never launch an unknown file silently.</span>
+                <span>Skribly reconnects only to a matching open window. It never launches an unknown file silently.</span>
               </div>
               {contextMessage && <div className="notes-widget-message">{contextMessage}</div>}
               <div className="notes-widget-detail-actions">
-                <button type="button" onClick={() => void openSelectedNote()}>Open note</button>
-                <button type="button" className="primary" onClick={() => void reconnectOriginalApp()}>Open original app</button>
+                <button type="button" onClick={() => void editSelectedNote()}>
+                  {selectedNoteIsVisible ? 'Open note' : 'Reconnect to edit'}
+                </button>
+                <button type="button" className="primary" onClick={() => void reconnectOriginalApp()}>
+                  Reconnect original app
+                </button>
               </div>
             </div>
           )}
