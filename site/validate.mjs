@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 const root = dirname(fileURLToPath(import.meta.url));
 const requiredFiles = [
   'index.html',
+  'answers.html',
   'privacy.html',
   'release-notes.html',
   'download-unavailable.html',
@@ -36,6 +37,7 @@ for (const file of requiredFiles) {
 
 const htmlFiles = [
   'index.html',
+  'answers.html',
   'privacy.html',
   'release-notes.html',
   'download-unavailable.html',
@@ -49,6 +51,9 @@ for (const htmlFile of htmlFiles) {
   }
   if (!html.includes('skribly-icon.svg')) {
     failures.push(`${htmlFile} does not reference the Skribly icon.`);
+  }
+  if (/github\.com\/Ankit6149\/skribly/i.test(html)) {
+    failures.push(`${htmlFile} must not expose the source repository as the customer journey.`);
   }
 
   const references = [...html.matchAll(/(?:href|src)="(\.\/[^"?#]*)(?:[?#][^"]*)?"/g)].map(
@@ -65,15 +70,11 @@ for (const htmlFile of htmlFiles) {
   }
 }
 
-const app = await readFile(join(root, 'app.js'), 'utf8');
-for (const canonicalPage of ['privacy.html', 'release-notes.html']) {
+for (const canonicalPage of ['index.html', 'answers.html', 'privacy.html', 'release-notes.html']) {
   const html = await readFile(join(root, canonicalPage), 'utf8');
   if (!html.includes('rel="canonical"')) {
     failures.push(`${canonicalPage} is missing a canonical URL.`);
   }
-}
-if (!app.includes('link[rel="canonical"]') || !app.includes('skribly-desktop.vercel.app')) {
-  failures.push('The restored landing page must inject its canonical production URL through app.js.');
 }
 
 const config = await readFile(join(root, 'commerce-config.js'), 'utf8');
@@ -101,28 +102,33 @@ for (const requiredSection of ['how-it-works', 'features', 'privacy', 'pricing',
     failures.push(`Landing page is missing required section #${requiredSection}.`);
   }
 }
-if (!app.includes("'@type': 'SoftwareApplication'") || !app.includes("'@type': 'FAQPage'")) {
-  failures.push('app.js must inject SoftwareApplication and FAQPage structured data for the restored layout.');
+for (const requiredText of [
+  'PERSONAL WINDOWS LICENCE',
+  'data-founder-price>999',
+  'href="/api/download"',
+  'href="/release-notes"',
+  'href="/privacy"',
+  'href="/answers"',
+  'data-skribly-schema',
+]) {
+  if (!landing.includes(requiredText)) {
+    failures.push(`Landing page is missing required commercial/search marker: ${requiredText}`);
+  }
 }
-if (!app.includes("'/api/download'") || !app.includes("'/api/checkout'")) {
-  failures.push('The customer journey must use same-site download and checkout routes.');
-}
-if (!app.includes('github.com/Ankit6149/skribly') || !app.includes('releaseNotesUrl')) {
-  failures.push('app.js must replace legacy repository links with same-site customer pages.');
+if (/Founder Alpha|data-founder-price>499/i.test(landing)) {
+  failures.push('Landing page contains obsolete Founder Alpha or ₹499 copy.');
 }
 
-for (const page of ['privacy.html', 'release-notes.html']) {
-  const html = await readFile(join(root, page), 'utf8');
-  if (/github\.com\/Ankit6149\/skribly/i.test(html)) {
-    failures.push(`${page} must not expose the source repository as the customer journey.`);
-  }
+const app = await readFile(join(root, 'app.js'), 'utf8');
+if (!app.includes("'/api/download'") || !app.includes("'/api/checkout'")) {
+  failures.push('The customer journey must use same-site download and checkout routes.');
 }
 
 const robots = await readFile(join(root, 'robots.txt'), 'utf8');
 if (!robots.includes('Sitemap:')) failures.push('robots.txt must reference the sitemap.');
 
 const sitemap = await readFile(join(root, 'sitemap.xml'), 'utf8');
-for (const route of ['/', '/privacy', '/release-notes']) {
+for (const route of ['/', '/answers', '/privacy', '/release-notes']) {
   if (!sitemap.includes(`skribly-desktop.vercel.app${route}`)) {
     failures.push(`sitemap.xml is missing ${route}.`);
   }
