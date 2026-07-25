@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useLicenseStore } from '../../stores/licenseStore';
+import { useSkribStore } from '../../stores/skribStore';
 
 interface LicenseGateProps {
   children: React.ReactNode;
@@ -15,6 +16,8 @@ export const LicenseGate: React.FC<LicenseGateProps> = ({ children }) => {
     activate,
     clearError,
   } = useLicenseStore();
+  const { setActiveInteractionRect } = useSkribStore();
+  const panelRef = useRef<HTMLElement>(null);
   const [key, setKey] = useState('');
   const [readOnlyDismissed, setReadOnlyDismissed] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -27,6 +30,40 @@ export const LicenseGate: React.FC<LicenseGateProps> = ({ children }) => {
     if (status.canWrite) setReadOnlyDismissed(false);
   }, [status.canWrite]);
 
+  const shouldShowBlockingPanel =
+    isReady &&
+    status.enforcementEnabled &&
+    !status.canWrite &&
+    !readOnlyDismissed;
+
+  useEffect(() => {
+    if (!shouldShowBlockingPanel || !panelRef.current) {
+      setActiveInteractionRect(null);
+      return;
+    }
+
+    const syncRect = () => {
+      const bounds = panelRef.current?.getBoundingClientRect();
+      if (!bounds) return;
+      setActiveInteractionRect({
+        x: Math.round(bounds.left),
+        y: Math.round(bounds.top),
+        width: Math.round(bounds.width),
+        height: Math.round(bounds.height),
+      });
+    };
+
+    syncRect();
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(syncRect);
+    if (observer && panelRef.current) observer.observe(panelRef.current);
+    window.addEventListener('resize', syncRect);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', syncRect);
+      setActiveInteractionRect(null);
+    };
+  }, [setActiveInteractionRect, shouldShowBlockingPanel]);
+
   const copyDeviceId = async () => {
     try {
       await navigator.clipboard.writeText(status.deviceId);
@@ -36,12 +73,6 @@ export const LicenseGate: React.FC<LicenseGateProps> = ({ children }) => {
       // The visible device ID can still be selected manually.
     }
   };
-
-  const shouldShowBlockingPanel =
-    isReady &&
-    status.enforcementEnabled &&
-    !status.canWrite &&
-    !readOnlyDismissed;
 
   return (
     <>
@@ -56,7 +87,7 @@ export const LicenseGate: React.FC<LicenseGateProps> = ({ children }) => {
 
       {shouldShowBlockingPanel && (
         <div className="license-gate-backdrop">
-          <section className="license-gate-panel" aria-label="Skribly licence">
+          <section ref={panelRef} className="license-gate-panel" aria-label="Skribly licence">
             <span className="license-gate-kicker">
               {status.mode === 'clock_error' ? 'CLOCK CHECK REQUIRED' : 'TRIAL COMPLETE'}
             </span>
