@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { listen } from '@tauri-apps/api/event';
 import { useSkribStore } from '../../stores/skribStore';
 import { useSkribUiStore } from '../../stores/skribUiStore';
 import { FounderOnboarding } from '../onboarding/FounderOnboarding';
@@ -16,6 +17,7 @@ export const OverlayHost: React.FC = () => {
     initStatus,
     isPickingTarget,
     isAmbiguous,
+    isTauriAvailable,
     errorMessage,
     activeInteractionRect,
     clearError,
@@ -33,6 +35,7 @@ export const OverlayHost: React.FC = () => {
     composerMode,
     isNotesWidgetOpen,
     openComposer,
+    openNotesWidget,
   } = useSkribUiStore();
 
   const toolbarRef = useRef<HTMLDivElement>(null);
@@ -93,6 +96,25 @@ export const OverlayHost: React.FC = () => {
     const created = useSkribStore.getState().skribs.find((note) => !before.has(note.id));
     if (created) openComposer(created.id, 'type');
   }, [addSkrib, fetchTargetWindows, openComposer, setPickingTarget]);
+
+  useEffect(() => {
+    if (!isTauriAvailable) return;
+    let unlisten: (() => void) | null = null;
+    let disposed = false;
+
+    void listen<string>('skribly://tray-action', (event) => {
+      if (event.payload === 'new') void createNewSkrib();
+      if (event.payload === 'saved') openNotesWidget();
+    }).then((stopListening) => {
+      if (disposed) stopListening();
+      else unlisten = stopListening;
+    });
+
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, [createNewSkrib, isTauriAvailable, openNotesWidget]);
 
   useEffect(() => {
     const rects: Array<{ x: number; y: number; width: number; height: number }> = [];
