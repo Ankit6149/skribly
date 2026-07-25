@@ -1,4 +1,5 @@
 mod core;
+mod desktop;
 mod platform;
 
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -7,11 +8,11 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager, RunEvent, State};
 
+use core::coordinator::{Coordinator, MatchResult};
 use core::models::{
     HitTestRect, OverlayInitializationStatus, OverlayMetrics, OverlayStatePayload, SkribNote,
     TargetWindowInfo,
 };
-use core::coordinator::{Coordinator, MatchResult};
 use core::storage;
 
 #[cfg(target_os = "windows")]
@@ -24,6 +25,8 @@ use platform::windows::{
     EVENT_OBJECT_LOCATIONCHANGE, EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_MINIMIZEEND,
     EVENT_SYSTEM_MINIMIZESTART,
 };
+#[cfg(target_os = "windows")]
+use platform::windows_focus::focus_external_window;
 
 pub struct AppState {
     pub coordinator: Coordinator,
@@ -168,7 +171,6 @@ fn initialize_native_overlay(
 
         install_overlay_subclass(win_hwnd, state.coordinator.clone())?;
 
-        // Retry is idempotent: remove any previous registration/hooks first.
         unregister_global_hotkey(win_hwnd, GLOBAL_HOTKEY_ID);
         register_global_hotkey(win_hwnd, GLOBAL_HOTKEY_ID)?;
         uninstall_winevent_hooks();
@@ -306,6 +308,19 @@ fn get_all_skribs(state: State<'_, AppState>) -> Vec<SkribNote> {
 }
 
 #[tauri::command]
+fn focus_target_window(hwnd_val: isize) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        focus_external_window(hwnd_val)
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = hwnd_val;
+        Err("Focusing an external application is currently available on Windows only.".into())
+    }
+}
+
+#[tauri::command]
 fn set_hit_test_rects(state: State<'_, AppState>, rects: Vec<HitTestRect>) {
     state.coordinator.set_hit_test_rects(rects);
 }
@@ -341,7 +356,7 @@ fn refresh_target_state(app_handle: AppHandle, state: State<'_, AppState>) -> Ov
     build_overlay_payload(&app_handle, &state, is_ambiguous)
 }
 
-const GLOBAL_HOTKEY_ID: i32 = 0x534B; // 'SK'
+const GLOBAL_HOTKEY_ID: i32 = 0x534B;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -384,6 +399,7 @@ pub fn run() {
             toggle_skrib_collapse,
             delete_skrib_note,
             get_all_skribs,
+            focus_target_window,
             set_hit_test_rects,
             refresh_target_state,
         ])
@@ -407,9 +423,11 @@ pub fn run() {
                     }
                 }
             }
+
+            desktop::tray::install_tray(app)?;
+
             let coordinator = app.state::<AppState>().coordinator.clone();
             let running_flag = app.state::<AppState>().running.clone();
-
             let main_window = app.get_webview_window("main");
 
             #[cfg(target_os = "windows")]
@@ -424,7 +442,6 @@ pub fn run() {
                 }
             }
 
-            // Dedicated thread processing WM_HOTKEY native events
             let coordinator_hk = coordinator.clone();
             let app_handle_hk = app_handle.clone();
             let running_flag_hk = running_flag.clone();
@@ -490,7 +507,6 @@ pub fn run() {
                 }
             });
 
-            // Event-driven WinEvent processing thread
             let app_handle_ev = app_handle.clone();
             std::thread::spawn(move || {
                 let mut tick_counter: u32 = 0;
@@ -512,17 +528,28 @@ pub fn run() {
                                     if target.hwnd_val == notice.hwnd_val {
                                         if notice.event_type == EVENT_OBJECT_DESTROY {
                                             coordinator.set_active_target(None);
-                                            let payload = build_mutation_payload(&app_handle_ev, &state_ev, false);
+                                            let payload =
+                                                build_mutation_payload(&app_handle_ev, &state_ev, false);
                                             let _ = app_handle_ev.emit("skribly://overlay-update", payload);
                                         } else if let Some(hwnd) = reconstruct_hwnd(notice.hwnd_val) {
                                             if let Some(updated) = inspect_target_window(hwnd) {
                                                 coordinator.set_active_target(Some(updated.clone()));
-                                                let payload = build_mutation_payload(&app_handle_ev, &state_ev, false);
-                                                let _ = app_handle_ev.emit("skribly://overlay-update", payload);
+                                                let payload = build_mutation_payload(
+                                                    &app_handle_ev,
+                                                    &state_ev,
+                                                    false,
+                                                );
+                                                let _ = app_handle_ev
+                                                    .emit("skribly://overlay-update", payload);
                                             } else {
                                                 coordinator.set_active_target(None);
-                                                let payload = build_mutation_payload(&app_handle_ev, &state_ev, false);
-                                                let _ = app_handle_ev.emit("skribly://overlay-update", payload);
+                                                let payload = build_mutation_payload(
+                                                    &app_handle_ev,
+                                                    &state_ev,
+                                                    false,
+                                                );
+                                                let _ = app_handle_ev
+                                                    .emit("skribly://overlay-update", payload);
                                             }
                                         }
                                     } else if notice.event_type == EVENT_SYSTEM_FOREGROUND {
@@ -534,11 +561,17 @@ pub fn run() {
                                                         coordinator.set_active_target(Some(best));
                                                     }
                                                     _ => {
-                                                        coordinator.set_active_target(Some(new_target));
+                                                        coordinator
+                                                            .set_active_target(Some(new_target));
                                                     }
                                                 }
-                                                let payload = build_mutation_payload(&app_handle_ev, &state_ev, false);
-                                                let _ = app_handle_ev.emit("skribly://overlay-update", payload);
+                                                let payload = build_mutation_payload(
+                                                    &app_handle_ev,
+                                                    &state_ev,
+                                                    false,
+                                                );
+                                                let _ = app_handle_ev
+                                                    .emit("skribly://overlay-update", payload);
                                             }
                                         }
                                     }
@@ -551,33 +584,41 @@ pub fn run() {
                                                     coordinator.set_active_target(Some(best));
                                                 }
                                                 MatchResult::Ambiguous(matched) => {
-                                                    let mut payload = build_mutation_payload(&app_handle_ev, &state_ev, true);
+                                                    let mut payload = build_mutation_payload(
+                                                        &app_handle_ev,
+                                                        &state_ev,
+                                                        true,
+                                                    );
                                                     payload.available_windows = matched;
-                                                    let _ = app_handle_ev.emit("skribly://overlay-update", payload);
+                                                    let _ = app_handle_ev
+                                                        .emit("skribly://overlay-update", payload);
                                                 }
                                                 MatchResult::None => {
                                                     coordinator.set_active_target(Some(new_target));
                                                 }
                                             }
-                                            let payload = build_mutation_payload(&app_handle_ev, &state_ev, false);
-                                            let _ = app_handle_ev.emit("skribly://overlay-update", payload);
+                                            let payload = build_mutation_payload(
+                                                &app_handle_ev,
+                                                &state_ev,
+                                                false,
+                                            );
+                                            let _ = app_handle_ev
+                                                .emit("skribly://overlay-update", payload);
                                         }
                                     }
                                 }
                             }
                         }
-                    } else {
-                        // Periodic fallback check (every ~2 seconds) for target window validity
-                        if tick_counter % 4 == 0 {
-                            #[cfg(target_os = "windows")]
-                            {
-                                let state_ev = app_handle_ev.state::<AppState>();
-                                if let Some(target) = coordinator.get_active_target() {
-                                    if reconstruct_hwnd(target.hwnd_val).is_none() {
-                                        coordinator.set_active_target(None);
-                                        let payload = build_mutation_payload(&app_handle_ev, &state_ev, false);
-                                        let _ = app_handle_ev.emit("skribly://overlay-update", payload);
-                                    }
+                    } else if tick_counter % 4 == 0 {
+                        #[cfg(target_os = "windows")]
+                        {
+                            let state_ev = app_handle_ev.state::<AppState>();
+                            if let Some(target) = coordinator.get_active_target() {
+                                if reconstruct_hwnd(target.hwnd_val).is_none() {
+                                    coordinator.set_active_target(None);
+                                    let payload =
+                                        build_mutation_payload(&app_handle_ev, &state_ev, false);
+                                    let _ = app_handle_ev.emit("skribly://overlay-update", payload);
                                 }
                             }
                         }
@@ -590,8 +631,18 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building Skribly");
 
-    app.run(move |app_handle, event| {
-        if let RunEvent::Exit = event {
+    app.run(move |app_handle, event| match event {
+        RunEvent::WindowEvent {
+            label,
+            event: tauri::WindowEvent::CloseRequested { api, .. },
+            ..
+        } if label == "main" => {
+            api.prevent_close();
+            if let Some(window) = app_handle.get_webview_window("main") {
+                let _ = window.hide();
+            }
+        }
+        RunEvent::Exit => {
             running.store(false, Ordering::Relaxed);
             #[cfg(target_os = "windows")]
             {
@@ -605,6 +656,7 @@ pub fn run() {
                 }
             }
         }
+        _ => {}
     });
 }
 
