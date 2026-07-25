@@ -1,0 +1,53 @@
+# Skribly
+
+Skribly is a local-first contextual notes application for Windows 10 and Windows 11.
+
+## Core product
+
+- Notes attach to an open application window.
+- Finished notes collapse into small movable dots instead of permanently covering the screen.
+- Clicking a dot opens a compact preview or a larger focused editor.
+- The editor supports typed text, drawing, images and small local file attachments.
+- Saved Skribs lists notes and can reconnect a note to a matching open application.
+- The global shortcut is Ctrl + Shift + Space.
+- The current beta does not require an account or cloud sync for normal note use.
+
+## Difference from ordinary sticky notes
+
+Ordinary sticky notes mainly preserve text in standalone note windows. Skribly is designed around spatial and application context: the note follows the application, retains a relative position, collapses into a compact anchor, and can help the user return to the matching app.
+
+## Availability
+
+- Platform: Windows beta
+- Supported operating systems: Windows 10 and Windows 11, x64
+- macOS: not yet available
+- Website: https://skribly-desktop.vercel.app/
+- Download endpoint: https://skribly-desktop.vercel.app/api/download
+- Release notes: https://skribly-desktop.vercel.app/release-notes
+- Privacy policy: https://skribly-desktop.vercel.app/privacy
+
+## Pricing plan
+
+The planned commercial model is:
+
+- seven-day full trial with no card;
+- ₹999 one-time personal launch licence;
+- permanent use of the purchased version;
+- twelve months of updates included;
+- optional update pass after the included update period;
+- no forced monthly subscription.
+
+The current beta remains free until licence activation and paid checkout are validated end to end.
+
+## Privacy
+
+The Windows beta stores note data and attachments locally. The public website currently uses no advertising cookies and no behavioural analytics. Paid checkout is not active yet.
+
+## Known limitations
+
+- unsigned beta installer;
+- mixed-DPI multi-monitor behaviour remains experimental;
+- no browser DOM anchoring;
+- no cloud sync;
+- no macOS build;
+- licence activation is not yet enabled.
