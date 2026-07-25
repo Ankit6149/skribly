@@ -3,7 +3,8 @@
   right: 80px;
   bottom: 20px;
   z-index: 12950;
-  pointer-events: none;
+  pointer-events: auto;
+  appearance: none;
   min-height: 38px;
   padding: 7px 11px;
   display: flex;
@@ -15,6 +16,19 @@
   color: #292b27;
   box-shadow: 0 12px 32px rgb(35 37 32 / 15%);
   backdrop-filter: blur(12px);
+  cursor: pointer;
+  font: inherit;
+  transition: transform 150ms ease, box-shadow 150ms ease;
+}
+
+.license-trial-badge:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 38px rgb(35 37 32 / 20%);
+}
+
+.license-trial-badge:focus-visible {
+  outline: 3px solid rgb(248 223 120 / 70%);
+  outline-offset: 3px;
 }
 
 .license-trial-badge strong {
@@ -211,6 +225,11 @@
 }
 
 @media (max-width: 620px) {
+  .license-trial-badge {
+    right: 74px;
+    bottom: 18px;
+  }
+
   .license-gate-panel {
     width: calc(100vw - 24px);
     padding: 26px;
