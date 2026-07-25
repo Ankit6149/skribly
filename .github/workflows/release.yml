@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing version tag to publish, for example v0.1.0
+        description: Existing version tag to publish, for example v0.1.1
         required: true
         type: string
   push:
@@ -18,6 +18,9 @@ jobs:
   release-windows:
     name: Build and publish Windows installers
     runs-on: windows-latest
+    env:
+      SKRIBLY_TRIAL_ENFORCED: ${{ vars.SKRIBLY_TRIAL_ENFORCED || '0' }}
+      SKRIBLY_LICENSE_PUBLIC_KEY: ${{ secrets.SKRIBLY_LICENSE_PUBLIC_KEY }}
 
     steps:
       - name: Check out repository
@@ -33,6 +36,19 @@ jobs:
         with:
           node-version: 20
           cache: npm
+
+      - name: Validate licence build configuration
+        shell: pwsh
+        run: |
+          $enforced = "${{ env.SKRIBLY_TRIAL_ENFORCED }}".ToLowerInvariant()
+          $publicKey = "${{ env.SKRIBLY_LICENSE_PUBLIC_KEY }}".Trim()
+          if (($enforced -eq "1" -or $enforced -eq "true") -and [string]::IsNullOrWhiteSpace($publicKey)) {
+            throw "A paid trial build requires the SKRIBLY_LICENSE_PUBLIC_KEY repository secret."
+          }
+          if ($enforced -ne "0" -and $enforced -ne "1" -and $enforced -ne "false" -and $enforced -ne "true") {
+            throw "SKRIBLY_TRIAL_ENFORCED must be 0, 1, false, or true."
+          }
+          Write-Host "Trial enforcement: $enforced"
 
       - name: Install workspace dependencies
         run: npm ci
