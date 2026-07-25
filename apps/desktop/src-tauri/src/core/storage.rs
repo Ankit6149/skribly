@@ -1,3 +1,4 @@
+use crate::core::license;
 use crate::core::models::SkribNote;
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -13,6 +14,11 @@ struct StoredSkribs {
 }
 
 pub fn load(path: &Path) -> Result<Vec<SkribNote>, String> {
+    // Licence state lives beside the user's notes. A damaged licence file must not
+    // prevent read-only recovery of existing Skribs, so status errors are surfaced
+    // through the licence bridge rather than replacing note-storage errors.
+    let _ = license::initialize_from_skrib_path(path);
+
     if !path.exists() {
         return Ok(Vec::new());
     }
@@ -30,6 +36,8 @@ pub fn load(path: &Path) -> Result<Vec<SkribNote>, String> {
 }
 
 pub fn save(path: &Path, skribs: &[SkribNote]) -> Result<(), String> {
+    license::require_global_write_access()?;
+
     let parent = path
         .parent()
         .ok_or_else(|| "Local Skrib data path has no parent directory".to_string())?;
@@ -86,6 +94,7 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("skribly-storage-{}", std::process::id()));
         let path = dir.join("skribs.json");
         let _ = fs::remove_dir_all(&dir);
+        let _ = load(&path).expect("load should initialize local state");
         save(&path, &[note("a")]).expect("save should succeed");
         assert_eq!(load(&path).expect("load should succeed"), vec![note("a")]);
         let _ = fs::remove_dir_all(dir);
