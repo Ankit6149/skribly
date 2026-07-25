@@ -1,6 +1,9 @@
 import React, { useEffect, useRef } from 'react';
 import { useSkribStore } from '../../stores/skribStore';
+import { useSkribUiStore } from '../../stores/skribUiStore';
 import { SkribNoteCard } from '../skribs/SkribNoteCard';
+import { SkribComposer } from '../skribs/SkribComposer';
+import { NotesWidget } from '../skribs/NotesWidget';
 import { calculateNoteClientLogicalPosition } from '../../lib/geometry';
 
 export const OverlayHost: React.FC = () => {
@@ -13,12 +16,8 @@ export const OverlayHost: React.FC = () => {
     isPickingTarget,
     isAmbiguous,
     errorMessage,
-    allSkribs,
-    isLibraryOpen,
     activeInteractionRect,
     clearError,
-    openLibrary,
-    closeLibrary,
     setPickingTarget,
     fetchTargetWindows,
     retryOverlayInit,
@@ -27,156 +26,154 @@ export const OverlayHost: React.FC = () => {
     updateHitTestRects,
     initTauri,
   } = useSkribStore();
+  const {
+    previewNoteId,
+    composerNoteId,
+    openComposer,
+  } = useSkribUiStore();
 
   const toolbarRef = useRef<HTMLDivElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
   const errorToastRef = useRef<HTMLDivElement>(null);
   const initFailureRef = useRef<HTMLDivElement>(null);
-  const libraryRef = useRef<HTMLDivElement>(null);
+  const composerRef = useRef<HTMLDivElement>(null);
+  const widgetRef = useRef<HTMLDivElement>(null);
+  const initialSnapshotTakenRef = useRef(false);
+  const knownNoteIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     void initTauri();
   }, [initTauri]);
 
   useEffect(() => {
+    if (initStatus.type === 'Initializing') return;
+    if (!initialSnapshotTakenRef.current) {
+      knownNoteIdsRef.current = new Set(skribs.map((note) => note.id));
+      initialSnapshotTakenRef.current = true;
+      return;
+    }
+
+    const created = skribs.find((note) => !knownNoteIdsRef.current.has(note.id));
+    knownNoteIdsRef.current = new Set(skribs.map((note) => note.id));
+    if (created) openComposer(created.id, 'type');
+  }, [initStatus.type, openComposer, skribs]);
+
+  const createNewSkrib = async () => {
+    if (!activeTarget) {
+      await fetchTargetWindows();
+      setPickingTarget(true);
+      return;
+    }
+
+    const before = new Set(useSkribStore.getState().skribs.map((note) => note.id));
+    await addSkrib('', 'yellow');
+    const created = useSkribStore.getState().skribs.find((note) => !before.has(note.id));
+    if (created) openComposer(created.id, 'type');
+  };
+
+  useEffect(() => {
     const rects: Array<{ x: number; y: number; width: number; height: number }> = [];
 
-    if (toolbarRef.current) {
-      const b = toolbarRef.current.getBoundingClientRect();
-      rects.push({
-        x: Math.round(b.left),
-        y: Math.round(b.top),
-        width: Math.round(b.width),
-        height: Math.round(b.height),
+    [toolbarRef.current, errorToastRef.current, initFailureRef.current, composerRef.current, widgetRef.current]
+      .filter((element): element is HTMLDivElement => Boolean(element))
+      .forEach((element) => {
+        const bounds = element.getBoundingClientRect();
+        if (bounds.width > 0 && bounds.height > 0) {
+          rects.push({
+            x: Math.round(bounds.left),
+            y: Math.round(bounds.top),
+            width: Math.round(bounds.width),
+            height: Math.round(bounds.height),
+          });
+        }
       });
-    }
 
     if (isPickingTarget && modalRef.current) {
-      const b = modalRef.current.getBoundingClientRect();
+      const bounds = modalRef.current.getBoundingClientRect();
       rects.push({
-        x: Math.round(b.left),
-        y: Math.round(b.top),
-        width: Math.round(b.width),
-        height: Math.round(b.height),
+        x: Math.round(bounds.left),
+        y: Math.round(bounds.top),
+        width: Math.round(bounds.width),
+        height: Math.round(bounds.height),
       });
-    }
-
-    if (errorMessage && errorToastRef.current) {
-      const b = errorToastRef.current.getBoundingClientRect();
-      rects.push({
-        x: Math.round(b.left),
-        y: Math.round(b.top),
-        width: Math.round(b.width),
-        height: Math.round(b.height),
-      });
-    }
-
-    if (initStatus.type === 'Failed' && initFailureRef.current) {
-      const b = initFailureRef.current.getBoundingClientRect();
-      rects.push({
-        x: Math.round(b.left),
-        y: Math.round(b.top),
-        width: Math.round(b.width),
-        height: Math.round(b.height),
-      });
-    }
-
-    if (isLibraryOpen && libraryRef.current) {
-      const b = libraryRef.current.getBoundingClientRect();
-      rects.push({ x: Math.round(b.left), y: Math.round(b.top), width: Math.round(b.width), height: Math.round(b.height) });
     }
 
     skribs.forEach((note) => {
+      if (composerNoteId === note.id) return;
       const clientPos = activeTarget
         ? calculateNoteClientLogicalPosition(activeTarget.bounds, overlayMetrics, note.rel_x, note.rel_y)
         : { x: Math.round(note.rel_x), y: Math.round(note.rel_y) };
 
-      if (note.collapsed) {
-        rects.push({ x: clientPos.x, y: clientPos.y, width: 180, height: 32 });
-      } else {
+      if (previewNoteId === note.id) {
         rects.push({
           x: clientPos.x,
           y: clientPos.y,
-          width: Math.round(note.width),
-          height: Math.round(note.height),
+          width: Math.round(Math.max(280, note.width)),
+          height: Math.round(Math.max(170, note.height)),
         });
+      } else {
+        rects.push({ x: clientPos.x, y: clientPos.y, width: 48, height: 48 });
       }
-    if (activeInteractionRect) {
-      rects.push(activeInteractionRect);
-    }
+    });
 
+    if (activeInteractionRect) rects.push(activeInteractionRect);
     void updateHitTestRects(rects);
-  }, [skribs, activeTarget, overlayMetrics, isPickingTarget, isLibraryOpen, errorMessage, initStatus, activeInteractionRect, updateHitTestRects]);
+  }, [
+    activeInteractionRect,
+    activeTarget,
+    composerNoteId,
+    errorMessage,
+    initStatus,
+    isPickingTarget,
+    overlayMetrics,
+    previewNoteId,
+    skribs,
+    updateHitTestRects,
+  ]);
 
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (!e.ctrlKey || !e.shiftKey || e.code !== 'Space') return;
-      e.preventDefault();
-
-      if (activeTarget) {
-        void addSkrib();
-        return;
-      }
-
-      void fetchTargetWindows().then(() => setPickingTarget(true));
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!event.ctrlKey || !event.shiftKey || event.code !== 'Space') return;
+      event.preventDefault();
+      void createNewSkrib();
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeTarget, addSkrib, fetchTargetWindows, setPickingTarget]);
+  });
+
+  const composerNote = composerNoteId
+    ? skribs.find((note) => note.id === composerNoteId) ?? null
+    : null;
 
   return (
     <div className="overlay-root">
       {errorMessage && (
         <div ref={errorToastRef} className="overlay-error-toast" role="alert">
-          <span>⚠️ {errorMessage}</span>
-          <button type="button" onClick={clearError} aria-label="Dismiss error">
-            ✕
-          </button>
+          <span>{errorMessage}</span>
+          <button type="button" onClick={clearError} aria-label="Dismiss error">✕</button>
         </div>
       )}
 
       {initStatus.type === 'Failed' && (
         <div ref={initFailureRef} className="overlay-init-failure-banner" role="alert">
-          <strong>⚠️ Overlay Positioning Initialization Failed</strong>
+          <strong>Overlay could not start safely</strong>
           <p>{initStatus.payload}</p>
-          <button
-            type="button"
-            className="toolbar-btn primary-btn"
-            onClick={() => void retryOverlayInit()}
-          >
-            🔄 Retry Overlay Initialization
-          </button>
-
-          <button type="button" className="toolbar-btn" onClick={() => void openLibrary()}>
-            📚 All Skribs
+          <button type="button" className="toolbar-btn primary-btn" onClick={() => void retryOverlayInit()}>
+            Retry overlay
           </button>
         </div>
       )}
 
-      <header ref={toolbarRef} className="overlay-toolbar">
+      <header ref={toolbarRef} className="overlay-toolbar compact-toolbar">
         <div className="toolbar-brand">
-          <span className="brand-logo">🏷️</span>
+          <span className="brand-logo">S</span>
           <strong>Skribly</strong>
-          <span className="brand-badge">WINDOWS EARLY ACCESS</span>
         </div>
-
         <div className="toolbar-actions">
-          <button
-            type="button"
-            className="toolbar-btn primary-btn"
-            onClick={() => {
-              if (activeTarget) {
-                void addSkrib();
-              } else {
-                void fetchTargetWindows().then(() => setPickingTarget(true));
-              }
-            }}
-            title="Create new Skrib note (Ctrl+Shift+Space)"
-          >
-            ➕ New Skrib
+          <button type="button" className="toolbar-btn primary-btn" onClick={() => void createNewSkrib()} title="Ctrl+Shift+Space">
+            ＋ New
           </button>
-
           <button
             type="button"
             className="toolbar-btn target-btn"
@@ -185,17 +182,11 @@ export const OverlayHost: React.FC = () => {
               setPickingTarget(true);
             }}
           >
-            🎯 {activeTarget ? activeTarget.process_name : 'Bind Target App'}
+            {activeTarget ? activeTarget.process_name : 'Choose app'}
           </button>
-
           {activeTarget && (
-            <button
-              type="button"
-              className="toolbar-btn clear-btn"
-              title="Unbind active window target"
-              onClick={() => void bindTarget(null)}
-            >
-              ✕ Unbind
+            <button type="button" className="toolbar-btn clear-btn" onClick={() => void bindTarget(null)} title="Unbind current app">
+              Unbind
             </button>
           )}
         </div>
@@ -205,96 +196,59 @@ export const OverlayHost: React.FC = () => {
         <div className="target-picker-backdrop">
           <div ref={modalRef} className="target-picker-modal">
             <header className="modal-header">
-              <h2>{isAmbiguous ? '⚠️ Multiple Matching Windows Found' : 'Select Application Window to Bind'}</h2>
-              <button
-                type="button"
-                className="close-modal-btn"
-                onClick={() => setPickingTarget(false)}
-                aria-label="Close target picker"
-              >
-                ✕
-              </button>
+              <div>
+                <span className="modal-kicker">PLACE A NOTE IN CONTEXT</span>
+                <h2>{isAmbiguous ? 'Choose the matching window' : 'Which app should this belong to?'}</h2>
+              </div>
+              <button type="button" className="close-modal-btn" onClick={() => setPickingTarget(false)} aria-label="Close target picker">✕</button>
             </header>
-
             <p className="modal-subtitle">
-              {isAmbiguous
-                ? 'Multiple candidate windows matched your disconnected note context. Select the correct window.'
-                : 'Skribly notes attach to an external window, follow its movement, and return with that context.'}
+              Skribly will keep the note attached to this window and bring it back with the same context.
             </p>
-
             <div className="window-list">
               {availableWindows.length === 0 ? (
-                <div className="no-windows-msg">
-                  No external application windows were found. Open Notepad, File Explorer, or another app and refresh.
-                </div>
+                <div className="no-windows-msg">Open the app you want to annotate, then refresh this list.</div>
               ) : (
                 availableWindows.map((win) => (
                   <button
                     key={win.hwnd_val}
                     type="button"
                     className={`window-item-card ${activeTarget?.hwnd_val === win.hwnd_val ? 'active' : ''}`}
-                    onClick={() => void bindTarget(win)}
+                    onClick={async () => {
+                      await bindTarget(win);
+                      await createNewSkrib();
+                    }}
                   >
-                    <div className="window-icon">🪟</div>
+                    <div className="window-icon">{win.process_name.slice(0, 1).toUpperCase()}</div>
                     <div className="window-details">
                       <strong>{win.process_name}</strong>
                       <span className="window-title">{win.title || 'Untitled Window'}</span>
-                      <span className="window-bounds">
-                        {win.bounds.width}x{win.bounds.height} @ ({win.bounds.x}, {win.bounds.y})
-                      </span>
                     </div>
+                    <span className="window-select-arrow">›</span>
                   </button>
                 ))
               )}
             </div>
-
             <footer className="modal-footer">
-              <button type="button" className="toolbar-btn" onClick={() => void fetchTargetWindows()}>
-                🔄 Refresh Window List
-              </button>
-              <button
-                type="button"
-                className="toolbar-btn primary-btn"
-                onClick={() => setPickingTarget(false)}
-              >
-                Done
-              </button>
+              <button type="button" className="toolbar-btn" onClick={() => void fetchTargetWindows()}>Refresh</button>
+              <button type="button" className="toolbar-btn" onClick={() => setPickingTarget(false)}>Cancel</button>
             </footer>
           </div>
         </div>
       )}
 
-      {isLibraryOpen && (
-        <div className="library-backdrop">
-          <section ref={libraryRef} className="library-panel" aria-label="All Skribs">
-            <header className="library-header">
-              <div>
-                <span className="library-kicker">LOCAL RECOVERY</span>
-                <h2>All Skribs</h2>
-                <p>{allSkribs.length} saved locally on this computer</p>
-              </div>
-              <button type="button" className="close-modal-btn" onClick={closeLibrary} aria-label="Close All Skribs">✕</button>
-            </header>
-            <div className="library-list">
-              {allSkribs.length === 0 ? (
-                <div className="library-empty"><strong>No Skribs yet</strong><span>Create one over an application and it will be recoverable here.</span></div>
-              ) : allSkribs.map((note) => (
-                <article key={note.id} className={`library-item skrib-color-${note.color}`}>
-                  <div className="library-item-context">
-                    <strong>{note.target_process_name || 'Unbound context'}</strong>
-                    <span>{note.target_title || 'No window title'}</span>
-                  </div>
-                  <p>{note.text || 'Empty Skrib'}</p>
-                  <time>{new Date(note.updated_at * 1000).toLocaleString()}</time>
-                </article>
-              ))}
-            </div>
-          </section>
+      {(!activeTarget || !activeTarget.is_minimized) &&
+        skribs.map((note) => <SkribNoteCard key={note.id} note={note} target={activeTarget} />)}
+
+      {composerNote && (
+        <div ref={composerRef} className="composer-hit-area">
+          <SkribComposer note={composerNote} target={activeTarget} />
         </div>
       )}
 
-      {(!activeTarget || !activeTarget.is_minimized) &&
-        skribs.map((note) => <SkribNoteCard key={note.id} note={note} target={activeTarget} />)}
+      <div ref={widgetRef} className="notes-widget-hit-area">
+        <NotesWidget visibleNotes={skribs} />
+      </div>
     </div>
   );
 };
