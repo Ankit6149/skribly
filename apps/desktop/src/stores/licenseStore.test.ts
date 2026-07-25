@@ -11,7 +11,7 @@ const betaStatus = {
   deviceId: 'SKR-BETA',
   licensedEmail: null,
   updatesUntil: null,
-  message: 'Free beta',
+  message: 'The current Windows beta is free while licence activation is validated.',
 };
 
 describe('licenseStore', () => {
