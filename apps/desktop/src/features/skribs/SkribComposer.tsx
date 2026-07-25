@@ -8,6 +8,7 @@ import {
   removeAttachmentFromNote,
   SkribAttachment,
 } from '../../lib/richContentStore';
+import { useLicenseStore } from '../../stores/licenseStore';
 import { useSkribStore } from '../../stores/skribStore';
 import { useSkribUiStore } from '../../stores/skribUiStore';
 import { InkCanvas } from './InkCanvas';
@@ -27,6 +28,8 @@ const COLOR_OPTIONS: Array<{ key: SkribNote['color']; label: string }> = [
 
 export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target }) => {
   const { updateSkribText, updateSkribColor, toggleSkribCollapse } = useSkribStore();
+  const licenseStatus = useLicenseStore((state) => state.status);
+  const canWrite = !licenseStatus.enforcementEnabled || licenseStatus.canWrite;
   const {
     composerMode,
     setComposerMode,
@@ -40,6 +43,8 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target }) =>
   const [isAddingFiles, setIsAddingFiles] = useState(false);
   const textSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const readOnlyMessage = licenseStatus.message || 'Skribly is currently read-only on this device.';
 
   const refreshAttachments = async () => {
     const content = await getRichContent(note.id);
@@ -89,12 +94,20 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target }) =>
   const saveTextNow = async () => {
     if (textSaveTimer.current) clearTimeout(textSaveTimer.current);
     textSaveTimer.current = null;
+    if (!canWrite) {
+      setText(note.text);
+      return;
+    }
     if (text !== note.text) {
       await updateSkribText(note.id, text);
     }
   };
 
   const handleTextChange = (value: string) => {
+    if (!canWrite) {
+      setErrorMessage(readOnlyMessage);
+      return;
+    }
     setText(value);
     if (textSaveTimer.current) clearTimeout(textSaveTimer.current);
     textSaveTimer.current = setTimeout(() => {
@@ -104,7 +117,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target }) =>
 
   const finishAndCollapse = async () => {
     await saveTextNow();
-    if (!note.collapsed) {
+    if (canWrite && !note.collapsed) {
       await toggleSkribCollapse(note.id);
     }
     closeComposer();
@@ -112,7 +125,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target }) =>
 
   const keepAsCard = async () => {
     await saveTextNow();
-    if (note.collapsed) {
+    if (canWrite && note.collapsed) {
       await toggleSkribCollapse(note.id);
     }
     openPreview(note.id);
@@ -120,6 +133,10 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target }) =>
 
   const handleFiles = async (files: File[]) => {
     if (files.length === 0) return;
+    if (!canWrite) {
+      setErrorMessage(readOnlyMessage);
+      return;
+    }
     setIsAddingFiles(true);
     setErrorMessage(null);
     try {
@@ -134,6 +151,10 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target }) =>
   };
 
   const handleInkSave = async (blob: Blob) => {
+    if (!canWrite) {
+      setErrorMessage(readOnlyMessage);
+      return;
+    }
     setErrorMessage(null);
     try {
       const next = await addInkToNote(note.id, blob);
@@ -144,6 +165,10 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target }) =>
   };
 
   const removeAttachment = async (attachmentId: string) => {
+    if (!canWrite) {
+      setErrorMessage(readOnlyMessage);
+      return;
+    }
     setErrorMessage(null);
     try {
       const next = await removeAttachmentFromNote(note.id, attachmentId);
@@ -167,7 +192,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target }) =>
     <div className="skrib-composer-backdrop">
       <section
         className={`skrib-composer skrib-composer-${composerMode} skrib-color-${note.color}`}
-        aria-label="Edit Skrib"
+        aria-label={canWrite ? 'Edit Skrib' : 'View Skrib read-only'}
       >
         <header className="composer-header">
           <div className="composer-context">
@@ -191,24 +216,31 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target }) =>
                 Write
               </button>
             </div>
-            <button type="button" className="composer-close" onClick={() => void finishAndCollapse()} aria-label="Close and collapse">
+            <button type="button" className="composer-close" onClick={() => void finishAndCollapse()} aria-label="Close note">
               ✕
             </button>
           </div>
         </header>
 
-        {errorMessage && (
+        {!canWrite && (
+          <div className="composer-error" role="status">
+            Read-only · {readOnlyMessage}
+          </div>
+        )}
+
+        {errorMessage && canWrite && (
           <div className="composer-error" role="alert">
             {errorMessage}
           </div>
         )}
 
-        {composerMode === 'write' && <InkCanvas onSave={handleInkSave} />}
+        {composerMode === 'write' && canWrite && <InkCanvas onSave={handleInkSave} />}
 
         <textarea
           className="composer-textarea"
           value={text}
-          autoFocus={composerMode === 'type'}
+          autoFocus={composerMode === 'type' && canWrite}
+          readOnly={!canWrite}
           placeholder={composerMode === 'type' ? 'Write the note you need here…' : 'Add a typed explanation below your drawing…'}
           onChange={(event) => handleTextChange(event.target.value)}
           onBlur={() => void saveTextNow()}
@@ -220,7 +252,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target }) =>
               <strong>Attachments</strong>
               <span>Images and files stay on this computer.</span>
             </div>
-            <button type="button" onClick={() => fileInputRef.current?.click()} disabled={isAddingFiles}>
+            <button type="button" onClick={() => fileInputRef.current?.click()} disabled={isAddingFiles || !canWrite}>
               {isAddingFiles ? 'Adding…' : '＋ Add image or file'}
             </button>
             <input
@@ -228,6 +260,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target }) =>
               type="file"
               multiple
               hidden
+              disabled={!canWrite}
               onChange={(event) => void handleFiles(Array.from(event.target.files ?? []))}
             />
           </div>
@@ -247,7 +280,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target }) =>
                   </div>
                   <div className="attachment-actions">
                     <button type="button" onClick={() => openAttachment(attachment)}>Open</button>
-                    <button type="button" onClick={() => void removeAttachment(attachment.id)}>Remove</button>
+                    <button type="button" disabled={!canWrite} onClick={() => void removeAttachment(attachment.id)}>Remove</button>
                   </div>
                 </article>
               ))}
@@ -261,6 +294,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target }) =>
               <button
                 key={option.key}
                 type="button"
+                disabled={!canWrite}
                 className={`composer-color skrib-color-${option.key} ${note.color === option.key ? 'active' : ''}`}
                 title={option.label}
                 onClick={() => void updateSkribColor(note.id, option.key)}
@@ -269,10 +303,10 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target }) =>
           </div>
           <div className="composer-footer-actions">
             <button type="button" className="secondary" onClick={() => void keepAsCard()}>
-              Keep open as card
+              Open as card
             </button>
             <button type="button" className="primary" onClick={() => void finishAndCollapse()}>
-              Done · turn into dot
+              {canWrite ? 'Done · turn into dot' : 'Close note'}
             </button>
           </div>
         </footer>
