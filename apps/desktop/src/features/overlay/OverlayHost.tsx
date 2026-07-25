@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useSkribStore } from '../../stores/skribStore';
 import { useSkribUiStore } from '../../stores/skribUiStore';
+import { FounderOnboarding } from '../onboarding/FounderOnboarding';
 import { SkribNoteCard } from '../skribs/SkribNoteCard';
 import { SkribComposer } from '../skribs/SkribComposer';
 import { NotesWidget } from '../skribs/NotesWidget';
@@ -41,6 +42,7 @@ export const OverlayHost: React.FC = () => {
   const initialSnapshotTakenRef = useRef(false);
   const knownNoteIdsRef = useRef<Set<string>>(new Set());
   const [uiBoundsVersion, setUiBoundsVersion] = useState(0);
+  const [isOnboardingVisible, setOnboardingVisible] = useState(false);
 
   useEffect(() => {
     void initTauri();
@@ -71,11 +73,12 @@ export const OverlayHost: React.FC = () => {
     const elements = [
       document.querySelector<HTMLElement>('.skrib-composer'),
       document.querySelector<HTMLElement>('.notes-widget'),
+      document.querySelector<HTMLElement>('.founder-onboarding'),
     ].filter((element): element is HTMLElement => Boolean(element));
     elements.forEach((element) => observer.observe(element));
     setUiBoundsVersion((value) => value + 1);
     return () => observer.disconnect();
-  }, [composerMode, composerNoteId, isNotesWidgetOpen]);
+  }, [composerMode, composerNoteId, isNotesWidgetOpen, isOnboardingVisible]);
 
   const createNewSkrib = useCallback(async () => {
     const currentTarget = useSkribStore.getState().activeTarget;
@@ -99,6 +102,7 @@ export const OverlayHost: React.FC = () => {
       initFailureRef.current,
       document.querySelector<HTMLElement>('.skrib-composer'),
       document.querySelector<HTMLElement>('.notes-widget'),
+      document.querySelector<HTMLElement>('.founder-onboarding'),
     ];
 
     fixedUiElements
@@ -153,6 +157,7 @@ export const OverlayHost: React.FC = () => {
     errorMessage,
     initStatus,
     isNotesWidgetOpen,
+    isOnboardingVisible,
     isPickingTarget,
     overlayMetrics,
     previewNoteId,
@@ -178,6 +183,8 @@ export const OverlayHost: React.FC = () => {
 
   return (
     <div className="overlay-root">
+      <FounderOnboarding onVisibilityChange={setOnboardingVisible} />
+
       {errorMessage && (
         <div ref={errorToastRef} className="overlay-error-toast" role="alert">
           <span>{errorMessage}</span>
