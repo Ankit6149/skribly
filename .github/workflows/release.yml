@@ -49,6 +49,9 @@ jobs:
       - name: Run Windows Rust tests
         run: cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml
 
+      - name: Generate platform icons from the approved logo
+        run: npm --workspace @skribly/desktop run tauri -- icon ../../assets/branding/skribly-app-icon.svg
+
       - name: Build NSIS and MSI installers
         run: npm --workspace @skribly/desktop run tauri -- build --ci
 
