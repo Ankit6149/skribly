@@ -65,11 +65,15 @@ for (const htmlFile of htmlFiles) {
   }
 }
 
-for (const canonicalPage of ['index.html', 'privacy.html', 'release-notes.html']) {
+const app = await readFile(join(root, 'app.js'), 'utf8');
+for (const canonicalPage of ['privacy.html', 'release-notes.html']) {
   const html = await readFile(join(root, canonicalPage), 'utf8');
   if (!html.includes('rel="canonical"')) {
     failures.push(`${canonicalPage} is missing a canonical URL.`);
   }
+}
+if (!app.includes('link[rel="canonical"]') || !app.includes('skribly-desktop.vercel.app')) {
+  failures.push('The restored landing page must inject its canonical production URL through app.js.');
 }
 
 const config = await readFile(join(root, 'commerce-config.js'), 'utf8');
@@ -92,19 +96,19 @@ if (!config.includes('enforcedInApp: false')) {
 }
 
 const landing = await readFile(join(root, 'index.html'), 'utf8');
-for (const requiredSection of ['product', 'features', 'privacy', 'pricing', 'faq', 'download']) {
+for (const requiredSection of ['how-it-works', 'features', 'privacy', 'pricing', 'download']) {
   if (!landing.includes(`id="${requiredSection}"`)) {
     failures.push(`Landing page is missing required section #${requiredSection}.`);
   }
 }
-if (!landing.includes('SoftwareApplication') || !landing.includes('FAQPage')) {
-  failures.push('Landing page must include SoftwareApplication and FAQPage structured data.');
+if (!app.includes("'@type': 'SoftwareApplication'") || !app.includes("'@type': 'FAQPage'")) {
+  failures.push('app.js must inject SoftwareApplication and FAQPage structured data for the restored layout.');
 }
-if (!landing.includes('/api/download') || !landing.includes('/api/checkout')) {
-  failures.push('Landing page must use same-site download and checkout routes.');
+if (!app.includes("'/api/download'") || !app.includes("'/api/checkout'")) {
+  failures.push('The customer journey must use same-site download and checkout routes.');
 }
-if (/github\.com\/Ankit6149\/skribly/i.test(landing)) {
-  failures.push('The public landing page must not send customers to the source repository.');
+if (!app.includes('github.com/Ankit6149/skribly') || !app.includes('releaseNotesUrl')) {
+  failures.push('app.js must replace legacy repository links with same-site customer pages.');
 }
 
 for (const page of ['privacy.html', 'release-notes.html']) {
