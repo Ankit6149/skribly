@@ -3,31 +3,31 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="robots" content="noindex" />
-    <meta name="theme-color" content="#fffdf7" />
-    <title>Founder Access — Skribly</title>
+    <meta name="robots" content="noindex,nofollow" />
+    <meta name="theme-color" content="#171916" />
+    <title>Purchase status — Skribly</title>
     <link rel="icon" href="./assets/skribly-icon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="./styles.css" />
-    <link rel="stylesheet" href="./success.css" />
     <script src="./commerce-config.js" defer></script>
     <script src="./success.js" defer></script>
   </head>
   <body>
-    <main class="success-page">
-      <section class="success-card">
-        <img src="./assets/skribly-icon.svg" alt="Skribly" />
-        <span class="section-kicker">FOUNDER ACCESS</span>
-        <h1>Thank you for backing Skribly.</h1>
-        <p data-success-message>
-          Your payment is being verified. When paid checkout is enabled, this page will request a secure installer link from the commerce backend.
+    <main class="legal-page">
+      <section class="legal-shell">
+        <img src="./assets/skribly-icon.svg" alt="Skribly" width="72" height="72" />
+        <p class="overline">Purchase status</p>
+        <h1 data-success-title>Checkout is not open yet.</h1>
+        <p class="legal-intro" data-success-message>
+          The current Windows beta is free while licence activation is being validated. Skribly has not charged you on this page.
         </p>
-        <div class="success-actions">
-          <a class="button button-primary button-large" data-secure-download href="./">Return to Skribly</a>
-          <a class="button button-ghost" href="./">Back to the website</a>
-        </div>
-        <small>
-          Never share licence or download tokens. Skribly support will never ask for your complete payment details.
-        </small>
+        <nav class="legal-nav">
+          <a class="button button-dark" data-secure-download href="/api/download">Download Windows beta</a>
+          <a class="button button-light" href="/">Back to Skribly</a>
+        </nav>
+        <section>
+          <h2>Important</h2>
+          <p>Never send complete card, bank or UPI details to obtain support. When paid checkout opens, payment verification and licence delivery will happen through the selected payment provider and Skribly’s server-side entitlement system.</p>
+        </section>
       </section>
     </main>
   </body>
