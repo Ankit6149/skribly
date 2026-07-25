@@ -156,22 +156,65 @@ The production payment flow should be:
 
 The frontend must never decide that a payment succeeded based only on a query parameter or browser redirect.
 
-## Repository privacy and installer hosting
+## Repository privacy and installer delivery
 
-The repository currently remains public because `/api/download` redirects to a public GitHub Release asset.
+The website's `/api/download` function supports two private-source delivery modes.
 
-Making the repository private before moving the installer will break public downloads.
+### Option A — independent installer storage
 
-Required order:
+1. Upload the validated installer and checksum to Cloudflare R2, Amazon S3, Vercel Blob or payment-provider fulfilment.
+2. Configure the Vercel production variable:
 
-1. Upload the validated installer and checksum to independent public delivery storage such as Cloudflare R2, Amazon S3, Vercel Blob or payment-provider fulfilment.
-2. Configure `SKRIBLY_TRIAL_DOWNLOAD_URL` in Vercel to the new installer URL.
-3. Verify `https://skribly-desktop.vercel.app/api/download` returns the installer without GitHub authentication.
-4. Update checksum and release-note links when necessary.
-5. Change the GitHub repository visibility to private.
-6. Verify the website, download, Vercel deployment and private-repository CI integration again.
+   ```text
+   SKRIBLY_TRIAL_DOWNLOAD_URL=<public or short-lived installer URL>
+   ```
 
-Do not make the repository private while the public installer still depends on GitHub Releases.
+3. Verify `https://skribly-desktop.vercel.app/api/download` returns the installer.
+
+This is the preferred long-term delivery model.
+
+### Option B — private GitHub Release through a server-side token
+
+The download function can also resolve a private GitHub Release asset without exposing the repository or token to the customer.
+
+1. Create a fine-grained GitHub token restricted to the Skribly repository with read-only access to repository contents and metadata.
+2. Add the token only to the Vercel production environment as:
+
+   ```text
+   SKRIBLY_GITHUB_TOKEN=<fine-grained read-only token>
+   ```
+
+3. Redeploy the website.
+4. The serverless download function calls the private release-asset API with `Accept: application/octet-stream` and follows only GitHub's temporary signed asset redirect.
+5. The browser receives the temporary signed object URL, never the GitHub token.
+6. Verify both routes:
+
+   ```text
+   https://skribly-desktop.vercel.app/api/download
+   https://skribly-desktop.vercel.app/api/download?format=msi
+   ```
+
+7. Change the repository visibility to private.
+8. Verify the website, download, Vercel deployment and private-repository CI integration again.
+
+Do not make the repository private until the Vercel token or independent installer URL is configured and the download is verified from a signed-out browser.
+
+## Vercel production branch
+
+The production project must deploy the GitHub `main` branch directly. Preview branches and closed pull requests must not be configured as the production source.
+
+After changing the production branch, verify that the deployment metadata contains:
+
+```text
+githubCommitRef=main
+target=production
+```
+
+The same-site build-status endpoint can then report the exact latest GitHub Actions run:
+
+```text
+https://skribly-desktop.vercel.app/api/build-status
+```
 
 ## Release versioning
 
