@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { TargetWindowInfo } from '../lib/geometry';
+import { useLicenseStore } from './licenseStore';
 import { useSkribStore } from './skribStore';
 
 const DEFAULT_METRICS = {
@@ -11,8 +12,27 @@ const DEFAULT_METRICS = {
   scale_factor: 1,
 };
 
+const BETA_LICENSE = {
+  mode: 'beta' as const,
+  enforcementEnabled: false,
+  canWrite: true,
+  trialDaysTotal: 7,
+  trialDaysRemaining: 7,
+  trialExpiresAt: null,
+  deviceId: 'SKR-TEST',
+  licensedEmail: null,
+  updatesUntil: null,
+  message: 'Free beta',
+};
+
 describe('skribStore', () => {
   beforeEach(() => {
+    useLicenseStore.setState({
+      status: BETA_LICENSE,
+      isReady: true,
+      isActivating: false,
+      errorMessage: null,
+    });
     useSkribStore.setState({
       activeTarget: null,
       availableWindows: [],
@@ -79,6 +99,29 @@ describe('skribStore', () => {
 
     await useSkribStore.getState().deleteSkrib(noteId);
     expect(useSkribStore.getState().skribs).toHaveLength(0);
+  });
+
+  it('keeps existing notes unchanged when the licence is read only', async () => {
+    await useSkribStore.getState().addSkrib('Original text', 'yellow');
+    const note = useSkribStore.getState().skribs[0]!;
+
+    useLicenseStore.setState({
+      status: {
+        ...BETA_LICENSE,
+        mode: 'expired',
+        enforcementEnabled: true,
+        canWrite: false,
+        trialDaysRemaining: 0,
+        message: 'Your seven-day trial has ended.',
+      },
+    });
+
+    await useSkribStore.getState().updateSkribText(note.id, 'Should not appear');
+    await useSkribStore.getState().deleteSkrib(note.id);
+    await useSkribStore.getState().addSkrib('Should not be created');
+
+    expect(useSkribStore.getState().skribs).toEqual([note]);
+    expect(useSkribStore.getState().errorMessage).toBe('Your seven-day trial has ended.');
   });
 
   it('opens target selection when no target is bound', () => {
