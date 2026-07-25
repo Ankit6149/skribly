@@ -1,3 +1,4 @@
+use crate::core::license;
 use crate::core::models::{HitTestRect, SkribNote, TargetWindowInfo};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -68,6 +69,9 @@ impl Coordinator {
     }
 
     pub fn upsert_skrib(&self, note: SkribNote) {
+        if license::require_global_write_access().is_err() {
+            return;
+        }
         if let Ok(mut state) = self.state.lock() {
             state.skribs.insert(note.id.clone(), note);
         }
@@ -83,6 +87,9 @@ impl Coordinator {
     }
 
     pub fn remove_skrib(&self, id: &str) -> Option<SkribNote> {
+        if license::require_global_write_access().is_err() {
+            return None;
+        }
         if let Ok(mut state) = self.state.lock() {
             state.skribs.remove(id)
         } else {
@@ -137,7 +144,6 @@ impl Coordinator {
                 return MatchResult::None;
             }
 
-            // Sort by score descending
             scored.sort_by(|a, b| b.0.cmp(&a.0));
 
             let top_score = scored[0].0;
@@ -165,6 +171,9 @@ impl Coordinator {
         width: f64,
         height: f64,
     ) -> bool {
+        if license::require_global_write_access().is_err() {
+            return false;
+        }
         if let Ok(mut state) = self.state.lock() {
             if let Some(note) = state.skribs.get_mut(id) {
                 note.rel_x = rel_x;
@@ -185,6 +194,9 @@ impl Coordinator {
     }
 
     pub fn update_skrib_text(&self, id: &str, text: String) -> bool {
+        if license::require_global_write_access().is_err() {
+            return false;
+        }
         if let Ok(mut state) = self.state.lock() {
             if let Some(note) = state.skribs.get_mut(id) {
                 note.text = text;
@@ -202,6 +214,9 @@ impl Coordinator {
     }
 
     pub fn update_skrib_color(&self, id: &str, color: String) -> bool {
+        if license::require_global_write_access().is_err() {
+            return false;
+        }
         if let Ok(mut state) = self.state.lock() {
             if let Some(note) = state.skribs.get_mut(id) {
                 note.color = color;
@@ -219,6 +234,9 @@ impl Coordinator {
     }
 
     pub fn toggle_skrib_collapse(&self, id: &str) -> Option<bool> {
+        if license::require_global_write_access().is_err() {
+            return None;
+        }
         if let Ok(mut state) = self.state.lock() {
             if let Some(note) = state.skribs.get_mut(id) {
                 note.collapsed = !note.collapsed;
