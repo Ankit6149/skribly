@@ -124,6 +124,21 @@ if (!app.includes("'/api/download'") || !app.includes("'/api/checkout'")) {
   failures.push('The customer journey must use same-site download and checkout routes.');
 }
 
+const downloadApi = await readFile(join(root, 'api/download.js'), 'utf8');
+for (const privateDeliveryMarker of [
+  'SKRIBLY_GITHUB_TOKEN',
+  "application/octet-stream",
+  "redirect: 'manual'",
+  'asset.url',
+]) {
+  if (!downloadApi.includes(privateDeliveryMarker)) {
+    failures.push(`The download route is missing private-release delivery support: ${privateDeliveryMarker}`);
+  }
+}
+if (downloadApi.includes('response.redirect(302, asset.browser_download_url)')) {
+  failures.push('The private release path must not always send customers to browser_download_url.');
+}
+
 const robots = await readFile(join(root, 'robots.txt'), 'utf8');
 if (!robots.includes('Sitemap:')) failures.push('robots.txt must reference the sitemap.');
 
