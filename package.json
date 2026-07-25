@@ -1,6 +1,6 @@
 {
   "name": "skribly",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "workspaces": [
     "apps/*",
@@ -13,7 +13,10 @@
     "build": "npm run build --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
-    "typecheck": "npm run typecheck --workspaces --if-present"
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "site:validate": "node site/validate.mjs",
+    "license:keypair": "node scripts/license/generate-keypair.mjs",
+    "license:issue": "node scripts/license/issue-license.mjs"
   },
   "engines": {
     "node": ">=20"
