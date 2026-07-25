@@ -20,11 +20,13 @@ window.SKRIBLY_COMMERCE = Object.freeze({
     checkoutUrl: '',
     successUrl: '/download-success.html',
     cancelUrl: '/#pricing',
+    entitlementApiUrl: '',
   },
 
   support: {
-    email: 'hello@skribly.app',
+    email: '',
     repositoryUrl: 'https://github.com/Ankit6149/skribly',
+    issueUrl: 'https://github.com/Ankit6149/skribly/issues',
   },
 });
 
@@ -36,7 +38,8 @@ window.SKRIBLY_COMMERCE = Object.freeze({
   2. Set checkout.enabled to true.
   3. Set checkout.provider to a descriptive provider key.
   4. Put the hosted checkout URL in checkout.checkoutUrl.
-  5. Keep installer delivery server-side or provider-gated before changing
+  5. Deploy a server-side entitlement endpoint and set entitlementApiUrl.
+  6. Keep installer delivery server-side or provider-gated before changing
      download.mode to "checkout_gated".
 
   Never place payment-provider secret keys in this public file.
