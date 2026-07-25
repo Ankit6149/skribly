@@ -9,6 +9,15 @@ interface NotesWidgetProps {
   visibleNotes: SkribNote[];
 }
 
+function scoreContextMatch(note: SkribNote, target: TargetWindowInfo): number {
+  if (note.target_process_name.toLowerCase() !== target.process_name.toLowerCase()) return 0;
+  const noteTitle = note.target_title.trim().toLowerCase();
+  const targetTitle = target.title.trim().toLowerCase();
+  if (noteTitle && targetTitle && noteTitle === targetTitle) return 100;
+  if (noteTitle && targetTitle && (noteTitle.includes(targetTitle) || targetTitle.includes(noteTitle))) return 75;
+  return 50;
+}
+
 export const NotesWidget: React.FC<NotesWidgetProps> = ({ visibleNotes }) => {
   const { isTauriAvailable, bindTarget } = useSkribStore();
   const {
@@ -72,7 +81,7 @@ export const NotesWidget: React.FC<NotesWidgetProps> = ({ visibleNotes }) => {
     }
   };
 
-  const focusOriginalApp = async () => {
+  const reconnectOriginalApp = async () => {
     if (!selectedNote) return;
     setContextMessage(null);
     if (!isTauriAvailable) {
@@ -80,9 +89,25 @@ export const NotesWidget: React.FC<NotesWidgetProps> = ({ visibleNotes }) => {
       return;
     }
     try {
-      const target = await invoke<TargetWindowInfo>('focus_skrib_context', { id: selectedNote.id });
+      const windows = await invoke<TargetWindowInfo[]>('list_target_windows');
+      const ranked = windows
+        .map((target) => ({ target, score: scoreContextMatch(selectedNote, target) }))
+        .filter((item) => item.score > 0)
+        .sort((a, b) => b.score - a.score);
+
+      if (ranked.length === 0) {
+        setContextMessage(`${selectedNote.target_process_name || 'The original app'} is not open. Open it, then try again.`);
+        return;
+      }
+      if (ranked.length > 1 && ranked[0]!.score === ranked[1]!.score) {
+        setContextMessage('More than one matching window is open. Use Choose app so Skribly does not guess.');
+        return;
+      }
+
+      const target = ranked[0]!.target;
       await bindTarget(target);
-      setContextMessage(`Opened ${target.process_name}.`);
+      closeNotesWidget();
+      openPreview(selectedNote.id);
     } catch (error) {
       setContextMessage(error instanceof Error ? error.message : String(error));
     }
@@ -135,12 +160,12 @@ export const NotesWidget: React.FC<NotesWidgetProps> = ({ visibleNotes }) => {
               </div>
               <div className="notes-widget-question">
                 <strong>Return to where this note belongs?</strong>
-                <span>Skribly will focus the matching open application. It will not launch unknown files silently.</span>
+                <span>Skribly will reconnect to a matching open window. It will never launch an unknown file silently.</span>
               </div>
               {contextMessage && <div className="notes-widget-message">{contextMessage}</div>}
               <div className="notes-widget-detail-actions">
                 <button type="button" onClick={() => void openSelectedNote()}>Open note</button>
-                <button type="button" className="primary" onClick={() => void focusOriginalApp()}>Open original app</button>
+                <button type="button" className="primary" onClick={() => void reconnectOriginalApp()}>Open original app</button>
               </div>
             </div>
           )}
