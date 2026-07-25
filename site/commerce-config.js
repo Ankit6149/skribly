@@ -1,46 +1,37 @@
 window.SKRIBLY_COMMERCE = Object.freeze({
   product: {
-    id: 'skribly-founder-alpha-windows',
-    name: 'Skribly Founder Alpha',
+    id: 'skribly-personal-windows',
+    name: 'Skribly Personal for Windows',
     currency: 'INR',
-    price: 499,
+    launchPrice: 999,
+    standardPrice: 1499,
     billing: 'one_time',
+    includedUpdateMonths: 12,
+    optionalUpdatePassPrice: 499,
+  },
+
+  trial: {
+    days: 7,
+    enforcedInApp: false,
+    cardRequired: false,
   },
 
   download: {
-    mode: 'public_release',
-    latestReleaseUrl: 'https://github.com/Ankit6149/skribly/releases/latest',
-    directWindowsAssetUrl: '',
-    versionLabel: 'Founder Alpha 0.1',
+    mode: 'controlled_trial',
+    endpoint: '/api/download',
+    versionLabel: 'Windows beta 0.1',
   },
 
   checkout: {
     enabled: false,
-    provider: 'unconfigured',
-    checkoutUrl: '',
-    successUrl: '/download-success.html',
+    provider: 'paddle',
+    endpoint: '/api/checkout',
+    successUrl: '/download-success',
     cancelUrl: '/#pricing',
-    entitlementApiUrl: '',
   },
 
-  support: {
-    email: '',
-    repositoryUrl: 'https://github.com/Ankit6149/skribly',
-    issueUrl: 'https://github.com/Ankit6149/skribly/issues',
+  links: {
+    releaseNotes: '/release-notes',
+    privacy: '/privacy',
   },
 });
-
-/*
-  Future payment activation
-  -------------------------
-
-  1. Create a hosted checkout product with the selected payment provider.
-  2. Set checkout.enabled to true.
-  3. Set checkout.provider to a descriptive provider key.
-  4. Put the hosted checkout URL in checkout.checkoutUrl.
-  5. Deploy a server-side entitlement endpoint and set entitlementApiUrl.
-  6. Keep installer delivery server-side or provider-gated before changing
-     download.mode to "checkout_gated".
-
-  Never place payment-provider secret keys in this public file.
-*/
