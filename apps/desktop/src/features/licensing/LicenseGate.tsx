@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useLicenseStore } from '../../stores/licenseStore';
 import { useSkribStore } from '../../stores/skribStore';
 
@@ -16,8 +16,7 @@ export const LicenseGate: React.FC<LicenseGateProps> = ({ children }) => {
     activate,
     clearError,
   } = useLicenseStore();
-  const { setActiveInteractionRect } = useSkribStore();
-  const panelRef = useRef<HTMLElement>(null);
+  const setActiveInteractionRect = useSkribStore((state) => state.setActiveInteractionRect);
   const [key, setKey] = useState('');
   const [readOnlyDismissed, setReadOnlyDismissed] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -37,28 +36,23 @@ export const LicenseGate: React.FC<LicenseGateProps> = ({ children }) => {
     !readOnlyDismissed;
 
   useEffect(() => {
-    if (!shouldShowBlockingPanel || !panelRef.current) {
+    if (!shouldShowBlockingPanel) {
       setActiveInteractionRect(null);
       return;
     }
 
     const syncRect = () => {
-      const bounds = panelRef.current?.getBoundingClientRect();
-      if (!bounds) return;
       setActiveInteractionRect({
-        x: Math.round(bounds.left),
-        y: Math.round(bounds.top),
-        width: Math.round(bounds.width),
-        height: Math.round(bounds.height),
+        x: 0,
+        y: 0,
+        width: Math.max(1, Math.round(window.innerWidth)),
+        height: Math.max(1, Math.round(window.innerHeight)),
       });
     };
 
     syncRect();
-    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(syncRect);
-    if (observer && panelRef.current) observer.observe(panelRef.current);
     window.addEventListener('resize', syncRect);
     return () => {
-      observer?.disconnect();
       window.removeEventListener('resize', syncRect);
       setActiveInteractionRect(null);
     };
@@ -87,7 +81,7 @@ export const LicenseGate: React.FC<LicenseGateProps> = ({ children }) => {
 
       {shouldShowBlockingPanel && (
         <div className="license-gate-backdrop">
-          <section ref={panelRef} className="license-gate-panel" aria-label="Skribly licence">
+          <section className="license-gate-panel" aria-label="Skribly licence">
             <span className="license-gate-kicker">
               {status.mode === 'clock_error' ? 'CLOCK CHECK REQUIRED' : 'TRIAL COMPLETE'}
             </span>
