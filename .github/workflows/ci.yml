@@ -65,6 +65,8 @@ jobs:
   windows-rust:
     name: Windows native Rust validation
     runs-on: windows-latest
+    env:
+      SKRIBLY_TRIAL_ENFORCED: "0"
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -81,16 +83,24 @@ jobs:
       - name: Install workspace dependencies
         run: npm ci
 
-      - name: Run cargo check
+      - name: Run beta cargo check
         run: cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml
 
-      - name: Run cargo test
+      - name: Run beta cargo tests
         run: cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml
 
+      - name: Check enforced trial configuration compiles
+        env:
+          SKRIBLY_TRIAL_ENFORCED: "1"
+          SKRIBLY_LICENSE_PUBLIC_KEY: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        run: cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml
+
   windows-bundle:
-    name: Build Windows Founder Alpha installers
+    name: Build Windows beta installers
     runs-on: windows-latest
     needs: [landing-site, frontend, cargo-fmt, windows-rust]
+    env:
+      SKRIBLY_TRIAL_ENFORCED: "0"
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -116,7 +126,7 @@ jobs:
       - name: Upload Windows installers
         uses: actions/upload-artifact@v4
         with:
-          name: skribly-founder-alpha-windows-${{ github.sha }}
+          name: skribly-windows-beta-${{ github.sha }}
           if-no-files-found: error
           retention-days: 14
           path: |
