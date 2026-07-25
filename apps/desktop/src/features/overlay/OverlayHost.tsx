@@ -36,8 +36,6 @@ export const OverlayHost: React.FC = () => {
   const modalRef = useRef<HTMLDivElement>(null);
   const errorToastRef = useRef<HTMLDivElement>(null);
   const initFailureRef = useRef<HTMLDivElement>(null);
-  const composerRef = useRef<HTMLDivElement>(null);
-  const widgetRef = useRef<HTMLDivElement>(null);
   const initialSnapshotTakenRef = useRef(false);
   const knownNoteIdsRef = useRef<Set<string>>(new Set());
 
@@ -73,9 +71,16 @@ export const OverlayHost: React.FC = () => {
 
   useEffect(() => {
     const rects: Array<{ x: number; y: number; width: number; height: number }> = [];
+    const fixedUiElements: Array<HTMLElement | null> = [
+      toolbarRef.current,
+      errorToastRef.current,
+      initFailureRef.current,
+      document.querySelector<HTMLElement>('.skrib-composer'),
+      document.querySelector<HTMLElement>('.notes-widget'),
+    ];
 
-    [toolbarRef.current, errorToastRef.current, initFailureRef.current, composerRef.current, widgetRef.current]
-      .filter((element): element is HTMLDivElement => Boolean(element))
+    fixedUiElements
+      .filter((element): element is HTMLElement => Boolean(element))
       .forEach((element) => {
         const bounds = element.getBoundingClientRect();
         if (bounds.width > 0 && bounds.height > 0) {
@@ -240,15 +245,8 @@ export const OverlayHost: React.FC = () => {
       {(!activeTarget || !activeTarget.is_minimized) &&
         skribs.map((note) => <SkribNoteCard key={note.id} note={note} target={activeTarget} />)}
 
-      {composerNote && (
-        <div ref={composerRef} className="composer-hit-area">
-          <SkribComposer note={composerNote} target={activeTarget} />
-        </div>
-      )}
-
-      <div ref={widgetRef} className="notes-widget-hit-area">
-        <NotesWidget visibleNotes={skribs} />
-      </div>
+      {composerNote && <SkribComposer note={composerNote} target={activeTarget} />}
+      <NotesWidget visibleNotes={skribs} />
     </div>
   );
 };
