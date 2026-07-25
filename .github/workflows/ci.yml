@@ -7,6 +7,21 @@ on:
     branches: [main]
 
 jobs:
+  landing-site:
+    name: Landing site validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Validate static site files and links
+        run: node site/validate.mjs
+
   frontend:
     name: Cross-platform frontend checks
     runs-on: ubuntu-latest
@@ -75,7 +90,7 @@ jobs:
   windows-bundle:
     name: Build Windows Founder Alpha installers
     runs-on: windows-latest
-    needs: [frontend, cargo-fmt, windows-rust]
+    needs: [landing-site, frontend, cargo-fmt, windows-rust]
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
