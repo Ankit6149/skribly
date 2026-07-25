@@ -93,7 +93,7 @@ jobs:
         run: npm ci
 
       - name: Build NSIS and MSI installers
-        run: npm run tauri -- build --ci
+        run: npm --workspace @skribly/desktop run tauri -- build --ci
 
       - name: Upload Windows installers
         uses: actions/upload-artifact@v4
