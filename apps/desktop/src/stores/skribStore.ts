@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { OverlayInitializationStatus, OverlayMetrics, SkribNote, TargetWindowInfo } from '../lib/geometry';
+import { useLicenseStore } from './licenseStore';
 
 type UnlistenFn = () => void;
 
@@ -38,6 +39,12 @@ function disposeTauriListeners() {
     }
   }
   listenerSetupPromise = null;
+}
+
+function writeBlockMessage(): string | null {
+  const status = useLicenseStore.getState().status;
+  if (!status.enforcementEnabled || status.canWrite) return null;
+  return status.message || 'Skribly is currently read-only on this device.';
 }
 
 interface SkribStoreState {
@@ -182,6 +189,13 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
   },
 
   addSkrib: async (text = 'New Sticky Note', color = 'yellow') => {
+    const blocked = writeBlockMessage();
+    if (blocked) {
+      set({ errorMessage: blocked });
+      return;
+    }
+
+    const previousSkribs = get().skribs;
     const active = get().activeTarget;
     const now = Math.floor(Date.now() / 1000);
     const newNote: SkribNote = {
@@ -199,7 +213,7 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
       updated_at: now,
     };
 
-    set((state) => ({ skribs: [...state.skribs, newNote] }));
+    set({ skribs: [...previousSkribs, newNote] });
 
     if (!get().isTauriAvailable) return;
     try {
@@ -211,16 +225,23 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      set({ errorMessage: `Failed to create Skrib note: ${msg}` });
+      set({ skribs: previousSkribs, errorMessage: `Failed to create Skrib note: ${msg}` });
     }
   },
 
   updateSkribPosition: async (id, rel_x, rel_y, width, height) => {
-    set((state) => ({
-      skribs: state.skribs.map((n) =>
+    const blocked = writeBlockMessage();
+    if (blocked) {
+      set({ errorMessage: blocked });
+      return;
+    }
+
+    const previousSkribs = get().skribs;
+    set({
+      skribs: previousSkribs.map((n) =>
         n.id === id ? { ...n, rel_x, rel_y, width, height, updated_at: Math.floor(Date.now() / 1000) } : n
       ),
-    }));
+    });
 
     if (!get().isTauriAvailable) return;
     try {
@@ -238,16 +259,23 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      set({ errorMessage: `Failed to save Skrib position: ${msg}` });
+      set({ skribs: previousSkribs, errorMessage: `Failed to save Skrib position: ${msg}` });
     }
   },
 
   updateSkribText: async (id, text) => {
-    set((state) => ({
-      skribs: state.skribs.map((n) =>
+    const blocked = writeBlockMessage();
+    if (blocked) {
+      set({ errorMessage: blocked });
+      return;
+    }
+
+    const previousSkribs = get().skribs;
+    set({
+      skribs: previousSkribs.map((n) =>
         n.id === id ? { ...n, text, updated_at: Math.floor(Date.now() / 1000) } : n
       ),
-    }));
+    });
 
     if (!get().isTauriAvailable) return;
     try {
@@ -259,14 +287,21 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      set({ errorMessage: `Failed to save text: ${msg}` });
+      set({ skribs: previousSkribs, errorMessage: `Failed to save text: ${msg}` });
     }
   },
 
   updateSkribColor: async (id, color) => {
-    set((state) => ({
-      skribs: state.skribs.map((n) => (n.id === id ? { ...n, color } : n)),
-    }));
+    const blocked = writeBlockMessage();
+    if (blocked) {
+      set({ errorMessage: blocked });
+      return;
+    }
+
+    const previousSkribs = get().skribs;
+    set({
+      skribs: previousSkribs.map((n) => (n.id === id ? { ...n, color } : n)),
+    });
 
     if (!get().isTauriAvailable) return;
     try {
@@ -278,14 +313,21 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      set({ errorMessage: `Failed to change color: ${msg}` });
+      set({ skribs: previousSkribs, errorMessage: `Failed to change color: ${msg}` });
     }
   },
 
   toggleSkribCollapse: async (id) => {
-    set((state) => ({
-      skribs: state.skribs.map((n) => (n.id === id ? { ...n, collapsed: !n.collapsed } : n)),
-    }));
+    const blocked = writeBlockMessage();
+    if (blocked) {
+      set({ errorMessage: blocked });
+      return;
+    }
+
+    const previousSkribs = get().skribs;
+    set({
+      skribs: previousSkribs.map((n) => (n.id === id ? { ...n, collapsed: !n.collapsed } : n)),
+    });
 
     if (!get().isTauriAvailable) return;
     try {
@@ -297,14 +339,19 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      set({ errorMessage: `Failed to toggle collapse: ${msg}` });
+      set({ skribs: previousSkribs, errorMessage: `Failed to toggle collapse: ${msg}` });
     }
   },
 
   deleteSkrib: async (id) => {
-    set((state) => ({
-      skribs: state.skribs.filter((n) => n.id !== id),
-    }));
+    const blocked = writeBlockMessage();
+    if (blocked) {
+      set({ errorMessage: blocked });
+      return;
+    }
+
+    const previousSkribs = get().skribs;
+    set({ skribs: previousSkribs.filter((n) => n.id !== id) });
 
     if (!get().isTauriAvailable) return;
     try {
@@ -316,7 +363,7 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      set({ errorMessage: `Failed to delete Skrib: ${msg}` });
+      set({ skribs: previousSkribs, errorMessage: `Failed to delete Skrib: ${msg}` });
     }
   },
 
@@ -324,8 +371,8 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
     if (!get().isTauriAvailable) return;
     try {
       await invoke('set_hit_test_rects', { rects });
-    } catch (e) {
-      // Ignore hit test update errors
+    } catch {
+      // Hit-test synchronization is best-effort; native initialization errors are surfaced elsewhere.
     }
   },
 
@@ -376,7 +423,6 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
 
         unlistenCallbacks.push(overlayUnlisten, shortcutUnlisten, hotkeyErrorUnlisten, storageErrorUnlisten, initStatusUnlisten);
 
-        // Subscribe before fetching state so a fast native startup event cannot be missed.
         const payload = await invoke<OverlayStatePayload>('refresh_target_state');
         set({
           activeTarget: payload.active_target,
