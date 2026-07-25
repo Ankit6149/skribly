@@ -1,4 +1,11 @@
 (() => {
+  if (!document.head.querySelector('link[href$="ux-polish.css"]')) {
+    const polish = document.createElement('link');
+    polish.rel = 'stylesheet';
+    polish.href = './ux-polish.css';
+    document.head.appendChild(polish);
+  }
+
   const config = window.SKRIBLY_COMMERCE;
   const toast = document.querySelector('[data-toast]');
   let toastTimer = null;
