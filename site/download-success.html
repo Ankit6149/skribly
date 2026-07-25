@@ -8,6 +8,7 @@
     <title>Purchase status — Skribly</title>
     <link rel="icon" href="./assets/skribly-icon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./ux-polish.css" />
     <script src="./commerce-config.js" defer></script>
     <script src="./success.js" defer></script>
   </head>
@@ -20,7 +21,7 @@
         <p class="legal-intro" data-success-message>
           The current Windows beta is free while licence activation is being validated. Skribly has not charged you on this page.
         </p>
-        <nav class="legal-nav">
+        <nav class="legal-nav" aria-label="Purchase status links">
           <a class="button button-dark" data-secure-download href="/api/download">Download Windows beta</a>
           <a class="button button-light" href="/">Back to Skribly</a>
         </nav>

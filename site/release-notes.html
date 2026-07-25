@@ -12,11 +12,12 @@
     <title>Release Notes — Skribly</title>
     <link rel="icon" href="./assets/skribly-icon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./ux-polish.css" />
   </head>
   <body>
     <header class="site-header is-scrolled">
       <a class="brand" href="/"><img src="./assets/skribly-icon.svg" alt="" /><span>Skribly</span></a>
-      <nav aria-label="Release navigation"><a href="/">Product</a><a href="/privacy">Privacy</a></nav>
+      <nav class="desktop-nav" aria-label="Release navigation"><a href="/">Product</a><a href="/privacy">Privacy</a></nav>
       <a class="button button-dark button-small" href="/api/download">Download beta</a>
     </header>
 
@@ -61,7 +62,7 @@
 
         <section>
           <h2>Installation</h2>
-          <p>Download the Windows x64 installer from the Skribly website. When the installer is available, the download button sends the file directly rather than opening the source repository.</p>
+          <p>Download the Windows x64 installer from the Skribly website. The same-site download route resolves the current validated installer without sending customers through the source repository.</p>
         </section>
 
         <nav class="legal-nav" aria-label="Release page links">

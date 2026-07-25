@@ -1,0 +1,306 @@
+/* Interaction and secondary-page polish layered over the restored landing design. */
+
+:root {
+  --focus-ring: 0 0 0 4px rgba(95, 121, 91, 0.2);
+}
+
+html {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.brand,
+.button,
+.site-header > nav a,
+.desktop-nav a,
+.site-footer a {
+  font-family: 'Manrope', 'DM Sans', system-ui, sans-serif;
+}
+
+.brand {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+}
+
+.site-header > nav,
+.desktop-nav {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.site-header > nav a,
+.desktop-nav a {
+  min-height: 40px;
+  padding: 0 11px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  color: rgba(38, 41, 35, 0.68);
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.012em;
+  transition: color 150ms ease, background 150ms ease, transform 150ms ease;
+}
+
+.site-header > nav a:hover,
+.desktop-nav a:hover {
+  background: rgba(38, 41, 35, 0.055);
+  color: var(--ink);
+}
+
+.site-header > nav a:active,
+.desktop-nav a:active {
+  transform: translateY(1px);
+}
+
+.button {
+  min-height: 48px;
+  padding-inline: 20px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.018em;
+  white-space: nowrap;
+}
+
+.button-small {
+  min-height: 44px;
+  padding-inline: 17px;
+  font-size: 12.5px;
+}
+
+.button-large {
+  min-height: 58px;
+  padding-inline: 25px;
+  font-size: 13.5px;
+}
+
+.button-primary small {
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.025em;
+}
+
+.button-dark:hover {
+  background: #34382f;
+  box-shadow: 0 14px 30px rgba(38, 41, 35, 0.2);
+}
+
+.button-primary:hover {
+  background: #f5d85d;
+  box-shadow: 0 18px 42px rgba(163, 130, 12, 0.2);
+}
+
+.button-ghost,
+.button-light {
+  border-color: rgba(38, 41, 35, 0.14);
+  background: rgba(255, 255, 255, 0.62);
+  color: var(--ink);
+}
+
+.button-ghost:hover,
+.button-light:hover {
+  background: #ffffff;
+  box-shadow: 0 12px 28px rgba(38, 41, 35, 0.08);
+}
+
+.button[aria-disabled='true'] {
+  opacity: 0.58;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+.button:focus-visible,
+.site-header a:focus-visible,
+.site-footer a:focus-visible,
+.legal-shell a:focus-visible,
+button:focus-visible {
+  outline: 2px solid #5f795b;
+  outline-offset: 3px;
+  box-shadow: var(--focus-ring);
+}
+
+.site-footer > div {
+  gap: 8px;
+}
+
+.site-footer > div a {
+  min-height: 38px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.site-footer > div a:hover {
+  background: rgba(38, 41, 35, 0.055);
+}
+
+/* Privacy, release notes, answers and status pages. */
+.legal-page {
+  min-height: 100vh;
+  padding: 142px 20px 88px;
+  background:
+    radial-gradient(circle at 8% 0%, rgba(248, 223, 120, 0.15), transparent 28rem),
+    radial-gradient(circle at 100% 26%, rgba(220, 234, 223, 0.25), transparent 30rem),
+    var(--paper);
+}
+
+.legal-shell {
+  width: min(860px, 100%);
+  margin: 0 auto;
+  padding: clamp(28px, 5vw, 58px);
+  border: 1px solid var(--line);
+  border-radius: 30px 30px 48px 30px;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: var(--shadow-sm);
+}
+
+.legal-shell > img {
+  display: block;
+  margin-bottom: 24px;
+  border-radius: 20px;
+}
+
+.overline {
+  margin: 0 0 18px;
+  color: rgba(38, 41, 35, 0.5);
+  font-family: 'Manrope', 'DM Sans', system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.legal-shell h1 {
+  max-width: 760px;
+  margin: 0;
+  font-family: 'Manrope', 'DM Sans', system-ui, sans-serif;
+  font-size: clamp(46px, 7vw, 76px);
+  font-weight: 700;
+  line-height: 0.98;
+  letter-spacing: -0.06em;
+}
+
+.legal-intro {
+  max-width: 720px;
+  margin: 26px 0 12px;
+  color: rgba(38, 41, 35, 0.7);
+  font-size: 17px;
+  line-height: 1.75;
+}
+
+.legal-shell section {
+  margin-top: 34px;
+  padding-top: 30px;
+  border-top: 1px solid var(--line);
+}
+
+.legal-shell section h2 {
+  margin: 0 0 12px;
+  font-family: 'Manrope', 'DM Sans', system-ui, sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.035em;
+}
+
+.legal-shell section p,
+.legal-shell li {
+  color: rgba(38, 41, 35, 0.72);
+  font-size: 15px;
+  line-height: 1.78;
+}
+
+.legal-shell ul {
+  margin: 14px 0 0;
+  padding-left: 22px;
+}
+
+.legal-shell li + li {
+  margin-top: 8px;
+}
+
+.legal-shell section a:not(.button) {
+  color: #435f48;
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.legal-nav {
+  margin-top: 38px;
+  padding-top: 30px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  border-top: 1px solid var(--line);
+}
+
+@media (max-width: 880px) {
+  .site-header > nav,
+  .desktop-nav {
+    gap: 0;
+  }
+
+  .site-header > nav a,
+  .desktop-nav a {
+    padding-inline: 8px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 720px) {
+  .site-header > nav,
+  .desktop-nav {
+    display: none;
+  }
+
+  .button {
+    font-size: 13px;
+  }
+
+  .legal-page {
+    padding: 112px 12px 52px;
+  }
+
+  .legal-shell {
+    padding: 26px 20px 30px;
+    border-radius: 22px 22px 34px 22px;
+  }
+
+  .legal-shell h1 {
+    font-size: clamp(42px, 13vw, 58px);
+  }
+
+  .legal-intro {
+    font-size: 15.5px;
+  }
+
+  .legal-shell section h2 {
+    font-size: 21px;
+  }
+
+  .legal-shell section p,
+  .legal-shell li {
+    font-size: 14.5px;
+  }
+
+  .legal-nav {
+    flex-direction: column;
+  }
+
+  .legal-nav .button {
+    width: 100%;
+  }
+}
