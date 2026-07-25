@@ -1,4 +1,11 @@
 (() => {
+  if (!document.head.querySelector('link[href$="landing-typography.css"]')) {
+    const typography = document.createElement('link');
+    typography.rel = 'stylesheet';
+    typography.href = './landing-typography.css';
+    document.head.appendChild(typography);
+  }
+
   const config = window.SKRIBLY_COMMERCE;
   const toast = document.querySelector('[data-toast]');
   let toastTimer = null;
