@@ -5,19 +5,82 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="Skribly is a local-first contextual annotation layer for Windows. Leave notes inside any app, close them into small movable dots, and return to the exact working context later."
+      content="Skribly is a local-first contextual notes app for Windows. Leave notes inside any app, collapse them into movable dots, and return to the working context later."
     />
+    <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1" />
     <meta name="theme-color" content="#fffdf7" />
+    <link rel="canonical" href="https://skribly-desktop.vercel.app/" />
     <meta property="og:title" content="Skribly — Leave notes inside any app" />
     <meta
       property="og:description"
-      content="A contextual annotation layer for Windows. Notes become compact movable dots and return with the app where you placed them."
+      content="A local-first contextual notes app for Windows. Notes become compact movable dots and return with the app where you placed them."
     />
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="./assets/skribly-social-card.svg" />
+    <meta property="og:url" content="https://skribly-desktop.vercel.app/" />
+    <meta property="og:image" content="https://skribly-desktop.vercel.app/assets/skribly-social-card.svg" />
+    <meta name="twitter:card" content="summary_large_image" />
     <title>Skribly — Contextual notes inside any app</title>
     <link rel="icon" href="./assets/skribly-icon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="./styles.css" />
+    <script type="application/ld+json" data-skribly-schema>
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "SoftwareApplication",
+            "name": "Skribly",
+            "applicationCategory": "ProductivityApplication",
+            "operatingSystem": "Windows 10, Windows 11",
+            "description": "A local-first contextual notes app that attaches notes to application windows and collapses them into movable dots.",
+            "url": "https://skribly-desktop.vercel.app/",
+            "downloadUrl": "https://skribly-desktop.vercel.app/api/download",
+            "softwareVersion": "0.1 beta",
+            "featureList": [
+              "Contextual notes attached to application windows",
+              "Movable compact note dots",
+              "Local-first text, drawings and attachments",
+              "Saved notes recovery widget",
+              "Global keyboard shortcut"
+            ],
+            "offers": {
+              "@type": "Offer",
+              "price": "999",
+              "priceCurrency": "INR",
+              "availability": "https://schema.org/PreOrder"
+            }
+          },
+          {
+            "@type": "FAQPage",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "What is Skribly?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Skribly is a Windows contextual notes app. Notes stay attached to the application where they matter and can collapse into small movable dots."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "How is Skribly different from ordinary sticky notes?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Skribly focuses on application and spatial context. Notes follow an app window, collapse into compact anchors, and help users return to the matching work context."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Can I try Skribly before paying?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Yes. The current Windows beta is free while licence activation is validated. The planned paid release includes a seven-day full trial with no card."
+                }
+              }
+            ]
+          }
+        ]
+      }
+    </script>
     <script src="./commerce-config.js" defer></script>
     <script src="./app.js" defer></script>
   </head>
@@ -32,12 +95,12 @@
         <nav class="desktop-nav" aria-label="Primary navigation">
           <a href="#how-it-works">How it works</a>
           <a href="#features">Features</a>
-          <a href="#privacy">Privacy</a>
-          <a href="#pricing">Founder access</a>
+          <a href="/privacy">Privacy</a>
+          <a href="#pricing">Pricing</a>
         </nav>
 
-        <a class="button button-small button-dark" data-download-link href="#download">
-          Download for Windows
+        <a class="button button-small button-dark" data-download-link href="/api/download">
+          Download Windows beta
         </a>
       </header>
 
@@ -46,7 +109,7 @@
           <div class="hero-copy">
             <div class="eyebrow-pill">
               <span class="pulse-dot"></span>
-              Windows Founder Alpha
+              Windows beta
             </div>
 
             <h1>Leave notes <em>inside</em> any app.</h1>
@@ -56,9 +119,9 @@
             </p>
 
             <div class="hero-actions">
-              <a class="button button-primary" data-download-link href="#download">
-                <span>Download for Windows</span>
-                <small data-version-label>Founder Alpha</small>
+              <a class="button button-primary" data-download-link href="/api/download">
+                <span>Download Windows beta</span>
+                <small data-version-label>Windows beta 0.1</small>
               </a>
               <a class="button button-ghost" href="#demo">See how it feels</a>
             </div>
@@ -232,7 +295,7 @@
             <article class="feature-card feature-private" id="privacy">
               <span class="feature-label">LOCAL-FIRST</span>
               <h3>Your working memory stays yours.</h3>
-              <p>Founder Alpha stores notes and attachments on your Windows computer. No mandatory account. No cloud requirement.</p>
+              <p>The Windows beta stores notes and attachments on your computer. No mandatory account. No cloud requirement.</p>
               <div class="privacy-lock">⌁<span>LOCAL</span></div>
             </article>
           </div>
@@ -271,51 +334,51 @@
 
         <section class="section-pad pricing-section" id="pricing">
           <div class="pricing-copy">
-            <span class="section-kicker">FOUNDER ACCESS</span>
-            <h2>Help shape the first useful version.</h2>
+            <span class="section-kicker">PERSONAL WINDOWS LICENCE</span>
+            <h2>Try every feature. Pay only if it stays useful.</h2>
             <p>
-              Founder Alpha is for early Windows users who are comfortable testing a new desktop utility
-              and sharing direct feedback. Mixed-DPI multi-monitor behaviour remains experimental.
+              The paid release will include a seven-day full trial followed by a one-time personal licence.
+              No forced monthly subscription.
             </p>
           </div>
 
           <article class="pricing-card">
             <div class="pricing-topline">
-              <span>FOUNDER ALPHA</span>
+              <span>PERSONAL LICENCE</span>
               <span>WINDOWS</span>
             </div>
             <div class="price-line">
               <span class="currency">₹</span>
-              <strong data-founder-price>499</strong>
+              <strong data-founder-price>999</strong>
               <small>one time</small>
             </div>
             <ul>
-              <li>Founder Alpha Windows licence</li>
-              <li>Early builds and product updates</li>
-              <li>Direct feedback channel</li>
-              <li>Local-first notes and attachments</li>
+              <li>Seven-day full trial with no card</li>
+              <li>Permanent use of the purchased version</li>
+              <li>Twelve months of feature and maintenance updates</li>
+              <li>Optional update pass later—no forced renewal</li>
             </ul>
-            <a class="button button-dark button-full" data-checkout-link href="#download">
-              Get Founder Access
+            <a class="button button-dark button-full" data-checkout-link href="#download" aria-disabled="true">
+              Buy licence when checkout opens
             </a>
             <p class="pricing-note" data-checkout-note>
-              Checkout will open when paid Founder Access is enabled. Public test builds remain available below.
+              The current beta is free. Paid checkout opens after licence activation is fully tested.
             </p>
           </article>
         </section>
 
         <section class="download-section section-pad" id="download">
           <img src="./assets/skribly-icon.svg" alt="Skribly" />
-          <span class="section-kicker">WINDOWS FOUNDER ALPHA</span>
+          <span class="section-kicker">WINDOWS BETA</span>
           <h2>Put your notes where your work happens.</h2>
           <p data-download-status>
-            Download the latest Windows build from GitHub Releases. Windows may show an unsigned-app warning during Founder Alpha.
+            Download the current Windows beta directly from Skribly. Windows may show an unsigned-app warning during beta.
           </p>
           <div class="download-actions">
-            <a class="button button-primary button-large" data-download-link href="#download">
-              Download Skribly for Windows
+            <a class="button button-primary button-large" data-download-link href="/api/download">
+              Download Windows beta
             </a>
-            <a class="button button-ghost" data-release-notes-link href="https://github.com/Ankit6149/skribly/releases/latest">
+            <a class="button button-ghost" data-release-notes-link href="/release-notes">
               Release notes
             </a>
           </div>
@@ -334,11 +397,11 @@
         </a>
         <p>Contextual annotations for the software you already use.</p>
         <div>
-          <a href="https://github.com/Ankit6149/skribly">GitHub</a>
-          <a href="#privacy">Privacy</a>
-          <a href="https://github.com/Ankit6149/skribly/issues" target="_blank" rel="noopener noreferrer">Contact</a>
+          <a href="/release-notes">Release notes</a>
+          <a href="/privacy">Privacy</a>
+          <a href="/answers">FAQ</a>
         </div>
-        <small>© 2026 Ankit Bhardwaj. Founder Alpha software.</small>
+        <small>© 2026 Ankit Bhardwaj. Windows beta software.</small>
       </footer>
     </div>
 
