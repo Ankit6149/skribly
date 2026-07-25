@@ -19,6 +19,8 @@ fn show_main_window<R: Runtime>(app: &tauri::AppHandle<R>) {
 }
 
 pub fn install_tray<R: Runtime>(app: &App<R>) -> tauri::Result<()> {
+    crate::desktop::license_bridge::install_license_bridge(app)?;
+
     let show = MenuItem::with_id(app, SHOW_ID, "Show Skribly", true, None::<&str>)?;
     let new_skrib = MenuItem::with_id(
         app,
