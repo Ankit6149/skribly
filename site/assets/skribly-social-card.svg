@@ -1,42 +1,24 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" fill="none">
-  <defs>
-    <linearGradient id="bg" x1="70" y1="40" x2="1120" y2="610" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#FFFDF7"/>
-      <stop offset="0.52" stop-color="#F8E9A8"/>
-      <stop offset="1" stop-color="#DDEBDD"/>
-    </linearGradient>
-    <filter id="shadow" x="0" y="0" width="1200" height="630" filterUnits="userSpaceOnUse">
-      <feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#252823" flood-opacity="0.18"/>
-    </filter>
-  </defs>
-  <rect width="1200" height="630" rx="52" fill="url(#bg)"/>
-  <circle cx="1090" cy="80" r="180" fill="#FFFDF7" fill-opacity="0.42"/>
-  <circle cx="116" cy="594" r="220" fill="#FFD8C6" fill-opacity="0.34"/>
-  <g filter="url(#shadow)">
-    <rect x="690" y="98" width="420" height="346" rx="28" fill="#FFFDF9" stroke="#252823" stroke-opacity="0.12"/>
-    <rect x="690" y="98" width="420" height="44" rx="28" fill="#EEECE5"/>
-    <rect x="710" y="115" width="8" height="8" rx="4" fill="#252823" fill-opacity="0.18"/>
-    <rect x="724" y="115" width="8" height="8" rx="4" fill="#252823" fill-opacity="0.18"/>
-    <rect x="738" y="115" width="8" height="8" rx="4" fill="#252823" fill-opacity="0.18"/>
-    <rect x="734" y="184" width="266" height="10" rx="5" fill="#252823" fill-opacity="0.10"/>
-    <rect x="734" y="210" width="214" height="10" rx="5" fill="#252823" fill-opacity="0.10"/>
-    <rect x="734" y="236" width="162" height="10" rx="5" fill="#252823" fill-opacity="0.10"/>
-    <circle cx="1018" cy="300" r="32" fill="#F8DF78" stroke="#252823" stroke-opacity="0.12"/>
-    <circle cx="1018" cy="300" r="17" fill="#252823"/>
-    <text x="1018" y="305" text-anchor="middle" font-family="Arial" font-weight="800" font-size="10" fill="#FFFDF7">S</text>
-    <rect x="812" y="276" width="244" height="136" rx="18" fill="#F8DF78" stroke="#252823" stroke-opacity="0.12"/>
-    <text x="832" y="306" font-family="Arial" font-weight="800" font-size="9" letter-spacing="1.2" fill="#252823" fill-opacity="0.55">ATTACHED TO NOTEPAD</text>
-    <text x="832" y="342" font-family="Arial" font-weight="700" font-size="18" fill="#252823">Confirm pricing before export.</text>
-    <rect x="832" y="366" width="90" height="10" rx="5" fill="#252823" fill-opacity="0.12"/>
-  </g>
+  <rect width="1200" height="630" fill="#F6F2E8"/>
+  <rect x="56" y="48" width="1088" height="534" rx="38" fill="#FFFDF8" stroke="#171916" stroke-opacity="0.10"/>
+  <rect x="92" y="88" width="82" height="82" rx="24" fill="#171916"/>
+  <path d="M151 113H128c-9 0-15 5-15 12 0 7 5 10 15 12l14 3c10 2 15 6 15 13 0 9-8 15-19 15h-20" fill="none" stroke="#FFFDF5" stroke-width="11" stroke-linecap="round"/>
+  <circle cx="158" cy="156" r="6" fill="#E3B94F"/>
+  <text x="202" y="139" font-family="Arial, sans-serif" font-weight="700" font-size="30" letter-spacing="-1" fill="#171916">Skribly</text>
+  <text x="92" y="278" font-family="Arial, sans-serif" font-weight="700" font-size="74" letter-spacing="-4" fill="#171916">Notes that stay</text>
+  <text x="92" y="352" font-family="Georgia, serif" font-style="italic" font-size="78" fill="#8C6B1F">with your work.</text>
+  <text x="92" y="422" font-family="Arial, sans-serif" font-size="25" fill="#5D605A">Contextual notes for Windows. Try every feature for 7 days.</text>
+  <rect x="92" y="474" width="250" height="62" rx="15" fill="#171916"/>
+  <text x="217" y="513" text-anchor="middle" font-family="Arial, sans-serif" font-weight="700" font-size="18" fill="#FFFDF5">Download the trial</text>
   <g>
-    <rect x="84" y="82" width="74" height="74" rx="22" fill="#252823"/>
-    <text x="121" y="132" text-anchor="middle" font-family="Arial" font-weight="800" font-size="40" fill="#FFFDF7">S</text>
-    <text x="84" y="218" font-family="Arial" font-weight="800" font-size="24" letter-spacing="1.8" fill="#252823" fill-opacity="0.55">SKRIBLY</text>
-    <text x="84" y="302" font-family="Arial" font-weight="800" font-size="64" fill="#252823">Leave notes</text>
-    <text x="84" y="372" font-family="Georgia" font-style="italic" font-size="68" fill="#7A6A28">inside any app.</text>
-    <text x="84" y="438" font-family="Arial" font-size="22" fill="#252823" fill-opacity="0.68">Contextual annotations for Windows.</text>
-    <rect x="84" y="486" width="238" height="58" rx="29" fill="#252823"/>
-    <text x="203" y="522" text-anchor="middle" font-family="Arial" font-weight="700" font-size="16" fill="#FFFDF7">Founder Alpha</text>
+    <rect x="735" y="105" width="334" height="352" rx="28" fill="#F2F0EA" stroke="#171916" stroke-opacity="0.10"/>
+    <rect x="735" y="105" width="334" height="44" rx="28" fill="#E6E3DC"/>
+    <rect x="775" y="190" width="222" height="12" rx="6" fill="#171916" fill-opacity="0.10"/>
+    <rect x="775" y="220" width="170" height="12" rx="6" fill="#171916" fill-opacity="0.08"/>
+    <circle cx="990" cy="304" r="34" fill="#171916"/>
+    <circle cx="1008" cy="324" r="8" fill="#E3B94F"/>
+    <rect x="785" y="280" width="234" height="126" rx="20" fill="#FFFDF8" stroke="#171916" stroke-opacity="0.12"/>
+    <text x="808" y="316" font-family="Arial, sans-serif" font-weight="700" font-size="13" fill="#171916">Review pricing before export.</text>
+    <text x="808" y="360" font-family="Arial, sans-serif" font-size="11" fill="#74766F">Attached to Project brief</text>
   </g>
 </svg>
