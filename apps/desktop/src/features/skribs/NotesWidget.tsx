@@ -108,6 +108,7 @@ export const NotesWidget: React.FC<NotesWidgetProps> = ({ visibleNotes }) => {
       }
 
       const target = ranked[0]!.target;
+      await invoke('focus_target_window', { hwndVal: target.hwnd_val });
       await bindTarget(target);
       closeNotesWidget();
       openPreview(selectedNote.id);
@@ -171,7 +172,7 @@ export const NotesWidget: React.FC<NotesWidgetProps> = ({ visibleNotes }) => {
                   {selectedNoteIsVisible ? 'Open note' : 'Reconnect to edit'}
                 </button>
                 <button type="button" className="primary" onClick={() => void reconnectOriginalApp()}>
-                  Reconnect original app
+                  Open original app
                 </button>
               </div>
             </div>
