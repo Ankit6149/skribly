@@ -1,7 +1,20 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
-  <title id="title">Skribly</title>
-  <desc id="desc">A minimal spatial S mark with a gold context point.</desc>
-  <rect width="512" height="512" rx="116" fill="#171916"/>
-  <path d="M354 145H211c-51 0-86 27-86 67 0 38 29 60 87 71l87 17c55 11 87 35 87 78 0 55-46 91-113 91H151" fill="none" stroke="#FFFDF5" stroke-width="66" stroke-linecap="round" stroke-linejoin="round"/>
-  <circle cx="389" cy="389" r="34" fill="#E3B94F"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" fill="none">
+  <defs>
+    <linearGradient id="paper" x1="150" y1="120" x2="850" y2="900" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFE58A"/>
+      <stop offset="0.55" stop-color="#FFD99B"/>
+      <stop offset="1" stop-color="#DDEBDD"/>
+    </linearGradient>
+    <filter id="shadow" x="68" y="68" width="888" height="888" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="28" stdDeviation="34" flood-color="#1F221E" flood-opacity="0.24"/>
+    </filter>
+  </defs>
+  <rect width="1024" height="1024" rx="238" fill="#FFFDF7"/>
+  <g filter="url(#shadow)">
+    <path d="M198 186C198 141.817 233.817 106 278 106H746C790.183 106 826 141.817 826 186V720C826 764.183 790.183 800 746 800H598L467 918C442.72 939.873 404 922.647 404 889.968V800H278C233.817 800 198 764.183 198 720V186Z" fill="url(#paper)"/>
+    <path d="M278 106H746C790.183 106 826 141.817 826 186V720C826 764.183 790.183 800 746 800H598L467 918C442.72 939.873 404 922.647 404 889.968V800H278C233.817 800 198 764.183 198 720V186C198 141.817 233.817 106 278 106Z" stroke="#252823" stroke-opacity="0.14" stroke-width="12"/>
+  </g>
+  <path d="M645.8 330.1C616.7 280.4 566.4 252 502.1 252C415.8 252 351 301.5 351 374.2C351 443.8 400.6 478.7 492.7 500.1C561.8 516.2 586.2 530.9 586.2 559.7C586.2 589.2 558.1 607.3 514.6 607.3C463.6 607.3 424.1 585.9 397.3 544.4L325 599.9C365.8 664.8 429.4 698 512.6 698C609 698 676 649.2 676 568.4C676 495.5 625.8 461.4 531.9 439.3C464.9 423.9 441.5 410.5 441.5 384.4C441.5 359 465.6 342.9 502.8 342.9C544.3 342.9 575.1 360.3 598.5 395.8L645.8 330.1Z" fill="#252823"/>
+  <circle cx="792" cy="790" r="78" fill="#252823"/>
+  <circle cx="792" cy="790" r="33" fill="#FFFDF7"/>
 </svg>
