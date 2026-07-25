@@ -1,0 +1,70 @@
+.success-page {
+  min-height: 100vh;
+  padding: 32px;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at 12% 8%, rgba(248, 223, 120, 0.32), transparent 28rem),
+    radial-gradient(circle at 92% 88%, rgba(220, 234, 223, 0.48), transparent 30rem),
+    #fffdf7;
+}
+
+.success-card {
+  width: min(660px, 100%);
+  padding: 52px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border: 1px solid rgba(38, 41, 35, 0.12);
+  border-radius: 30px 30px 48px 30px;
+  background: rgba(255, 253, 247, 0.93);
+  box-shadow: 0 34px 100px rgba(28, 31, 26, 0.16);
+  text-align: center;
+}
+
+.success-card > img {
+  width: 82px;
+  height: 82px;
+  margin-bottom: 30px;
+  border-radius: 24px;
+}
+
+.success-card h1 {
+  max-width: 520px;
+  margin: 0;
+  font-family: 'Manrope', sans-serif;
+  font-size: clamp(42px, 7vw, 68px);
+  line-height: 1;
+  letter-spacing: -0.055em;
+}
+
+.success-card p {
+  max-width: 520px;
+  margin: 22px 0 0;
+  color: #6d7069;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.success-actions {
+  margin-top: 30px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.success-card small {
+  max-width: 500px;
+  margin-top: 28px;
+  color: rgba(38, 41, 35, 0.48);
+  font-size: 9px;
+  line-height: 1.6;
+}
+
+@media (max-width: 640px) {
+  .success-page { padding: 12px; }
+  .success-card { padding: 36px 22px; }
+  .success-actions { width: 100%; flex-direction: column; }
+  .success-actions .button { width: 100%; }
+}
