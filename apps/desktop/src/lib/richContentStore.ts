@@ -1,3 +1,5 @@
+import { useSkribStore } from '../stores/skribStore';
+
 export interface SkribAttachment {
   id: string;
   name: string;
@@ -104,12 +106,19 @@ async function putRichContent(content: StoredRichContent): Promise<void> {
   });
 }
 
-export async function deleteRichContent(noteId: string): Promise<void> {
+async function deleteRichContentRecord(noteId: string): Promise<void> {
   return runTransaction<void>('readwrite', (store, resolve, reject) => {
     const request = store.delete(noteId);
     request.onerror = () => reject(request.error);
     request.onsuccess = () => resolve();
   });
+}
+
+export async function deleteRichContent(noteId: string): Promise<boolean> {
+  const noteStillExists = useSkribStore.getState().skribs.some((note) => note.id === noteId);
+  if (noteStillExists) return false;
+  await deleteRichContentRecord(noteId);
+  return true;
 }
 
 export async function addFilesToNote(noteId: string, files: File[]): Promise<SkribAttachment[]> {
@@ -158,7 +167,7 @@ export async function removeAttachmentFromNote(noteId: string, attachmentId: str
   const content = await getRichContent(noteId);
   const attachments = content.attachments.filter((item) => item.id !== attachmentId);
   if (attachments.length === 0) {
-    await deleteRichContent(noteId);
+    await deleteRichContentRecord(noteId);
     return [];
   }
   await putRichContent({ noteId, attachments, updatedAt: Date.now() });
