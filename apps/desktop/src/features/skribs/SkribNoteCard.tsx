@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { SkribNote, TargetWindowInfo, calculateNoteClientLogicalPosition } from '../../lib/geometry';
-import { countNoteAttachments } from '../../lib/richContentStore';
+import { countNoteAttachments, deleteRichContent } from '../../lib/richContentStore';
 import { useSkribStore } from '../../stores/skribStore';
 import { useSkribUiStore } from '../../stores/skribUiStore';
 
@@ -232,6 +232,12 @@ export const SkribNoteCard: React.FC<SkribNoteCardProps> = ({ note, target }) =>
     }
   };
 
+  const handleDelete = async () => {
+    closePreview();
+    await deleteSkrib(note.id);
+    await deleteRichContent(note.id).catch(() => undefined);
+  };
+
   if (isComposerOpen) return null;
 
   if (!isPreviewOpen) {
@@ -270,7 +276,7 @@ export const SkribNoteCard: React.FC<SkribNoteCardProps> = ({ note, target }) =>
         <div className="skrib-preview-actions">
           <button type="button" onClick={() => openComposer(note.id, attachmentCount > 0 ? 'write' : 'type')} title="Edit full note">Edit</button>
           <button type="button" onClick={closePreview} title="Turn into dot">●</button>
-          <button type="button" onClick={() => void deleteSkrib(note.id)} title="Delete note">✕</button>
+          <button type="button" onClick={() => void handleDelete()} title="Delete note">✕</button>
         </div>
       </header>
 
