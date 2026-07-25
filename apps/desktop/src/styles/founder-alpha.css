@@ -1,0 +1,867 @@
+/* Founder Alpha interaction layer: dot -> preview -> focused composer */
+
+.compact-toolbar {
+  gap: 10px;
+  padding: 7px 10px;
+  background: rgb(255 253 247 / 92%);
+  border-color: rgb(35 37 32 / 10%);
+}
+
+.compact-toolbar .toolbar-brand {
+  padding-right: 4px;
+}
+
+.compact-toolbar .brand-logo {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #282b26;
+  color: #fffdf7;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.modal-kicker,
+.composer-kicker {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .14em;
+  opacity: .52;
+}
+
+.window-item-card {
+  position: relative;
+}
+
+.window-icon {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: #292b27;
+  color: white;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.window-select-arrow {
+  margin-left: auto;
+  font-size: 22px;
+  opacity: .35;
+}
+
+/* Persistent compact note anchor */
+.skrib-dot {
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  pointer-events: auto;
+  z-index: 350;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgb(35 37 32 / 17%);
+  border-radius: 50%;
+  box-shadow: 0 8px 22px rgb(35 37 32 / 16%), inset 0 1px 0 rgb(255 255 255 / 58%);
+  cursor: grab;
+  transition: transform .16s ease, box-shadow .16s ease;
+}
+
+.skrib-dot:hover {
+  transform: scale(1.09);
+  box-shadow: 0 12px 28px rgb(35 37 32 / 22%), inset 0 1px 0 rgb(255 255 255 / 68%);
+}
+
+.skrib-dot.is-dragging {
+  cursor: grabbing;
+  transform: scale(1.08);
+  z-index: 1200;
+}
+
+.skrib-dot-core {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgb(35 37 32 / 86%);
+  color: #fffdf7;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.skrib-dot-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #292b27;
+  color: white;
+  border: 2px solid #fffdf7;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+/* Small readable preview */
+.skrib-preview-card {
+  pointer-events: auto;
+  z-index: 500;
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgb(35 37 32 / 13%);
+  border-radius: 14px 14px 26px 14px;
+  box-shadow: 0 18px 44px rgb(35 37 32 / 20%);
+}
+
+.skrib-preview-card.is-dragging {
+  z-index: 1200;
+  cursor: grabbing;
+}
+
+.skrib-preview-header {
+  min-height: 52px;
+  padding: 12px 12px 9px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px dashed rgb(35 37 32 / 14%);
+  cursor: grab;
+}
+
+.skrib-preview-header > div:first-child {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.skrib-preview-header strong {
+  max-width: 210px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+}
+
+.skrib-preview-kicker {
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: .12em;
+  opacity: .48;
+}
+
+.skrib-preview-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.skrib-preview-actions button,
+.skrib-preview-footer button {
+  border: 0;
+  border-radius: 8px;
+  background: rgb(255 255 255 / 38%);
+  color: #292b27;
+  padding: 5px 7px;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.skrib-preview-body {
+  flex: 1;
+  min-height: 90px;
+  width: 100%;
+  padding: 14px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: text;
+}
+
+.skrib-preview-body p {
+  margin: 0;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 6;
+  white-space: pre-wrap;
+  user-select: text;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.skrib-preview-body span {
+  display: inline-flex;
+  margin-top: 12px;
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 44%);
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.skrib-preview-footer {
+  min-height: 34px;
+  padding: 5px 8px 8px 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: rgb(35 37 32 / 55%);
+  font-size: 9px;
+}
+
+.skrib-preview-footer > span:nth-last-child(2) {
+  flex: 1;
+  text-align: center;
+}
+
+.skrib-preview-colors {
+  position: relative;
+}
+
+.skrib-preview-color-menu {
+  position: absolute;
+  left: 0;
+  bottom: 32px;
+  display: flex;
+  gap: 6px;
+  padding: 7px;
+  border-radius: 999px;
+  background: #fffdf7;
+  border: 1px solid rgb(35 37 32 / 12%);
+  box-shadow: 0 12px 28px rgb(35 37 32 / 18%);
+}
+
+/* Focused composer */
+.skrib-composer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 14000;
+  pointer-events: auto;
+  display: grid;
+  place-items: center;
+  padding: 36px;
+  background: rgb(28 30 27 / 16%);
+  backdrop-filter: blur(5px);
+}
+
+.skrib-composer {
+  width: min(620px, calc(100vw - 72px));
+  max-height: calc(100vh - 72px);
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgb(35 37 32 / 15%);
+  border-radius: 24px 24px 36px 24px;
+  box-shadow: 0 36px 100px rgb(22 24 21 / 30%);
+  transition: width .22s ease, min-height .22s ease;
+}
+
+.skrib-composer-write {
+  width: min(980px, calc(100vw - 72px));
+  min-height: min(760px, calc(100vh - 72px));
+}
+
+.composer-header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 16px 18px;
+  background: color-mix(in srgb, currentColor 0%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px dashed rgb(35 37 32 / 15%);
+}
+
+.composer-context {
+  min-width: 0;
+}
+
+.composer-context strong {
+  display: block;
+  max-width: 520px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.composer-header-actions,
+.composer-footer-actions,
+.composer-mode-switch,
+.ink-editor-actions,
+.attachment-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.composer-mode-switch {
+  padding: 3px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 42%);
+  border: 1px solid rgb(35 37 32 / 10%);
+}
+
+.composer-mode-switch button,
+.composer-close,
+.composer-footer button,
+.composer-section-heading button,
+.ink-editor button,
+.attachment-actions button,
+.notes-widget button {
+  font: inherit;
+}
+
+.composer-mode-switch button {
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  padding: 6px 11px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.composer-mode-switch button.active {
+  background: #292b27;
+  color: white;
+}
+
+.composer-close {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 42%);
+  cursor: pointer;
+}
+
+.composer-error {
+  margin: 12px 18px 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #fca5a5;
+  background: #fff1f2;
+  color: #9f1239;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.composer-textarea {
+  width: calc(100% - 36px);
+  min-height: 250px;
+  margin: 18px;
+  padding: 18px;
+  resize: vertical;
+  border: 1px solid rgb(35 37 32 / 10%);
+  outline: none;
+  border-radius: 16px 16px 24px 16px;
+  background: rgb(255 255 255 / 32%);
+  color: #292b27;
+  font-family: var(--font-ui);
+  font-size: 15px;
+  line-height: 1.65;
+  user-select: text;
+}
+
+.skrib-composer-write .composer-textarea {
+  min-height: 130px;
+}
+
+.composer-textarea:focus {
+  border-color: rgb(35 37 32 / 28%);
+  box-shadow: 0 0 0 3px rgb(255 255 255 / 35%);
+}
+
+/* Drawing */
+.ink-editor {
+  margin: 18px 18px 0;
+  padding: 14px;
+  border-radius: 18px;
+  background: rgb(255 255 255 / 34%);
+  border: 1px solid rgb(35 37 32 / 10%);
+}
+
+.ink-editor-heading,
+.composer-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+
+.ink-editor-heading > div:first-child,
+.composer-section-heading > div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ink-editor-heading span,
+.composer-section-heading span {
+  font-size: 10px;
+  opacity: .58;
+}
+
+.ink-editor button,
+.composer-section-heading button,
+.attachment-actions button {
+  border: 1px solid rgb(35 37 32 / 12%);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 68%);
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.ink-editor button.primary {
+  background: #292b27;
+  color: white;
+}
+
+.ink-editor button:disabled {
+  opacity: .42;
+  cursor: default;
+}
+
+.ink-canvas {
+  width: 100%;
+  height: min(360px, 38vh);
+  display: block;
+  border-radius: 12px;
+  border: 1px solid rgb(35 37 32 / 12%);
+  background: #fffdf7;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+/* Attachments */
+.composer-attachments {
+  margin: 0 18px 18px;
+  padding: 14px;
+  border-radius: 16px;
+  background: rgb(255 255 255 / 25%);
+  border: 1px solid rgb(35 37 32 / 8%);
+}
+
+.attachment-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.attachment-card {
+  min-width: 0;
+  padding: 9px;
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 9px;
+  border-radius: 12px;
+  background: rgb(255 255 255 / 54%);
+  border: 1px solid rgb(35 37 32 / 9%);
+}
+
+.attachment-card img,
+.attachment-file-icon {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: #fffdf7;
+  border: 1px solid rgb(35 37 32 / 10%);
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.attachment-meta {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+}
+
+.attachment-meta strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+}
+
+.attachment-meta span {
+  font-size: 9px;
+  opacity: .5;
+}
+
+.attachment-actions {
+  grid-column: 1 / -1;
+  justify-content: flex-end;
+}
+
+.composer-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 13px 18px 16px;
+  border-top: 1px dashed rgb(35 37 32 / 15%);
+  backdrop-filter: blur(10px);
+}
+
+.composer-colors {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.composer-color {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid rgb(35 37 32 / 16%);
+  cursor: pointer;
+}
+
+.composer-color.active {
+  box-shadow: 0 0 0 2px #fffdf7, 0 0 0 3px #292b27;
+}
+
+.composer-footer-actions button {
+  border: 1px solid rgb(35 37 32 / 12%);
+  border-radius: 999px;
+  padding: 8px 13px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.composer-footer-actions .secondary {
+  background: rgb(255 255 255 / 54%);
+}
+
+.composer-footer-actions .primary {
+  background: #292b27;
+  color: white;
+}
+
+/* Saved notes widget */
+.notes-widget-hit-area {
+  pointer-events: none;
+}
+
+.notes-widget {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 13000;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.notes-widget-trigger {
+  position: relative;
+  width: 50px;
+  height: 50px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid rgb(35 37 32 / 14%);
+  background: #fffdf7;
+  box-shadow: 0 14px 34px rgb(35 37 32 / 22%);
+  cursor: pointer;
+}
+
+.notes-widget-trigger-mark {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #292b27;
+  color: white;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.notes-widget-trigger-count {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #f7d969;
+  color: #292b27;
+  border: 2px solid #fffdf7;
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.notes-widget-panel {
+  width: min(370px, calc(100vw - 36px));
+  max-height: min(610px, calc(100vh - 96px));
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  border-radius: 22px 22px 30px 22px;
+  background: #fffdf7;
+  border: 1px solid rgb(35 37 32 / 12%);
+  box-shadow: 0 30px 80px rgb(35 37 32 / 27%);
+}
+
+.notes-widget-header {
+  padding: 16px 17px 13px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  border-bottom: 1px solid rgb(35 37 32 / 8%);
+}
+
+.notes-widget-header > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.notes-widget-header span {
+  font-size: 8px;
+  letter-spacing: .14em;
+  font-weight: 850;
+  opacity: .48;
+}
+
+.notes-widget-header strong {
+  font-size: 18px;
+}
+
+.notes-widget-header button,
+.notes-widget-back {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.notes-widget-list {
+  overflow: auto;
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+}
+
+.notes-widget-row {
+  width: 100%;
+  min-width: 0;
+  padding: 11px;
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgb(35 37 32 / 9%);
+  border-radius: 12px 12px 18px 12px;
+  text-align: left;
+  color: #292b27;
+  cursor: pointer;
+}
+
+.notes-widget-row-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #292b27;
+}
+
+.notes-widget-row-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.notes-widget-row-copy strong,
+.notes-widget-row-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notes-widget-row-copy strong {
+  font-size: 11px;
+}
+
+.notes-widget-row-copy small {
+  font-size: 9px;
+  opacity: .52;
+}
+
+.notes-widget-empty {
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+}
+
+.notes-widget-empty span {
+  max-width: 230px;
+  font-size: 10px;
+  opacity: .56;
+}
+
+.notes-widget-detail {
+  overflow: auto;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.notes-widget-back {
+  align-self: flex-start;
+  padding: 0;
+  color: #292b27;
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.notes-widget-note {
+  padding: 15px;
+  border: 1px solid rgb(35 37 32 / 10%);
+  border-radius: 14px 14px 24px 14px;
+}
+
+.notes-widget-context {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  opacity: .52;
+}
+
+.notes-widget-note p {
+  margin: 12px 0;
+  max-height: 220px;
+  overflow: auto;
+  white-space: pre-wrap;
+  user-select: text;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.notes-widget-note small {
+  font-size: 9px;
+  font-weight: 700;
+  opacity: .55;
+}
+
+.notes-widget-question {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  border-radius: 12px;
+  background: #f4f1e8;
+}
+
+.notes-widget-question strong {
+  font-size: 11px;
+}
+
+.notes-widget-question span,
+.notes-widget-message {
+  font-size: 9px;
+  line-height: 1.45;
+  opacity: .65;
+}
+
+.notes-widget-message {
+  padding: 9px 10px;
+  border-radius: 9px;
+  background: #fff3cd;
+  opacity: 1;
+}
+
+.notes-widget-detail-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.notes-widget-detail-actions button {
+  border: 1px solid rgb(35 37 32 / 12%);
+  border-radius: 999px;
+  background: white;
+  padding: 7px 11px;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.notes-widget-detail-actions button.primary {
+  background: #292b27;
+  color: white;
+}
+
+@media (max-width: 720px) {
+  .compact-toolbar {
+    left: 12px;
+    right: 12px;
+    justify-content: space-between;
+  }
+
+  .compact-toolbar .toolbar-brand strong,
+  .compact-toolbar .clear-btn {
+    display: none;
+  }
+
+  .skrib-composer-backdrop {
+    padding: 12px;
+  }
+
+  .skrib-composer,
+  .skrib-composer-write {
+    width: calc(100vw - 24px);
+    max-height: calc(100vh - 24px);
+  }
+
+  .composer-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
