@@ -1,0 +1,226 @@
+.license-trial-badge {
+  position: fixed;
+  right: 80px;
+  bottom: 20px;
+  z-index: 12950;
+  pointer-events: none;
+  min-height: 38px;
+  padding: 7px 11px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid rgb(35 37 32 / 12%);
+  border-radius: 999px;
+  background: rgb(255 253 247 / 94%);
+  color: #292b27;
+  box-shadow: 0 12px 32px rgb(35 37 32 / 15%);
+  backdrop-filter: blur(12px);
+}
+
+.license-trial-badge strong {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #292b27;
+  color: #fffdf7;
+  font-size: 10px;
+}
+
+.license-trial-badge span {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .02em;
+}
+
+.license-gate-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 25000;
+  pointer-events: auto;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgb(24 26 23 / 38%);
+  backdrop-filter: blur(9px);
+}
+
+.license-gate-panel {
+  width: min(570px, calc(100vw - 48px));
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+  padding: 36px;
+  border: 1px solid rgb(35 37 32 / 13%);
+  border-radius: 26px 26px 40px 26px;
+  background: #fffdf7;
+  color: #292b27;
+  box-shadow: 0 42px 120px rgb(18 20 17 / 38%);
+}
+
+.license-gate-kicker {
+  display: block;
+  margin-bottom: 10px;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .16em;
+  color: rgb(35 37 32 / 48%);
+}
+
+.license-gate-panel h1 {
+  margin: 0;
+  max-width: 490px;
+  font-size: clamp(28px, 5vw, 42px);
+  line-height: 1.04;
+  letter-spacing: -.045em;
+}
+
+.license-gate-panel > p {
+  margin: 16px 0 0;
+  color: rgb(35 37 32 / 66%);
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.license-device-card {
+  margin-top: 24px;
+  padding: 13px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 5px 12px;
+  border-radius: 14px;
+  background: #f2efe6;
+  border: 1px solid rgb(35 37 32 / 8%);
+}
+
+.license-device-card span {
+  grid-column: 1 / -1;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: .13em;
+  opacity: .5;
+}
+
+.license-device-card code {
+  align-self: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  user-select: text;
+  font-size: 10px;
+}
+
+.license-device-card button,
+.license-error button {
+  border: 0;
+  background: transparent;
+  color: #292b27;
+  cursor: pointer;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.license-key-field {
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.license-key-field > span {
+  font-size: 9px;
+  font-weight: 850;
+}
+
+.license-key-field textarea {
+  min-height: 92px;
+  resize: vertical;
+  padding: 12px;
+  border: 1px solid rgb(35 37 32 / 13%);
+  border-radius: 12px;
+  outline: none;
+  background: white;
+  color: #292b27;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 10px;
+  line-height: 1.5;
+  user-select: text;
+}
+
+.license-key-field textarea:focus {
+  border-color: rgb(35 37 32 / 32%);
+  box-shadow: 0 0 0 3px rgb(248 223 120 / 35%);
+}
+
+.license-error {
+  margin-top: 12px;
+  padding: 10px 12px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  border-radius: 10px;
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  color: #9f1239;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.license-gate-actions {
+  margin-top: 18px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+}
+
+.license-gate-actions button {
+  min-height: 42px;
+  padding: 0 15px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 850;
+}
+
+.license-secondary {
+  border: 1px solid rgb(35 37 32 / 12%);
+  background: white;
+  color: #292b27;
+}
+
+.license-primary {
+  border: 1px solid #292b27;
+  background: #292b27;
+  color: white;
+}
+
+.license-primary:disabled {
+  opacity: .55;
+  cursor: default;
+}
+
+.license-purchase-link {
+  display: block;
+  margin-top: 15px;
+  text-align: right;
+  color: rgb(35 37 32 / 62%);
+  font-size: 9px;
+  font-weight: 750;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+@media (max-width: 620px) {
+  .license-gate-panel {
+    width: calc(100vw - 24px);
+    padding: 26px;
+  }
+
+  .license-gate-actions {
+    flex-direction: column-reverse;
+  }
+
+  .license-gate-actions button {
+    width: 100%;
+  }
+}
