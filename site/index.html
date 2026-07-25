@@ -3,344 +3,257 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta
-      name="description"
-      content="Skribly is a local-first contextual annotation layer for Windows. Leave notes inside any app, close them into small movable dots, and return to the exact working context later."
-    />
-    <meta name="theme-color" content="#fffdf7" />
-    <meta property="og:title" content="Skribly — Leave notes inside any app" />
-    <meta
-      property="og:description"
-      content="A contextual annotation layer for Windows. Notes become compact movable dots and return with the app where you placed them."
-    />
+    <meta name="description" content="Skribly is a local-first contextual notes app for Windows. Attach notes to the applications where they matter, collapse them into movable dots, and return to the same working context later." />
+    <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1" />
+    <meta name="theme-color" content="#171916" />
+    <link rel="canonical" href="https://skribly-desktop.vercel.app/" />
+
+    <meta property="og:title" content="Skribly — Notes that stay with your work" />
+    <meta property="og:description" content="Contextual notes for Windows. Attach a note to an app, close it into a movable dot, and return to it later." />
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="./assets/skribly-social-card.svg" />
-    <title>Skribly — Contextual notes inside any app</title>
+    <meta property="og:url" content="https://skribly-desktop.vercel.app/" />
+    <meta property="og:image" content="https://skribly-desktop.vercel.app/assets/skribly-social-card.svg" />
+    <meta property="og:image:alt" content="Skribly contextual notes for Windows" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Skribly — Notes that stay with your work" />
+    <meta name="twitter:description" content="A local-first contextual notes app for Windows." />
+    <meta name="twitter:image" content="https://skribly-desktop.vercel.app/assets/skribly-social-card.svg" />
+
+    <title>Skribly — Contextual notes for Windows</title>
     <link rel="icon" href="./assets/skribly-icon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="./styles.css" />
     <script src="./commerce-config.js" defer></script>
     <script src="./app.js" defer></script>
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Skribly",
+        "applicationCategory": "ProductivityApplication",
+        "operatingSystem": "Windows 10, Windows 11",
+        "description": "A local-first contextual notes app that attaches notes to application windows and collapses them into movable dots.",
+        "url": "https://skribly-desktop.vercel.app/",
+        "downloadUrl": "https://skribly-desktop.vercel.app/api/download",
+        "softwareVersion": "0.1 beta",
+        "offers": {
+          "@type": "Offer",
+          "price": "999",
+          "priceCurrency": "INR",
+          "availability": "https://schema.org/PreOrder",
+          "description": "Planned one-time launch licence after the Windows beta and licence activation flow are validated."
+        },
+        "featureList": [
+          "Contextual notes attached to application windows",
+          "Movable compact note dots",
+          "Local-first text, drawings and attachments",
+          "Saved notes recovery widget",
+          "Global keyboard shortcut"
+        ]
+      }
+    </script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "What is Skribly?",
+            "acceptedAnswer": {"@type": "Answer", "text": "Skribly is a Windows contextual notes app. Notes are attached to the application where they matter instead of remaining as unrelated desktop windows."}
+          },
+          {
+            "@type": "Question",
+            "name": "How is Skribly different from Microsoft Sticky Notes?",
+            "acceptedAnswer": {"@type": "Answer", "text": "Skribly is designed around spatial and application context. A note follows an application window, can collapse into a small movable dot, and can return you to the matching open app."}
+          },
+          {
+            "@type": "Question",
+            "name": "Does Skribly work offline?",
+            "acceptedAnswer": {"@type": "Answer", "text": "Yes. The Windows beta stores notes and attachments locally and does not require an account or cloud connection for normal use."}
+          },
+          {
+            "@type": "Question",
+            "name": "How will Skribly be priced?",
+            "acceptedAnswer": {"@type": "Answer", "text": "The planned paid launch includes a seven-day full trial followed by a one-time personal licence. The app remains usable permanently, with twelve months of updates included."}
+          }
+        ]
+      }
+    </script>
   </head>
   <body>
-    <div class="site-shell">
-      <header class="site-header" data-nav>
-        <a class="brand" href="#top" aria-label="Skribly home">
-          <img src="./assets/skribly-icon.svg" alt="" />
-          <span>Skribly</span>
-        </a>
+    <header class="site-header" data-nav>
+      <a class="brand" href="#top" aria-label="Skribly home">
+        <img src="./assets/skribly-icon.svg" alt="" />
+        <span>Skribly</span>
+      </a>
+      <nav aria-label="Primary navigation">
+        <a href="#product">Product</a>
+        <a href="#pricing">Pricing</a>
+        <a href="#faq">FAQ</a>
+        <a data-privacy-link href="/privacy">Privacy</a>
+      </nav>
+      <a class="button button-dark button-small" data-download-link href="/api/download" data-download-label>Download Windows beta</a>
+    </header>
 
-        <nav class="desktop-nav" aria-label="Primary navigation">
-          <a href="#how-it-works">How it works</a>
-          <a href="#features">Features</a>
-          <a href="#privacy">Privacy</a>
-          <a href="#pricing">Founder access</a>
-        </nav>
-
-        <a class="button button-small button-dark" data-download-link href="#download">
-          Download for Windows
-        </a>
-      </header>
-
-      <main id="top">
-        <section class="hero section-pad">
-          <div class="hero-copy">
-            <div class="eyebrow-pill">
-              <span class="pulse-dot"></span>
-              Windows Founder Alpha
-            </div>
-
-            <h1>Leave notes <em>inside</em> any app.</h1>
-            <p class="hero-lede">
-              Skribly is a contextual annotation layer for your computer. Write a note where it matters,
-              close it into a tiny movable dot, and bring it back with the same working context.
-            </p>
-
-            <div class="hero-actions">
-              <a class="button button-primary" data-download-link href="#download">
-                <span>Download for Windows</span>
-                <small data-version-label>Founder Alpha</small>
-              </a>
-              <a class="button button-ghost" href="#demo">See how it feels</a>
-            </div>
-
-            <div class="hero-meta">
-              <span>Local-first</span>
-              <span>No account required</span>
-              <span>Windows 10/11</span>
-            </div>
-          </div>
-
-          <div class="hero-product" id="demo" aria-label="Skribly interface preview">
-            <div class="app-window">
-              <div class="app-titlebar">
-                <div class="traffic-lights"><span></span><span></span><span></span></div>
-                <strong>Project brief — Notepad</strong>
-                <div class="window-actions">— □ ×</div>
-              </div>
-
-              <div class="app-content">
-                <div class="fake-copy wide"></div>
-                <div class="fake-copy medium"></div>
-                <div class="fake-copy short"></div>
-                <div class="fake-copy wide faint"></div>
-                <div class="fake-copy medium faint"></div>
-
-                <button class="demo-dot dot-yellow" type="button" data-demo-dot="one" aria-label="Open product note">
-                  <span>S</span>
-                  <b>1</b>
-                </button>
-                <button class="demo-dot dot-mint" type="button" data-demo-dot="two" aria-label="Open checklist note">
-                  <span>S</span>
-                </button>
-
-                <article class="demo-note note-yellow" data-demo-note="one">
-                  <header>
-                    <div>
-                      <span>ATTACHED TO NOTEPAD</span>
-                      <strong>Project brief</strong>
-                    </div>
-                    <button type="button" data-close-demo="one">●</button>
-                  </header>
-                  <p>Confirm the pricing section before exporting this version.</p>
-                  <footer>
-                    <span>1 attachment</span>
-                    <button type="button">Open editor</button>
-                  </footer>
-                </article>
-
-                <article class="demo-note note-mint compact-note" data-demo-note="two">
-                  <header>
-                    <div>
-                      <span>WORKFLOW NOTE</span>
-                      <strong>Before publishing</strong>
-                    </div>
-                    <button type="button" data-close-demo="two">●</button>
-                  </header>
-                  <p>✓ Check links<br />✓ Export screenshots<br />○ Publish release</p>
-                </article>
-              </div>
-            </div>
-
-            <div class="floating-widget">
-              <div class="widget-mark">S</div>
-              <div>
-                <strong>12 Skribs</strong>
-                <span>across 5 apps</span>
-              </div>
-              <span class="widget-arrow">›</span>
-            </div>
-          </div>
-        </section>
-
-        <section class="proof-strip" aria-label="Skribly product principles">
-          <div><strong>Spatial</strong><span>Notes stay where they matter.</span></div>
-          <div><strong>Compact</strong><span>Finished notes become movable dots.</span></div>
-          <div><strong>Contextual</strong><span>Return to the app behind a note.</span></div>
-          <div><strong>Private</strong><span>Your notes stay on your computer.</span></div>
-        </section>
-
-        <section class="section-pad story-section" id="how-it-works">
-          <div class="section-heading">
-            <span class="section-kicker">A DIFFERENT KIND OF STICKY NOTE</span>
-            <h2>Not another notes app.<br />A layer over your work.</h2>
-            <p>
-              Traditional sticky notes live beside your work. Skribly lives on the interface, document,
-              or application where the thought belongs.
-            </p>
-          </div>
-
-          <div class="steps-grid">
-            <article class="step-card step-yellow">
-              <span class="step-number">01</span>
-              <div class="step-visual place-visual">
-                <div class="mini-window"></div>
-                <div class="cursor-mark">↖</div>
-                <div class="mini-dot">S</div>
-              </div>
-              <h3>Place it in context</h3>
-              <p>Press Ctrl + Shift + Space, choose an open app, and place the note where it helps.</p>
-            </article>
-
-            <article class="step-card step-peach">
-              <span class="step-number">02</span>
-              <div class="step-visual write-visual">
-                <span>Type</span><span>Write</span><span>Attach</span>
-              </div>
-              <h3>Type, draw, or attach</h3>
-              <p>Use a focused editor for text, expand into Write mode, or keep an image and file with the note.</p>
-            </article>
-
-            <article class="step-card step-mint">
-              <span class="step-number">03</span>
-              <div class="step-visual return-visual">
-                <div class="return-note">note</div><span>→</span><div class="return-dot">S</div><span>→</span><div class="return-app">app</div>
-              </div>
-              <h3>Close it into a dot</h3>
-              <p>The note stops covering your work. Click its dot or use Saved Skribs whenever you need it again.</p>
-            </article>
-          </div>
-        </section>
-
-        <section class="section-pad feature-section" id="features">
-          <div class="section-heading split-heading">
-            <div>
-              <span class="section-kicker">BUILT FOR PROCEDURAL MEMORY</span>
-              <h2>Remember what to do,<br />exactly where you do it.</h2>
-            </div>
-            <p>
-              Skribly is especially useful inside complicated software, recurring workflows, local tools,
-              client projects, study material, and applications you do not use every day.
-            </p>
-          </div>
-
-          <div class="feature-bento">
-            <article class="feature-card feature-large feature-context">
-              <span class="feature-label">CONTEXT ANCHORING</span>
-              <h3>Notes follow the application window.</h3>
-              <p>Move, minimize, close, and return to your work without leaving the note floating over everything else.</p>
-              <div class="context-visual">
-                <div class="context-window"><span>Design tool</span></div>
-                <div class="context-line"></div>
-                <div class="context-dot">S</div>
-              </div>
-            </article>
-
-            <article class="feature-card feature-rich">
-              <span class="feature-label">RICH LOCAL NOTES</span>
-              <h3>Text, drawing, images, and files.</h3>
-              <div class="attachment-stack">
-                <div>PNG</div><div>PDF</div><div>INK</div>
-              </div>
-            </article>
-
-            <article class="feature-card feature-widget">
-              <span class="feature-label">SAVED SKRIBS</span>
-              <h3>One small widget for every note.</h3>
-              <div class="widget-preview">
-                <span class="tiny-dot yellow"></span><strong>Pricing note</strong><small>Notepad</small>
-                <span class="tiny-dot mint"></span><strong>Export checklist</strong><small>Figma</small>
-                <span class="tiny-dot peach"></span><strong>Client detail</strong><small>Browser</small>
-              </div>
-            </article>
-
-            <article class="feature-card feature-shortcut">
-              <span class="feature-label">GLOBAL SHORTCUT</span>
-              <h3>Open Skribly without leaving your flow.</h3>
-              <kbd>Ctrl</kbd><span>+</span><kbd>Shift</kbd><span>+</span><kbd>Space</kbd>
-            </article>
-
-            <article class="feature-card feature-private" id="privacy">
-              <span class="feature-label">LOCAL-FIRST</span>
-              <h3>Your working memory stays yours.</h3>
-              <p>Founder Alpha stores notes and attachments on your Windows computer. No mandatory account. No cloud requirement.</p>
-              <div class="privacy-lock">⌁<span>LOCAL</span></div>
-            </article>
-          </div>
-        </section>
-
-        <section class="section-pad audience-section">
-          <div class="section-heading centered-heading">
-            <span class="section-kicker">WHO IT IS FOR</span>
-            <h2>Your computer has context.<br />Your notes should too.</h2>
-          </div>
-
-          <div class="audience-grid">
-            <article><span>01</span><h3>Developers</h3><p>Leave environment details, test steps, and local reminders inside tools and dashboards.</p></article>
-            <article><span>02</span><h3>Designers</h3><p>Keep private decisions and export instructions beside the application where they matter.</p></article>
-            <article><span>03</span><h3>Students</h3><p>Attach explanations to study tools, PDFs, simulators, and recurring coursework.</p></article>
-            <article><span>04</span><h3>Operations teams</h3><p>Turn complicated internal software into a documented, learnable workflow.</p></article>
-          </div>
-        </section>
-
-        <section class="section-pad comparison-section">
-          <div class="comparison-copy">
-            <span class="section-kicker">WHY NOT ORDINARY STICKY NOTES?</span>
-            <h2>Ordinary notes remember the text.<br />Skribly remembers the place.</h2>
-          </div>
-
-          <div class="comparison-table" role="table" aria-label="Skribly comparison">
-            <div class="comparison-row comparison-head" role="row">
-              <span role="columnheader">Capability</span><span role="columnheader">Ordinary sticky notes</span><span role="columnheader">Skribly</span>
-            </div>
-            <div class="comparison-row" role="row"><span>Lives inside arbitrary apps</span><span>—</span><strong>Yes</strong></div>
-            <div class="comparison-row" role="row"><span>Closes into a movable dot</span><span>—</span><strong>Yes</strong></div>
-            <div class="comparison-row" role="row"><span>Returns with working context</span><span>Limited</span><strong>Designed for it</strong></div>
-            <div class="comparison-row" role="row"><span>Local-first attachments</span><span>Varies</span><strong>Yes</strong></div>
-          </div>
-        </section>
-
-        <section class="section-pad pricing-section" id="pricing">
-          <div class="pricing-copy">
-            <span class="section-kicker">FOUNDER ACCESS</span>
-            <h2>Help shape the first useful version.</h2>
-            <p>
-              Founder Alpha is for early Windows users who are comfortable testing a new desktop utility
-              and sharing direct feedback. Mixed-DPI multi-monitor behaviour remains experimental.
-            </p>
-          </div>
-
-          <article class="pricing-card">
-            <div class="pricing-topline">
-              <span>FOUNDER ALPHA</span>
-              <span>WINDOWS</span>
-            </div>
-            <div class="price-line">
-              <span class="currency">₹</span>
-              <strong data-founder-price>499</strong>
-              <small>one time</small>
-            </div>
-            <ul>
-              <li>Founder Alpha Windows licence</li>
-              <li>Early builds and product updates</li>
-              <li>Direct feedback channel</li>
-              <li>Local-first notes and attachments</li>
-            </ul>
-            <a class="button button-dark button-full" data-checkout-link href="#download">
-              Get Founder Access
-            </a>
-            <p class="pricing-note" data-checkout-note>
-              Checkout will open when paid Founder Access is enabled. Public test builds remain available below.
-            </p>
-          </article>
-        </section>
-
-        <section class="download-section section-pad" id="download">
-          <img src="./assets/skribly-icon.svg" alt="Skribly" />
-          <span class="section-kicker">WINDOWS FOUNDER ALPHA</span>
-          <h2>Put your notes where your work happens.</h2>
-          <p data-download-status>
-            Download the latest Windows build from GitHub Releases. Windows may show an unsigned-app warning during Founder Alpha.
+    <main id="top">
+      <section class="hero section-pad">
+        <div class="hero-copy">
+          <p class="overline">Contextual notes for Windows</p>
+          <h1>Notes that stay<br /><em>with your work.</em></h1>
+          <p class="hero-lede">
+            Attach a note to the app where it matters. When you are done writing, Skribly closes it into a small movable dot instead of covering your screen.
           </p>
-          <div class="download-actions">
-            <a class="button button-primary button-large" data-download-link href="#download">
-              Download Skribly for Windows
+          <div class="hero-actions">
+            <a class="button button-dark button-large" data-download-link href="/api/download">
+              <span data-download-label>Download Windows beta</span>
+              <small data-version-label>Windows beta 0.1</small>
             </a>
-            <a class="button button-ghost" data-release-notes-link href="https://github.com/Ankit6149/skribly/releases/latest">
-              Release notes
-            </a>
+            <a class="button button-light button-large" href="#product">Explore the product</a>
           </div>
-          <div class="system-note">
-            <span>Windows 10/11</span>
-            <span>x64 installer</span>
-            <span>Local-first</span>
-          </div>
-        </section>
-      </main>
-
-      <footer class="site-footer">
-        <a class="brand footer-brand" href="#top">
-          <img src="./assets/skribly-icon.svg" alt="" />
-          <span>Skribly</span>
-        </a>
-        <p>Contextual annotations for the software you already use.</p>
-        <div>
-          <a href="https://github.com/Ankit6149/skribly">GitHub</a>
-          <a href="#privacy">Privacy</a>
-          <a href="https://github.com/Ankit6149/skribly/issues" target="_blank" rel="noopener noreferrer">Contact</a>
+          <p class="trial-copy" data-trial-copy>The current beta is free while licence activation is being validated.</p>
         </div>
-        <small>© 2026 Ankit Bhardwaj. Founder Alpha software.</small>
-      </footer>
-    </div>
+
+        <div class="hero-product" id="demo" aria-label="Interactive Skribly product preview">
+          <div class="app-window">
+            <div class="app-titlebar">
+              <span>Project brief — Notepad</span>
+              <span>— □ ×</span>
+            </div>
+            <div class="app-content">
+              <div class="fake-copy wide"></div>
+              <div class="fake-copy medium"></div>
+              <div class="fake-copy short"></div>
+              <div class="fake-copy wide muted-line"></div>
+              <button class="demo-dot" type="button" data-demo-dot="one" aria-label="Open contextual note">
+                <img src="./assets/skribly-icon.svg" alt="" />
+              </button>
+              <article class="demo-note" data-demo-note="one">
+                <header>
+                  <div><small>PROJECT BRIEF</small><strong>Review before export</strong></div>
+                  <button type="button" data-close-demo="one" aria-label="Collapse note">●</button>
+                </header>
+                <p>Confirm the pricing section and customer promise before exporting this version.</p>
+                <footer><span>Attached to Notepad</span><span>1 file</span></footer>
+              </article>
+            </div>
+          </div>
+          <p class="demo-caption">Click the Skribly dot to open the note.</p>
+        </div>
+      </section>
+
+      <section class="difference section-pad" id="product">
+        <div class="section-heading">
+          <p class="overline">Why it exists</p>
+          <h2>Ordinary notes remember text.<br />Skribly remembers context.</h2>
+        </div>
+        <div class="difference-list">
+          <article><span>01</span><div><h3>Place it where the thought belongs</h3><p>Use the global shortcut, choose an open app, and create the note without leaving your workflow.</p></div></article>
+          <article><span>02</span><div><h3>Write without permanently covering the screen</h3><p>Type, draw, or attach a file in the focused editor. Finish the note and it becomes a compact movable dot.</p></div></article>
+          <article><span>03</span><div><h3>Return to the note and its application</h3><p>Saved Skribs helps you find the note again and reconnect to a matching open application without silently guessing.</p></div></article>
+        </div>
+      </section>
+
+      <section class="capabilities section-pad" id="features">
+        <div class="section-heading split-heading">
+          <div><p class="overline">Product capabilities</p><h2>Built for procedural memory.</h2></div>
+          <p>Skribly is useful when the important detail is not only what you wrote, but where you need to remember it.</p>
+        </div>
+        <div class="capability-grid">
+          <article><h3>Application context</h3><p>Notes follow the target window instead of floating over unrelated work.</p></article>
+          <article><h3>Compact note dots</h3><p>Finished notes shrink into movable anchors that preserve screen space.</p></article>
+          <article><h3>Focused writing</h3><p>Use a larger editor for text, drawing, images and local file attachments.</p></article>
+          <article><h3>Local-first storage</h3><p>No mandatory account or cloud connection for normal note use.</p></article>
+          <article><h3>Saved Skribs</h3><p>Review all notes, open their content, and reconnect to matching applications.</p></article>
+          <article><h3>Global shortcut</h3><p>Press Ctrl + Shift + Space while working in another application.</p></article>
+        </div>
+      </section>
+
+      <section class="pricing-section section-pad" id="pricing">
+        <div class="pricing-copy">
+          <p class="overline">Simple desktop software pricing</p>
+          <h2>Try every feature.<br />Pay only if it stays useful.</h2>
+          <p>The paid launch will use a full trial followed by a perpetual personal licence—not a forced monthly subscription.</p>
+        </div>
+        <div class="pricing-panel">
+          <div class="pricing-main">
+            <p class="pricing-label">PERSONAL WINDOWS LICENCE</p>
+            <div class="price-line"><span>₹</span><strong data-launch-price>999</strong><small>one time</small></div>
+            <p class="price-context">Launch price. Planned standard price ₹<span data-standard-price>1499</span>.</p>
+          </div>
+          <ul>
+            <li><span data-trial-days>7</span>-day full trial with no card</li>
+            <li>Permanent use of the purchased version</li>
+            <li><span data-update-months>12</span> months of feature and maintenance updates</li>
+            <li>Optional update pass later—no forced renewal</li>
+          </ul>
+          <div class="pricing-actions">
+            <a class="button button-dark" data-download-link href="/api/download" data-download-label>Download Windows beta</a>
+            <a class="text-link" data-checkout-link href="/api/checkout" aria-disabled="true">Buy licence when checkout opens →</a>
+          </div>
+          <p class="pricing-status">The current beta remains free until licence activation and checkout are tested end to end.</p>
+        </div>
+      </section>
+
+      <section class="privacy-section section-pad" id="privacy">
+        <div>
+          <p class="overline">Local-first by default</p>
+          <h2>Your notes are not an advertising profile.</h2>
+        </div>
+        <div>
+          <p>The Windows beta stores note content and attachments on your computer. The website currently uses no advertising cookies and no behavioural analytics.</p>
+          <a class="text-link" data-privacy-link href="/privacy">Read the privacy policy →</a>
+        </div>
+      </section>
+
+      <section class="comparison section-pad" aria-labelledby="comparison-title">
+        <div class="section-heading">
+          <p class="overline">Skribly versus ordinary sticky notes</p>
+          <h2 id="comparison-title">The difference is placement.</h2>
+        </div>
+        <div class="comparison-table" role="table" aria-label="Comparison between Skribly and ordinary sticky notes">
+          <div class="comparison-row comparison-head" role="row"><span>Capability</span><span>Ordinary sticky notes</span><span>Skribly</span></div>
+          <div class="comparison-row" role="row"><span>Attached to an application window</span><span>Usually no</span><strong>Designed for it</strong></div>
+          <div class="comparison-row" role="row"><span>Collapses into a movable dot</span><span>No</span><strong>Yes</strong></div>
+          <div class="comparison-row" role="row"><span>Returns to matching working context</span><span>Limited</span><strong>Yes</strong></div>
+          <div class="comparison-row" role="row"><span>Works without mandatory cloud sync</span><span>Varies</span><strong>Yes</strong></div>
+        </div>
+      </section>
+
+      <section class="faq section-pad" id="faq">
+        <div class="section-heading"><p class="overline">Questions</p><h2>What people need to know.</h2></div>
+        <div class="faq-list">
+          <details><summary>What is Skribly?</summary><p>Skribly is a contextual notes app for Windows. It attaches notes to application windows, lets them collapse into compact dots, and helps you return to the relevant working context.</p></details>
+          <details><summary>How is it different from Microsoft Sticky Notes?</summary><p>Microsoft Sticky Notes is strong for general note capture and sync. Skribly focuses on in-place application context: notes follow the app, occupy a specific spatial position, and collapse into small movable anchors.</p></details>
+          <details><summary>Can I try Skribly before paying?</summary><p>Yes. The commercial model is a seven-day full trial with no card. During the current beta, the build is free while licence activation is being validated.</p></details>
+          <details><summary>Is Skribly a subscription?</summary><p>No. The planned personal licence is a one-time purchase. It includes permanent use of that version and twelve months of updates. An update pass after that period is optional.</p></details>
+          <details><summary>Where are my notes stored?</summary><p>The current Windows beta stores notes and attachments locally on the computer. See the privacy policy for the precise website and application data practices.</p></details>
+          <details><summary>Does it support macOS?</summary><p>Not yet. The current product is a Windows beta for Windows 10 and Windows 11.</p></details>
+        </div>
+      </section>
+
+      <section class="download-section section-pad" id="download">
+        <img src="./assets/skribly-icon.svg" alt="Skribly" />
+        <p class="overline">Windows beta</p>
+        <h2>Put the reminder where the work happens.</h2>
+        <p data-trial-copy>The current beta is free while licence activation is being validated.</p>
+        <div class="download-actions">
+          <a class="button button-dark button-large" data-download-link href="/api/download" data-download-label>Download Windows beta</a>
+          <a class="button button-light button-large" data-release-notes-link href="/release-notes">Release notes</a>
+        </div>
+        <p class="system-note">Windows 10/11 · x64 · unsigned beta installer</p>
+      </section>
+    </main>
+
+    <footer class="site-footer section-pad">
+      <div><a class="brand" href="#top"><img src="./assets/skribly-icon.svg" alt="" /><span>Skribly</span></a><p>Contextual notes for Windows.</p></div>
+      <nav aria-label="Footer navigation">
+        <a data-privacy-link href="/privacy">Privacy</a>
+        <a data-release-notes-link href="/release-notes">Release notes</a>
+        <a href="/llms.txt">Product facts</a>
+      </nav>
+      <small>© 2026 Ankit Bhardwaj. Windows beta.</small>
+    </footer>
 
     <div class="toast" role="status" aria-live="polite" data-toast></div>
   </body>
