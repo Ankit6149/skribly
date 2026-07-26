@@ -1,0 +1,39 @@
+name: Repository Finalization
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/repository-finalization.yml
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Remove withdrawn installers and extra branches
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          while IFS= read -r tag; do
+            if [ -n "$tag" ]; then
+              gh release delete "$tag" --yes --cleanup-tag || true
+            fi
+          done < <(gh release list --limit 100 --json tagName --jq '.[].tagName')
+
+          while IFS= read -r branch; do
+            if [ -n "$branch" ] && [ "$branch" != "main" ]; then
+              git push origin --delete "$branch" || true
+            fi
+          done < <(git ls-remote --heads origin | awk '{ sub("refs/heads/", "", $2); print $2 }')
