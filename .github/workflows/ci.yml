@@ -1,33 +1,96 @@
 name: CI
 
 on:
+  workflow_dispatch:
   pull_request:
-
-permissions:
-  contents: write
+  push:
+    branches: [main]
 
 jobs:
-  apply-target-binding:
-    name: Apply target binding correction
+  landing-site:
+    name: Landing site validation
     runs-on: ubuntu-latest
     steps:
-      - name: Check out review branch
+      - name: Check out repository
         uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          ref: fix/windows-note-flow-012
-          fetch-depth: 0
+          node-version: 20
 
-      - name: Apply source change
-        run: python tools/fix_bind_target.py
+      - name: Validate static site files and links
+        run: node site/validate.mjs
 
-      - name: Commit source change
-        shell: bash
-        run: |
-          if git diff --quiet; then
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add apps/desktop/src/stores/skribStore.ts
-          git commit -m "fix: preserve active target binding"
-          git push origin HEAD:fix/windows-note-flow-012
+  frontend:
+    name: Cross-platform frontend checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install workspace dependencies
+        run: npm ci
+
+      - name: Type-check all workspaces
+        run: npm run typecheck
+
+      - name: Run frontend tests
+        run: npm run test
+
+      - name: Build production bundles
+        run: npm run build
+
+  cargo-fmt:
+    name: Rust formatting check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - name: Check Rust formatting
+        run: cargo fmt --manifest-path apps/desktop/src-tauri/Cargo.toml --check
+
+  windows-rust:
+    name: Windows native Rust validation
+    runs-on: windows-latest
+    env:
+      SKRIBLY_TRIAL_ENFORCED: "0"
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install workspace dependencies
+        run: npm ci
+
+      - name: Run Windows cargo check
+        run: cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml
+
+      - name: Run Windows cargo tests
+        run: cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -- --test-threads=1
+
+      - name: Check restricted configuration compiles
+        env:
+          SKRIBLY_TRIAL_ENFORCED: "1"
+          SKRIBLY_LICENSE_PUBLIC_KEY: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        run: cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml
