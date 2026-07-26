@@ -53,7 +53,6 @@ interface SkribStoreState {
   skribs: SkribNote[];
   overlayMetrics: OverlayMetrics;
   initStatus: OverlayInitializationStatus;
-  isPickingTarget: boolean;
   isAmbiguous: boolean;
   isTauriAvailable: boolean;
   errorMessage: string | null;
@@ -65,7 +64,6 @@ interface SkribStoreState {
     rect: { x: number; y: number; width: number; height: number } | null
   ) => void;
 
-  setPickingTarget: (picking: boolean) => void;
   clearError: () => void;
   openLibrary: () => Promise<void>;
   closeLibrary: () => void;
@@ -97,7 +95,6 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
   skribs: [],
   overlayMetrics: DEFAULT_METRICS,
   initStatus: { type: 'Initializing' },
-  isPickingTarget: false,
   isAmbiguous: false,
   isTauriAvailable: typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window,
   errorMessage: null,
@@ -107,10 +104,6 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
 
   setActiveInteractionRect: (rect) => {
     set({ activeInteractionRect: rect });
-  },
-
-  setPickingTarget: (picking: boolean) => {
-    set({ isPickingTarget: picking });
   },
 
   clearError: () => {
@@ -172,7 +165,7 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
   },
 
   bindTarget: async (target: TargetWindowInfo | null) => {
-    set({ activeTarget: target, isPickingTarget: false, isAmbiguous: false });
+    set({ activeTarget: target, isAmbiguous: false });
     if (!get().isTauriAvailable) return;
     try {
       const payload = await invoke<OverlayStatePayload>('set_active_target', { target });
@@ -188,7 +181,7 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
     }
   },
 
-  addSkrib: async (text = 'New Sticky Note', color = 'yellow') => {
+  addSkrib: async (text = '', color = 'yellow') => {
     const blocked = writeBlockMessage();
     if (blocked) {
       set({ errorMessage: blocked });
@@ -389,7 +382,6 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
             availableWindows:
               payload.available_windows.length > 0 ? payload.available_windows : get().availableWindows,
             isAmbiguous: payload.is_ambiguous,
-            isPickingTarget: payload.is_ambiguous ? true : get().isPickingTarget,
             overlayMetrics: payload.overlay_metrics || get().overlayMetrics,
             initStatus: payload.init_status || get().initStatus,
           });
@@ -403,7 +395,6 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
             availableWindows:
               payload.available_windows.length > 0 ? payload.available_windows : get().availableWindows,
             isAmbiguous: payload.is_ambiguous,
-            isPickingTarget: payload.active_target ? false : true,
             overlayMetrics: payload.overlay_metrics || get().overlayMetrics,
             initStatus: payload.init_status || get().initStatus,
           });

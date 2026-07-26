@@ -39,7 +39,6 @@ describe('skribStore', () => {
       skribs: [],
       overlayMetrics: DEFAULT_METRICS,
       initStatus: { type: 'Initializing' },
-      isPickingTarget: false,
       isAmbiguous: false,
       isTauriAvailable: false,
       errorMessage: null,
@@ -124,10 +123,10 @@ describe('skribStore', () => {
     expect(useSkribStore.getState().errorMessage).toBe('Your seven-day trial has ended.');
   });
 
-  it('opens target selection when no target is bound', () => {
-    useSkribStore.setState({ activeTarget: null, isPickingTarget: false });
-    useSkribStore.getState().setPickingTarget(true);
-    expect(useSkribStore.getState().isPickingTarget).toBe(true);
+  it('creates a blank note when no initial text is supplied', async () => {
+    await useSkribStore.getState().bindTarget(sampleTarget);
+    await useSkribStore.getState().addSkrib();
+    expect(useSkribStore.getState().skribs[0]!.text).toBe('');
   });
 
   it('does not create a feedback error when hit-test sync is skipped outside Tauri', async () => {
