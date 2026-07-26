@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { SkribNote, TargetWindowInfo, calculateNoteClientLogicalPosition } from '../../lib/geometry';
-import { countNoteAttachments, deleteRichContent } from '../../lib/richContentStore';
 import { useLicenseStore } from '../../stores/licenseStore';
 import { useSkribStore } from '../../stores/skribStore';
 import { useSkribUiStore } from '../../stores/skribUiStore';
@@ -17,30 +16,14 @@ interface DraftGeometry {
   height: number;
 }
 
-const COLOR_OPTIONS: SkribNote['color'][] = ['yellow', 'peach', 'mint', 'sky', 'lavender'];
-
 export const SkribNoteCard: React.FC<SkribNoteCardProps> = ({ note, target }) => {
-  const {
-    overlayMetrics,
-    updateSkribPosition,
-    updateSkribColor,
-    deleteSkrib,
-    setActiveInteractionRect,
-  } = useSkribStore();
+  const { overlayMetrics, updateSkribPosition, deleteSkrib, setActiveInteractionRect } = useSkribStore();
   const licenseStatus = useLicenseStore((state) => state.status);
   const canWrite = !licenseStatus.enforcementEnabled || licenseStatus.canWrite;
-  const {
-    previewNoteId,
-    composerNoteId,
-    openPreview,
-    closePreview,
-    openComposer,
-  } = useSkribUiStore();
+  const { previewNoteId, composerNoteId, openPreview, closePreview, openComposer } = useSkribUiStore();
 
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
-  const [showColorPicker, setShowColorPicker] = useState(false);
-  const [attachmentCount, setAttachmentCount] = useState(0);
   const [draftGeometry, setDraftGeometryState] = useState<DraftGeometry>({
     relX: note.rel_x,
     relY: note.rel_y,
@@ -69,13 +52,7 @@ export const SkribNoteCard: React.FC<SkribNoteCardProps> = ({ note, target }) =>
       width: note.width,
       height: note.height,
     });
-  }, [isDragging, isResizing, note.rel_x, note.rel_y, note.width, note.height, setDraftGeometry]);
-
-  useEffect(() => {
-    void countNoteAttachments(note.id)
-      .then(setAttachmentCount)
-      .catch(() => setAttachmentCount(0));
-  }, [note.id, isComposerOpen]);
+  }, [isDragging, isResizing, note.height, note.rel_x, note.rel_y, note.width, setDraftGeometry]);
 
   useEffect(() => {
     return () => {
@@ -110,7 +87,7 @@ export const SkribNoteCard: React.FC<SkribNoteCardProps> = ({ note, target }) =>
   useEffect(() => {
     if (!isDragging) return;
 
-    const calculateDraggedGeometry = (clientX: number, clientY: number): DraftGeometry => {
+    const nextGeometry = (clientX: number, clientY: number): DraftGeometry => {
       const deltaX = clientX - dragStartRef.current.mouseX;
       const deltaY = clientY - dragStartRef.current.mouseY;
       if (Math.abs(deltaX) + Math.abs(deltaY) > 4) dragMovedRef.current = true;
@@ -124,7 +101,7 @@ export const SkribNoteCard: React.FC<SkribNoteCardProps> = ({ note, target }) =>
     const handleMouseMove = (event: MouseEvent) => {
       if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
       rafIdRef.current = requestAnimationFrame(() => {
-        const next = calculateDraggedGeometry(event.clientX, event.clientY);
+        const next = nextGeometry(event.clientX, event.clientY);
         setDraftGeometry(next);
         const position = target
           ? calculateNoteClientLogicalPosition(target.bounds, overlayMetrics, next.relX, next.relY)
@@ -132,8 +109,8 @@ export const SkribNoteCard: React.FC<SkribNoteCardProps> = ({ note, target }) =>
         setActiveInteractionRect({
           x: position.x,
           y: position.y,
-          width: isPreviewOpen ? Math.round(next.width) : 30,
-          height: isPreviewOpen ? Math.round(next.height) : 30,
+          width: isPreviewOpen ? Math.round(next.width) : 34,
+          height: isPreviewOpen ? Math.round(next.height) : 34,
         });
       });
     };
@@ -141,7 +118,7 @@ export const SkribNoteCard: React.FC<SkribNoteCardProps> = ({ note, target }) =>
     const handleMouseUp = (event: MouseEvent) => {
       if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
       rafIdRef.current = null;
-      const finalGeometry = calculateDraggedGeometry(event.clientX, event.clientY);
+      const finalGeometry = nextGeometry(event.clientX, event.clientY);
       setDraftGeometry(finalGeometry);
       setIsDragging(false);
       setActiveInteractionRect(null);
@@ -178,16 +155,16 @@ export const SkribNoteCard: React.FC<SkribNoteCardProps> = ({ note, target }) =>
   useEffect(() => {
     if (!isResizing) return;
 
-    const calculateResizedGeometry = (clientX: number, clientY: number): DraftGeometry => ({
+    const nextGeometry = (clientX: number, clientY: number): DraftGeometry => ({
       ...draftGeometryRef.current,
-      width: Math.max(260, resizeStartRef.current.startW + clientX - resizeStartRef.current.mouseX),
+      width: Math.max(280, resizeStartRef.current.startW + clientX - resizeStartRef.current.mouseX),
       height: Math.max(170, resizeStartRef.current.startH + clientY - resizeStartRef.current.mouseY),
     });
 
     const handleMouseMove = (event: MouseEvent) => {
       if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
       rafIdRef.current = requestAnimationFrame(() => {
-        const next = calculateResizedGeometry(event.clientX, event.clientY);
+        const next = nextGeometry(event.clientX, event.clientY);
         setDraftGeometry(next);
         setActiveInteractionRect({
           x: clientPos.x,
@@ -201,7 +178,7 @@ export const SkribNoteCard: React.FC<SkribNoteCardProps> = ({ note, target }) =>
     const handleMouseUp = (event: MouseEvent) => {
       if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
       rafIdRef.current = null;
-      const finalGeometry = calculateResizedGeometry(event.clientX, event.clientY);
+      const finalGeometry = nextGeometry(event.clientX, event.clientY);
       setDraftGeometry(finalGeometry);
       setIsResizing(false);
       setActiveInteractionRect(null);
@@ -222,26 +199,17 @@ export const SkribNoteCard: React.FC<SkribNoteCardProps> = ({ note, target }) =>
     };
   }, [clientPos.x, clientPos.y, isResizing, note.id, setActiveInteractionRect, setDraftGeometry, updateSkribPosition]);
 
-  const openFromDot = async () => {
+  const openFromDot = () => {
     if (dragMovedRef.current) {
       dragMovedRef.current = false;
       return;
     }
-    const count = await countNoteAttachments(note.id).catch(() => 0);
-    setAttachmentCount(count);
-    if (note.text.length > 280 || count > 0) {
-      openComposer(note.id, count > 0 ? 'write' : 'type');
-    } else {
-      openPreview(note.id);
-    }
+    openPreview(note.id);
   };
 
   const handleDelete = async () => {
     closePreview();
     await deleteSkrib(note.id);
-    const noteStillExists = useSkribStore.getState().skribs.some((item) => item.id === note.id);
-    if (noteStillExists) return;
-    await deleteRichContent(note.id).catch(() => undefined);
   };
 
   if (isComposerOpen) return null;
@@ -253,12 +221,11 @@ export const SkribNoteCard: React.FC<SkribNoteCardProps> = ({ note, target }) =>
         className={`skrib-dot skrib-color-${note.color} ${isDragging ? 'is-dragging' : ''}`}
         style={{ position: 'absolute', left: `${clientPos.x}px`, top: `${clientPos.y}px` }}
         onMouseDown={beginDrag}
-        onClick={() => void openFromDot()}
-        aria-label={`Open Skrib: ${note.text.slice(0, 60) || 'empty note'}`}
-        title={note.text.trim().slice(0, 120) || 'Open Skrib'}
+        onClick={openFromDot}
+        aria-label={`Open attached note: ${note.text.slice(0, 60) || 'empty note'}`}
+        title={note.text.trim().slice(0, 120) || 'Open note'}
       >
         <span className="skrib-dot-core" aria-hidden="true">✎</span>
-        {attachmentCount > 0 && <span className="skrib-dot-badge">{attachmentCount}</span>}
       </button>
     );
   }
@@ -276,42 +243,21 @@ export const SkribNoteCard: React.FC<SkribNoteCardProps> = ({ note, target }) =>
     >
       <header className="skrib-preview-header" onMouseDown={beginDrag}>
         <div>
-          <span className="skrib-preview-kicker">{target?.process_name || note.target_process_name || 'CONTEXT NOTE'}</span>
-          <strong>{target?.title || note.target_title || 'Skrib'}</strong>
+          <span className="skrib-preview-kicker">ATTACHED NOTE</span>
+          <strong>{target?.title || note.target_title || note.target_process_name || 'Current application'}</strong>
         </div>
         <div className="skrib-preview-actions">
-          <button type="button" onClick={() => openComposer(note.id, attachmentCount > 0 ? 'write' : 'type')} title={canWrite ? 'Edit full note' : 'View full note'}>{canWrite ? 'Edit' : 'View'}</button>
-          <button type="button" onClick={closePreview} title="Turn into dot">●</button>
+          <button type="button" onClick={() => openComposer(note.id, 'type')}>Edit</button>
+          <button type="button" onClick={closePreview} title="Close into a small note tab">●</button>
           <button type="button" disabled={!canWrite} onClick={() => void handleDelete()} title="Delete note">✕</button>
         </div>
       </header>
 
       <button type="button" className="skrib-preview-body" onClick={() => openComposer(note.id, 'type')}>
-        <p>{note.text || 'Click to open this note.'}</p>
-        {attachmentCount > 0 && <span>{attachmentCount} attachment{attachmentCount === 1 ? '' : 's'}</span>}
+        <p>{note.text || 'Click to write this note.'}</p>
       </button>
 
       <footer className="skrib-preview-footer">
-        <div className="skrib-preview-colors">
-          <button type="button" disabled={!canWrite} onClick={() => setShowColorPicker((value) => !value)} title="Change colour">◐</button>
-          {showColorPicker && canWrite && (
-            <div className="skrib-preview-color-menu">
-              {COLOR_OPTIONS.map((color) => (
-                <button
-                  key={color}
-                  type="button"
-                  className={`composer-color skrib-color-${color} ${note.color === color ? 'active' : ''}`}
-                  onClick={() => {
-                    void updateSkribColor(note.id, color);
-                    setShowColorPicker(false);
-                  }}
-                  aria-label={`Use ${color}`}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-        <span>{canWrite ? 'Click the note to open the focused editor' : 'Read-only · click to view the full note'}</span>
         <span className="skrib-resize-handle" aria-disabled={!canWrite} onMouseDown={beginResize}>◢</span>
       </footer>
     </article>

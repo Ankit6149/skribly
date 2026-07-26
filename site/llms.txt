@@ -1,53 +1,46 @@
 # Skribli
 
-Skribli is a local-first contextual notes application for Windows 10 and Windows 11.
+Skribli is a local-first contextual notes application for Windows 10 and Windows 11 currently in active production development.
 
 ## Core product
 
-- Notes attach to an open application window.
-- Finished notes collapse into small movable dots instead of permanently covering the screen.
-- Clicking a dot opens a compact preview or a larger focused editor.
-- The editor supports typed text, drawing, images and small local file attachments.
-- Saved Skribs lists notes and can reconnect a note to a matching open application.
-- The global shortcut is Ctrl + Shift + Space.
-- The current beta does not require an account or cloud sync for normal note use.
+- Focus the application where the note belongs.
+- Press Ctrl + Shift + Space.
+- Skribli attaches one note to the foreground application automatically.
+- Write immediately in a small paper-like editor.
+- Close the note into a compact attached tab.
+- Empty overlay space must remain click-through.
+- The application runs quietly from the Windows system tray.
+- Normal note use is designed not to require an account or cloud sync.
 
 ## Difference from ordinary sticky notes
 
-Ordinary sticky notes mainly preserve text in standalone note windows. Skribli is designed around spatial and application context: the note follows the application, retains a relative position, collapses into a compact anchor, and can help the user return to the matching app.
+Ordinary sticky notes mainly preserve text in standalone note windows. Skribli is designed around application context: a note belongs to the software where it is useful and returns with that context.
 
 ## Availability
 
-- Platform: Windows beta
-- Supported operating systems: Windows 10 and Windows 11, x64
-- macOS: not yet available
+- Platform under active development: Windows 10 and Windows 11, x64
+- Public downloads: paused
+- macOS: not available
 - Website: https://skribly-desktop.vercel.app/
-- Download endpoint: https://skribly-desktop.vercel.app/api/download
-- Release notes: https://skribly-desktop.vercel.app/release-notes
+- Production notes: https://skribly-desktop.vercel.app/release-notes
 - Privacy policy: https://skribly-desktop.vercel.app/privacy
+- FAQ: https://skribly-desktop.vercel.app/answers
 
-## Pricing plan
+## Current production work
 
-The planned commercial model is:
+The previous Windows beta has been withdrawn while the following behaviour is rebuilt and validated:
 
-- seven-day full trial with no card;
-- ₹999 one-time personal launch licence;
-- permanent use of the purchased version;
-- twelve months of updates included;
-- optional update pass after the included update period;
-- no forced monthly subscription.
+- no release terminal window;
+- no permanent floating toolbar or saved-notes widget;
+- automatic foreground-app attachment from the shortcut;
+- selective click-through outside note and editor bounds;
+- clear save, close, hide, delete, and quit controls;
+- natural note-taking typography;
+- installer icons regenerated from the approved Skribli brand asset.
 
-The current beta remains free until licence activation and paid checkout are validated end to end.
+No public installer should be presented until these native Windows runtime checks pass.
 
 ## Privacy
 
-The Windows beta stores note data and attachments locally. The public website currently uses no advertising cookies and no behavioural analytics. Paid checkout is not active yet.
-
-## Known limitations
-
-- unsigned beta installer;
-- mixed-DPI multi-monitor behaviour remains experimental;
-- no browser DOM anchoring;
-- no cloud sync;
-- no macOS build;
-- licence activation is not yet enabled.
+Skribli is designed to store note data locally. The public website currently uses no advertising cookies or behavioural analytics. Public installer delivery is disabled during the production rebuild.

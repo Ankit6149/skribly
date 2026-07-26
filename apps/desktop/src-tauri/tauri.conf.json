@@ -16,10 +16,11 @@
         "title": "Skribli",
         "width": 1280,
         "height": 800,
-        "visible": true,
+        "visible": false,
         "decorations": false,
         "transparent": true,
         "alwaysOnTop": true,
+        "skipTaskbar": true,
         "shadow": false
       }
     ],
@@ -38,7 +39,7 @@
     ],
     "category": "Productivity",
     "shortDescription": "Contextual notes that live inside your applications.",
-    "longDescription": "Skribli is a local-first contextual annotation layer for Windows. Place notes inside an application, close them into compact movable dots, and return to them with the same working context.",
+    "longDescription": "Skribli is a local-first contextual note layer for Windows. Press the shortcut, write one attached note, and return to it with the same application context.",
     "copyright": "Copyright © 2026 Ankit Bhardwaj"
   }
 }

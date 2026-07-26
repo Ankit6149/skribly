@@ -3,13 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Skribli Windows beta release notes, current features, known limitations and installation information." />
+    <meta name="description" content="Skribli production notes: what is being rebuilt, what has been withdrawn, and what must pass before the next Windows release." />
     <meta name="robots" content="index,follow" />
     <link rel="canonical" href="https://skribly-desktop.vercel.app/release-notes" />
-    <meta property="og:title" content="Skribli Windows Beta Release Notes" />
-    <meta property="og:description" content="What is included in Skribli beta 0.1 and what remains experimental." />
+    <meta property="og:title" content="Skribli Production Notes" />
+    <meta property="og:description" content="The previous Windows beta is withdrawn while native interaction and installer behaviour are rebuilt." />
     <meta property="og:url" content="https://skribly-desktop.vercel.app/release-notes" />
-    <title>Release Notes — Skribli</title>
+    <title>Production Notes — Skribli</title>
     <link rel="icon" href="./assets/skribly-icon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="./styles.css" />
     <link rel="stylesheet" href="./ux-polish.css" />
@@ -17,57 +17,47 @@
   <body>
     <header class="site-header is-scrolled">
       <a class="brand" href="/"><img src="./assets/skribly-icon.svg" alt="" /><span>Skribli</span></a>
-      <nav class="desktop-nav" aria-label="Release navigation"><a href="/">Product</a><a href="/privacy">Privacy</a></nav>
-      <a class="button button-dark button-small" href="/api/download">Download beta</a>
+      <nav class="desktop-nav" aria-label="Production navigation"><a href="/">Product</a><a href="/privacy">Privacy</a><a href="/answers">FAQ</a></nav>
+      <a class="button button-dark button-small" aria-disabled="true">App in production</a>
     </header>
 
     <main class="legal-page">
       <article class="legal-shell">
-        <p class="overline">Windows beta 0.1</p>
-        <h1>Release notes</h1>
-        <p class="legal-intro">This is an early Windows build intended for focused testing. It demonstrates the complete Skribli interaction—contextual note, compact dot, focused editor and saved-note recovery—while some native edge cases remain under validation.</p>
+        <p class="overline">Active production development</p>
+        <h1>Production notes</h1>
+        <p class="legal-intro">The previous Windows beta has been withdrawn. Public downloads are paused while the native application is simplified and verified against real Windows behaviour.</p>
 
         <section>
-          <h2>Included in beta 0.1</h2>
+          <h2>What is being removed</h2>
           <ul>
-            <li>Attach a Skrib to an open Windows application.</li>
-            <li>Create text notes using a focused editor.</li>
-            <li>Switch to Write mode for mouse, touch or stylus drawing.</li>
-            <li>Add local images and small file attachments.</li>
-            <li>Close a completed note into a compact movable dot.</li>
-            <li>Open small notes as previews and larger notes in the composer.</li>
-            <li>Use Saved Skribs to review notes and reconnect to matching open applications.</li>
-            <li>Use Ctrl + Shift + Space as the global shortcut.</li>
-            <li>Keep text notes across application restarts.</li>
-            <li>Use the tray menu to show Skribli, create a note, open saved notes or quit.</li>
+            <li>The permanent floating toolbar.</li>
+            <li>The first-run onboarding tour.</li>
+            <li>The manual target-selection workflow during normal shortcut use.</li>
+            <li>The saved-notes widget floating over other applications.</li>
+            <li>Any public installer that opens a terminal or blocks unrelated screen interaction.</li>
           </ul>
         </section>
 
         <section>
-          <h2>Known limitations</h2>
+          <h2>What the next build must do</h2>
           <ul>
-            <li>The installer is currently unsigned, so Windows SmartScreen may display a warning.</li>
-            <li>Mixed-DPI multi-monitor behaviour is experimental.</li>
-            <li>macOS is not available.</li>
-            <li>Exact browser URL or DOM-element anchoring is not included.</li>
-            <li>Attachments are stored locally in the WebView profile and are not yet part of a portable export.</li>
-            <li>Licence activation and paid checkout are not active in this beta.</li>
+            <li>Start quietly in the system tray without a console window.</li>
+            <li>Create one note for the foreground application with Ctrl + Shift + Space.</li>
+            <li>Keep empty overlay space click-through.</li>
+            <li>Provide clear save, close, hide, delete, and quit controls.</li>
+            <li>Use a natural paper-note typography treatment.</li>
+            <li>Regenerate every installer icon from the approved Skribli branding asset.</li>
           </ul>
         </section>
 
         <section>
-          <h2>Commercial launch plan</h2>
-          <p>The planned personal licence uses a seven-day full trial followed by a ₹999 one-time launch price. The purchased version remains usable permanently and includes twelve months of updates. Any update pass after that period will be optional.</p>
+          <h2>Why downloads are paused</h2>
+          <p>A release should not be public merely because it compiles. The next installer will be published only after native Windows runtime checks confirm that it behaves safely across real application windows and display configurations.</p>
         </section>
 
-        <section>
-          <h2>Installation</h2>
-          <p>Download the Windows x64 installer from the Skribli website. The same-site download route resolves the current validated installer without sending customers through the source repository.</p>
-        </section>
-
-        <nav class="legal-nav" aria-label="Release page links">
-          <a class="button button-dark" href="/api/download">Download beta</a>
-          <a class="button button-light" href="/">Back to product</a>
+        <nav class="legal-nav" aria-label="Production page links">
+          <a class="button button-dark" href="/">Back to product</a>
+          <a class="button button-light" href="/answers">Read the FAQ</a>
         </nav>
       </article>
     </main>

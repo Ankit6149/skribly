@@ -1,8 +1,15 @@
 # Skribli Landing Site
 
-This directory contains the public Skribli product website.
+This directory contains the Skribli product website. It uses plain HTML, CSS, JavaScript, and Vercel serverless routes so it remains independent from the Tauri desktop build.
 
-It is intentionally plain HTML, CSS, and JavaScript so the desktop workspace, package lock, and Tauri build remain independent.
+## Current state
+
+Skribli is in **active production development**. Installer access is disabled.
+
+- Every visible download control is rendered as disabled.
+- `/api/download` redirects to `/download-unavailable?reason=production` and never resolves a release asset.
+- The status page explains why the previous beta was withdrawn.
+- No customer journey should send visitors to the source repository or a release file.
 
 ## Local preview
 
@@ -12,17 +19,13 @@ From the repository root:
 python -m http.server 4173 --directory site
 ```
 
-Then open:
+Then open `http://localhost:4173`.
 
-```text
-http://localhost:4173
-```
-
-Do not open `index.html` directly from the filesystem when testing redirects or the future entitlement endpoint.
+Serverless routes require a Vercel preview or local Vercel runtime; a plain static server cannot execute `/api/*` handlers.
 
 ## Vercel deployment
 
-Create a Vercel project from the same GitHub repository and set:
+Create a Vercel project from the same repository and set:
 
 - **Root Directory:** `site`
 - **Framework Preset:** Other
@@ -32,63 +35,16 @@ Create a Vercel project from the same GitHub repository and set:
 
 `site/vercel.json` supplies security headers and clean URLs.
 
-## Public installer downloads
+## Re-enabling downloads later
 
-The current site uses:
+Do not restore installer delivery until all of the following are true:
 
-```js
-download.mode = 'public_release'
-```
+1. the release executable opens without a terminal window;
+2. empty overlay space remains click-through on Windows 10 and 11;
+3. `Ctrl + Shift + Space` attaches exactly one note to the foreground app;
+4. Show, Hide, Quit, save, close, and delete behaviour pass runtime checks;
+5. the approved icon is regenerated into every Tauri bundle size;
+6. CI, installer build, install, upgrade, and uninstall tests pass;
+7. the website copy, release notes, privacy page, and checksum match the exact build.
 
-Every download button links to:
-
-```text
-https://github.com/Ankit6149/skribly/releases/latest
-```
-
-The workflow `.github/workflows/release.yml` publishes NSIS and MSI files when a version tag such as `v0.1.0` is pushed.
-
-Before publishing a tag:
-
-1. confirm the exact commit passes CI;
-2. run the Windows runtime acceptance test;
-3. install and uninstall both installer formats;
-4. update version numbers consistently;
-5. create and push the version tag.
-
-## Future paid checkout
-
-All public checkout configuration lives in:
-
-```text
-site/commerce-config.js
-```
-
-The payment and entitlement architecture is documented in:
-
-```text
-docs/08-commerce/PAYMENTS_ARCHITECTURE.md
-```
-
-Do not put provider secrets in the site directory.
-
-Paid mode must not be enabled until:
-
-- a server-side checkout or hosted checkout exists;
-- signed webhooks are verified;
-- an entitlement store exists;
-- `/api/entitlement` verifies the payment server-to-server;
-- gated installers are stored privately;
-- privacy, terms, limitations, and refund documents are published;
-- a real sandbox purchase and refund flow passes end to end.
-
-## Product copy constraints
-
-Keep claims honest:
-
-- Windows Founder Alpha, not production-ready software;
-- mixed-DPI multi-monitor support is experimental;
-- no macOS download until a real macOS build exists;
-- no cloud-sync claim;
-- no claim that source-code implementation equals Windows runtime proof;
-- local-first attachments currently belong to the local WebView profile.
+Configuration lives in `site/commerce-config.js`. Never place provider secrets or release credentials in the site directory.

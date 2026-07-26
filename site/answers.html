@@ -3,14 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta
-      name="description"
-      content="Clear answers about Skribli: what it is, how contextual notes work, privacy, Windows support, the free beta, planned trial and one-time pricing."
-    />
+    <meta name="description" content="Clear answers about Skribli, contextual notes, privacy, Windows support, and the current production rebuild." />
     <meta name="robots" content="index,follow,max-snippet:-1" />
     <link rel="canonical" href="https://skribly-desktop.vercel.app/answers" />
     <meta property="og:title" content="Skribli Answers — Contextual notes for Windows" />
-    <meta property="og:description" content="Frequently asked questions about Skribli, its Windows beta, privacy, contextual notes and planned one-time licence." />
+    <meta property="og:description" content="Frequently asked questions about Skribli, privacy, contextual notes, Windows support, and current production status." />
     <meta property="og:url" content="https://skribly-desktop.vercel.app/answers" />
     <title>Answers and FAQ — Skribli</title>
     <link rel="icon" href="./assets/skribly-icon.svg" type="image/svg+xml" />
@@ -26,15 +23,15 @@
             "name": "What is Skribli?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Skribli is a local-first contextual notes app for Windows. A Skrib can stay associated with an application window, collapse into a small movable dot, and reopen when you need the note again."
+              "text": "Skribli is a local-first contextual notes app for Windows. Press a shortcut, write a note, and keep it associated with the application where it belongs."
             }
           },
           {
             "@type": "Question",
-            "name": "How is Skribli different from Microsoft Sticky Notes?",
+            "name": "How is Skribli different from ordinary sticky notes?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Skribli is designed as a spatial annotation layer over other applications. Notes follow their working context and can collapse into compact dots instead of remaining as full note windows."
+              "text": "Skribli is designed around application context. A note can stay attached to the foreground app and close into a compact tab instead of remaining as a separate notes window."
             }
           },
           {
@@ -42,23 +39,15 @@
             "name": "Does Skribli upload my notes?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "The current Windows beta stores note text, positions, drawings and attachments locally on the computer. Normal note use does not require a Skribli account or cloud service."
+              "text": "The core Windows experience is local-first and does not require an account, cloud sync, or screen recording."
             }
           },
           {
             "@type": "Question",
-            "name": "Can I try Skribli before paying?",
+            "name": "Can I download Skribli now?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Yes. The current Windows beta is free while licence activation is validated. The planned paid version includes a seven-day full trial with no card required."
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "How much will Skribli cost?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "The planned launch price is ₹999 as a one-time personal Windows licence. It includes permanent use of the purchased version and twelve months of updates. Any later update pass is optional."
+              "text": "No. Public downloads are paused while the Windows application is rebuilt and validated."
             }
           }
         ]
@@ -68,59 +57,49 @@
   <body>
     <header class="site-header is-scrolled">
       <a class="brand" href="/"><img src="./assets/skribly-icon.svg" alt="" /><span>Skribli</span></a>
-      <nav class="desktop-nav" aria-label="Answers navigation"><a href="/">Product</a><a href="/privacy">Privacy</a><a href="/release-notes">Release notes</a></nav>
-      <a class="button button-dark button-small" href="/api/download">Download beta</a>
+      <nav class="desktop-nav" aria-label="Answers navigation"><a href="/">Product</a><a href="/privacy">Privacy</a><a href="/release-notes">Production notes</a></nav>
+      <a class="button button-dark button-small" aria-disabled="true">App in production</a>
     </header>
 
     <main class="legal-page">
       <article class="legal-shell">
         <p class="overline">Skribli answers</p>
         <h1>Contextual notes, clearly explained.</h1>
-        <p class="legal-intro">Direct answers for people, search engines and AI assistants evaluating Skribli.</p>
+        <p class="legal-intro">Direct answers about the intended product and its current production status.</p>
 
         <section>
           <h2>What is Skribli?</h2>
-          <p>Skribli is a local-first contextual notes app for Windows. It lets you attach a note to an application window, keep it near the part of your workflow where it matters, and close it into a compact movable dot when you do not need the full note.</p>
+          <p>Skribli is a local-first contextual notes app for Windows. The intended flow is simple: focus the application where a thought belongs, press Ctrl + Shift + Space, write immediately, and close the note into a small attached tab.</p>
         </section>
 
         <section>
           <h2>What problem does it solve?</h2>
-          <p>Ordinary notes remember text but often lose the surrounding situation. Skribli preserves more of the working context, so a deployment reminder can stay with a development tool, an export checklist can stay with a design app, and study guidance can stay with the software being used.</p>
+          <p>Ordinary notes remember text but often lose the surrounding situation. Skribli is designed to preserve application context so a reminder stays with the software where it is useful.</p>
         </section>
 
         <section>
-          <h2>How is it different from Microsoft Sticky Notes?</h2>
-          <p>Microsoft Sticky Notes is strong for general note capture and Microsoft account sync. Skribli focuses on spatial and application context: notes can follow an external app window, become small dots, and act like private annotations over software rather than a separate notes list.</p>
-        </section>
-
-        <section>
-          <h2>What can a Skrib contain?</h2>
-          <p>The Windows beta supports typed text, a larger Write mode for mouse, touch or stylus drawing, local images and small file attachments, colours, previews, movable dots and a Saved Skribs recovery widget.</p>
+          <h2>Why is there no app picker or permanent toolbar?</h2>
+          <p>The production rebuild removes unnecessary floating controls. The shortcut should use the foreground application automatically, and empty overlay space must remain click-through.</p>
         </section>
 
         <section>
           <h2>Is Skribli private?</h2>
-          <p>The current beta stores notes and attachments locally on the Windows computer and does not require a Skribli account. It reads limited open-window information locally so it can position and reconnect notes. See the full <a href="/privacy">privacy policy</a>.</p>
+          <p>The core Windows experience is local-first and does not require an account, cloud sync, or screen recording. Skribli reads limited local window information only to identify and position the attached note. See the full <a href="/privacy">privacy policy</a>.</p>
         </section>
 
         <section>
-          <h2>Can I try it for free?</h2>
-          <p>Yes. The current Windows beta is free while licence activation is being validated. The planned paid release uses a seven-day full trial without requiring a payment card.</p>
+          <h2>Can I download it now?</h2>
+          <p>No. Public downloads are paused while the native overlay, shortcut flow, click-through behaviour, close controls, typography, and installer are rebuilt and validated.</p>
         </section>
 
         <section>
-          <h2>What is the planned price?</h2>
-          <p>The planned launch price is ₹999 as a one-time personal Windows licence. The purchased version remains usable permanently and includes twelve months of feature and maintenance updates. Any update pass after that is optional rather than a forced subscription.</p>
-        </section>
-
-        <section>
-          <h2>Which systems are supported?</h2>
-          <p>The current beta supports Windows 10 and Windows 11 on x64 computers. macOS is not available yet, and mixed-DPI multi-monitor behaviour remains experimental.</p>
+          <h2>Which systems are planned?</h2>
+          <p>The current production work targets Windows 10 and Windows 11 on x64 computers. macOS is not available.</p>
         </section>
 
         <nav class="legal-nav" aria-label="Answer page links">
-          <a class="button button-dark" href="/api/download">Download Windows beta</a>
-          <a class="button button-light" href="/">Back to Skribli</a>
+          <a class="button button-dark" href="/">Back to Skribli</a>
+          <a class="button button-light" href="/release-notes">Read production notes</a>
         </nav>
       </article>
     </main>

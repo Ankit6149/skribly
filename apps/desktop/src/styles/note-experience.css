@@ -1,0 +1,328 @@
+/* The desktop UI stays invisible until a note is requested. */
+:root {
+  --skribli-ui-font: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  --skribli-note-font: "Segoe Print", "Bradley Hand", "Comic Sans MS", cursive;
+  --skribli-ink: #25251f;
+  --skribli-paper: #fff4a8;
+  --skribli-paper-edge: #e1c85e;
+}
+
+body {
+  font-family: var(--skribli-ui-font);
+}
+
+.overlay-root {
+  pointer-events: none;
+}
+
+.overlay-error-toast,
+.overlay-init-failure-banner {
+  pointer-events: auto;
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  top: auto;
+  right: auto;
+  transform: translateX(-50%);
+  max-width: min(460px, calc(100vw - 32px));
+  border: 1px solid rgb(37 37 31 / 14%);
+  border-radius: 14px;
+  background: #fffdf4;
+  color: var(--skribli-ink);
+  box-shadow: 0 18px 45px rgb(37 37 31 / 18%);
+}
+
+.overlay-init-failure-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+}
+
+.overlay-init-failure-banner p {
+  margin: 0;
+}
+
+.overlay-error-toast button,
+.overlay-init-failure-banner button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.skrib-dot {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  pointer-events: auto;
+  z-index: 350;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgb(37 37 31 / 18%);
+  border-radius: 8px 8px 14px 8px;
+  background: var(--skribli-paper);
+  box-shadow: 0 6px 16px rgb(37 37 31 / 16%);
+  cursor: grab;
+  transition: transform 140ms ease, box-shadow 140ms ease;
+}
+
+.skrib-dot:hover {
+  transform: translateY(-2px) rotate(-1deg);
+  box-shadow: 0 10px 24px rgb(37 37 31 / 20%);
+}
+
+.skrib-dot.is-dragging {
+  cursor: grabbing;
+  transform: rotate(2deg) scale(1.04);
+}
+
+.skrib-dot-core {
+  font-family: var(--skribli-note-font);
+  font-size: 16px;
+  font-weight: 700;
+  color: rgb(37 37 31 / 72%);
+}
+
+.skrib-preview-card {
+  pointer-events: auto;
+  z-index: 500;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgb(37 37 31 / 15%);
+  border-radius: 12px 12px 24px 12px;
+  box-shadow: 0 18px 44px rgb(37 37 31 / 22%);
+  color: var(--skribli-ink);
+}
+
+.skrib-preview-header {
+  min-height: 44px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px dashed rgb(37 37 31 / 16%);
+  cursor: grab;
+}
+
+.skrib-preview-header strong {
+  display: block;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.skrib-preview-kicker {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  opacity: .48;
+}
+
+.skrib-preview-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.skrib-preview-actions button,
+.skrib-preview-footer button {
+  border: 0;
+  border-radius: 8px;
+  background: rgb(255 255 255 / 42%);
+  padding: 5px 7px;
+  color: inherit;
+  cursor: pointer;
+  font-family: var(--skribli-ui-font);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.skrib-preview-body {
+  flex: 1;
+  width: 100%;
+  min-height: 108px;
+  padding: 16px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: text;
+}
+
+.skrib-preview-body p {
+  margin: 0;
+  white-space: pre-wrap;
+  user-select: text;
+  font-family: var(--skribli-note-font);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.skrib-preview-footer {
+  min-height: 30px;
+  padding: 5px 9px 8px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  color: rgb(37 37 31 / 48%);
+  font-size: 9px;
+}
+
+.skrib-resize-handle {
+  cursor: se-resize;
+}
+
+.skrib-composer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 14000;
+  pointer-events: none;
+}
+
+.skrib-composer {
+  position: absolute;
+  top: 72px;
+  right: 72px;
+  width: min(390px, calc(100vw - 48px));
+  min-height: 300px;
+  max-height: calc(100vh - 120px);
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgb(37 37 31 / 16%);
+  border-radius: 14px 14px 30px 14px;
+  box-shadow: 0 28px 80px rgb(37 37 31 / 26%);
+  color: var(--skribli-ink);
+}
+
+.composer-header {
+  padding: 12px 14px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px dashed rgb(37 37 31 / 16%);
+}
+
+.composer-context {
+  min-width: 0;
+}
+
+.composer-context strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.composer-kicker {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  opacity: .48;
+}
+
+.composer-close {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 42%);
+  color: inherit;
+  cursor: pointer;
+}
+
+.composer-textarea {
+  flex: 1;
+  width: 100%;
+  min-height: 220px;
+  padding: 20px;
+  resize: none;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--skribli-ink);
+  font-family: var(--skribli-note-font);
+  font-size: 17px;
+  line-height: 1.62;
+  user-select: text;
+}
+
+.composer-textarea::placeholder {
+  color: rgb(37 37 31 / 38%);
+}
+
+.composer-error {
+  margin: 10px 14px 0;
+  padding: 9px 10px;
+  border: 1px solid rgb(150 60 60 / 22%);
+  border-radius: 9px;
+  background: rgb(255 244 244 / 72%);
+  font-size: 11px;
+}
+
+.composer-footer {
+  padding: 10px 12px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-top: 1px dashed rgb(37 37 31 / 15%);
+}
+
+.composer-footer-hint {
+  font-size: 9px;
+  opacity: .48;
+}
+
+.composer-footer-actions {
+  display: flex;
+  gap: 7px;
+}
+
+.composer-footer button {
+  border: 0;
+  border-radius: 9px;
+  padding: 7px 10px;
+  cursor: pointer;
+  font-family: var(--skribli-ui-font);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.composer-footer button.secondary {
+  background: rgb(255 255 255 / 42%);
+  color: inherit;
+}
+
+.composer-footer button.primary {
+  background: var(--skribli-ink);
+  color: #fffdf4;
+}
+
+.skrib-color-yellow { background: #fff1a3; }
+.skrib-color-peach { background: #ffd7c6; }
+.skrib-color-mint { background: #d8efdc; }
+.skrib-color-sky { background: #dbeaff; }
+.skrib-color-lavender { background: #e8ddff; }
+
+@media (max-width: 640px) {
+  .skrib-composer {
+    top: 24px;
+    right: 24px;
+    width: calc(100vw - 48px);
+    max-height: calc(100vh - 48px);
+  }
+}
