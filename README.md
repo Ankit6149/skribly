@@ -3,7 +3,7 @@
 **Leave a note exactly where the thought belongs.**
 
 > **Status — active production development**  
-> Public installers and checkout are temporarily disabled. The previous Windows beta has been withdrawn while the native overlay, shortcut flow, click-through behaviour, typography, and close controls are rebuilt and validated.
+> Installer access is temporarily disabled. The previous Windows beta has been withdrawn while the native overlay, shortcut flow, click-through behaviour, typography, and close controls are rebuilt and validated.
 
 Skribli is a local-first contextual note utility for Windows. The intended interaction is deliberately small:
 
@@ -42,7 +42,7 @@ skribly/
 ├── packages/shared/           Shared TypeScript models
 ├── assets/                    Product and branding assets
 ├── docs/                      Product and engineering documentation
-└── site/                      Public product website
+└── site/                      Product website
 ```
 
 ## Local validation
@@ -60,4 +60,4 @@ Windows runtime verification must additionally confirm that empty overlay space 
 
 ## Distribution status
 
-Skribli is **not currently available for public download**. A new installer will be published only after the production build passes native Windows runtime validation. This repository does not grant an open-source licence; see [`NOTICE.md`](NOTICE.md).
+Skribli is **not currently available for download**. A new installer will be provided only after the production build passes native Windows runtime validation. This repository does not grant an open-source licence; see [`NOTICE.md`](NOTICE.md).
