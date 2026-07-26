@@ -49,17 +49,11 @@ jobs:
           '''
           path.write_text(source[:start] + replacement + source[end:], encoding="utf-8")
 
-      - name: Restore the standard validation workflow
-        shell: bash
-        run: |
-          git show 6253b669d08f224f6e96aa1e40f32e96e1a2b47a:.github/workflows/ci.yml > .github/workflows/ci.yml
-          rm -f .github/workflows/foreground-target-correction.yml
-
       - name: Commit correction
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add apps/desktop/src-tauri/src/lib.rs .github/workflows/ci.yml .github/workflows/foreground-target-correction.yml
+          git add apps/desktop/src-tauri/src/lib.rs
           git commit -m "fix: capture foreground app before opening a note"
           git push origin HEAD:fix/foreground-note-target
