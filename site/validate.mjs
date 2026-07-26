@@ -3,6 +3,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = dirname(fileURLToPath(import.meta.url));
+const repoRoot = resolve(root, '..');
 const requiredFiles = [
   'index.html',
   'answers.html',
@@ -11,16 +12,15 @@ const requiredFiles = [
   'download-unavailable.html',
   'download-success.html',
   'styles.css',
-  'success.css',
+  'ux-polish.css',
+  'landing-typography.css',
   'app.js',
-  'success.js',
   'commerce-config.js',
   'vercel.json',
   'robots.txt',
   'sitemap.xml',
   'llms.txt',
   'api/download.js',
-  'api/checkout.js',
   'assets/skribly-icon.svg',
   'assets/skribly-social-card.svg',
 ];
@@ -53,7 +53,7 @@ for (const htmlFile of htmlFiles) {
     failures.push(`${htmlFile} does not reference the Skribli icon.`);
   }
   if (/github\.com\/Ankit6149\/skribly/i.test(html)) {
-    failures.push(`${htmlFile} must not expose the source repository as the customer journey.`);
+    failures.push(`${htmlFile} must not expose the source repository as a customer journey.`);
   }
 
   const references = [...html.matchAll(/(?:href|src)="(\.\/[^"?#]*)(?:[?#][^"]*)?"/g)].map(
@@ -61,9 +61,8 @@ for (const htmlFile of htmlFiles) {
   );
   for (const reference of references) {
     if (reference === './' || reference === '.') continue;
-    const absolute = resolve(root, reference);
     try {
-      await access(absolute);
+      await access(resolve(root, reference));
     } catch {
       failures.push(`${htmlFile} references a missing local file: ${reference}`);
     }
@@ -77,66 +76,102 @@ for (const canonicalPage of ['index.html', 'answers.html', 'privacy.html', 'rele
   }
 }
 
+const publicTextFiles = [
+  'index.html',
+  'answers.html',
+  'privacy.html',
+  'release-notes.html',
+  'download-unavailable.html',
+  'download-success.html',
+  'app.js',
+  'commerce-config.js',
+  'llms.txt',
+  'README.md',
+];
+const forbiddenPublicPatterns = [
+  /founder/i,
+  /\balpha\b/i,
+  /\bpricing\b/i,
+  /\bprice\b/i,
+  /₹/,
+  /\bcheckout\b/i,
+  /\bpurchase\b/i,
+  /\bpaid\b/i,
+  /\blicen[cs]e\b/i,
+  /\btrial\b/i,
+];
+
+for (const file of publicTextFiles) {
+  const content = await readFile(join(root, file), 'utf8');
+  for (const pattern of forbiddenPublicPatterns) {
+    if (pattern.test(content)) {
+      failures.push(`${file} contains public commercial or legacy language matched by ${pattern}.`);
+    }
+  }
+}
+
 const config = await readFile(join(root, 'commerce-config.js'), 'utf8');
-const secretAssignmentPattern =
-  /(?:secret|private[_-]?key|api[_-]?key)\s*[:=]\s*['"][^'"]+['"]/i;
-if (secretAssignmentPattern.test(config)) {
-  failures.push('commerce-config.js appears to contain a secret-like field. Public config must contain no secrets.');
+if (!config.includes("status: 'production_rebuild'")) {
+  failures.push('Public config must identify the production rebuild.');
 }
-if (!config.includes("mode: 'controlled_trial'")) {
-  failures.push('The site must use controlled_trial mode rather than a public repository release page.');
+if (!config.includes("mode: 'production_hold'")) {
+  failures.push('Public config must keep downloads in production_hold mode.');
 }
-if (!config.includes("endpoint: '/api/download'")) {
-  failures.push('The public download must route through /api/download.');
+if (!config.includes('enabled: false')) {
+  failures.push('Public config must disable access.');
 }
-if (!config.includes("endpoint: '/api/checkout'")) {
-  failures.push('Checkout must route through the provider-neutral /api/checkout endpoint.');
-}
-if (!config.includes('enforcedInApp: false')) {
-  failures.push('The beta must state truthfully whether the trial is enforced in the desktop app.');
+if (/endpoint:\s*['"]\/api\/(download|checkout)/i.test(config)) {
+  failures.push('Public config must not expose an active download or checkout endpoint.');
 }
 
 const landing = await readFile(join(root, 'index.html'), 'utf8');
-for (const requiredSection of ['how-it-works', 'features', 'privacy', 'pricing', 'download']) {
+for (const requiredSection of ['how-it-works', 'principles', 'status', 'download']) {
   if (!landing.includes(`id="${requiredSection}"`)) {
     failures.push(`Landing page is missing required section #${requiredSection}.`);
   }
 }
 for (const requiredText of [
-  'PERSONAL WINDOWS LICENCE',
-  'data-founder-price>999',
-  'href="/api/download"',
+  'App in production',
+  'Public download paused',
+  'No permanent toolbar',
+  'data-skribly-schema',
   'href="/release-notes"',
   'href="/privacy"',
   'href="/answers"',
-  'data-skribly-schema',
 ]) {
   if (!landing.includes(requiredText)) {
-    failures.push(`Landing page is missing required commercial/search marker: ${requiredText}`);
+    failures.push(`Landing page is missing production marker: ${requiredText}`);
   }
 }
-if (/Founder Alpha|data-founder-price>499/i.test(landing)) {
-  failures.push('Landing page contains obsolete Founder Alpha or ₹499 copy.');
+if (/href="\/api\/download"/i.test(landing)) {
+  failures.push('Landing page must not contain an active installer link.');
 }
 
 const app = await readFile(join(root, 'app.js'), 'utf8');
-if (!app.includes("'/api/download'") || !app.includes("'/api/checkout'")) {
-  failures.push('The customer journey must use same-site download and checkout routes.');
+if (!app.includes('App in production') || !app.includes('Public downloads are paused')) {
+  failures.push('Landing script must enforce the production hold in visible controls.');
+}
+if (/\/api\/(download|checkout)/i.test(app)) {
+  failures.push('Landing script must not wire active public delivery or commercial routes.');
 }
 
 const downloadApi = await readFile(join(root, 'api/download.js'), 'utf8');
-for (const privateDeliveryMarker of [
-  'SKRIBLY_GITHUB_TOKEN',
-  "application/octet-stream",
-  "redirect: 'manual'",
-  'asset.url',
-]) {
-  if (!downloadApi.includes(privateDeliveryMarker)) {
-    failures.push(`The download route is missing private-release delivery support: ${privateDeliveryMarker}`);
-  }
+if (!downloadApi.includes("X-Skribli-Download-Status', 'production-hold'")) {
+  failures.push('Download route must expose the production-hold status header.');
 }
-if (downloadApi.includes('response.redirect(302, asset.browser_download_url)')) {
-  failures.push('The private release path must not always send customers to browser_download_url.');
+if (!downloadApi.includes('/download-unavailable?reason=production')) {
+  failures.push('Download route must redirect to the production status page.');
+}
+if (/browser_download_url|api\.github\.com\/repos\/Ankit6149\/skribly\/releases/i.test(downloadApi)) {
+  failures.push('Download route must not resolve a GitHub release asset during the production hold.');
+}
+
+const releaseWorkflow = await readFile(join(repoRoot, '.github/workflows/release.yml'), 'utf8');
+if (!releaseWorkflow.includes('Production Hold')) {
+  failures.push('Release workflow must be visibly marked as a production hold.');
+}
+if (/softprops\/action-gh-release|tauri -- build|branches:\s*\n\s*- main/i.test(releaseWorkflow)) {
+  failures.push('Release workflow must not automatically build or publish installers during the hold.');
 }
 
 const robots = await readFile(join(root, 'robots.txt'), 'utf8');
@@ -150,9 +185,9 @@ for (const route of ['/', '/answers', '/privacy', '/release-notes']) {
 }
 
 const llms = await readFile(join(root, 'llms.txt'), 'utf8');
-for (const fact of ['contextual notes', 'Windows', 'seven-day full trial', 'one-time']) {
+for (const fact of ['contextual notes', 'Windows', 'public downloads: paused', 'local-first']) {
   if (!llms.toLowerCase().includes(fact.toLowerCase())) {
-    failures.push(`llms.txt is missing a core answer-engine fact: ${fact}.`);
+    failures.push(`llms.txt is missing a core production fact: ${fact}.`);
   }
 }
 

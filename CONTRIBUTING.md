@@ -1,6 +1,6 @@
 # Contributing to Skribli
 
-Skribli is currently a private founder-led project.
+Skribli is currently an independently developed product in active production development.
 
 ## Working rules
 
@@ -15,7 +15,7 @@ Skribli is currently a private founder-led project.
 
 ## Branching
 
-- `main`: release-quality work
+- `main`: validated production work
 - `spike/*`: disposable technical experiments
 - `feature/*`: scoped production work
 - `fix/*`: defects

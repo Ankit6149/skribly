@@ -1,138 +1,29 @@
-name: Windows Release
+name: Windows Release — Production Hold
 
 on:
   workflow_dispatch:
     inputs:
-      tag:
-        description: Version tag to publish, for example v0.1.1
+      acknowledgement:
+        description: Type ENABLE_AFTER_NATIVE_VALIDATION to confirm the production hold was reviewed
         required: true
         type: string
-  push:
-    branches:
-      - main
-    paths:
-      - ".github/workflows/release.yml"
-      - "apps/desktop/src-tauri/tauri.conf.json"
-    tags:
-      - "v*"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  release-windows:
-    name: Build and publish Windows installers
-    runs-on: windows-latest
-    env:
-      SKRIBLY_TRIAL_ENFORCED: ${{ vars.SKRIBLY_TRIAL_ENFORCED || '0' }}
-      SKRIBLY_LICENSE_PUBLIC_KEY: ${{ secrets.SKRIBLY_LICENSE_PUBLIC_KEY }}
-
+  production-hold:
+    name: Public release publishing is disabled
+    runs-on: ubuntu-latest
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-
-      - name: Resolve and validate release version
-        id: release_tag
-        shell: pwsh
+      - name: Confirm production hold
+        shell: bash
         run: |
-          $config = Get-Content "apps/desktop/src-tauri/tauri.conf.json" -Raw | ConvertFrom-Json
-          $version = "$($config.version)".Trim()
-          if ([string]::IsNullOrWhiteSpace($version)) {
-            throw "tauri.conf.json must contain a non-empty version."
-          }
+          if [ "${{ inputs.acknowledgement }}" != "ENABLE_AFTER_NATIVE_VALIDATION" ]; then
+            echo "Skribli public installer publishing is paused."
+            echo "The previous beta was withdrawn while the native Windows experience is rebuilt."
+            exit 1
+          fi
 
-          $cargo = Get-Content "apps/desktop/src-tauri/Cargo.toml" -Raw
-          $cargoMatch = [regex]::Match($cargo, '(?ms)^\[package\].*?^version\s*=\s*"([^"]+)"')
-          if (-not $cargoMatch.Success) {
-            throw "Could not read the Rust package version from Cargo.toml."
-          }
-          $cargoVersion = $cargoMatch.Groups[1].Value
-          if ($cargoVersion -ne $version) {
-            throw "Version mismatch: tauri.conf.json is $version but Cargo.toml is $cargoVersion."
-          }
-
-          $expectedTag = "v$version"
-          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
-            $tag = "${{ inputs.tag }}".Trim()
-          } elseif ("${{ github.ref_type }}" -eq "tag") {
-            $tag = "${{ github.ref_name }}".Trim()
-          } else {
-            $tag = $expectedTag
-          }
-
-          if ($tag -ne $expectedTag) {
-            throw "Release tag $tag does not match the application version $expectedTag."
-          }
-
-          "tag=$tag" >> $env:GITHUB_OUTPUT
-          "version=$version" >> $env:GITHUB_OUTPUT
-          Write-Host "Publishing Skribli $tag from commit ${{ github.sha }}"
-
-      - name: Validate licence build configuration
-        shell: pwsh
-        run: |
-          $enforced = "${{ env.SKRIBLY_TRIAL_ENFORCED }}".ToLowerInvariant()
-          $publicKey = "${{ env.SKRIBLY_LICENSE_PUBLIC_KEY }}".Trim()
-          if (($enforced -eq "1" -or $enforced -eq "true") -and [string]::IsNullOrWhiteSpace($publicKey)) {
-            throw "A paid trial build requires the SKRIBLY_LICENSE_PUBLIC_KEY repository secret."
-          }
-          if ($enforced -ne "0" -and $enforced -ne "1" -and $enforced -ne "false" -and $enforced -ne "true") {
-            throw "SKRIBLY_TRIAL_ENFORCED must be 0, 1, false, or true."
-          }
-          Write-Host "Trial enforcement: $enforced"
-
-      - name: Install workspace dependencies
-        run: npm ci
-
-      - name: Type-check workspaces
-        run: npm run typecheck
-
-      - name: Run frontend tests
-        run: npm run test
-
-      - name: Check Rust formatting
-        run: cargo fmt --manifest-path apps/desktop/src-tauri/Cargo.toml --check
-
-      - name: Run Windows Rust tests
-        run: cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -- --test-threads=1
-
-      - name: Generate platform icons from the approved logo
-        run: npm --workspace @skribly/desktop run tauri -- icon ../../assets/branding/skribly-app-icon.svg
-
-      - name: Build NSIS and MSI installers
-        run: npm --workspace @skribly/desktop run tauri -- build --ci
-
-      - name: Create SHA-256 checksum file
-        shell: pwsh
-        run: |
-          $files = Get-ChildItem -Path "apps/desktop/src-tauri/target/release/bundle" -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.Extension -eq '.exe' -or $_.Extension -eq '.msi' }
-          if (-not $files -or $files.Count -eq 0) { throw "No Windows installers were produced." }
-          $lines = foreach ($file in $files) {
-            $hash = (Get-FileHash $file.FullName -Algorithm SHA256).Hash.ToLower()
-            "$hash  $($file.Name)"
-          }
-          $lines | Set-Content -Path "apps/desktop/src-tauri/target/release/bundle/SHA256SUMS.txt" -Encoding ascii
-
-      - name: Publish GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.release_tag.outputs.tag }}
-          target_commitish: ${{ github.sha }}
-          name: Skribli ${{ steps.release_tag.outputs.tag }}
-          generate_release_notes: true
-          prerelease: true
-          files: |
-            apps/desktop/src-tauri/target/release/bundle/**/*.exe
-            apps/desktop/src-tauri/target/release/bundle/**/*.msi
-            apps/desktop/src-tauri/target/release/bundle/SHA256SUMS.txt
+          echo "Acknowledgement received, but this workflow intentionally does not build or publish installers."
+          echo "Restore a reviewed release workflow only after native runtime validation passes."
