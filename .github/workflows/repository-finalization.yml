@@ -30,6 +30,7 @@ jobs:
         run: |
           set -euo pipefail
 
+          # Keep repository history on the validated main branch only.
           while IFS= read -r tag; do
             if [ -n "$tag" ]; then
               gh release delete "$tag" --yes --cleanup-tag || true

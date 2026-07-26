@@ -24,48 +24,28 @@
     element.removeAttribute('rel');
     element.setAttribute('aria-disabled', 'true');
     element.classList.add('is-disabled');
+
     const mainLabel = element.querySelector('span');
     if (mainLabel) mainLabel.textContent = label;
     else if (!element.querySelector('small')) element.textContent = label;
+
     element.addEventListener('click', (event) => {
       event.preventDefault();
-      showToast('Skribli is in active production development. Public downloads are paused until the rebuilt Windows app passes validation.');
+      showToast('Skribli is still in production. Downloads reopen after the Windows build passes final desktop validation.');
     });
   };
 
-  document.title = 'Skribli — Production rebuild in progress';
-
   document.querySelectorAll('[data-download-link]').forEach((link) => {
-    disableAction(link, 'App in production');
+    disableAction(link, 'Skribli is in production');
   });
 
   document.querySelectorAll('[data-version-label]').forEach((element) => {
-    element.textContent = 'Public download paused';
+    element.textContent = 'Downloads paused';
   });
 
   document.querySelectorAll('[data-release-notes-link]').forEach((link) => {
     link.setAttribute('href', '/release-notes');
   });
-
-  const eyebrow = document.querySelector('.eyebrow-pill');
-  if (eyebrow) {
-    const pulse = eyebrow.querySelector('.pulse-dot');
-    eyebrow.textContent = '';
-    if (pulse) eyebrow.appendChild(pulse);
-    eyebrow.append(' In production');
-  }
-
-  const downloadSection = document.querySelector('.download-section');
-  if (downloadSection) {
-    const kicker = downloadSection.querySelector('.section-kicker');
-    const heading = downloadSection.querySelector('h2');
-    const status = downloadSection.querySelector('[data-download-status]');
-    if (kicker) kicker.textContent = 'PRODUCTION REBUILD';
-    if (heading) heading.textContent = 'The next Windows build is being rebuilt properly.';
-    if (status) {
-      status.textContent = 'Public downloads are disabled while native interaction and release behaviour are corrected and validated.';
-    }
-  }
 
   const schema = document.querySelector('script[data-skribly-schema]');
   if (schema) {
@@ -73,11 +53,11 @@
       const payload = JSON.parse(schema.textContent || '{}');
       delete payload.downloadUrl;
       delete payload.offers;
-      payload.softwareVersion = 'Production build in progress';
-      payload.description = 'Skribli is a local-first contextual notes app currently in active production development. Public downloads are paused.';
+      payload.softwareVersion = 'In production';
+      payload.description = 'Skribli is a local-first contextual notes app that attaches notes to the application where they belong.';
       schema.textContent = JSON.stringify(payload);
     } catch {
-      // The static page already communicates the production hold.
+      // The static page already contains the same product information.
     }
   }
 
@@ -86,6 +66,7 @@
       const id = dot.getAttribute('data-demo-dot');
       const note = document.querySelector(`[data-demo-note="${id}"]`);
       if (!note) return;
+
       document.querySelectorAll('[data-demo-note]').forEach((item) => {
         if (item !== note) item.classList.remove('is-open');
       });

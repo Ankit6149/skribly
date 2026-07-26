@@ -14,6 +14,7 @@ const requiredFiles = [
   'styles.css',
   'ux-polish.css',
   'landing-typography.css',
+  'site-refresh.css',
   'app.js',
   'commerce-config.js',
   'vercel.json',
@@ -76,7 +77,7 @@ for (const canonicalPage of ['index.html', 'answers.html', 'privacy.html', 'rele
   }
 }
 
-const publicTextFiles = [
+const customerFacingTextFiles = [
   'index.html',
   'answers.html',
   'privacy.html',
@@ -88,7 +89,7 @@ const publicTextFiles = [
   'llms.txt',
   'README.md',
 ];
-const forbiddenPublicPatterns = [
+const forbiddenPatterns = [
   /founder/i,
   /\balpha\b/i,
   /\bpricing\b/i,
@@ -101,58 +102,71 @@ const forbiddenPublicPatterns = [
   /\btrial\b/i,
 ];
 
-for (const file of publicTextFiles) {
+for (const file of customerFacingTextFiles) {
   const content = await readFile(join(root, file), 'utf8');
-  for (const pattern of forbiddenPublicPatterns) {
+  for (const pattern of forbiddenPatterns) {
     if (pattern.test(content)) {
-      failures.push(`${file} contains public commercial or legacy language matched by ${pattern}.`);
+      failures.push(`${file} contains commercial or legacy language matched by ${pattern}.`);
     }
   }
 }
 
 const config = await readFile(join(root, 'commerce-config.js'), 'utf8');
 if (!config.includes("status: 'production_rebuild'")) {
-  failures.push('Public config must identify the production rebuild.');
+  failures.push('Site config must identify the production rebuild.');
 }
 if (!config.includes("mode: 'production_hold'")) {
-  failures.push('Public config must keep downloads in production_hold mode.');
+  failures.push('Site config must keep downloads in production_hold mode.');
 }
 if (!config.includes('enabled: false')) {
-  failures.push('Public config must disable access.');
+  failures.push('Site config must disable installer access.');
 }
 if (/endpoint:\s*['"]\/api\/(download|checkout)/i.test(config)) {
-  failures.push('Public config must not expose an active download or checkout endpoint.');
+  failures.push('Site config must not expose an active installer or commercial endpoint.');
 }
 
 const landing = await readFile(join(root, 'index.html'), 'utf8');
-for (const requiredSection of ['how-it-works', 'principles', 'status', 'download']) {
+for (const requiredSection of ['how-it-works', 'principles', 'features', 'audience', 'status']) {
   if (!landing.includes(`id="${requiredSection}"`)) {
     failures.push(`Landing page is missing required section #${requiredSection}.`);
   }
 }
 for (const requiredText of [
-  'App in production',
-  'Public download paused',
+  'Skribli is in production',
+  'Downloads paused',
   'No permanent toolbar',
+  'WHO IT HELPS',
+  'Ordinary notes remember the text',
+  'site-refresh.css',
   'data-skribly-schema',
   'href="/release-notes"',
   'href="/privacy"',
   'href="/answers"',
 ]) {
   if (!landing.includes(requiredText)) {
-    failures.push(`Landing page is missing production marker: ${requiredText}`);
+    failures.push(`Landing page is missing product marker: ${requiredText}`);
   }
 }
 if (/href="\/api\/download"/i.test(landing)) {
   failures.push('Landing page must not contain an active installer link.');
 }
 
+const refreshStyles = await readFile(join(root, 'site-refresh.css'), 'utf8');
+if (!refreshStyles.includes("family=Kalam")) {
+  failures.push('Landing refresh must load the handwritten note typeface.');
+}
+for (const selector of ['.demo-note p', '.handwritten-line', '.hero-scribble']) {
+  if (!refreshStyles.includes(selector)) {
+    failures.push(`Landing refresh is missing handwritten treatment for ${selector}.`);
+  }
+}
+
 const app = await readFile(join(root, 'app.js'), 'utf8');
-if (!app.includes('App in production') || !app.includes('Public downloads are paused')) {
-  failures.push('Landing script must enforce the production hold in visible controls.');
+if (!app.includes('Skribli is in production') || !app.includes('Downloads paused')) {
+  failures.push('Landing script must keep installer access visibly disabled.');
 }
 if (/\/api\/(download|checkout)/i.test(app)) {
-  failures.push('Landing script must not wire active public delivery or commercial routes.');
+  failures.push('Landing script must not wire active installer or commercial routes.');
 }
 
 const downloadApi = await readFile(join(root, 'api/download.js'), 'utf8');
@@ -163,7 +177,7 @@ if (!downloadApi.includes('/download-unavailable?reason=production')) {
   failures.push('Download route must redirect to the production status page.');
 }
 if (/browser_download_url|api\.github\.com\/repos\/Ankit6149\/skribly\/releases/i.test(downloadApi)) {
-  failures.push('Download route must not resolve a GitHub release asset during the production hold.');
+  failures.push('Download route must not resolve a release asset during the production hold.');
 }
 
 const releaseWorkflow = await readFile(join(repoRoot, '.github/workflows/release.yml'), 'utf8');
