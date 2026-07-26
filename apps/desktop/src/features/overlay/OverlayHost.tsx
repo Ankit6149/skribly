@@ -12,12 +12,10 @@ export const OverlayHost: React.FC = () => {
     skribs,
     overlayMetrics,
     initStatus,
-    isPickingTarget,
     isTauriAvailable,
     errorMessage,
     activeInteractionRect,
     clearError,
-    setPickingTarget,
     retryOverlayInit,
     updateHitTestRects,
     initTauri,
@@ -105,7 +103,6 @@ export const OverlayHost: React.FC = () => {
     composerNoteId,
     errorMessage,
     initStatus,
-    isPickingTarget,
     overlayMetrics,
     previewNoteId,
     skribs,
@@ -127,9 +124,7 @@ export const OverlayHost: React.FC = () => {
   const composerNote = composerNoteId
     ? skribs.find((note) => note.id === composerNoteId) ?? null
     : null;
-  const message = errorMessage || (isPickingTarget
-    ? 'Open the application you want to annotate, click it once, then press Ctrl + Shift + Space again.'
-    : null);
+  const message = errorMessage;
 
   return (
     <div className="overlay-root">
@@ -140,7 +135,6 @@ export const OverlayHost: React.FC = () => {
             type="button"
             onClick={() => {
               clearError();
-              setPickingTarget(false);
             }}
             aria-label="Dismiss message"
           >

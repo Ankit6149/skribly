@@ -463,13 +463,12 @@ pub fn run() {
                                 }
                             };
 
-                            if let Some(window) = app_handle_hk.get_webview_window("main") {
-                                let _ = window.show();
-                                let _ = window.set_focus();
-                            }
-
                             let state_hk = app_handle_hk.state::<AppState>();
                             if let Some(ref target) = target_to_use {
+                                if let Some(window) = app_handle_hk.get_webview_window("main") {
+                                    let _ = window.show();
+                                    let _ = window.set_focus();
+                                }
                                 coordinator_hk.set_active_target(Some(target.clone()));
                                 let timestamp = std::time::SystemTime::now()
                                     .duration_since(std::time::UNIX_EPOCH)
@@ -483,7 +482,7 @@ pub fn run() {
                                     rel_y: 40.0,
                                     width: 320.0,
                                     height: 230.0,
-                                    text: "New Skrib note".into(),
+                                    text: String::new(),
                                     color: "yellow".into(),
                                     collapsed: false,
                                     created_at: (timestamp / 1000) as u64,
@@ -497,10 +496,11 @@ pub fn run() {
                                     build_overlay_payload(&app_handle_hk, &state_hk, false);
                                 let _ = app_handle_hk.emit("skribly://global-shortcut", payload);
                             } else {
-                                let mut payload =
-                                    build_overlay_payload(&app_handle_hk, &state_hk, false);
-                                payload.is_shortcut_active = true;
-                                let _ = app_handle_hk.emit("skribly://global-shortcut", payload);
+                                coordinator_hk.set_active_target(None);
+                                let _ = app_handle_hk.emit(
+                                    "skribly://hotkey-error",
+                                    "Skribli could not detect the active application. Click the application and try the shortcut again.",
+                                );
                             }
                         }
                     }
