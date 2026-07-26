@@ -7,7 +7,7 @@ function githubToken() {
 function githubHeaders(accept = 'application/vnd.github+json') {
   const headers = {
     accept,
-    'user-agent': 'SkribliDownload/1.2',
+    'user-agent': 'SkribliDownload/1.3',
     'x-github-api-version': '2022-11-28',
   };
 
@@ -31,13 +31,14 @@ function scoreAsset(asset, requestedFormat) {
 
   if (name.includes('x64') || name.includes('amd64')) score += 25;
   if (name.includes('setup') || name.includes('nsis')) score += 20;
-  if (name.includes('skribly')) score += 10;
+  if (name.includes('skribli') || name.includes('skribly')) score += 10;
   return score;
 }
 
 async function resolveReleaseAsset(requestedFormat) {
   const response = await fetch(RELEASES_API, {
     headers: githubHeaders(),
+    cache: 'no-store',
   });
 
   if (!response.ok) {
@@ -57,7 +58,7 @@ async function resolveReleaseAsset(requestedFormat) {
     .sort((left, right) => right.score - left.score);
 
   if (ranked.length === 0) throw new Error('The latest Skribli release has no Windows installer asset.');
-  return ranked[0].asset;
+  return { asset: ranked[0].asset, release };
 }
 
 async function resolvePrivateAssetRedirect(asset) {
@@ -80,22 +81,31 @@ module.exports = async function handler(request, response) {
   }
 
   const requestedFormat = request.query?.format === 'msi' ? 'msi' : 'exe';
-  const explicitTarget = process.env.SKRIBLY_TRIAL_DOWNLOAD_URL;
+  const emergencyFallback = process.env.SKRIBLY_TRIAL_DOWNLOAD_URL;
 
   try {
-    let target = explicitTarget;
-    if (!target) {
-      const asset = await resolveReleaseAsset(requestedFormat);
+    let target;
+    let source = 'github-release';
+
+    try {
+      const { asset, release } = await resolveReleaseAsset(requestedFormat);
       target = githubToken()
         ? await resolvePrivateAssetRedirect(asset)
         : asset.browser_download_url;
+      response.setHeader('X-Skribli-Release', String(release.tag_name || release.name || 'unknown'));
+      response.setHeader('X-Skribli-Release-Asset', String(asset.name || 'unknown'));
+    } catch (releaseError) {
+      if (!emergencyFallback) throw releaseError;
+      console.warn('Using the emergency Skribli installer fallback:', releaseError);
+      target = emergencyFallback;
+      source = 'emergency-fallback';
     }
 
-    response.setHeader(
-      'Cache-Control',
-      githubToken() ? 'private, no-store' : 'public, s-maxage=300, stale-while-revalidate=3600'
-    );
+    response.setHeader('Cache-Control', 'private, no-store, max-age=0, must-revalidate');
+    response.setHeader('Pragma', 'no-cache');
+    response.setHeader('Expires', '0');
     response.setHeader('X-Skribli-Download-Format', requestedFormat);
+    response.setHeader('X-Skribli-Download-Source', source);
     return response.redirect(302, target);
   } catch (error) {
     console.error('Unable to resolve the Skribli installer:', error);
