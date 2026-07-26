@@ -165,6 +165,7 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
   },
 
   bindTarget: async (target: TargetWindowInfo | null) => {
+    set({ activeTarget: target, isAmbiguous: false });
     if (!get().isTauriAvailable) return;
     try {
       const payload = await invoke<OverlayStatePayload>('set_active_target', { target });
