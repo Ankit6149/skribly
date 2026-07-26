@@ -19,7 +19,7 @@ window.SKRIBLY_COMMERCE = Object.freeze({
   download: {
     mode: 'controlled_trial',
     endpoint: '/api/download',
-    versionLabel: 'Windows beta 0.1',
+    versionLabel: 'Windows beta 0.1.1',
   },
 
   checkout: {

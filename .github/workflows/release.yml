@@ -4,10 +4,14 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing version tag to publish, for example v0.1.1
+        description: Version tag to publish, for example v0.1.1
         required: true
         type: string
   push:
+    branches:
+      - main
+    paths:
+      - "apps/desktop/src-tauri/tauri.conf.json"
     tags:
       - "v*"
 
@@ -36,6 +40,43 @@ jobs:
         with:
           node-version: 20
           cache: npm
+
+      - name: Resolve and validate release version
+        id: release_tag
+        shell: pwsh
+        run: |
+          $config = Get-Content "apps/desktop/src-tauri/tauri.conf.json" -Raw | ConvertFrom-Json
+          $version = "$($config.version)".Trim()
+          if ([string]::IsNullOrWhiteSpace($version)) {
+            throw "tauri.conf.json must contain a non-empty version."
+          }
+
+          $cargo = Get-Content "apps/desktop/src-tauri/Cargo.toml" -Raw
+          $cargoMatch = [regex]::Match($cargo, '(?ms)^\[package\].*?^version\s*=\s*"([^"]+)"')
+          if (-not $cargoMatch.Success) {
+            throw "Could not read the Rust package version from Cargo.toml."
+          }
+          $cargoVersion = $cargoMatch.Groups[1].Value
+          if ($cargoVersion -ne $version) {
+            throw "Version mismatch: tauri.conf.json is $version but Cargo.toml is $cargoVersion."
+          }
+
+          $expectedTag = "v$version"
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            $tag = "${{ inputs.tag }}".Trim()
+          } elseif ("${{ github.ref_type }}" -eq "tag") {
+            $tag = "${{ github.ref_name }}".Trim()
+          } else {
+            $tag = $expectedTag
+          }
+
+          if ($tag -ne $expectedTag) {
+            throw "Release tag $tag does not match the application version $expectedTag."
+          }
+
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+          "version=$version" >> $env:GITHUB_OUTPUT
+          Write-Host "Publishing Skribli $tag from commit ${{ github.sha }}"
 
       - name: Validate licence build configuration
         shell: pwsh
@@ -82,20 +123,12 @@ jobs:
           }
           $lines | Set-Content -Path "apps/desktop/src-tauri/target/release/bundle/SHA256SUMS.txt" -Encoding ascii
 
-      - name: Resolve release tag
-        id: release_tag
-        shell: pwsh
-        run: |
-          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
-            "tag=${{ inputs.tag }}" >> $env:GITHUB_OUTPUT
-          } else {
-            "tag=${{ github.ref_name }}" >> $env:GITHUB_OUTPUT
-          }
-
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.release_tag.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: Skribli ${{ steps.release_tag.outputs.tag }}
           generate_release_notes: true
           prerelease: true
           files: |
