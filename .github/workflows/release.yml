@@ -13,14 +13,14 @@ permissions:
 
 jobs:
   production-hold:
-    name: Public release publishing is disabled
+    name: Installer publishing is disabled
     runs-on: ubuntu-latest
     steps:
       - name: Confirm production hold
         shell: bash
         run: |
           if [ "${{ inputs.acknowledgement }}" != "ENABLE_AFTER_NATIVE_VALIDATION" ]; then
-            echo "Skribli public installer publishing is paused."
+            echo "Skribli installer publishing is paused."
             echo "The previous beta was withdrawn while the native Windows experience is rebuilt."
             exit 1
           fi
