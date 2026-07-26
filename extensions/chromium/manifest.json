@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Skribly Context Bridge",
+  "name": "Skribli Context Bridge",
   "version": "0.0.0",
-  "description": "Precise, local webpage anchoring for Skribly.",
+  "description": "Precise, local webpage anchoring for Skribli.",
   "permissions": ["activeTab", "storage"],
   "host_permissions": [],
   "background": {

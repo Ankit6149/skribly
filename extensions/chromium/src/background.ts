@@ -1,3 +1,3 @@
 chrome.action.onClicked.addListener(async (tab) => {
-  console.info("Skribly context bridge placeholder", tab.id);
+  console.info("Skribli context bridge placeholder", tab.id);
 });

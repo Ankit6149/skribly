@@ -45,7 +45,7 @@
   const trialIsEnforced = Boolean(config?.trial?.enforcedInApp);
   const checkoutEnabled = Boolean(config?.checkout?.enabled);
 
-  document.title = 'Skribly — Leave notes inside any app';
+  document.title = 'Skribli — Leave notes inside any app';
   setMeta('meta[name="robots"]', {
     name: 'robots',
     content: 'index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1',
@@ -76,7 +76,7 @@
       '@graph': [
         {
           '@type': 'SoftwareApplication',
-          name: 'Skribly',
+          name: 'Skribli',
           applicationCategory: 'ProductivityApplication',
           operatingSystem: 'Windows 10, Windows 11',
           description: 'A local-first contextual notes app that attaches notes to application windows and collapses them into movable dots.',
@@ -102,23 +102,23 @@
           mainEntity: [
             {
               '@type': 'Question',
-              name: 'What is Skribly?',
+              name: 'What is Skribli?',
               acceptedAnswer: {
                 '@type': 'Answer',
-                text: 'Skribly is a Windows contextual notes app. Notes stay attached to the application where they matter and can collapse into small movable dots.',
+                text: 'Skribli is a Windows contextual notes app. Notes stay attached to the application where they matter and can collapse into small movable dots.',
               },
             },
             {
               '@type': 'Question',
-              name: 'How is Skribly different from Microsoft Sticky Notes?',
+              name: 'How is Skribli different from Microsoft Sticky Notes?',
               acceptedAnswer: {
                 '@type': 'Answer',
-                text: 'Skribly focuses on application and spatial context. Notes follow an app window, collapse into compact anchors, and help users return to the matching work context.',
+                text: 'Skribli focuses on application and spatial context. Notes follow an app window, collapse into compact anchors, and help users return to the matching work context.',
               },
             },
             {
               '@type': 'Question',
-              name: 'Can I try Skribly before paying?',
+              name: 'Can I try Skribli before paying?',
               acceptedAnswer: {
                 '@type': 'Answer',
                 text: `Yes. The planned paid release includes a ${trialDays}-day full trial with no card. The current Windows beta is free while licence activation is validated.`,
@@ -134,7 +134,7 @@
   document.querySelectorAll('[data-download-link]').forEach((link) => {
     setLink(link, downloadUrl);
     link.addEventListener('click', () => {
-      showToast(trialIsEnforced ? 'Preparing your Skribly trial…' : 'Preparing the current Windows beta…');
+      showToast(trialIsEnforced ? 'Preparing your Skribli trial…' : 'Preparing the current Windows beta…');
     });
   });
 
@@ -237,7 +237,7 @@
     if (status) {
       status.textContent = trialIsEnforced
         ? `Try every feature for ${trialDays} days. No card required.`
-        : 'Download the current Windows beta directly from Skribly. Windows may show an unsigned-app warning during beta.';
+        : 'Download the current Windows beta directly from Skribli. Windows may show an unsigned-app warning during beta.';
     }
   }
 
@@ -280,7 +280,7 @@
   if (!/win/i.test(platform)) {
     document.querySelectorAll('[data-download-link]').forEach((link) => {
       link.addEventListener('click', () => {
-        showToast('Skribly currently supports Windows 10 and Windows 11.');
+        showToast('Skribli currently supports Windows 10 and Windows 11.');
       });
     });
   }

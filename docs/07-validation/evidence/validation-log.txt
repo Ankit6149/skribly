@@ -1,4 +1,4 @@
-Skribly Windows Runtime Evidence Log
+Skribli Windows Runtime Evidence Log
 ====================================
 
 This file is intentionally reset because the previous contents mixed an older commit SHA with unsupported PASS claims.
@@ -30,7 +30,7 @@ Required evidence status
 Capture runtime metrics
 -----------------------
 
-1. Start the latest Skribly candidate.
+1. Start the latest Skribli candidate.
 2. From the repository root run:
 
    powershell -ExecutionPolicy Bypass -File scripts/windows/capture-runtime-evidence.ps1

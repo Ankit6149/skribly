@@ -1,6 +1,6 @@
 # Product requirements document
 
-**Product:** Skribly  
+**Product:** Skribli
 **Status:** Definition / technical spike  
 **Platforms:** Windows and macOS  
 **Distribution:** Direct installers first; store listings optional  
@@ -8,7 +8,7 @@
 
 ## 1. Core job
 
-When a user notices something worth remembering inside an app, webpage, file, folder, or screen location, Skribly must let them capture it immediately and restore it automatically when the relevant context returns.
+When a user notices something worth remembering inside an app, webpage, file, folder, or screen location, Skribli must let them capture it immediately and restore it automatically when the relevant context returns.
 
 ## 2. Core objects
 
@@ -27,10 +27,10 @@ Initial Skrib types:
 ## 3. Creation flow
 
 1. User invokes the global shortcut or tray action.
-2. Skribly enters placement mode and reveals a compact tool palette.
+2. Skribli enters placement mode and reveals a compact tool palette.
 3. User selects a tool and places it over the current app/window.
 4. User types, draws, or configures the Skrib.
-5. Skribly derives and stores context automatically.
+5. Skribli derives and stores context automatically.
 6. Clicking outside commits the Skrib; no explicit Save button is required.
 
 ## 4. Context behavior
@@ -39,7 +39,7 @@ Initial Skrib types:
 - A Skrib follows its target window when moved or resized.
 - A Skrib hides when the target minimizes, closes, or leaves its matching context.
 - A Skrib restores when the context returns.
-- If confidence is low after layout changes, Skribly presents a re-anchor flow rather than pretending the match is exact.
+- If confidence is low after layout changes, Skribli presents a re-anchor flow rather than pretending the match is exact.
 - Website element anchoring is provided later through a browser extension.
 
 ## 5. Editing behavior

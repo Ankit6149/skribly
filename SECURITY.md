@@ -1,6 +1,6 @@
 # Security policy
 
-Skribly is local-first software that will interact with application-window metadata and accessibility APIs. Treat this as sensitive system software.
+Skribli is local-first software that will interact with application-window metadata and accessibility APIs. Treat this as sensitive system software.
 
 ## Initial security boundaries
 

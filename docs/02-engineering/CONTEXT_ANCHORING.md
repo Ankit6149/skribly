@@ -1,6 +1,6 @@
 # Context anchoring strategy
 
-Universal perfect anchoring is not realistic. Skribly stores multiple signals and degrades safely.
+Universal perfect anchoring is not realistic. Skribli stores multiple signals and degrades safely.
 
 ## Matching hierarchy
 

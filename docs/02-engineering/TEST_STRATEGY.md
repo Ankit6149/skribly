@@ -27,6 +27,6 @@ Test at minimum:
 
 ## Golden path
 
-Create → edit → close target → restart Skribly → reopen target → restore → re-anchor → archive → restore from archive.
+Create → edit → close target → restart Skribli → reopen target → restore → re-anchor → archive → restore from archive.
 
 Do not use screenshot-only tests as proof that overlay mechanics work.

@@ -2,7 +2,7 @@
 
 ## Public promise
 
-Skribly is local-first. It should know where an annotation belongs without surveilling what the user is doing.
+Skribli is local-first. It should know where an annotation belongs without surveilling what the user is doing.
 
 ## v1 data policy
 

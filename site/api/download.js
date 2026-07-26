@@ -7,7 +7,7 @@ function githubToken() {
 function githubHeaders(accept = 'application/vnd.github+json') {
   const headers = {
     accept,
-    'user-agent': 'SkriblyDownload/1.2',
+    'user-agent': 'SkribliDownload/1.2',
     'x-github-api-version': '2022-11-28',
   };
 
@@ -49,14 +49,14 @@ async function resolveReleaseAsset(requestedFormat) {
     ? releases.find((item) => item && !item.draft && Array.isArray(item.assets) && item.assets.length > 0)
     : null;
 
-  if (!release) throw new Error('No published Skribly release with installer assets was found.');
+  if (!release) throw new Error('No published Skribli release with installer assets was found.');
 
   const ranked = release.assets
     .map((asset) => ({ asset, score: scoreAsset(asset, requestedFormat) }))
     .filter((item) => item.score >= 0)
     .sort((left, right) => right.score - left.score);
 
-  if (ranked.length === 0) throw new Error('The latest Skribly release has no Windows installer asset.');
+  if (ranked.length === 0) throw new Error('The latest Skribli release has no Windows installer asset.');
   return ranked[0].asset;
 }
 
@@ -95,10 +95,10 @@ module.exports = async function handler(request, response) {
       'Cache-Control',
       githubToken() ? 'private, no-store' : 'public, s-maxage=300, stale-while-revalidate=3600'
     );
-    response.setHeader('X-Skribly-Download-Format', requestedFormat);
+    response.setHeader('X-Skribli-Download-Format', requestedFormat);
     return response.redirect(302, target);
   } catch (error) {
-    console.error('Unable to resolve the Skribly installer:', error);
+    console.error('Unable to resolve the Skribli installer:', error);
     response.setHeader('Cache-Control', 'no-store');
     return response.redirect(302, '/download-unavailable');
   }

@@ -240,7 +240,7 @@ fn status_for_record(record: &LicenseRecord, enforced: bool, now: u64) -> Licens
             device_id: record.device_id.clone(),
             licensed_email: None,
             updates_until: None,
-            message: "Skribly detected that the system clock moved backwards. Correct the clock and restart the app."
+            message: "Skribli detected that the system clock moved backwards. Correct the clock and restart the app."
                 .to_string(),
         };
     }

@@ -50,7 +50,7 @@ for (const htmlFile of htmlFiles) {
     failures.push(`${htmlFile} is missing a viewport meta tag.`);
   }
   if (!html.includes('skribly-icon.svg')) {
-    failures.push(`${htmlFile} does not reference the Skribly icon.`);
+    failures.push(`${htmlFile} does not reference the Skribli icon.`);
   }
   if (/github\.com\/Ankit6149\/skribly/i.test(html)) {
     failures.push(`${htmlFile} must not expose the source repository as the customer journey.`);
@@ -157,9 +157,9 @@ for (const fact of ['contextual notes', 'Windows', 'seven-day full trial', 'one-
 }
 
 if (failures.length > 0) {
-  console.error('Skribly site validation failed:');
+  console.error('Skribli site validation failed:');
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
 
-console.log(`Skribly site validation passed (${requiredFiles.length} required files checked).`);
+console.log(`Skribli site validation passed (${requiredFiles.length} required files checked).`);

@@ -1,6 +1,6 @@
-# Contributing to Skribly
+# Contributing to Skribli
 
-Skribly is currently a private founder-led project.
+Skribli is currently a private founder-led project.
 
 ## Working rules
 

@@ -640,7 +640,7 @@ pub fn run() {
             Ok(())
         })
         .build(tauri::generate_context!())
-        .expect("error while building Skribly");
+        .expect("error while building Skribli");
 
     app.run(move |app_handle, event| match event {
         RunEvent::WindowEvent {

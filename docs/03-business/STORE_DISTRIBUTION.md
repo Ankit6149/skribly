@@ -7,7 +7,7 @@
 
 ### Direct distribution
 
-- Skribly may be distributed from its own website using a signed installer.
+- Skribli may be distributed from its own website using a signed installer.
 - Microsoft Store listing is optional.
 - Code signing is strongly recommended for direct distribution; certificate pricing varies and is not budgeted here.
 
@@ -33,7 +33,7 @@ Apple commission on a direct website sale: 0%. Payment processor and Indian tax 
 
 Apple lists a standard commission of 30% for digital goods/services, with 15% for qualifying developers enrolled in the App Store Small Business Program. The Small Business Program generally applies up to US$1 million in eligible proceeds and requires enrollment.
 
-Skribly's system-wide accessibility/overlay behavior should be technically and policy-tested before assuming Mac App Store compatibility.
+Skribli's system-wide accessibility/overlay behavior should be technically and policy-tested before assuming Mac App Store compatibility.
 
 ## Working recommendation
 

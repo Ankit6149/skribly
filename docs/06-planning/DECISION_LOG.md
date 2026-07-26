@@ -2,7 +2,7 @@
 
 | Date | Decision | Status |
 |---|---|---|
-| 2026-07-20 | Product name is Skribly | Current |
+| 2026-07-20 | Product name is Skribli | Current |
 | 2026-07-20 | A contextual annotation is called a Skrib | Current |
 | 2026-07-20 | Windows and macOS are first-class targets | Current |
 | 2026-07-20 | Direct installers; stores optional | Current |

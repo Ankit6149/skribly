@@ -103,7 +103,7 @@ export const NotesWidget: React.FC<NotesWidgetProps> = ({ visibleNotes }) => {
         return;
       }
       if (ranked.length > 1 && ranked[0]!.score === ranked[1]!.score) {
-        setContextMessage('More than one matching window is open. Use Choose app so Skribly does not guess.');
+        setContextMessage('More than one matching window is open. Use Choose app so Skribli does not guess.');
         return;
       }
 
@@ -164,7 +164,7 @@ export const NotesWidget: React.FC<NotesWidgetProps> = ({ visibleNotes }) => {
               </div>
               <div className="notes-widget-question">
                 <strong>Return to where this note belongs?</strong>
-                <span>Skribly reconnects only to a matching open window. It never launches an unknown file silently.</span>
+                <span>Skribli reconnects only to a matching open window. It never launches an unknown file silently.</span>
               </div>
               {contextMessage && <div className="notes-widget-message">{contextMessage}</div>}
               <div className="notes-widget-detail-actions">

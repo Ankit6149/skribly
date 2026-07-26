@@ -2,7 +2,7 @@
 
 ## Initial model
 
-Skribly is planned as a one-time purchase rather than a required subscription.
+Skribli is planned as a one-time purchase rather than a required subscription.
 
 Working launch hypothesis:
 

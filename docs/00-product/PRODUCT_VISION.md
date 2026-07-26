@@ -10,11 +10,11 @@ Conventional notes are detached from the situations that make them useful. Users
 
 ## Solution
 
-Skribly creates a persistent visual annotation layer over Windows and macOS. A user can type, handwrite, draw, highlight, point, pin, check off, or schedule a reminder directly in the relevant context. Skribly stores the contextual relationship and restores the annotation when that context returns.
+Skribli creates a persistent visual annotation layer over Windows and macOS. A user can type, handwrite, draw, highlight, point, pin, check off, or schedule a reminder directly in the relevant context. Skribli stores the contextual relationship and restores the annotation when that context returns.
 
 ## The emotional product
 
-Skribly should feel like peeling a small piece of paper, leaving a thought for future-you, and finding it in exactly the same place later. It is not a dashboard-first productivity system. It is a quiet, tactile memory layer.
+Skribli should feel like peeling a small piece of paper, leaving a thought for future-you, and finding it in exactly the same place later. It is not a dashboard-first productivity system. It is a quiet, tactile memory layer.
 
 ## Core audience
 
@@ -39,4 +39,4 @@ Skribly should feel like peeling a small piece of paper, leaving a thought for f
 
 ## Success condition
 
-A new user understands the benefit from a 15-second demonstration and keeps Skribly installed because it saves them from repeatedly reconstructing context.
+A new user understands the benefit from a 15-second demonstration and keeps Skribli installed because it saves them from repeatedly reconstructing context.

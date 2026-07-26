@@ -1,6 +1,6 @@
 # Complete UI component inventory
 
-This inventory prevents coding agents from reducing Skribly to a single yellow textarea.
+This inventory prevents coding agents from reducing Skribli to a single yellow textarea.
 
 ## A. Overlay surfaces
 
@@ -136,7 +136,7 @@ This inventory prevents coding agents from reducing Skribly to a single yellow t
 
 - tray icon
 - tray menu
-- pause Skribly globally
+- pause Skribli globally
 - pause on current app
 - reveal all Skribs shortcut
 - lock all Skribs

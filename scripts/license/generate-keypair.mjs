@@ -17,7 +17,7 @@ const encodedPublicKey = rawPublicKey.toString('base64url');
 await writeFile(privateKeyPath, privatePem, { encoding: 'utf8', mode: 0o600 });
 await writeFile(publicKeyPath, `${encodedPublicKey}\n`, { encoding: 'utf8' });
 
-console.log('Created a new Skribly Ed25519 licence keypair.');
+console.log('Created a new Skribli Ed25519 licence keypair.');
 console.log(`Private key: ${privateKeyPath}`);
 console.log(`Public key:  ${publicKeyPath}`);
 console.log('');

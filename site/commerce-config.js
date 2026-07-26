@@ -1,7 +1,7 @@
 window.SKRIBLY_COMMERCE = Object.freeze({
   product: {
     id: 'skribly-personal-windows',
-    name: 'Skribly Personal for Windows',
+    name: 'Skribli Personal for Windows',
     currency: 'INR',
     launchPrice: 999,
     standardPrice: 1499,

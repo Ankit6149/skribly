@@ -165,7 +165,10 @@ export const OverlayHost: React.FC = () => {
           height: Math.round(Math.max(170, note.height)),
         });
       } else {
-        rects.push({ x: clientPos.x, y: clientPos.y, width: 48, height: 48 });
+        // Keep the native hit target aligned with the compact paper tab. An
+        // oversized invisible rectangle makes the app behind Skribli feel
+        // blocked, especially when several notes are close together.
+        rects.push({ x: clientPos.x, y: clientPos.y, width: 30, height: 30 });
       }
     });
 
@@ -227,7 +230,7 @@ export const OverlayHost: React.FC = () => {
       <header ref={toolbarRef} className="overlay-toolbar compact-toolbar">
         <div className="toolbar-brand">
           <span className="brand-logo">S</span>
-          <strong>Skribly</strong>
+          <strong>Skribli</strong>
         </div>
         <div className="toolbar-actions">
           <button type="button" className="toolbar-btn primary-btn" onClick={() => void createNewSkrib()} title="Ctrl+Shift+Space">
@@ -262,7 +265,7 @@ export const OverlayHost: React.FC = () => {
               <button type="button" className="close-modal-btn" onClick={() => setPickingTarget(false)} aria-label="Close target picker">✕</button>
             </header>
             <p className="modal-subtitle">
-              Skribly will keep the note attached to this window and bring it back with the same context.
+              Skribli will keep the note attached to this window and bring it back with the same context.
             </p>
             <div className="window-list">
               {availableWindows.length === 0 ? (

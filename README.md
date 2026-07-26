@@ -1,8 +1,8 @@
-# Skribly
+# Skribli
 
 **Leave thoughts exactly where they belong.**
 
-Skribly is a lightweight, local-first desktop annotation layer for Windows and macOS. It lets people place typed notes, handwritten scribbles, arrows, highlights, pins, checklists, and reminders directly on applications, webpages, files, folders, and screen locations. A Skrib disappears when its context goes away and returns when that context comes back.
+Skribli is a lightweight, local-first desktop annotation layer for Windows and macOS. It lets people place typed notes, handwritten scribbles, arrows, highlights, pins, checklists, and reminders directly on applications, webpages, files, folders, and screen locations. A Skrib disappears when its context goes away and returns when that context comes back.
 
 > Status: product definition and technical spike phase. No production release exists yet.
 
@@ -16,7 +16,7 @@ Skribly is a lightweight, local-first desktop annotation layer for Windows and m
 
 ## Selected design direction
 
-![Skribly Direction 1 — Soft Paper Play](assets/design/direction-1-soft-paper-play.webp)
+![Skribli Direction 1 — Soft Paper Play](assets/design/direction-1-soft-paper-play.webp)
 
 The source image is preserved at [`assets/design/direction-1-soft-paper-play.webp`](assets/design/direction-1-soft-paper-play.webp). Detailed UI behavior is documented in [`docs/01-design`](docs/01-design/).
 

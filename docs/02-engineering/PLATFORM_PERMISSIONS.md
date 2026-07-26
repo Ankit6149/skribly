@@ -2,13 +2,13 @@
 
 ## Windows
 
-Expected capabilities include global shortcut registration, top-level window observation, UI Automation queries, tray operation, and local notifications. Avoid admin rights. Skribly should install and run per-user.
+Expected capabilities include global shortcut registration, top-level window observation, UI Automation queries, tray operation, and local notifications. Avoid admin rights. Skribli should install and run per-user.
 
 ## macOS
 
 Precise context detection is expected to require Accessibility permission. Onboarding must explain:
 
-> Skribly uses Accessibility permission to identify windows and restore your annotations. It does not read what you type or record your screen.
+> Skribli uses Accessibility permission to identify windows and restore your annotations. It does not read what you type or record your screen.
 
 Do not request Screen Recording permission in v1.
 

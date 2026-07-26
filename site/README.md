@@ -1,6 +1,6 @@
-# Skribly Landing Site
+# Skribli Landing Site
 
-This directory contains the public Skribly product website.
+This directory contains the public Skribli product website.
 
 It is intentionally plain HTML, CSS, and JavaScript so the desktop workspace, package lock, and Tauri build remain independent.
 

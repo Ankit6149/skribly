@@ -1,8 +1,8 @@
-# Skribly Founder Alpha Completion Plan
+# Skribli Founder Alpha Completion Plan
 
 _Last updated: July 2026_
 
-This plan is intentionally narrow. Skribly Founder Alpha is a Windows-first contextual annotation product, not a general notes platform.
+This plan is intentionally narrow. Skribli Founder Alpha is a Windows-first contextual annotation product, not a general notes platform.
 
 ## Product promise
 

@@ -8,7 +8,7 @@
     if (title) title.textContent = 'Checkout is not open yet.';
     if (message) {
       message.textContent =
-        'The current Windows beta is free while licence activation is being validated. Skribly has not charged you on this page.';
+        'The current Windows beta is free while licence activation is being validated. Skribli has not charged you on this page.';
     }
     if (download) {
       download.textContent = 'Download Windows beta';
@@ -23,7 +23,7 @@
       'Payment verification is handled server-side. Follow the instructions delivered by the authorised checkout provider; never share complete payment credentials with support.';
   }
   if (download) {
-    download.textContent = 'Return to Skribly';
+    download.textContent = 'Return to Skribli';
     download.setAttribute('href', '/');
   }
 })();

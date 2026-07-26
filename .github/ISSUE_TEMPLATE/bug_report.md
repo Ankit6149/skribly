@@ -1,6 +1,6 @@
 ---
 name: Bug report
-description: Report a reproducible Skribly defect
+description: Report a reproducible Skribli defect
 title: "[Bug] "
 labels: [bug]
 ---

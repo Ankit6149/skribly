@@ -1,4 +1,4 @@
-# Skribly Payments, Licensing and Installer Delivery Architecture
+# Skribli Payments, Licensing and Installer Delivery Architecture
 
 _Last updated: July 2026_
 
@@ -36,7 +36,7 @@ The security boundary is a signed entitlement verified by the desktop applicatio
 ## Current beta flow
 
 ```text
-Skribly website
+Skribli website
   -> GET /api/download
   -> server checks configured installer location
   -> direct installer redirect when available
@@ -45,12 +45,12 @@ Skribly website
 
 The public pages do not send customers to the source repository or GitHub release page.
 
-The direct asset can temporarily be hosted by a versioned release provider, but the customer-facing route stays on the Skribly domain.
+The direct asset can temporarily be hosted by a versioned release provider, but the customer-facing route stays on the Skribli domain.
 
 ## Paid launch flow
 
 ```text
-Desktop trial or Skribly website
+Desktop trial or Skribli website
   -> GET /api/checkout
   -> hosted Paddle checkout
   -> provider webhook arrives server-side

@@ -73,7 +73,7 @@ Use Notepad as the first external target.
 
 | # | Test | Status |
 |---|---|---|
-| 1 | Launch Skribly without an overlay-bounds mismatch | NOT TESTED |
+| 1 | Launch Skribli without an overlay-bounds mismatch | NOT TESTED |
 | 2 | Focus Notepad and press `Ctrl+Shift+Space` | NOT TESTED |
 | 3 | Confirm the native shortcut opens the picker or creates a note for the active target | NOT TESTED |
 | 4 | Bind a note to the real Notepad window | NOT TESTED |
@@ -84,14 +84,14 @@ Use Notepad as the first external target.
 | 9 | Resize the note smoothly and confirm only one native save occurs on release | NOT TESTED |
 | 10 | Move and resize Notepad; confirm the note follows | NOT TESTED |
 | 11 | Minimize and restore Notepad | NOT TESTED |
-| 12 | Close and reopen the same context in the same Skribly session | NOT TESTED |
+| 12 | Close and reopen the same context in the same Skribli session | NOT TESTED |
 | 13 | Open two similar Notepad windows and confirm ambiguity is not guessed silently | NOT TESTED |
 | 14 | Dismiss a native error alert and confirm it remains interactive | NOT TESTED |
-| 15 | Exit Skribly and confirm no orphan process remains | NOT TESTED |
+| 15 | Exit Skribli and confirm no orphan process remains | NOT TESTED |
 
 ## Runtime metrics
 
-With Skribly running, execute:
+With Skribli running, execute:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/windows/capture-runtime-evidence.ps1

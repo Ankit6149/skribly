@@ -44,7 +44,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target }) =>
   const textSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const readOnlyMessage = licenseStatus.message || 'Skribly is currently read-only on this device.';
+  const readOnlyMessage = licenseStatus.message || 'Skribli is currently read-only on this device.';
 
   const refreshAttachments = async () => {
     const content = await getRichContent(note.id);

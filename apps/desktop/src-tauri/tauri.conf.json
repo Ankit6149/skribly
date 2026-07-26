@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Skribly",
+  "productName": "Skribli",
   "version": "0.1.0",
   "identifier": "app.skribly.desktop",
   "build": {
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Skribly",
+        "title": "Skribli",
         "width": 1280,
         "height": 800,
         "visible": true,
@@ -38,7 +38,7 @@
     ],
     "category": "Productivity",
     "shortDescription": "Contextual notes that live inside your applications.",
-    "longDescription": "Skribly is a local-first contextual annotation layer for Windows. Place notes inside an application, close them into compact movable dots, and return to them with the same working context.",
+    "longDescription": "Skribli is a local-first contextual annotation layer for Windows. Place notes inside an application, close them into compact movable dots, and return to them with the same working context.",
     "copyright": "Copyright © 2026 Ankit Bhardwaj"
   }
 }

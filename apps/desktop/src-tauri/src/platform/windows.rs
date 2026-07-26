@@ -1,4 +1,4 @@
-//! Real Windows native platform implementation for Skribly.
+//! Real Windows native platform implementation for Skribli.
 //! Provides handle-leak-free window enumeration, HWND numeric conversion,
 //! RegisterHotKey global shortcuts, WM_NCHITTEST native WndProc subclassing,
 //! WinEvent hooks, DPI awareness, and coordinate conversion helpers.

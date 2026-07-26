@@ -2,7 +2,7 @@
 
 Before a paid public release:
 
-- [ ] trademark/name clearance for Skribly
+- [ ] trademark/name clearance for Skribli
 - [ ] domain and social handle review
 - [ ] privacy policy
 - [ ] terms of sale/licence

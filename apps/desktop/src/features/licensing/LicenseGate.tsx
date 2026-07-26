@@ -116,7 +116,7 @@ export const LicenseGate: React.FC<LicenseGateProps> = ({ children }) => {
 
       {shouldShowPanel && (
         <div className="license-gate-backdrop">
-          <section className="license-gate-panel" aria-label="Skribly licence">
+          <section className="license-gate-panel" aria-label="Skribli licence">
             <span className="license-gate-kicker">{panelKicker}</span>
             <h1>{panelHeading}</h1>
             <p>{panelMessage}</p>
@@ -134,7 +134,7 @@ export const LicenseGate: React.FC<LicenseGateProps> = ({ children }) => {
               <textarea
                 value={key}
                 onChange={(event) => setKey(event.target.value)}
-                placeholder="Paste the signed Skribly licence key"
+                placeholder="Paste the signed Skribli licence key"
                 spellCheck={false}
               />
             </label>

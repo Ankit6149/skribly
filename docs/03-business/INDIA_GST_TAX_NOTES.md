@@ -26,7 +26,7 @@ A direct domestic website checkout, Microsoft/Apple store sale, and Merchant-of-
 
 ## GST rate
 
-Software/digital-service transactions are commonly discussed at 18% GST, but the exact classification and whether a displayed consumer price is tax-inclusive must be confirmed for Skribly's licence and delivery structure.
+Software/digital-service transactions are commonly discussed at 18% GST, but the exact classification and whether a displayed consumer price is tax-inclusive must be confirmed for Skribli's licence and delivery structure.
 
 ## International sales
 

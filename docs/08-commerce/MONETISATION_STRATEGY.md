@@ -1,10 +1,10 @@
-# Skribly Monetisation Strategy
+# Skribli Monetisation Strategy
 
 _Last updated: July 2026_
 
 ## Decision
 
-Skribly Personal for Windows will use:
+Skribli Personal for Windows will use:
 
 - a seven-day full trial;
 - no card required to start the trial;
@@ -19,7 +19,7 @@ The current Windows beta remains free until licence activation, checkout, refund
 
 ## Why this model
 
-Skribly is a desktop productivity utility. People need to experience the overlay, note dots and application-context behaviour before deciding whether it fits their workflow. A full trial removes that uncertainty without making the entire commercial product permanently free.
+Skribli is a desktop productivity utility. People need to experience the overlay, note dots and application-context behaviour before deciding whether it fits their workflow. A full trial removes that uncertainty without making the entire commercial product permanently free.
 
 A one-time licence matches user expectations for a local-first utility better than an immediate subscription. The optional update pass allows continued development revenue without disabling the version a customer already purchased.
 
@@ -109,7 +109,7 @@ A public installer can still be commercially viable because the useful product i
 
 Before paid launch:
 - make the GitHub source repository private;
-- keep customer downloads on the Skribly domain;
+- keep customer downloads on the Skribli domain;
 - use a signed licence token;
 - verify the signature locally;
 - support offline use after successful activation;
@@ -202,5 +202,5 @@ Paid launch remains blocked until all are true:
 - refund revokes or flags entitlement correctly;
 - privacy policy, terms and refund policy are published;
 - real support contact exists;
-- installer download is delivered through the Skribly website;
+- installer download is delivered through the Skribli website;
 - pricing copy matches actual behaviour.

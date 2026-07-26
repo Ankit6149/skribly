@@ -132,8 +132,8 @@ export const SkribNoteCard: React.FC<SkribNoteCardProps> = ({ note, target }) =>
         setActiveInteractionRect({
           x: position.x,
           y: position.y,
-          width: isPreviewOpen ? Math.round(next.width) : 48,
-          height: isPreviewOpen ? Math.round(next.height) : 48,
+          width: isPreviewOpen ? Math.round(next.width) : 30,
+          height: isPreviewOpen ? Math.round(next.height) : 30,
         });
       });
     };
@@ -257,7 +257,7 @@ export const SkribNoteCard: React.FC<SkribNoteCardProps> = ({ note, target }) =>
         aria-label={`Open Skrib: ${note.text.slice(0, 60) || 'empty note'}`}
         title={note.text.trim().slice(0, 120) || 'Open Skrib'}
       >
-        <span className="skrib-dot-core">S</span>
+        <span className="skrib-dot-core" aria-hidden="true">✎</span>
         {attachmentCount > 0 && <span className="skrib-dot-badge">{attachmentCount}</span>}
       </button>
     );

@@ -1,6 +1,6 @@
 # Product accessibility
 
-Skribly uses accessibility APIs to understand window context, but Skribly itself must also be accessible.
+Skribli uses accessibility APIs to understand window context, but Skribli itself must also be accessible.
 
 ## Requirements
 

@@ -1,6 +1,6 @@
-# Skribly
+# Skribli
 
-Skribly is a local-first contextual notes application for Windows 10 and Windows 11.
+Skribli is a local-first contextual notes application for Windows 10 and Windows 11.
 
 ## Core product
 
@@ -14,7 +14,7 @@ Skribly is a local-first contextual notes application for Windows 10 and Windows
 
 ## Difference from ordinary sticky notes
 
-Ordinary sticky notes mainly preserve text in standalone note windows. Skribly is designed around spatial and application context: the note follows the application, retains a relative position, collapses into a compact anchor, and can help the user return to the matching app.
+Ordinary sticky notes mainly preserve text in standalone note windows. Skribli is designed around spatial and application context: the note follows the application, retains a relative position, collapses into a compact anchor, and can help the user return to the matching app.
 
 ## Availability
 

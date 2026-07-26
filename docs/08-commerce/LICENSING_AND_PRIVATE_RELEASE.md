@@ -1,10 +1,10 @@
-# Skribly Licensing and Private Release
+# Skribli Licensing and Private Release
 
 _Last updated: 25 July 2026_
 
 ## Commercial model
 
-Skribly's planned personal Windows offer is:
+Skribli's planned personal Windows offer is:
 
 - seven-day full trial;
 - no card required for the trial;
@@ -52,7 +52,7 @@ The release workflow fails when trial enforcement is enabled without a public ve
 
 When enforcement is enabled:
 
-1. The trial starts when Skribly first initializes its local licence state.
+1. The trial starts when Skribli first initializes its local licence state.
 2. The start and expiry timestamps are written atomically to `license.json` beside local note storage.
 3. The trial lasts seven calendar days.
 4. A small remaining-days button opens licence activation during the trial.
@@ -85,7 +85,7 @@ A licence token contains:
 The UTF-8 JSON payload is signed with Ed25519. The desktop accepts only a token whose:
 
 - signature matches the embedded public key;
-- product ID matches Skribly;
+- product ID matches Skribli;
 - device ID matches the local installation;
 - issue time is not in the future;
 - perpetual flag is true.
@@ -149,7 +149,7 @@ The production payment flow should be:
 2. Payment provider sends a signed server-to-server webhook.
 3. Backend validates the webhook signature and payment status.
 4. Backend creates or updates an entitlement record.
-5. Customer enters or confirms the Skribly device ID.
+5. Customer enters or confirms the Skribli device ID.
 6. Backend signs a device-bound licence token using the private Ed25519 key.
 7. Customer receives the token through the success page and email.
 8. Refund or chargeback revokes future token issuance and update entitlement according to the published terms.
@@ -177,7 +177,7 @@ This is the preferred long-term delivery model.
 
 The download function can also resolve a private GitHub Release asset without exposing the repository or token to the customer.
 
-1. Create a fine-grained GitHub token restricted to the Skribly repository with read-only access to repository contents and metadata.
+1. Create a fine-grained GitHub token restricted to the Skribli repository with read-only access to repository contents and metadata.
 2. Add the token only to the Vercel production environment as:
 
    ```text
@@ -228,5 +228,5 @@ Every public build must include:
 - MSI installer;
 - SHA-256 checksum file;
 - exact release notes;
-- correct Skribly icon generated from `assets/branding/skribly-app-icon.svg`;
+- correct Skribli icon generated from `assets/branding/skribly-app-icon.svg`;
 - explicit beta or enforced-trial build mode.

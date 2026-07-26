@@ -5,7 +5,7 @@
 
 ## Context
 
-Skribly needs a highly polished shared UI, low idle overhead, direct Windows/macOS distribution, free commercial framework licensing, native window observation, and precise transparent overlays. The founder has strong React experience and needs fast iteration.
+Skribli needs a highly polished shared UI, low idle overhead, direct Windows/macOS distribution, free commercial framework licensing, native window observation, and precise transparent overlays. The founder has strong React experience and needs fast iteration.
 
 ## Decision
 

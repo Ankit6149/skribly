@@ -59,7 +59,7 @@ export const FounderOnboarding: React.FC<FounderOnboardingProps> = ({ onVisibili
 
   return (
     <div className="founder-onboarding-backdrop">
-      <section className="founder-onboarding" aria-label="Welcome to Skribly">
+      <section className="founder-onboarding" aria-label="Welcome to Skribli">
         <button type="button" className="onboarding-skip" onClick={complete}>Skip</button>
         <div className="onboarding-brand">S</div>
         <span className="onboarding-eyebrow">{step.eyebrow}</span>
@@ -88,7 +88,7 @@ export const FounderOnboarding: React.FC<FounderOnboardingProps> = ({ onVisibili
               else setStepIndex((index) => Math.min(STEPS.length - 1, index + 1));
             }}
           >
-            {isLast ? 'Start using Skribly' : 'Continue'}
+            {isLast ? 'Start using Skribli' : 'Continue'}
           </button>
         </footer>
       </section>

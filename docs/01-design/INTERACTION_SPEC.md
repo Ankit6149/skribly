@@ -66,7 +66,7 @@ Do not use the Windows screenshot shortcut.
 
 ## Context return
 
-- When the matching app/window appears, Skribly restores relevant overlays without stealing focus.
+- When the matching app/window appears, Skribli restores relevant overlays without stealing focus.
 - A returning Skrib may use one subtle 150–250 ms unfold, then remain static.
 - When confidence is weak, show a collapsed warning state rather than overlaying the wrong control.
 

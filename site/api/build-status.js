@@ -3,7 +3,7 @@ const REPOSITORY_API = 'https://api.github.com/repos/Ankit6149/skribly';
 function githubHeaders() {
   const headers = {
     accept: 'application/vnd.github+json',
-    'user-agent': 'SkriblyBuildStatus/1.0',
+    'user-agent': 'SkribliBuildStatus/1.0',
     'x-github-api-version': '2022-11-28',
   };
   const token = process.env.SKRIBLY_GITHUB_TOKEN || process.env.GITHUB_TOKEN;
@@ -59,7 +59,7 @@ module.exports = async function handler(request, response) {
       jobs,
     });
   } catch (error) {
-    console.error('Unable to read Skribly CI status:', error);
+    console.error('Unable to read Skribli CI status:', error);
     response.setHeader('Cache-Control', 'no-store');
     return response.status(503).json({
       error: 'Build status is temporarily unavailable.',

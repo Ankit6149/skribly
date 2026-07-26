@@ -44,7 +44,7 @@ function disposeTauriListeners() {
 function writeBlockMessage(): string | null {
   const status = useLicenseStore.getState().status;
   if (!status.enforcementEnabled || status.canWrite) return null;
-  return status.message || 'Skribly is currently read-only on this device.';
+  return status.message || 'Skribli is currently read-only on this device.';
 }
 
 interface SkribStoreState {

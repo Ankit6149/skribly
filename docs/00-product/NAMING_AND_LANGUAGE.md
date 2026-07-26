@@ -2,7 +2,7 @@
 
 ## Brand
 
-**Skribly**
+**Skribli**
 
 Pronunciation: *scrib-lee*.
 
@@ -25,7 +25,7 @@ Explanatory line: **Add notes, handwriting, arrows, highlights, and reminders di
 
 ## Avoid
 
-- describing Skribly as merely a sticky-notes app
+- describing Skribli as merely a sticky-notes app
 - leading with AI
 - calling it a whiteboard
 - promises of perfect anchoring in every third-party application

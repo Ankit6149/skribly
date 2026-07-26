@@ -8,7 +8,7 @@ Razorpay or another Indian payment gateway may provide UPI/cards/net banking. Ga
 
 Options:
 
-1. direct payment processor, with Skribly handling customer tax and compliance
+1. direct payment processor, with Skribli handling customer tax and compliance
 2. Merchant of Record, which charges more but handles many customer-facing indirect-tax obligations
 3. platform commerce through Microsoft or Apple, with store commission and platform rules
 

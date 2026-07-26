@@ -4,7 +4,7 @@
 
 ## Intent
 
-Skribly should feel tactile, warm, immediate, and lightweight—like physical paper translated carefully into a digital environment. It must remain playful without becoming childish or visually noisy.
+Skribli should feel tactile, warm, immediate, and lightweight—like physical paper translated carefully into a digital environment. It must remain playful without becoming childish or visually noisy.
 
 ## Visual characteristics
 

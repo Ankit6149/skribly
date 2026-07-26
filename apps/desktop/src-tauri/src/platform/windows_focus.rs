@@ -16,7 +16,7 @@ pub fn focus_external_window(hwnd_val: isize) -> Result<(), String> {
 
         if !SetForegroundWindow(hwnd).as_bool() {
             return Err(
-                "Windows did not allow Skribly to focus that app. Click the app once, then retry."
+                "Windows did not allow Skribli to focus that app. Click the app once, then retry."
                     .into(),
             );
         }

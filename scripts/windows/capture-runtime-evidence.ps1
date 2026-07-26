@@ -17,7 +17,7 @@ if ($IntervalSeconds -lt 1) {
 
 $process = Get-Process -Name $ProcessName -ErrorAction SilentlyContinue | Select-Object -First 1
 if (-not $process) {
-    throw "Process '$ProcessName' is not running. Start Skribly before running this script."
+    throw "Process '$ProcessName' is not running. Start Skribli before running this script."
 }
 
 $outputDirectory = Split-Path -Parent $OutputPath
@@ -43,7 +43,7 @@ try {
     Write-Warning "Could not read the current desktop scale from the registry."
 }
 
-Write-Host "Capturing Skribly runtime evidence"
+Write-Host "Capturing Skribli runtime evidence"
 Write-Host "Commit: $commitSha"
 Write-Host "Process ID: $($process.Id)"
 Write-Host "Windows: $($computerInfo.WindowsProductName) $($computerInfo.WindowsVersion) build $($computerInfo.OsBuildNumber)"
@@ -61,7 +61,7 @@ for ($sample = 1; $sample -le $Samples; $sample++) {
 
     $current = Get-Process -Id $process.Id -ErrorAction SilentlyContinue
     if (-not $current) {
-        throw "Skribly exited before sample $sample."
+        throw "Skribli exited before sample $sample."
     }
 
     $timestamp = Get-Date

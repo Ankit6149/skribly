@@ -21,7 +21,7 @@ fn show_main_window<R: Runtime>(app: &tauri::AppHandle<R>) {
 pub fn install_tray<R: Runtime>(app: &App<R>) -> tauri::Result<()> {
     crate::desktop::license_bridge::install_license_bridge(app)?;
 
-    let show = MenuItem::with_id(app, SHOW_ID, "Show Skribly", true, None::<&str>)?;
+    let show = MenuItem::with_id(app, SHOW_ID, "Show Skribli", true, None::<&str>)?;
     let new_skrib = MenuItem::with_id(
         app,
         NEW_ID,
@@ -30,12 +30,12 @@ pub fn install_tray<R: Runtime>(app: &App<R>) -> tauri::Result<()> {
         None::<&str>,
     )?;
     let saved = MenuItem::with_id(app, NOTES_ID, "Saved Skribs", true, None::<&str>)?;
-    let quit = MenuItem::with_id(app, QUIT_ID, "Quit Skribly", true, None::<&str>)?;
+    let quit = MenuItem::with_id(app, QUIT_ID, "Quit Skribli", true, None::<&str>)?;
     let menu = Menu::with_items(app, &[&show, &new_skrib, &saved, &quit])?;
 
     TrayIconBuilder::with_id(TRAY_ID)
         .icon(tauri::include_image!("icons/icon.png"))
-        .tooltip("Skribly — contextual notes")
+        .tooltip("Skribli — contextual notes")
         .menu(&menu)
         .show_menu_on_left_click(true)
         .on_menu_event(|app, event| match event.id.as_ref() {

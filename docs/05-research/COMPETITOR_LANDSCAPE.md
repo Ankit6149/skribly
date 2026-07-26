@@ -15,7 +15,7 @@ The user problem is real and paid products exist. The category is not new.
 
 ## Required differentiation
 
-Skribly cannot win as “prettier sticky notes.” It must combine:
+Skribli cannot win as “prettier sticky notes.” It must combine:
 
 - contextual return
 - visual annotations beyond rectangular notes

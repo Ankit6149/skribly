@@ -146,12 +146,12 @@ export async function addInkToNote(noteId: string, blob: Blob): Promise<SkribAtt
   const withoutPreviousInk = content.attachments.filter((item) => item.kind !== 'ink');
   validateAttachmentSizes(
     withoutPreviousInk.reduce((sum, item) => sum + item.size, 0),
-    [{ name: 'Skribly drawing.png', size: blob.size }]
+    [{ name: 'Skribli drawing.png', size: blob.size }]
   );
 
   const attachment: SkribAttachment = {
     id: createId('ink'),
-    name: 'Skribly drawing.png',
+    name: 'Skribli drawing.png',
     mimeType: 'image/png',
     size: blob.size,
     createdAt: Date.now(),
