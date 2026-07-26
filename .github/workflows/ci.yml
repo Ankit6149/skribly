@@ -1,10 +1,7 @@
 name: CI
 
 on:
-  workflow_dispatch:
   pull_request:
-  push:
-    branches: [main]
 
 permissions:
   contents: write
@@ -14,40 +11,24 @@ jobs:
     name: Apply native interaction correction
     runs-on: ubuntu-latest
     steps:
-      - name: Check out main
+      - name: Check out review branch
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: fix/foreground-note-target
+          fetch-depth: 0
 
-      - name: Correct target capture and restore CI
+      - name: Correct foreground target capture
         shell: python
         run: |
           from pathlib import Path
 
-          lib_path = Path("apps/desktop/src-tauri/src/lib.rs")
-          source = lib_path.read_text(encoding="utf-8")
-          old = '''                        if hotkey_id == GLOBAL_HOTKEY_ID {
-                              if let Some(window) = app_handle_hk.get_webview_window("main") {
-                                  let _ = window.show();
-                                  let _ = window.set_focus();
-                              }
-
-                              let active_target = coordinator_hk.get_active_target();
-                              let target_to_use = match active_target {
-                                  Some(t) => Some(t),
-                                  None => {
-                                      #[cfg(target_os = "windows")]
-                                      {
-                                          get_foreground_target_window()
-                                      }
-                                      #[cfg(not(target_os = "windows"))]
-                                      {
-                                          None
-                                      }
-                                  }
-                              };
-          '''
-          new = '''                        if hotkey_id == GLOBAL_HOTKEY_ID {
+          path = Path("apps/desktop/src-tauri/src/lib.rs")
+          source = path.read_text(encoding="utf-8")
+          start_marker = '                        if hotkey_id == GLOBAL_HOTKEY_ID {\n'
+          end_marker = '                            let state_hk = app_handle_hk.state::<AppState>();\n'
+          start = source.index(start_marker)
+          end = source.index(end_marker, start)
+          replacement = '''                        if hotkey_id == GLOBAL_HOTKEY_ID {
                               let target_to_use = {
                                   #[cfg(target_os = "windows")]
                                   {
@@ -64,112 +45,15 @@ jobs:
                                   let _ = window.show();
                                   let _ = window.set_focus();
                               }
+
           '''
-          if old not in source:
-              raise SystemExit("Expected hotkey block was not found")
-          lib_path.write_text(source.replace(old, new, 1), encoding="utf-8")
+          path.write_text(source[:start] + replacement + source[end:], encoding="utf-8")
 
-          Path(".github/workflows/foreground-target-correction.yml").unlink(missing_ok=True)
-
-          clean_ci = '''name: CI
-
-          on:
-            workflow_dispatch:
-            pull_request:
-            push:
-              branches: [main]
-
-          jobs:
-            landing-site:
-              name: Landing site validation
-              runs-on: ubuntu-latest
-              steps:
-                - name: Check out repository
-                  uses: actions/checkout@v4
-
-                - name: Set up Node.js
-                  uses: actions/setup-node@v4
-                  with:
-                    node-version: 20
-
-                - name: Validate static site files and links
-                  run: node site/validate.mjs
-
-            frontend:
-              name: Cross-platform frontend checks
-              runs-on: ubuntu-latest
-              steps:
-                - name: Check out repository
-                  uses: actions/checkout@v4
-
-                - name: Set up Node.js
-                  uses: actions/setup-node@v4
-                  with:
-                    node-version: 20
-                    cache: npm
-
-                - name: Install workspace dependencies
-                  run: npm ci
-
-                - name: Type-check all workspaces
-                  run: npm run typecheck
-
-                - name: Run frontend tests
-                  run: npm run test
-
-                - name: Build production bundles
-                  run: npm run build
-
-            cargo-fmt:
-              name: Rust formatting check
-              runs-on: ubuntu-latest
-              steps:
-                - name: Check out repository
-                  uses: actions/checkout@v4
-
-                - name: Set up Rust
-                  uses: dtolnay/rust-toolchain@stable
-                  with:
-                    components: rustfmt
-
-                - name: Check Rust formatting
-                  run: cargo fmt --manifest-path apps/desktop/src-tauri/Cargo.toml --check
-
-            windows-rust:
-              name: Windows native Rust validation
-              runs-on: windows-latest
-              env:
-                SKRIBLY_TRIAL_ENFORCED: "0"
-              steps:
-                - name: Check out repository
-                  uses: actions/checkout@v4
-
-                - name: Set up Rust
-                  uses: dtolnay/rust-toolchain@stable
-
-                - name: Set up Node.js
-                  uses: actions/setup-node@v4
-                  with:
-                    node-version: 20
-                    cache: npm
-
-                - name: Install workspace dependencies
-                  run: npm ci
-
-                - name: Run Windows cargo check
-                  run: cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml
-
-                - name: Run Windows cargo tests
-                  run: cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -- --test-threads=1
-
-                - name: Check restricted configuration compiles
-                  env:
-                    SKRIBLY_TRIAL_ENFORCED: "1"
-                    SKRIBLY_LICENSE_PUBLIC_KEY: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-                  run: cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml
-          '''
-          clean_ci = "\n".join(line[10:] if line.startswith("          ") else line for line in clean_ci.splitlines()) + "\n"
-          Path(".github/workflows/ci.yml").write_text(clean_ci, encoding="utf-8")
+      - name: Restore the standard validation workflow
+        shell: bash
+        run: |
+          git show 6253b669d08f224f6e96aa1e40f32e96e1a2b47a:.github/workflows/ci.yml > .github/workflows/ci.yml
+          rm -f .github/workflows/foreground-target-correction.yml
 
       - name: Commit correction
         shell: bash
@@ -178,92 +62,4 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add apps/desktop/src-tauri/src/lib.rs .github/workflows/ci.yml .github/workflows/foreground-target-correction.yml
           git commit -m "fix: capture foreground app before opening a note"
-          git push origin HEAD:main
-
-  landing-site:
-    name: Landing site validation
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Validate static site files and links
-        run: node site/validate.mjs
-
-  frontend:
-    name: Cross-platform frontend checks
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-
-      - name: Install workspace dependencies
-        run: npm ci
-
-      - name: Type-check all workspaces
-        run: npm run typecheck
-
-      - name: Run frontend tests
-        run: npm run test
-
-      - name: Build production bundles
-        run: npm run build
-
-  cargo-fmt:
-    name: Rust formatting check
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt
-
-      - name: Check Rust formatting
-        run: cargo fmt --manifest-path apps/desktop/src-tauri/Cargo.toml --check
-
-  windows-rust:
-    name: Windows native Rust validation
-    runs-on: windows-latest
-    env:
-      SKRIBLY_TRIAL_ENFORCED: "0"
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-
-      - name: Install workspace dependencies
-        run: npm ci
-
-      - name: Run Windows cargo check
-        run: cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml
-
-      - name: Run Windows cargo tests
-        run: cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -- --test-threads=1
-
-      - name: Check restricted configuration compiles
-        env:
-          SKRIBLY_TRIAL_ENFORCED: "1"
-          SKRIBLY_LICENSE_PUBLIC_KEY: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-        run: cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml
+          git push origin HEAD:fix/foreground-note-target
