@@ -11,6 +11,7 @@ on:
     branches:
       - main
     paths:
+      - ".github/workflows/release.yml"
       - "apps/desktop/src-tauri/tauri.conf.json"
     tags:
       - "v*"
@@ -104,7 +105,7 @@ jobs:
         run: cargo fmt --manifest-path apps/desktop/src-tauri/Cargo.toml --check
 
       - name: Run Windows Rust tests
-        run: cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml
+        run: cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -- --test-threads=1
 
       - name: Generate platform icons from the approved logo
         run: npm --workspace @skribly/desktop run tauri -- icon ../../assets/branding/skribly-app-icon.svg

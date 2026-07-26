@@ -87,7 +87,7 @@ jobs:
         run: cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml
 
       - name: Run beta cargo tests
-        run: cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml
+        run: cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -- --test-threads=1
 
       - name: Check enforced trial configuration compiles
         env:
