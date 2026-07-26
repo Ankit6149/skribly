@@ -451,25 +451,22 @@ pub fn run() {
                     if let Ok(hotkey_id) = hotkey_receiver.recv_timeout(Duration::from_millis(100))
                     {
                         if hotkey_id == GLOBAL_HOTKEY_ID {
+                            let target_to_use = {
+                                #[cfg(target_os = "windows")]
+                                {
+                                    get_foreground_target_window()
+                                        .or_else(|| coordinator_hk.get_active_target())
+                                }
+                                #[cfg(not(target_os = "windows"))]
+                                {
+                                    coordinator_hk.get_active_target()
+                                }
+                            };
+
                             if let Some(window) = app_handle_hk.get_webview_window("main") {
                                 let _ = window.show();
                                 let _ = window.set_focus();
                             }
-
-                            let active_target = coordinator_hk.get_active_target();
-                            let target_to_use = match active_target {
-                                Some(t) => Some(t),
-                                None => {
-                                    #[cfg(target_os = "windows")]
-                                    {
-                                        get_foreground_target_window()
-                                    }
-                                    #[cfg(not(target_os = "windows"))]
-                                    {
-                                        None
-                                    }
-                                }
-                            };
 
                             let state_hk = app_handle_hk.state::<AppState>();
                             if let Some(ref target) = target_to_use {
