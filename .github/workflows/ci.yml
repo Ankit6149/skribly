@@ -7,8 +7,8 @@ permissions:
   contents: write
 
 jobs:
-  apply-native-correction:
-    name: Apply native interaction correction
+  format-native-source:
+    name: Format native source
     runs-on: ubuntu-latest
     steps:
       - name: Check out review branch
@@ -17,43 +17,19 @@ jobs:
           ref: fix/foreground-note-target
           fetch-depth: 0
 
-      - name: Correct foreground target capture
-        shell: python
-        run: |
-          from pathlib import Path
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
 
-          path = Path("apps/desktop/src-tauri/src/lib.rs")
-          source = path.read_text(encoding="utf-8")
-          start_marker = '                        if hotkey_id == GLOBAL_HOTKEY_ID {\n'
-          end_marker = '                            let state_hk = app_handle_hk.state::<AppState>();\n'
-          start = source.index(start_marker)
-          end = source.index(end_marker, start)
-          replacement = '''                        if hotkey_id == GLOBAL_HOTKEY_ID {
-                              let target_to_use = {
-                                  #[cfg(target_os = "windows")]
-                                  {
-                                      get_foreground_target_window()
-                                          .or_else(|| coordinator_hk.get_active_target())
-                                  }
-                                  #[cfg(not(target_os = "windows"))]
-                                  {
-                                      coordinator_hk.get_active_target()
-                                  }
-                              };
+      - name: Format Rust source
+        run: cargo fmt --manifest-path apps/desktop/src-tauri/Cargo.toml
 
-                              if let Some(window) = app_handle_hk.get_webview_window("main") {
-                                  let _ = window.show();
-                                  let _ = window.set_focus();
-                              }
-
-          '''
-          path.write_text(source[:start] + replacement + source[end:], encoding="utf-8")
-
-      - name: Commit correction
+      - name: Commit formatting
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add apps/desktop/src-tauri/src/lib.rs
-          git commit -m "fix: capture foreground app before opening a note"
+          git commit -m "style: format native interaction code"
           git push origin HEAD:fix/foreground-note-target
