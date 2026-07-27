@@ -486,9 +486,11 @@ pub fn run() {
                             let state_hk = app_handle_hk.state::<AppState>();
                             if let Some(ref target) = target_to_use {
                                 if let Some(window) = app_handle_hk.get_webview_window("main") {
-                                    let _ = window.show();
-                                    let _ = window.set_focus();
-                                }
+                            #[cfg(target_os = "windows")]
+                            position_compact_note_window(&window, target);
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                        }
                                 coordinator_hk.set_active_target(Some(target.clone()));
                                 let timestamp = std::time::SystemTime::now()
                                     .duration_since(std::time::UNIX_EPOCH)
@@ -533,8 +535,16 @@ pub fn run() {
                 while running_flag.load(Ordering::Relaxed) {
                     tick_counter += 1;
                     if let Ok(notice) = event_receiver.recv_timeout(Duration::from_millis(500)) {
-                        #[cfg(target_os = "windows")]
-                        {
+                let note_window_visible = app_handle_ev
+                    .get_webview_window("main")
+                    .and_then(|window| window.is_visible().ok())
+                    .unwrap_or(false);
+                if note_window_visible {
+                    continue;
+                }
+
+                #[cfg(target_os = "windows")]
+                {
                             let state_ev = app_handle_ev.state::<AppState>();
                             if matches!(
                                 notice.event_type,
