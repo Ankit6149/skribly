@@ -19,150 +19,54 @@ jobs:
           ref: fix/compact-note-window
           fetch-depth: 0
 
-      - name: Apply compact window architecture
+      - name: Complete compact window behaviour
         shell: python
         run: |
           from pathlib import Path
-          import re
 
-          windows_path = Path('apps/desktop/src-tauri/src/platform/windows.rs')
-          windows_source = windows_path.read_text(encoding='utf-8')
-
-          compact_initializer = '''pub fn attempt_overlay_bounds_initialization(
-              window: &tauri::WebviewWindow,
-          ) -> Result<OverlayMetrics, String> {
-              const NOTE_WINDOW_WIDTH: u32 = 420;
-              const NOTE_WINDOW_HEIGHT: u32 = 360;
-              const WINDOW_MARGIN: i32 = 24;
-
-              let bounds = get_virtual_screen_bounds();
-              let x = bounds.x + (bounds.width - NOTE_WINDOW_WIDTH as i32 - WINDOW_MARGIN).max(WINDOW_MARGIN);
-              let y = bounds.y + WINDOW_MARGIN;
-
-              window
-                  .set_size(tauri::PhysicalSize::new(NOTE_WINDOW_WIDTH, NOTE_WINDOW_HEIGHT))
-                  .map_err(|error| format!("set_size failed: {error}"))?;
-              window
-                  .set_position(tauri::PhysicalPosition::new(x, y))
-                  .map_err(|error| format!("set_position failed: {error}"))?;
-
-              std::thread::sleep(std::time::Duration::from_millis(30));
-
-              if let Ok(hwnd) = window.hwnd() {
-                  Ok(get_overlay_metrics(HWND(hwnd.0 as *mut _)))
-              } else {
-                  Err("Failed to acquire native HWND from WebviewWindow".into())
-              }
-          }
-
-          pub fn initialize_overlay_with_retry'''
-
-          windows_source, count = re.subn(
-              r'pub fn attempt_overlay_bounds_initialization\([\s\S]*?\n\}\n\npub fn initialize_overlay_with_retry',
-              compact_initializer,
-              windows_source,
-              count=1,
-          )
-          if count != 1 and 'const NOTE_WINDOW_WIDTH: u32 = 420;' not in windows_source:
-              raise SystemExit('Could not replace desktop-sized overlay initialization')
-
-          hit_test_pattern = r'''    if msg == WM_NCHITTEST \{\n        let px = \(lparam\.0 as i32 & 0xFFFF\) as i16 as i32;\n        let py = \(\(lparam\.0 as i32 >> 16\) & 0xFFFF\) as i16 as i32;\n\n        if let Some\(coordinator\) = GLOBAL_COORDINATOR\.get\(\) \{\n            let rects = coordinator\.get_hit_test_rects\(\);\n            if check_hit_test_interactive\(hwnd, px, py, &rects\) \{\n                return LRESULT\(HTCLIENT as isize\);\n            \} else \{\n                return LRESULT\(HTTRANSPARENT as isize\);\n            \}\n        \}\n    \}'''
-          replacement = '''    if msg == WM_NCHITTEST {
-              // Skribli is now a compact note window, so its small visible surface is fully interactive.
-              return LRESULT(HTCLIENT as isize);
-          }'''
-          windows_source, _ = re.subn(hit_test_pattern, replacement, windows_source, count=1)
-
-          old_filter = '            || process_name.eq_ignore_ascii_case("skribly.exe")\n'
-          new_filter = (
-              '            || process_name.eq_ignore_ascii_case("skribly.exe")\n'
-              '            || process_name.eq_ignore_ascii_case("skribli.exe")\n'
-          )
-          if old_filter in windows_source and 'eq_ignore_ascii_case("skribli.exe")' not in windows_source:
-              windows_source = windows_source.replace(old_filter, new_filter, 1)
-
-          windows_path.write_text(windows_source, encoding='utf-8')
-
-          lib_path = Path('apps/desktop/src-tauri/src/lib.rs')
-          lib_source = lib_path.read_text(encoding='utf-8')
-
-          old_import = '''    get_foreground_target_window, get_overlay_metrics as query_overlay_metrics,
-              initialize_overlay_with_retry, inspect_target_window, install_hotkey_sender,
-          '''
-          new_import = '''    get_foreground_target_window, get_overlay_metrics as query_overlay_metrics,
-              get_virtual_screen_bounds, initialize_overlay_with_retry, inspect_target_window,
-              install_hotkey_sender,
-          '''
-          if old_import in lib_source and 'get_virtual_screen_bounds, initialize_overlay_with_retry' not in lib_source:
-              lib_source = lib_source.replace(old_import, new_import, 1)
-
-          helper_marker = '#[tauri::command]\nfn get_foreground_window()'
-          helper = '''#[cfg(target_os = "windows")]
-          fn position_compact_note_window(
-              window: &tauri::WebviewWindow,
-              target: &TargetWindowInfo,
-          ) {
-              const WIDTH: i32 = 420;
-              const HEIGHT: i32 = 360;
-              const MARGIN: i32 = 18;
-
-              let screen = get_virtual_screen_bounds();
-              let min_x = screen.x + MARGIN;
-              let min_y = screen.y + MARGIN;
-              let max_x = (screen.x + screen.width - WIDTH - MARGIN).max(min_x);
-              let max_y = (screen.y + screen.height - HEIGHT - MARGIN).max(min_y);
-              let preferred_x = target.bounds.x + target.bounds.width - WIDTH - 24;
-              let preferred_y = target.bounds.y + 48;
-              let x = preferred_x.clamp(min_x, max_x);
-              let y = preferred_y.clamp(min_y, max_y);
-
-              let _ = window.set_size(tauri::PhysicalSize::new(WIDTH as u32, HEIGHT as u32));
-              let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
-          }
-
-          #[tauri::command]
-          fn get_foreground_window()'''
-          if helper_marker in lib_source and 'fn position_compact_note_window(' not in lib_source:
-              lib_source = lib_source.replace(helper_marker, helper, 1)
+          path = Path('apps/desktop/src-tauri/src/lib.rs')
+          source = path.read_text(encoding='utf-8')
 
           old_show = '''                                if let Some(window) = app_handle_hk.get_webview_window("main") {
-                                          let _ = window.show();
-                                          let _ = window.set_focus();
-                                      }
+                                      let _ = window.show();
+                                      let _ = window.set_focus();
+                                  }
           '''
           new_show = '''                                if let Some(window) = app_handle_hk.get_webview_window("main") {
-                                          #[cfg(target_os = "windows")]
-                                          position_compact_note_window(&window, target);
-                                          let _ = window.show();
-                                          let _ = window.set_focus();
-                                      }
+                                      #[cfg(target_os = "windows")]
+                                      position_compact_note_window(&window, target);
+                                      let _ = window.show();
+                                      let _ = window.set_focus();
+                                  }
           '''
-          if old_show in lib_source and 'position_compact_note_window(&window, target);' not in lib_source:
-              lib_source = lib_source.replace(old_show, new_show, 1)
-
-          lib_source = lib_source.replace('                                    rel_x: 40.0,\n                                    rel_y: 40.0,', '                                    rel_x: 0.0,\n                                    rel_y: 0.0,', 1)
-          lib_source = lib_source.replace('                                    width: 320.0,\n                                    height: 230.0,', '                                    width: 400.0,\n                                    height: 340.0,', 1)
+          if old_show in source and 'position_compact_note_window(&window, target);' not in source:
+              source = source.replace(old_show, new_show, 1)
 
           event_marker = '''                    if let Ok(notice) = event_receiver.recv_timeout(Duration::from_millis(500)) {
-                              #[cfg(target_os = "windows")]
-                              {
+                          #[cfg(target_os = "windows")]
+                          {
           '''
           event_replacement = '''                    if let Ok(notice) = event_receiver.recv_timeout(Duration::from_millis(500)) {
-                              let note_window_visible = app_handle_ev
-                                  .get_webview_window("main")
-                                  .and_then(|window| window.is_visible().ok())
-                                  .unwrap_or(false);
-                              if note_window_visible {
-                                  continue;
-                              }
+                          let note_window_visible = app_handle_ev
+                              .get_webview_window("main")
+                              .and_then(|window| window.is_visible().ok())
+                              .unwrap_or(false);
+                          if note_window_visible {
+                              continue;
+                          }
 
-                              #[cfg(target_os = "windows")]
-                              {
+                          #[cfg(target_os = "windows")]
+                          {
           '''
-          if event_marker in lib_source and 'let note_window_visible = app_handle_ev' not in lib_source:
-              lib_source = lib_source.replace(event_marker, event_replacement, 1)
+          if event_marker in source and 'let note_window_visible = app_handle_ev' not in source:
+              source = source.replace(event_marker, event_replacement, 1)
 
-          lib_path.write_text(lib_source, encoding='utf-8')
+          if 'position_compact_note_window(&window, target);' not in source:
+              raise SystemExit('Compact window placement was not inserted')
+          if 'let note_window_visible = app_handle_ev' not in source:
+              raise SystemExit('Foreground tracking guard was not inserted')
+
+          path.write_text(source, encoding='utf-8')
 
       - name: Format Rust source
         uses: dtolnay/rust-toolchain@stable
@@ -175,11 +79,11 @@ jobs:
       - name: Commit source correction
         shell: bash
         run: |
-          if git diff --quiet -- apps/desktop/src-tauri/src/lib.rs apps/desktop/src-tauri/src/platform/windows.rs; then
+          if git diff --quiet -- apps/desktop/src-tauri/src/lib.rs; then
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add apps/desktop/src-tauri/src/lib.rs apps/desktop/src-tauri/src/platform/windows.rs
-          git commit -m "fix compact note window behaviour"
+          git add apps/desktop/src-tauri/src/lib.rs
+          git commit -m "fix compact note placement"
           git push origin HEAD:fix/compact-note-window
