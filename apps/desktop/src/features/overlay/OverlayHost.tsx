@@ -26,7 +26,8 @@ export const OverlayHost: React.FC = () => {
     const created = skribs.find((note) => !knownNoteIdsRef.current.has(note.id));
     knownNoteIdsRef.current = new Set(skribs.map((note) => note.id));
 
-    if (created) openComposer(created.id, 'type');
+    const noteToOpen = created ?? [...skribs].sort((a, b) => b.updated_at - a.updated_at)[0];
+    if (noteToOpen) openComposer(noteToOpen.id, 'type');
   }, [initStatus.type, openComposer, skribs]);
 
   const composerNote = composerNoteId
