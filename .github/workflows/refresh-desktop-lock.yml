@@ -1,0 +1,38 @@
+name: Desktop Lock Alignment
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  align-lockfile:
+    if: github.head_ref == 'fix/compact-note-window'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out review branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/compact-note-window
+          fetch-depth: 0
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Refresh desktop lockfile
+        run: cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml
+
+      - name: Commit aligned lockfile
+        shell: bash
+        run: |
+          if git diff --quiet -- apps/desktop/src-tauri/Cargo.lock; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/desktop/src-tauri/Cargo.lock
+          git commit -m "align desktop build metadata"
+          git push origin HEAD:fix/compact-note-window
