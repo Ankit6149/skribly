@@ -492,28 +492,31 @@ pub fn run() {
                             let _ = window.set_focus();
                         }
                                 coordinator_hk.set_active_target(Some(target.clone()));
-                                let timestamp = std::time::SystemTime::now()
-                                    .duration_since(std::time::UNIX_EPOCH)
-                                    .unwrap_or_default()
-                                    .as_millis();
-                                let new_note = SkribNote {
-                                    id: format!("skrib-hotkey-{}", timestamp),
-                                    target_process_name: target.process_name.clone(),
-                                    target_title: target.title.clone(),
-                                    rel_x: 0.0,
-                                    rel_y: 0.0,
-                                    width: 400.0,
-                                    height: 340.0,
-                                    text: String::new(),
-                                    color: "yellow".into(),
-                                    collapsed: false,
-                                    created_at: (timestamp / 1000) as u64,
-                                    updated_at: (timestamp / 1000) as u64,
-                                };
-                                coordinator_hk.upsert_skrib(new_note);
-                                if let Err(message) = persist_skribs(&state_hk) {
-                                    let _ = app_handle_hk.emit("skribly://storage-error", message);
-                                }
+                        let existing_notes = coordinator_hk.get_skribs_for_target(target);
+                        if existing_notes.is_empty() {
+                            let timestamp = std::time::SystemTime::now()
+                                .duration_since(std::time::UNIX_EPOCH)
+                                .unwrap_or_default()
+                                .as_millis();
+                            let new_note = SkribNote {
+                                id: format!("skrib-hotkey-{}", timestamp),
+                                target_process_name: target.process_name.clone(),
+                                target_title: target.title.clone(),
+                                rel_x: 0.0,
+                                rel_y: 0.0,
+                                width: 400.0,
+                                height: 340.0,
+                                text: String::new(),
+                                color: "yellow".into(),
+                                collapsed: false,
+                                created_at: (timestamp / 1000) as u64,
+                                updated_at: (timestamp / 1000) as u64,
+                            };
+                            coordinator_hk.upsert_skrib(new_note);
+                            if let Err(message) = persist_skribs(&state_hk) {
+                                let _ = app_handle_hk.emit("skribly://storage-error", message);
+                            }
+                        }
                                 let payload =
                                     build_overlay_payload(&app_handle_hk, &state_hk, false);
                                 let _ = app_handle_hk.emit("skribly://global-shortcut", payload);
