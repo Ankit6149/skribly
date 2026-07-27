@@ -18,12 +18,12 @@ use core::storage;
 #[cfg(target_os = "windows")]
 use platform::windows::{
     get_foreground_target_window, get_overlay_metrics as query_overlay_metrics,
-    initialize_overlay_with_retry, inspect_target_window, install_hotkey_sender,
-    install_overlay_subclass, install_winevent_hooks, list_candidate_target_windows,
-    reconstruct_hwnd, register_global_hotkey, set_dpi_awareness, uninstall_overlay_subclass,
-    uninstall_winevent_hooks, unregister_global_hotkey, WinEventNotice, EVENT_OBJECT_DESTROY,
-    EVENT_OBJECT_LOCATIONCHANGE, EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_MINIMIZEEND,
-    EVENT_SYSTEM_MINIMIZESTART,
+    get_virtual_screen_bounds, initialize_overlay_with_retry, inspect_target_window,
+    install_hotkey_sender, install_overlay_subclass, install_winevent_hooks,
+    list_candidate_target_windows, reconstruct_hwnd, register_global_hotkey, set_dpi_awareness,
+    uninstall_overlay_subclass, uninstall_winevent_hooks, unregister_global_hotkey, WinEventNotice,
+    EVENT_OBJECT_DESTROY, EVENT_OBJECT_LOCATIONCHANGE, EVENT_SYSTEM_FOREGROUND,
+    EVENT_SYSTEM_MINIMIZEEND, EVENT_SYSTEM_MINIMIZESTART,
 };
 #[cfg(target_os = "windows")]
 use platform::windows_focus::focus_external_window;
@@ -60,6 +60,26 @@ impl AppState {
             OverlayInitializationStatus::Initializing
         }
     }
+}
+
+#[cfg(target_os = "windows")]
+fn position_compact_note_window(window: &tauri::WebviewWindow, target: &TargetWindowInfo) {
+    const WIDTH: i32 = 420;
+    const HEIGHT: i32 = 360;
+    const MARGIN: i32 = 18;
+
+    let screen = get_virtual_screen_bounds();
+    let min_x = screen.x + MARGIN;
+    let min_y = screen.y + MARGIN;
+    let max_x = (screen.x + screen.width - WIDTH - MARGIN).max(min_x);
+    let max_y = (screen.y + screen.height - HEIGHT - MARGIN).max(min_y);
+    let preferred_x = target.bounds.x + target.bounds.width - WIDTH - 24;
+    let preferred_y = target.bounds.y + 48;
+    let x = preferred_x.clamp(min_x, max_x);
+    let y = preferred_y.clamp(min_y, max_y);
+
+    let _ = window.set_size(tauri::PhysicalSize::new(WIDTH as u32, HEIGHT as u32));
+    let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
 }
 
 #[tauri::command]
@@ -466,32 +486,37 @@ pub fn run() {
                             let state_hk = app_handle_hk.state::<AppState>();
                             if let Some(ref target) = target_to_use {
                                 if let Some(window) = app_handle_hk.get_webview_window("main") {
-                                    let _ = window.show();
-                                    let _ = window.set_focus();
-                                }
+                            #[cfg(target_os = "windows")]
+                            position_compact_note_window(&window, target);
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                        }
                                 coordinator_hk.set_active_target(Some(target.clone()));
-                                let timestamp = std::time::SystemTime::now()
-                                    .duration_since(std::time::UNIX_EPOCH)
-                                    .unwrap_or_default()
-                                    .as_millis();
-                                let new_note = SkribNote {
-                                    id: format!("skrib-hotkey-{}", timestamp),
-                                    target_process_name: target.process_name.clone(),
-                                    target_title: target.title.clone(),
-                                    rel_x: 40.0,
-                                    rel_y: 40.0,
-                                    width: 320.0,
-                                    height: 230.0,
-                                    text: String::new(),
-                                    color: "yellow".into(),
-                                    collapsed: false,
-                                    created_at: (timestamp / 1000) as u64,
-                                    updated_at: (timestamp / 1000) as u64,
-                                };
-                                coordinator_hk.upsert_skrib(new_note);
-                                if let Err(message) = persist_skribs(&state_hk) {
-                                    let _ = app_handle_hk.emit("skribly://storage-error", message);
-                                }
+                        let existing_notes = coordinator_hk.get_skribs_for_target(target);
+                        if existing_notes.is_empty() {
+                            let timestamp = std::time::SystemTime::now()
+                                .duration_since(std::time::UNIX_EPOCH)
+                                .unwrap_or_default()
+                                .as_millis();
+                            let new_note = SkribNote {
+                                id: format!("skrib-hotkey-{}", timestamp),
+                                target_process_name: target.process_name.clone(),
+                                target_title: target.title.clone(),
+                                rel_x: 0.0,
+                                rel_y: 0.0,
+                                width: 400.0,
+                                height: 340.0,
+                                text: String::new(),
+                                color: "yellow".into(),
+                                collapsed: false,
+                                created_at: (timestamp / 1000) as u64,
+                                updated_at: (timestamp / 1000) as u64,
+                            };
+                            coordinator_hk.upsert_skrib(new_note);
+                            if let Err(message) = persist_skribs(&state_hk) {
+                                let _ = app_handle_hk.emit("skribly://storage-error", message);
+                            }
+                        }
                                 let payload =
                                     build_overlay_payload(&app_handle_hk, &state_hk, false);
                                 let _ = app_handle_hk.emit("skribly://global-shortcut", payload);
@@ -513,8 +538,16 @@ pub fn run() {
                 while running_flag.load(Ordering::Relaxed) {
                     tick_counter += 1;
                     if let Ok(notice) = event_receiver.recv_timeout(Duration::from_millis(500)) {
-                        #[cfg(target_os = "windows")]
-                        {
+                let note_window_visible = app_handle_ev
+                    .get_webview_window("main")
+                    .and_then(|window| window.is_visible().ok())
+                    .unwrap_or(false);
+                if note_window_visible {
+                    continue;
+                }
+
+                #[cfg(target_os = "windows")]
+                {
                             let state_ev = app_handle_ev.state::<AppState>();
                             if matches!(
                                 notice.event_type,

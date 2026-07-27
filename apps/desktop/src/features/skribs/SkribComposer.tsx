@@ -11,7 +11,7 @@ interface SkribComposerProps {
 }
 
 export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target }) => {
-  const { updateSkribText, toggleSkribCollapse, deleteSkrib } = useSkribStore();
+  const { updateSkribText, deleteSkrib } = useSkribStore();
   const licenseStatus = useLicenseStore((state) => state.status);
   const canWrite = !licenseStatus.enforcementEnabled || licenseStatus.canWrite;
   const { closeComposer } = useSkribUiStore();
@@ -34,6 +34,11 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target }) =>
     };
   }, []);
 
+  const hideWindow = async () => {
+    closeComposer();
+    await getCurrentWindow().hide();
+  };
+
   const saveTextNow = async () => {
     if (textSaveTimer.current) clearTimeout(textSaveTimer.current);
     textSaveTimer.current = null;
@@ -41,19 +46,29 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target }) =>
     if (text !== note.text) await updateSkribText(note.id, text);
   };
 
-  const finishAndCollapse = async (hideOverlay = false) => {
+  const finishAndHide = async () => {
+    if (!canWrite) {
+      await hideWindow();
+      return;
+    }
+
+    if (text.trim().length === 0) {
+      await deleteSkrib(note.id);
+      await hideWindow();
+      return;
+    }
+
     await saveTextNow();
-    if (canWrite && !note.collapsed) await toggleSkribCollapse(note.id);
-    closeComposer();
-    if (hideOverlay) await getCurrentWindow().hide();
+    await hideWindow();
   };
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
       event.preventDefault();
-      void finishAndCollapse();
+      void finishAndHide();
     };
+
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   });
@@ -63,67 +78,66 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target }) =>
       setErrorMessage(licenseStatus.message || 'This build is currently read-only.');
       return;
     }
+
     setText(value);
     if (textSaveTimer.current) clearTimeout(textSaveTimer.current);
     textSaveTimer.current = setTimeout(() => {
       void updateSkribText(note.id, value);
-    }, 300);
+    }, 350);
   };
 
   const handleDelete = async () => {
     if (!canWrite) return;
     if (textSaveTimer.current) clearTimeout(textSaveTimer.current);
-    closeComposer();
     await deleteSkrib(note.id);
+    await hideWindow();
   };
 
   return (
     <div className="skrib-composer-backdrop">
       <section
         className={`skrib-composer skrib-color-${note.color}`}
-        aria-label={canWrite ? 'Edit attached note' : 'View attached note'}
+        aria-label={canWrite ? 'Write an attached note' : 'View attached note'}
       >
-        <header className="composer-header">
-          <div className="composer-context">
-            <span className="composer-kicker">ATTACHED TO</span>
-            <strong>{contextLabel}</strong>
+        <header className="composer-header" data-tauri-drag-region>
+          <div className="composer-context" data-tauri-drag-region>
+            <span className="composer-kicker" data-tauri-drag-region>NOTE FOR</span>
+            <strong data-tauri-drag-region>{contextLabel}</strong>
           </div>
           <button
             type="button"
             className="composer-close"
-            onClick={() => void finishAndCollapse()}
-            aria-label="Save and close note"
+            onClick={() => void finishAndHide()}
+            aria-label="Save and close Skribli"
             title="Save and close"
           >
             ✕
           </button>
         </header>
 
-        {errorMessage && (
-          <div className="composer-error" role="alert">{errorMessage}</div>
-        )}
+        {errorMessage && <div className="composer-error" role="alert">{errorMessage}</div>}
 
         <textarea
           className="composer-textarea"
           value={text}
           autoFocus={canWrite}
           readOnly={!canWrite}
-          placeholder="Write something here…"
+          placeholder="Write the thought before it disappears…"
           spellCheck
           onChange={(event) => handleTextChange(event.target.value)}
           onBlur={() => void saveTextNow()}
         />
 
         <footer className="composer-footer">
-          <span className="composer-footer-hint">Esc saves and closes</span>
+          <div className="composer-status">
+            <span>Saved locally</span>
+            <small>Esc closes</small>
+          </div>
           <div className="composer-footer-actions">
-            <button type="button" className="secondary" disabled={!canWrite} onClick={() => void handleDelete()}>
+            <button type="button" className="secondary danger" disabled={!canWrite} onClick={() => void handleDelete()}>
               Delete
             </button>
-            <button type="button" className="secondary" onClick={() => void finishAndCollapse(true)}>
-              Hide app
-            </button>
-            <button type="button" className="primary" onClick={() => void finishAndCollapse()}>
+            <button type="button" className="primary" onClick={() => void finishAndHide()}>
               Done
             </button>
           </div>
