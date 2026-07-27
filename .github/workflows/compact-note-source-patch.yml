@@ -23,30 +23,30 @@ jobs:
         shell: python
         run: |
           from pathlib import Path
+          import re
 
           path = Path('apps/desktop/src-tauri/src/lib.rs')
           source = path.read_text(encoding='utf-8')
 
-          old_show = '''                                if let Some(window) = app_handle_hk.get_webview_window("main") {
-                                      let _ = window.show();
-                                      let _ = window.set_focus();
-                                  }
-          '''
-          new_show = '''                                if let Some(window) = app_handle_hk.get_webview_window("main") {
+          if 'position_compact_note_window(&window, target);' not in source:
+              source, count = re.subn(
+                  r'if let Some\(window\) = app_handle_hk\.get_webview_window\("main"\) \{\s*let _ = window\.show\(\);\s*let _ = window\.set_focus\(\);\s*\}',
+                  '''if let Some(window) = app_handle_hk.get_webview_window("main") {
                                       #[cfg(target_os = "windows")]
                                       position_compact_note_window(&window, target);
                                       let _ = window.show();
                                       let _ = window.set_focus();
-                                  }
-          '''
-          if old_show in source and 'position_compact_note_window(&window, target);' not in source:
-              source = source.replace(old_show, new_show, 1)
+                                  }''',
+                  source,
+                  count=1,
+              )
+              if count != 1:
+                  raise SystemExit('Could not insert compact note placement')
 
-          event_marker = '''                    if let Ok(notice) = event_receiver.recv_timeout(Duration::from_millis(500)) {
-                          #[cfg(target_os = "windows")]
-                          {
-          '''
-          event_replacement = '''                    if let Ok(notice) = event_receiver.recv_timeout(Duration::from_millis(500)) {
+          if 'let note_window_visible = app_handle_ev' not in source:
+              source, count = re.subn(
+                  r'if let Ok\(notice\) = event_receiver\.recv_timeout\(Duration::from_millis\(500\)\) \{\s*#\[cfg\(target_os = "windows"\)\]\s*\{',
+                  '''if let Ok(notice) = event_receiver.recv_timeout(Duration::from_millis(500)) {
                           let note_window_visible = app_handle_ev
                               .get_webview_window("main")
                               .and_then(|window| window.is_visible().ok())
@@ -56,15 +56,12 @@ jobs:
                           }
 
                           #[cfg(target_os = "windows")]
-                          {
-          '''
-          if event_marker in source and 'let note_window_visible = app_handle_ev' not in source:
-              source = source.replace(event_marker, event_replacement, 1)
-
-          if 'position_compact_note_window(&window, target);' not in source:
-              raise SystemExit('Compact window placement was not inserted')
-          if 'let note_window_visible = app_handle_ev' not in source:
-              raise SystemExit('Foreground tracking guard was not inserted')
+                          {''',
+                  source,
+                  count=1,
+              )
+              if count != 1:
+                  raise SystemExit('Could not insert foreground tracking guard')
 
           path.write_text(source, encoding='utf-8')
 
