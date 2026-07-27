@@ -18,12 +18,12 @@ use core::storage;
 #[cfg(target_os = "windows")]
 use platform::windows::{
     get_foreground_target_window, get_overlay_metrics as query_overlay_metrics,
-    initialize_overlay_with_retry, inspect_target_window, install_hotkey_sender,
-    install_overlay_subclass, install_winevent_hooks, list_candidate_target_windows,
-    reconstruct_hwnd, register_global_hotkey, set_dpi_awareness, uninstall_overlay_subclass,
-    uninstall_winevent_hooks, unregister_global_hotkey, WinEventNotice, EVENT_OBJECT_DESTROY,
-    EVENT_OBJECT_LOCATIONCHANGE, EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_MINIMIZEEND,
-    EVENT_SYSTEM_MINIMIZESTART,
+    get_virtual_screen_bounds, initialize_overlay_with_retry, inspect_target_window,
+    install_hotkey_sender, install_overlay_subclass, install_winevent_hooks,
+    list_candidate_target_windows, reconstruct_hwnd, register_global_hotkey, set_dpi_awareness,
+    uninstall_overlay_subclass, uninstall_winevent_hooks, unregister_global_hotkey, WinEventNotice,
+    EVENT_OBJECT_DESTROY, EVENT_OBJECT_LOCATIONCHANGE, EVENT_SYSTEM_FOREGROUND,
+    EVENT_SYSTEM_MINIMIZEEND, EVENT_SYSTEM_MINIMIZESTART,
 };
 #[cfg(target_os = "windows")]
 use platform::windows_focus::focus_external_window;
@@ -60,6 +60,26 @@ impl AppState {
             OverlayInitializationStatus::Initializing
         }
     }
+}
+
+#[cfg(target_os = "windows")]
+fn position_compact_note_window(window: &tauri::WebviewWindow, target: &TargetWindowInfo) {
+    const WIDTH: i32 = 420;
+    const HEIGHT: i32 = 360;
+    const MARGIN: i32 = 18;
+
+    let screen = get_virtual_screen_bounds();
+    let min_x = screen.x + MARGIN;
+    let min_y = screen.y + MARGIN;
+    let max_x = (screen.x + screen.width - WIDTH - MARGIN).max(min_x);
+    let max_y = (screen.y + screen.height - HEIGHT - MARGIN).max(min_y);
+    let preferred_x = target.bounds.x + target.bounds.width - WIDTH - 24;
+    let preferred_y = target.bounds.y + 48;
+    let x = preferred_x.clamp(min_x, max_x);
+    let y = preferred_y.clamp(min_y, max_y);
+
+    let _ = window.set_size(tauri::PhysicalSize::new(WIDTH as u32, HEIGHT as u32));
+    let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
 }
 
 #[tauri::command]
@@ -478,10 +498,10 @@ pub fn run() {
                                     id: format!("skrib-hotkey-{}", timestamp),
                                     target_process_name: target.process_name.clone(),
                                     target_title: target.title.clone(),
-                                    rel_x: 40.0,
-                                    rel_y: 40.0,
-                                    width: 320.0,
-                                    height: 230.0,
+                                    rel_x: 0.0,
+                                    rel_y: 0.0,
+                                    width: 400.0,
+                                    height: 340.0,
                                     text: String::new(),
                                     color: "yellow".into(),
                                     collapsed: false,

@@ -176,24 +176,28 @@ pub fn verify_overlay_bounds(hwnd: HWND) -> Result<OverlayMetrics, String> {
 pub fn attempt_overlay_bounds_initialization(
     window: &tauri::WebviewWindow,
 ) -> Result<OverlayMetrics, String> {
-    let vbounds = get_virtual_screen_bounds();
+    const NOTE_WINDOW_WIDTH: u32 = 420;
+    const NOTE_WINDOW_HEIGHT: u32 = 360;
+    const WINDOW_MARGIN: i32 = 24;
 
-    window
-        .set_position(tauri::PhysicalPosition::new(vbounds.x, vbounds.y))
-        .map_err(|e| format!("set_position failed: {}", e))?;
+    let bounds = get_virtual_screen_bounds();
+    let x = bounds.x + (bounds.width - NOTE_WINDOW_WIDTH as i32 - WINDOW_MARGIN).max(WINDOW_MARGIN);
+    let y = bounds.y + WINDOW_MARGIN;
 
     window
         .set_size(tauri::PhysicalSize::new(
-            vbounds.width as u32,
-            vbounds.height as u32,
+            NOTE_WINDOW_WIDTH,
+            NOTE_WINDOW_HEIGHT,
         ))
-        .map_err(|e| format!("set_size failed: {}", e))?;
+        .map_err(|error| format!("set_size failed: {error}"))?;
+    window
+        .set_position(tauri::PhysicalPosition::new(x, y))
+        .map_err(|error| format!("set_position failed: {error}"))?;
 
-    std::thread::sleep(std::time::Duration::from_millis(50));
+    std::thread::sleep(std::time::Duration::from_millis(30));
 
     if let Ok(hwnd) = window.hwnd() {
-        let win_hwnd = HWND(hwnd.0 as *mut _);
-        verify_overlay_bounds(win_hwnd)
+        Ok(get_overlay_metrics(HWND(hwnd.0 as *mut _)))
     } else {
         Err("Failed to acquire native HWND from WebviewWindow".into())
     }
@@ -337,17 +341,8 @@ unsafe extern "system" fn overlay_subclass_proc(
     }
 
     if msg == WM_NCHITTEST {
-        let px = (lparam.0 as i32 & 0xFFFF) as i16 as i32;
-        let py = ((lparam.0 as i32 >> 16) & 0xFFFF) as i16 as i32;
-
-        if let Some(coordinator) = GLOBAL_COORDINATOR.get() {
-            let rects = coordinator.get_hit_test_rects();
-            if check_hit_test_interactive(hwnd, px, py, &rects) {
-                return LRESULT(HTCLIENT as isize);
-            } else {
-                return LRESULT(HTTRANSPARENT as isize);
-            }
-        }
+        // Skribli is now a compact note window, so its small visible surface is fully interactive.
+        return LRESULT(HTCLIENT as isize);
     }
 
     let orig = ORIGINAL_WNDPROC.load(Ordering::Relaxed);
@@ -578,6 +573,7 @@ pub fn inspect_target_window(hwnd: HWND) -> Option<TargetWindowInfo> {
             || class_name == "Shell_TrayWnd"
             || class_name == "Windows.UI.Core.CoreWindow"
             || process_name.eq_ignore_ascii_case("skribly.exe")
+            || process_name.eq_ignore_ascii_case("skribli.exe")
         {
             return None;
         }
