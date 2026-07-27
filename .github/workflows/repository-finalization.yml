@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - .github/workflows/repository-finalization.yml
+      - apps/desktop/src-tauri/tauri.conf.json
 
 permissions:
   contents: write
@@ -23,19 +24,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Remove withdrawn installers and extra branches
+      - name: Remove extra branches
         shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-
-          # Keep repository history on the validated main branch only.
-          while IFS= read -r tag; do
-            if [ -n "$tag" ]; then
-              gh release delete "$tag" --yes --cleanup-tag || true
-            fi
-          done < <(gh release list --limit 100 --json tagName --jq '.[].tagName')
 
           while IFS= read -r branch; do
             if [ -n "$branch" ] && [ "$branch" != "main" ]; then
