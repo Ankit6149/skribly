@@ -1,0 +1,81 @@
+name: Compact Windows Candidate
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build-candidate:
+    if: github.head_ref == 'fix/compact-note-window'
+    runs-on: windows-latest
+    env:
+      SKRIBLY_TRIAL_ENFORCED: "0"
+    steps:
+      - name: Check out review branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/compact-note-window
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate metadata
+        shell: pwsh
+        run: |
+          $tauri = Get-Content apps/desktop/src-tauri/tauri.conf.json | ConvertFrom-Json
+          $cargoVersion = (Select-String -Path apps/desktop/src-tauri/Cargo.toml -Pattern '^version = "([^"]+)"$' | Select-Object -First 1).Matches.Groups[1].Value
+          if ($tauri.version -ne '0.1.3') { throw "Expected Tauri version 0.1.3, found $($tauri.version)" }
+          if ($cargoVersion -ne $tauri.version) { throw "Cargo and Tauri versions do not match" }
+          if ($tauri.app.windows[0].width -gt 420 -or $tauri.app.windows[0].height -gt 360) { throw "Window is not compact" }
+          if ($tauri.app.windows[0].fullscreen -or $tauri.app.windows[0].maximized) { throw "Compact note window cannot be fullscreen or maximized" }
+
+      - name: Run frontend validation
+        run: |
+          npm run typecheck
+          npm run test
+          npm run build
+
+      - name: Run native validation
+        run: |
+          cargo fmt --manifest-path apps/desktop/src-tauri/Cargo.toml --check
+          cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml
+          cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -- --test-threads=1
+
+      - name: Build Windows installers
+        run: npm run tauri -- build
+
+      - name: Collect installers and checksums
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path candidate | Out-Null
+          Get-ChildItem apps/desktop/src-tauri/target/release/bundle/nsis/*.exe | Copy-Item -Destination candidate
+          Get-ChildItem apps/desktop/src-tauri/target/release/bundle/msi/*.msi | Copy-Item -Destination candidate
+          $files = Get-ChildItem candidate -File | Sort-Object Name
+          if ($files.Count -lt 2) { throw "Expected both NSIS and MSI installers" }
+          $lines = foreach ($file in $files) {
+            $hash = (Get-FileHash $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$hash  $($file.Name)"
+          }
+          $lines | Set-Content candidate/SHA256SUMS.txt
+          Get-Content candidate/SHA256SUMS.txt
+
+      - name: Upload candidate package
+        uses: actions/upload-artifact@v4
+        with:
+          name: skribli-windows-0.1.3-compact-candidate
+          path: candidate/*
+          if-no-files-found: error
+          retention-days: 14
