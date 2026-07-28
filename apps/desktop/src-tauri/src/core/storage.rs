@@ -1,78 +1,779 @@
 use crate::core::license;
 use crate::core::models::SkribNote;
 use serde::{Deserialize, Serialize};
-use std::fs;
-use std::io::Write;
-use std::path::Path;
+use serde_json::Value;
+use std::fmt;
+use std::fs::{self, File, OpenOptions};
+use std::io::{Read, Write};
+use std::path::{Path, PathBuf};
+use std::time::{SystemTime, UNIX_EPOCH};
+use thiserror::Error;
 
-const STORAGE_VERSION: u32 = 1;
+const CURRENT_SCHEMA_VERSION: u32 = 2;
+const LEGACY_SCHEMA_VERSION: u32 = 1;
+
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum StorageSource {
+    Primary,
+    Temporary,
+    Backup1,
+    LegacyBackup,
+    Backup2,
+}
+
+impl StorageSource {
+    fn priority(self) -> u8 {
+        match self {
+            Self::Primary => 50,
+            Self::Temporary => 40,
+            Self::Backup1 => 30,
+            Self::LegacyBackup => 20,
+            Self::Backup2 => 10,
+        }
+    }
+}
+
+impl fmt::Display for StorageSource {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let value = match self {
+            Self::Primary => "primary",
+            Self::Temporary => "temporary recovery file",
+            Self::Backup1 => "latest backup",
+            Self::LegacyBackup => "legacy backup",
+            Self::Backup2 => "older backup",
+        };
+        formatter.write_str(value)
+    }
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct StorageNotice {
+    pub message: String,
+    pub source: StorageSource,
+    pub revision: u64,
+    pub migrated_from_schema: Option<u32>,
+    pub quarantined_files: Vec<String>,
+    pub backup_directory: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct LoadOutcome {
+    pub skribs: Vec<SkribNote>,
+    pub revision: u64,
+    pub notice: Option<StorageNotice>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SaveOutcome {
+    pub revision: u64,
+    pub written_at_ms: u64,
+}
+
+#[derive(Debug, Error)]
+pub enum StorageError {
+    #[error("Local Skrib storage path has no parent directory")]
+    MissingParent,
+    #[error("{operation} failed for {path}: {message}")]
+    Io {
+        operation: &'static str,
+        path: String,
+        message: String,
+    },
+    #[error("Local Skrib data is damaged in {path}: {reason}")]
+    InvalidData { path: String, reason: String },
+    #[error("Local Skrib data uses unsupported schema version {version} in {path}; the file was preserved and writes are blocked")]
+    UnsupportedSchema { path: String, version: u64 },
+    #[error("Local Skrib recovery found storage files but none were valid: {details}")]
+    NoRecoverableData { details: String },
+    #[error("Local Skrib writes are blocked to protect existing data: {reason}")]
+    WriteBlocked { reason: String },
+    #[error("Injected storage interruption at {stage}")]
+    InjectedFailure { stage: &'static str },
+}
 
 #[derive(Debug, Serialize, Deserialize)]
-struct StoredSkribs {
+struct StoredSkribsV1 {
     version: u32,
     skribs: Vec<SkribNote>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct StoredSkribsV2 {
+    schema_version: u32,
+    revision: u64,
+    written_at_ms: u64,
+    integrity: String,
+    skribs: Vec<SkribNote>,
+}
+
+#[derive(Serialize)]
+struct IntegrityPayload<'a> {
+    schema_version: u32,
+    revision: u64,
+    written_at_ms: u64,
+    skribs: &'a [SkribNote],
+}
+
+#[derive(Debug, Clone)]
+struct DecodedCandidate {
+    source: StorageSource,
+    path: PathBuf,
+    revision: u64,
+    written_at_ms: u64,
+    skribs: Vec<SkribNote>,
+    migrated_from_schema: Option<u32>,
+}
+
+#[derive(Debug)]
+struct InvalidCandidate {
+    source: StorageSource,
+    path: PathBuf,
+    error: StorageError,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SaveFault {
+    None,
+    AfterTemporarySync,
+    AfterBackupRotation,
+    BeforePrimaryReplace,
+}
+
+#[derive(Debug)]
+pub struct StorageService {
+    primary_path: PathBuf,
+    revision: u64,
+    blocked_reason: Option<String>,
+}
+
+impl StorageService {
+    pub fn new(primary_path: PathBuf) -> Self {
+        let _ = license::initialize_from_skrib_path(&primary_path);
+        Self {
+            primary_path,
+            revision: 0,
+            blocked_reason: None,
+        }
+    }
+
+    pub fn primary_path(&self) -> &Path {
+        &self.primary_path
+    }
+
+    pub fn current_revision(&self) -> u64 {
+        self.revision
+    }
+
+    pub fn blocked_reason(&self) -> Option<&str> {
+        self.blocked_reason.as_deref()
+    }
+
+    pub fn is_writable(&self) -> bool {
+        self.blocked_reason.is_none()
+    }
+
+    pub fn load(&mut self) -> Result<LoadOutcome, StorageError> {
+        self.blocked_reason = None;
+
+        let candidates = self.candidate_paths();
+        let mut found_any_file = false;
+        let mut valid = Vec::new();
+        let mut invalid = Vec::new();
+        let mut unsupported = Vec::new();
+
+        for (source, path) in candidates {
+            if !path.exists() {
+                continue;
+            }
+            found_any_file = true;
+
+            match decode_candidate(&path, source) {
+                Ok(candidate) => valid.push(candidate),
+                Err(error @ StorageError::UnsupportedSchema { .. }) => {
+                    unsupported.push(error);
+                }
+                Err(error) => invalid.push(InvalidCandidate {
+                    source,
+                    path,
+                    error,
+                }),
+            }
+        }
+
+        if !unsupported.is_empty() {
+            let reason = unsupported
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+                .join("; ");
+            self.blocked_reason = Some(reason.clone());
+            return Err(StorageError::WriteBlocked { reason });
+        }
+
+        if !found_any_file {
+            self.revision = 0;
+            return Ok(LoadOutcome {
+                skribs: Vec::new(),
+                revision: 0,
+                notice: None,
+            });
+        }
+
+        let mut quarantined_files = Vec::new();
+        let mut invalid_details = Vec::new();
+        for (index, candidate) in invalid.into_iter().enumerate() {
+            invalid_details.push(candidate.error.to_string());
+            match quarantine_file(&candidate.path, candidate.source, index) {
+                Ok(path) => quarantined_files.push(file_name_for_display(&path)),
+                Err(error) if candidate.source == StorageSource::Primary => {
+                    let reason = format!(
+                        "The damaged primary file could not be quarantined safely: {error}"
+                    );
+                    self.blocked_reason = Some(reason.clone());
+                    return Err(StorageError::WriteBlocked { reason });
+                }
+                Err(error) => invalid_details.push(error.to_string()),
+            }
+        }
+
+        if valid.is_empty() {
+            let details = if invalid_details.is_empty() {
+                "No valid primary, temporary, or backup generation was found".to_string()
+            } else {
+                invalid_details.join("; ")
+            };
+            self.blocked_reason = Some(details.clone());
+            return Err(StorageError::NoRecoverableData { details });
+        }
+
+        valid.sort_by(|left, right| {
+            right
+                .revision
+                .cmp(&left.revision)
+                .then_with(|| right.source.priority().cmp(&left.source.priority()))
+                .then_with(|| right.written_at_ms.cmp(&left.written_at_ms))
+        });
+        let selected = valid.remove(0);
+
+        let needs_restore = selected.source != StorageSource::Primary
+            || selected.migrated_from_schema.is_some();
+        if needs_restore {
+            self.restore_candidate(&selected)?;
+        }
+
+        self.revision = selected.revision;
+        cleanup_stale_temporary(&self.temporary_path());
+
+        let notice = if needs_restore || !quarantined_files.is_empty() {
+            let mut message = if selected.source == StorageSource::Primary {
+                "Skribli upgraded the local note database safely.".to_string()
+            } else {
+                format!(
+                    "Skribli recovered local notes from the {} and restored the primary database.",
+                    selected.source
+                )
+            };
+            if !quarantined_files.is_empty() {
+                message.push_str(" Damaged files were preserved in quarantine.");
+            }
+
+            Some(StorageNotice {
+                message,
+                source: selected.source,
+                revision: selected.revision,
+                migrated_from_schema: selected.migrated_from_schema,
+                quarantined_files,
+                backup_directory: parent_directory_for_display(&self.primary_path),
+            })
+        } else {
+            None
+        };
+
+        Ok(LoadOutcome {
+            skribs: selected.skribs,
+            revision: selected.revision,
+            notice,
+        })
+    }
+
+    pub fn save(&mut self, skribs: &[SkribNote]) -> Result<SaveOutcome, StorageError> {
+        self.save_internal(skribs, SaveFault::None)
+    }
+
+    fn save_internal(
+        &mut self,
+        skribs: &[SkribNote],
+        fault: SaveFault,
+    ) -> Result<SaveOutcome, StorageError> {
+        if let Some(reason) = &self.blocked_reason {
+            return Err(StorageError::WriteBlocked {
+                reason: reason.clone(),
+            });
+        }
+        license::require_global_write_access().map_err(|reason| StorageError::WriteBlocked {
+            reason,
+        })?;
+
+        let parent = self
+            .primary_path
+            .parent()
+            .ok_or(StorageError::MissingParent)?;
+        fs::create_dir_all(parent).map_err(|error| io_error("create data directory", parent, error))?;
+
+        let revision = self
+            .revision
+            .checked_add(1)
+            .ok_or_else(|| StorageError::WriteBlocked {
+                reason: "The local storage revision counter is exhausted".to_string(),
+            })?;
+        let written_at_ms = now_millis();
+        let envelope = build_envelope(revision, written_at_ms, skribs)?;
+        let payload = serde_json::to_vec_pretty(&envelope).map_err(|error| {
+            StorageError::InvalidData {
+                path: file_name_for_display(&self.primary_path),
+                reason: format!("failed to encode the storage envelope: {error}"),
+            }
+        })?;
+
+        let temporary = self.temporary_path();
+        write_bytes_synced(&temporary, &payload)?;
+        let temporary_candidate = decode_candidate(&temporary, StorageSource::Temporary)?;
+        if temporary_candidate.revision != revision || temporary_candidate.skribs != skribs {
+            return Err(StorageError::InvalidData {
+                path: file_name_for_display(&temporary),
+                reason: "the durable temporary generation did not verify after writing".to_string(),
+            });
+        }
+        maybe_fail(fault, SaveFault::AfterTemporarySync, "after temporary file sync")?;
+
+        self.rotate_backups()?;
+        maybe_fail(fault, SaveFault::AfterBackupRotation, "after backup rotation")?;
+        maybe_fail(fault, SaveFault::BeforePrimaryReplace, "before primary replacement")?;
+
+        atomic_replace(&temporary, &self.primary_path)?;
+        sync_parent_directory(parent)?;
+
+        let committed = decode_candidate(&self.primary_path, StorageSource::Primary)?;
+        if committed.revision != revision || committed.skribs != skribs {
+            let reason = "the committed primary generation could not be verified".to_string();
+            self.blocked_reason = Some(reason.clone());
+            return Err(StorageError::WriteBlocked { reason });
+        }
+
+        self.revision = revision;
+        Ok(SaveOutcome {
+            revision,
+            written_at_ms,
+        })
+    }
+
+    fn restore_candidate(&self, selected: &DecodedCandidate) -> Result<(), StorageError> {
+        let parent = self
+            .primary_path
+            .parent()
+            .ok_or(StorageError::MissingParent)?;
+        fs::create_dir_all(parent).map_err(|error| io_error("create data directory", parent, error))?;
+
+        if self.primary_path.exists() {
+            let _ = decode_candidate(&self.primary_path, StorageSource::Primary)?;
+            self.rotate_backups()?;
+        }
+
+        let envelope = build_envelope(
+            selected.revision,
+            selected.written_at_ms.max(now_millis()),
+            &selected.skribs,
+        )?;
+        let payload = serde_json::to_vec_pretty(&envelope).map_err(|error| {
+            StorageError::InvalidData {
+                path: file_name_for_display(&self.primary_path),
+                reason: format!("failed to encode the recovered storage envelope: {error}"),
+            }
+        })?;
+        let recovery_temporary = sibling_path(&self.primary_path, ".recovery.tmp");
+        write_bytes_synced(&recovery_temporary, &payload)?;
+        let verified = decode_candidate(&recovery_temporary, selected.source)?;
+        if verified.revision != selected.revision || verified.skribs != selected.skribs {
+            return Err(StorageError::InvalidData {
+                path: file_name_for_display(&recovery_temporary),
+                reason: "the recovered generation did not verify before replacement".to_string(),
+            });
+        }
+        atomic_replace(&recovery_temporary, &self.primary_path)?;
+        sync_parent_directory(parent)?;
+        let _ = decode_candidate(&self.primary_path, StorageSource::Primary)?;
+        Ok(())
+    }
+
+    fn rotate_backups(&self) -> Result<(), StorageError> {
+        let backup1 = self.backup1_path();
+        let backup2 = self.backup2_path();
+
+        if backup1.exists() {
+            let stage2 = sibling_path(&self.primary_path, ".bak.2.stage");
+            copy_verified_generation(&backup1, &stage2, StorageSource::Backup1)?;
+            atomic_replace(&stage2, &backup2)?;
+        }
+
+        if self.primary_path.exists() {
+            let stage1 = sibling_path(&self.primary_path, ".bak.1.stage");
+            copy_verified_generation(&self.primary_path, &stage1, StorageSource::Primary)?;
+            atomic_replace(&stage1, &backup1)?;
+        }
+
+        if let Some(parent) = self.primary_path.parent() {
+            sync_parent_directory(parent)?;
+        }
+        Ok(())
+    }
+
+    fn candidate_paths(&self) -> Vec<(StorageSource, PathBuf)> {
+        vec![
+            (StorageSource::Primary, self.primary_path.clone()),
+            (StorageSource::Temporary, self.temporary_path()),
+            (StorageSource::Backup1, self.backup1_path()),
+            (StorageSource::LegacyBackup, self.legacy_backup_path()),
+            (StorageSource::Backup2, self.backup2_path()),
+        ]
+    }
+
+    fn temporary_path(&self) -> PathBuf {
+        sibling_path(&self.primary_path, ".tmp")
+    }
+
+    fn backup1_path(&self) -> PathBuf {
+        sibling_path(&self.primary_path, ".bak.1")
+    }
+
+    fn backup2_path(&self) -> PathBuf {
+        sibling_path(&self.primary_path, ".bak.2")
+    }
+
+    fn legacy_backup_path(&self) -> PathBuf {
+        sibling_path(&self.primary_path, ".bak")
+    }
+}
+
 pub fn load(path: &Path) -> Result<Vec<SkribNote>, String> {
-    // Licence state lives beside the user's notes. A damaged licence file must not
-    // prevent read-only recovery of existing Skribs, so status errors are surfaced
-    // through the licence bridge rather than replacing note-storage errors.
-    let _ = license::initialize_from_skrib_path(path);
-
-    if !path.exists() {
-        return Ok(Vec::new());
-    }
-
-    let bytes = fs::read(path).map_err(|error| format!("Failed to read local Skribs: {error}"))?;
-    let stored: StoredSkribs = serde_json::from_slice(&bytes)
-        .map_err(|error| format!("Local Skrib data is damaged: {error}"))?;
-    if stored.version != STORAGE_VERSION {
-        return Err(format!(
-            "Unsupported local Skrib data version {}",
-            stored.version
-        ));
-    }
-    Ok(stored.skribs)
+    let mut storage = StorageService::new(path.to_path_buf());
+    storage
+        .load()
+        .map(|outcome| outcome.skribs)
+        .map_err(|error| error.to_string())
 }
 
 pub fn save(path: &Path, skribs: &[SkribNote]) -> Result<(), String> {
-    license::require_global_write_access()?;
+    let mut storage = StorageService::new(path.to_path_buf());
+    storage.load().map_err(|error| error.to_string())?;
+    storage
+        .save(skribs)
+        .map(|_| ())
+        .map_err(|error| error.to_string())
+}
 
-    let parent = path
-        .parent()
-        .ok_or_else(|| "Local Skrib data path has no parent directory".to_string())?;
-    fs::create_dir_all(parent)
-        .map_err(|error| format!("Failed to create local data directory: {error}"))?;
-
-    let payload = serde_json::to_vec_pretty(&StoredSkribs {
-        version: STORAGE_VERSION,
+fn build_envelope(
+    revision: u64,
+    written_at_ms: u64,
+    skribs: &[SkribNote],
+) -> Result<StoredSkribsV2, StorageError> {
+    let integrity = calculate_integrity(revision, written_at_ms, skribs)?;
+    Ok(StoredSkribsV2 {
+        schema_version: CURRENT_SCHEMA_VERSION,
+        revision,
+        written_at_ms,
+        integrity,
         skribs: skribs.to_vec(),
     })
-    .map_err(|error| format!("Failed to encode local Skribs: {error}"))?;
+}
 
-    let temp_path = path.with_extension("json.tmp");
-    let mut file = fs::File::create(&temp_path)
-        .map_err(|error| format!("Failed to open temporary Skrib data: {error}"))?;
-    file.write_all(&payload)
-        .and_then(|_| file.sync_all())
-        .map_err(|error| format!("Failed to safely write local Skribs: {error}"))?;
+fn calculate_integrity(
+    revision: u64,
+    written_at_ms: u64,
+    skribs: &[SkribNote],
+) -> Result<String, StorageError> {
+    let bytes = serde_json::to_vec(&IntegrityPayload {
+        schema_version: CURRENT_SCHEMA_VERSION,
+        revision,
+        written_at_ms,
+        skribs,
+    })
+    .map_err(|error| StorageError::InvalidData {
+        path: "in-memory storage envelope".to_string(),
+        reason: format!("failed to calculate integrity data: {error}"),
+    })?;
+    Ok(format!("crc32:{:08x}", crc32(&bytes)))
+}
 
-    if path.exists() {
-        let backup_path = path.with_extension("json.bak");
-        let _ = fs::copy(path, backup_path);
-        fs::remove_file(path)
-            .map_err(|error| format!("Failed to replace local Skrib data: {error}"))?;
+fn crc32(bytes: &[u8]) -> u32 {
+    let mut crc = 0xffff_ffff_u32;
+    for byte in bytes {
+        crc ^= u32::from(*byte);
+        for _ in 0..8 {
+            let mask = 0_u32.wrapping_sub(crc & 1);
+            crc = (crc >> 1) ^ (0xedb8_8320 & mask);
+        }
     }
-    fs::rename(&temp_path, path)
-        .map_err(|error| format!("Failed to commit local Skrib data: {error}"))?;
+    !crc
+}
+
+fn decode_candidate(path: &Path, source: StorageSource) -> Result<DecodedCandidate, StorageError> {
+    let mut file = File::open(path).map_err(|error| io_error("open storage generation", path, error))?;
+    let mut bytes = Vec::new();
+    file.read_to_end(&mut bytes)
+        .map_err(|error| io_error("read storage generation", path, error))?;
+    let value: Value = serde_json::from_slice(&bytes).map_err(|error| StorageError::InvalidData {
+        path: file_name_for_display(path),
+        reason: format!("invalid JSON: {error}"),
+    })?;
+
+    if let Some(schema_value) = value.get("schema_version") {
+        let schema_version = schema_value.as_u64().ok_or_else(|| StorageError::InvalidData {
+            path: file_name_for_display(path),
+            reason: "schema_version must be an unsigned integer".to_string(),
+        })?;
+        if schema_version != u64::from(CURRENT_SCHEMA_VERSION) {
+            return Err(StorageError::UnsupportedSchema {
+                path: file_name_for_display(path),
+                version: schema_version,
+            });
+        }
+
+        let stored: StoredSkribsV2 = serde_json::from_value(value).map_err(|error| {
+            StorageError::InvalidData {
+                path: file_name_for_display(path),
+                reason: format!("invalid schema-v2 envelope: {error}"),
+            }
+        })?;
+        let expected = calculate_integrity(stored.revision, stored.written_at_ms, &stored.skribs)?;
+        if stored.integrity != expected {
+            return Err(StorageError::InvalidData {
+                path: file_name_for_display(path),
+                reason: "integrity digest mismatch".to_string(),
+            });
+        }
+
+        return Ok(DecodedCandidate {
+            source,
+            path: path.to_path_buf(),
+            revision: stored.revision,
+            written_at_ms: stored.written_at_ms,
+            skribs: stored.skribs,
+            migrated_from_schema: None,
+        });
+    }
+
+    if let Some(version_value) = value.get("version") {
+        let version = version_value.as_u64().ok_or_else(|| StorageError::InvalidData {
+            path: file_name_for_display(path),
+            reason: "legacy version must be an unsigned integer".to_string(),
+        })?;
+        if version != u64::from(LEGACY_SCHEMA_VERSION) {
+            return Err(StorageError::UnsupportedSchema {
+                path: file_name_for_display(path),
+                version,
+            });
+        }
+        let stored: StoredSkribsV1 = serde_json::from_value(value).map_err(|error| {
+            StorageError::InvalidData {
+                path: file_name_for_display(path),
+                reason: format!("invalid legacy storage envelope: {error}"),
+            }
+        })?;
+        return Ok(DecodedCandidate {
+            source,
+            path: path.to_path_buf(),
+            revision: 0,
+            written_at_ms: file_modified_millis(path),
+            skribs: stored.skribs,
+            migrated_from_schema: Some(LEGACY_SCHEMA_VERSION),
+        });
+    }
+
+    Err(StorageError::InvalidData {
+        path: file_name_for_display(path),
+        reason: "missing schema_version/version field".to_string(),
+    })
+}
+
+fn copy_verified_generation(
+    source: &Path,
+    destination: &Path,
+    source_kind: StorageSource,
+) -> Result<(), StorageError> {
+    let expected = decode_candidate(source, source_kind)?;
+    let bytes = fs::read(source).map_err(|error| io_error("read known-good generation", source, error))?;
+    write_bytes_synced(destination, &bytes)?;
+    let copied = decode_candidate(destination, source_kind)?;
+    if copied.revision != expected.revision || copied.skribs != expected.skribs {
+        return Err(StorageError::InvalidData {
+            path: file_name_for_display(destination),
+            reason: "backup verification did not match its source generation".to_string(),
+        });
+    }
     Ok(())
+}
+
+fn write_bytes_synced(path: &Path, bytes: &[u8]) -> Result<(), StorageError> {
+    let mut file = OpenOptions::new()
+        .create(true)
+        .truncate(true)
+        .write(true)
+        .open(path)
+        .map_err(|error| io_error("open durable temporary generation", path, error))?;
+    file.write_all(bytes)
+        .map_err(|error| io_error("write durable temporary generation", path, error))?;
+    file.sync_all()
+        .map_err(|error| io_error("flush durable temporary generation", path, error))?;
+    drop(file);
+    Ok(())
+}
+
+#[cfg(target_os = "windows")]
+fn atomic_replace(source: &Path, destination: &Path) -> Result<(), StorageError> {
+    use std::os::windows::ffi::OsStrExt;
+    use windows::core::PCWSTR;
+    use windows::Win32::Storage::FileSystem::{
+        MoveFileExW, MOVEFILE_REPLACE_EXISTING, MOVEFILE_WRITE_THROUGH,
+    };
+
+    let source_wide = source
+        .as_os_str()
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect::<Vec<_>>();
+    let destination_wide = destination
+        .as_os_str()
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect::<Vec<_>>();
+
+    unsafe {
+        MoveFileExW(
+            PCWSTR(source_wide.as_ptr()),
+            PCWSTR(destination_wide.as_ptr()),
+            MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH,
+        )
+    }
+    .map_err(|error| StorageError::Io {
+        operation: "atomically replace storage generation",
+        path: file_name_for_display(destination),
+        message: error.to_string(),
+    })
+}
+
+#[cfg(not(target_os = "windows"))]
+fn atomic_replace(source: &Path, destination: &Path) -> Result<(), StorageError> {
+    fs::rename(source, destination)
+        .map_err(|error| io_error("atomically replace storage generation", destination, error))
+}
+
+#[cfg(unix)]
+fn sync_parent_directory(parent: &Path) -> Result<(), StorageError> {
+    File::open(parent)
+        .and_then(|directory| directory.sync_all())
+        .map_err(|error| io_error("flush storage directory", parent, error))
+}
+
+#[cfg(not(unix))]
+fn sync_parent_directory(_parent: &Path) -> Result<(), StorageError> {
+    Ok(())
+}
+
+fn quarantine_file(
+    path: &Path,
+    source: StorageSource,
+    index: usize,
+) -> Result<PathBuf, StorageError> {
+    let file_name = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("skribs.json");
+    let quarantine_name = format!(
+        "{file_name}.corrupt.{}.{}.{}",
+        now_millis(),
+        source.priority(),
+        index
+    );
+    let quarantine_path = path.with_file_name(quarantine_name);
+    fs::rename(path, &quarantine_path)
+        .map_err(|error| io_error("quarantine damaged storage generation", path, error))?;
+    Ok(quarantine_path)
+}
+
+fn cleanup_stale_temporary(path: &Path) {
+    if path.exists() {
+        let _ = fs::remove_file(path);
+    }
+}
+
+fn sibling_path(primary: &Path, suffix: &str) -> PathBuf {
+    let name = primary
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("skribs.json");
+    primary.with_file_name(format!("{name}{suffix}"))
+}
+
+fn now_millis() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis()
+        .try_into()
+        .unwrap_or(u64::MAX)
+}
+
+fn file_modified_millis(path: &Path) -> u64 {
+    fs::metadata(path)
+        .and_then(|metadata| metadata.modified())
+        .ok()
+        .and_then(|modified| modified.duration_since(UNIX_EPOCH).ok())
+        .and_then(|duration| duration.as_millis().try_into().ok())
+        .unwrap_or(0)
+}
+
+fn parent_directory_for_display(path: &Path) -> String {
+    path.parent()
+        .map(|parent| parent.to_string_lossy().into_owned())
+        .unwrap_or_else(|| ".".to_string())
+}
+
+fn file_name_for_display(path: &Path) -> String {
+    path.file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_else(|| path.to_string_lossy().into_owned())
+}
+
+fn io_error(operation: &'static str, path: &Path, error: std::io::Error) -> StorageError {
+    StorageError::Io {
+        operation,
+        path: file_name_for_display(path),
+        message: error.to_string(),
+    }
+}
+
+fn maybe_fail(
+    actual: SaveFault,
+    expected: SaveFault,
+    stage: &'static str,
+) -> Result<(), StorageError> {
+    if actual == expected {
+        Err(StorageError::InjectedFailure { stage })
+    } else {
+        Ok(())
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::atomic::{AtomicU64, Ordering};
 
-    fn note(id: &str) -> SkribNote {
+    static TEST_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+    fn note(id: &str, text: &str) -> SkribNote {
         SkribNote {
             id: id.into(),
             target_process_name: "notepad.exe".into(),
@@ -81,7 +782,7 @@ mod tests {
             rel_y: 20.0,
             width: 300.0,
             height: 220.0,
-            text: "Persistent".into(),
+            text: text.into(),
             color: "yellow".into(),
             collapsed: false,
             created_at: 1,
@@ -89,14 +790,230 @@ mod tests {
         }
     }
 
+    fn test_path(name: &str) -> PathBuf {
+        let sequence = TEST_COUNTER.fetch_add(1, Ordering::Relaxed);
+        let directory = std::env::temp_dir().join(format!(
+            "skribly-storage-{name}-{}-{sequence}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&directory);
+        fs::create_dir_all(&directory).expect("test directory should be created");
+        directory.join("skribs.json")
+    }
+
+    fn cleanup(path: &Path) {
+        if let Some(parent) = path.parent() {
+            let _ = fs::remove_dir_all(parent);
+        }
+    }
+
+    fn write_legacy(path: &Path, skribs: Vec<SkribNote>) {
+        let payload = serde_json::to_vec_pretty(&StoredSkribsV1 {
+            version: LEGACY_SCHEMA_VERSION,
+            skribs,
+        })
+        .expect("legacy payload should encode");
+        write_bytes_synced(path, &payload).expect("legacy payload should be written");
+    }
+
     #[test]
-    fn round_trips_versioned_storage() {
-        let dir = std::env::temp_dir().join(format!("skribly-storage-{}", std::process::id()));
-        let path = dir.join("skribs.json");
-        let _ = fs::remove_dir_all(&dir);
-        let _ = load(&path).expect("load should initialize local state");
-        save(&path, &[note("a")]).expect("save should succeed");
-        assert_eq!(load(&path).expect("load should succeed"), vec![note("a")]);
-        let _ = fs::remove_dir_all(dir);
+    fn round_trips_integrity_checked_storage() {
+        let path = test_path("roundtrip");
+        let mut storage = StorageService::new(path.clone());
+        assert_eq!(storage.load().expect("empty load").skribs, Vec::new());
+        let saved = storage
+            .save(&[note("a", "Persistent")])
+            .expect("save should succeed");
+        assert_eq!(saved.revision, 1);
+
+        let mut reopened = StorageService::new(path.clone());
+        let loaded = reopened.load().expect("load should succeed");
+        assert_eq!(loaded.skribs, vec![note("a", "Persistent")]);
+        assert_eq!(loaded.revision, 1);
+        assert!(loaded.notice.is_none());
+        cleanup(&path);
+    }
+
+    #[test]
+    fn migrates_legacy_v1_without_losing_notes() {
+        let path = test_path("legacy");
+        write_legacy(&path, vec![note("legacy", "Old format")]);
+
+        let mut storage = StorageService::new(path.clone());
+        let loaded = storage.load().expect("legacy load should succeed");
+        assert_eq!(loaded.skribs, vec![note("legacy", "Old format")]);
+        assert_eq!(
+            loaded
+                .notice
+                .as_ref()
+                .and_then(|notice| notice.migrated_from_schema),
+            Some(LEGACY_SCHEMA_VERSION)
+        );
+        let migrated = decode_candidate(&path, StorageSource::Primary)
+            .expect("migrated primary should verify");
+        assert_eq!(migrated.migrated_from_schema, None);
+        cleanup(&path);
+    }
+
+    #[test]
+    fn recovers_when_primary_is_missing_but_backup_exists() {
+        let path = test_path("missing-primary");
+        let mut storage = StorageService::new(path.clone());
+        storage.load().expect("empty load");
+        storage.save(&[note("one", "First")]).expect("first save");
+        storage.save(&[note("two", "Second")]).expect("second save");
+        fs::remove_file(&path).expect("primary should be removed for the test");
+
+        let mut reopened = StorageService::new(path.clone());
+        let loaded = reopened.load().expect("backup recovery should succeed");
+        assert_eq!(loaded.skribs, vec![note("one", "First")]);
+        assert_eq!(
+            loaded.notice.as_ref().map(|notice| notice.source),
+            Some(StorageSource::Backup1)
+        );
+        assert!(path.exists());
+        cleanup(&path);
+    }
+
+    #[test]
+    fn quarantines_corrupt_primary_and_recovers_backup() {
+        let path = test_path("corrupt-primary");
+        let mut storage = StorageService::new(path.clone());
+        storage.load().expect("empty load");
+        storage.save(&[note("one", "First")]).expect("first save");
+        storage.save(&[note("two", "Second")]).expect("second save");
+        write_bytes_synced(&path, b"{not-json").expect("corruption fixture");
+
+        let mut reopened = StorageService::new(path.clone());
+        let loaded = reopened.load().expect("backup recovery should succeed");
+        assert_eq!(loaded.skribs, vec![note("one", "First")]);
+        let notice = loaded.notice.expect("recovery notice should exist");
+        assert_eq!(notice.source, StorageSource::Backup1);
+        assert_eq!(notice.quarantined_files.len(), 1);
+        assert!(path.exists());
+        cleanup(&path);
+    }
+
+    #[test]
+    fn interruption_after_temporary_sync_recovers_latest_revision() {
+        let path = test_path("fault-temp");
+        let mut storage = StorageService::new(path.clone());
+        storage.load().expect("empty load");
+        storage.save(&[note("one", "First")]).expect("first save");
+        let error = storage
+            .save_internal(
+                &[note("two", "Newest")],
+                SaveFault::AfterTemporarySync,
+            )
+            .expect_err("fault should interrupt save");
+        assert!(matches!(error, StorageError::InjectedFailure { .. }));
+
+        let mut reopened = StorageService::new(path.clone());
+        let loaded = reopened.load().expect("temporary recovery should succeed");
+        assert_eq!(loaded.skribs, vec![note("two", "Newest")]);
+        assert_eq!(
+            loaded.notice.as_ref().map(|notice| notice.source),
+            Some(StorageSource::Temporary)
+        );
+        cleanup(&path);
+    }
+
+    #[test]
+    fn interruption_after_backup_rotation_keeps_latest_temporary_generation() {
+        let path = test_path("fault-backup");
+        let mut storage = StorageService::new(path.clone());
+        storage.load().expect("empty load");
+        storage.save(&[note("one", "First")]).expect("first save");
+        storage
+            .save_internal(
+                &[note("two", "Newest")],
+                SaveFault::AfterBackupRotation,
+            )
+            .expect_err("fault should interrupt save");
+
+        let mut reopened = StorageService::new(path.clone());
+        let loaded = reopened.load().expect("recovery should succeed");
+        assert_eq!(loaded.skribs, vec![note("two", "Newest")]);
+        cleanup(&path);
+    }
+
+    #[test]
+    fn rotates_two_known_good_backup_generations() {
+        let path = test_path("rotation");
+        let mut storage = StorageService::new(path.clone());
+        storage.load().expect("empty load");
+        storage.save(&[note("one", "One")]).expect("save one");
+        storage.save(&[note("two", "Two")]).expect("save two");
+        storage.save(&[note("three", "Three")]).expect("save three");
+
+        let backup1 = decode_candidate(&storage.backup1_path(), StorageSource::Backup1)
+            .expect("backup1 should verify");
+        let backup2 = decode_candidate(&storage.backup2_path(), StorageSource::Backup2)
+            .expect("backup2 should verify");
+        assert_eq!(backup1.skribs, vec![note("two", "Two")]);
+        assert_eq!(backup2.skribs, vec![note("one", "One")]);
+        cleanup(&path);
+    }
+
+    #[test]
+    fn existing_corrupt_files_are_never_treated_as_empty_storage() {
+        let path = test_path("no-silent-empty");
+        write_bytes_synced(&path, b"not-json").expect("corruption fixture");
+
+        let mut storage = StorageService::new(path.clone());
+        let error = storage
+            .load()
+            .expect_err("corrupt-only storage must fail closed");
+        assert!(matches!(error, StorageError::NoRecoverableData { .. }));
+        assert!(!storage.is_writable());
+        cleanup(&path);
+    }
+
+    #[test]
+    fn unsupported_schema_is_preserved_and_blocks_writes() {
+        let path = test_path("unsupported");
+        let bytes = br#"{
+          "schema_version": 99,
+          "revision": 20,
+          "written_at_ms": 1,
+          "integrity": "future",
+          "skribs": []
+        }"#;
+        write_bytes_synced(&path, bytes).expect("future fixture");
+        let original = fs::read(&path).expect("fixture should be readable");
+
+        let mut storage = StorageService::new(path.clone());
+        let error = storage
+            .load()
+            .expect_err("future schema must block downgrade");
+        assert!(matches!(error, StorageError::WriteBlocked { .. }));
+        assert!(storage
+            .save(&[note("new", "Must not overwrite")])
+            .is_err());
+        assert_eq!(fs::read(&path).expect("future file remains"), original);
+        cleanup(&path);
+    }
+
+    #[test]
+    fn integrity_mismatch_falls_back_to_verified_backup() {
+        let path = test_path("integrity");
+        let mut storage = StorageService::new(path.clone());
+        storage.load().expect("empty load");
+        storage.save(&[note("one", "One")]).expect("save one");
+        storage.save(&[note("two", "Two")]).expect("save two");
+
+        let mut value: Value = serde_json::from_slice(&fs::read(&path).expect("read primary"))
+            .expect("primary JSON");
+        value["skribs"][0]["text"] = Value::String("Tampered".into());
+        write_bytes_synced(
+            &path,
+            &serde_json::to_vec_pretty(&value).expect("tampered JSON"),
+        )
+        .expect("write tampered primary");
+
+        let mut reopened = StorageService::new(path.clone());
+        let loaded = reopened.load().expect("backup should recover");
+        assert_eq!(loaded.skribs, vec![note("one", "One")]);
+        cleanup(&path);
     }
 }
