@@ -139,15 +139,20 @@ impl AppState {
             .and_then(|message| message.clone());
 
         let (writable, revision, backup_directory) = match self.storage.lock() {
-            Ok(storage) => (
-                storage.is_writable(),
-                storage.current_revision(),
-                storage
-                    .primary_path()
-                    .parent()
-                    .map(|path| path.to_string_lossy().into_owned())
-                    .unwrap_or_default(),
-            ),
+            Ok(storage) => {
+                if error.is_none() {
+                    error = storage.blocked_reason().map(ToString::to_string);
+                }
+                (
+                    storage.is_writable(),
+                    storage.current_revision(),
+                    storage
+                        .primary_path()
+                        .parent()
+                        .map(|path| path.to_string_lossy().into_owned())
+                        .unwrap_or_default(),
+                )
+            }
             Err(_) => {
                 if error.is_none() {
                     error = Some("Local storage service is unavailable".to_string());
@@ -996,6 +1001,10 @@ mod tests {
             #[cfg(target_os = "windows")]
             win_event_sender: channel().0,
         };
+
+        let initial_health = app_state.storage_health();
+        assert!(!initial_health.writable);
+        assert!(initial_health.error.is_some());
 
         let result = run_persisted_mutation(&app_state, |coordinator| {
             coordinator

@@ -264,21 +264,6 @@ impl StorageService {
             return Err(StorageError::NoRecoverableData { details });
         }
 
-        let mut quarantined_files = Vec::new();
-        for (index, candidate) in invalid.into_iter().enumerate() {
-            match quarantine_file(&candidate.path, candidate.source, index) {
-                Ok(path) => quarantined_files.push(file_name_for_display(&path)),
-                Err(error) if candidate.source == StorageSource::Primary => {
-                    let reason = format!(
-                        "The damaged primary file could not be quarantined safely: {error}"
-                    );
-                    self.blocked_reason = Some(reason.clone());
-                    return Err(StorageError::WriteBlocked { reason });
-                }
-                Err(error) => invalid_details.push(error.to_string()),
-            }
-        }
-
         valid.sort_by(|left, right| {
             right
                 .revision
@@ -288,23 +273,50 @@ impl StorageService {
         });
         let selected = valid.remove(0);
 
+        let mut quarantined_files = Vec::new();
+        for (index, candidate) in invalid.into_iter().enumerate() {
+            match quarantine_file(&candidate.path, candidate.source, index) {
+                Ok(path) => quarantined_files.push(file_name_for_display(&path)),
+                Err(error) if candidate.source == StorageSource::Primary => {
+                    let reason = format!(
+                        "The damaged primary file could not be quarantined safely: {error}"
+                    );
+                    return Ok(self.read_only_recovery_outcome(
+                        &selected,
+                        reason,
+                        quarantined_files,
+                    ));
+                }
+                Err(error) => invalid_details.push(error.to_string()),
+            }
+        }
+
         let needs_restore =
             selected.source != StorageSource::Primary || selected.migrated_from_schema.is_some();
         if needs_restore {
-            self.restore_candidate(&selected)?;
+            if let Err(error) = self.restore_candidate(&selected) {
+                return Ok(self.read_only_recovery_outcome(
+                    &selected,
+                    format!("The verified recovery generation could not be restored: {error}"),
+                    quarantined_files,
+                ));
+            }
         }
 
         self.revision = selected.revision;
         cleanup_stale_temporary(&self.temporary_path());
 
         let notice = if needs_restore || !quarantined_files.is_empty() {
-            let mut message = if selected.source == StorageSource::Primary {
+            let mut message = if selected.migrated_from_schema.is_some() {
                 "Skribli upgraded the local note database safely.".to_string()
-            } else {
+            } else if selected.source != StorageSource::Primary {
                 format!(
                     "Skribli recovered local notes from the {} and restored the primary database.",
                     selected.source
                 )
+            } else {
+                "Skribli verified the primary database and preserved damaged recovery files."
+                    .to_string()
             };
             if !quarantined_files.is_empty() {
                 message.push_str(" Damaged files were preserved in quarantine.");
@@ -327,6 +339,36 @@ impl StorageService {
             revision: selected.revision,
             notice,
         })
+    }
+
+    fn read_only_recovery_outcome(
+        &mut self,
+        selected: &DecodedCandidate,
+        reason: String,
+        quarantined_files: Vec<String>,
+    ) -> LoadOutcome {
+        self.revision = selected.revision;
+        self.blocked_reason = Some(reason.clone());
+        LoadOutcome {
+            skribs: selected.skribs.clone(),
+            revision: selected.revision,
+            notice: Some(StorageNotice {
+                message: format!(
+                    "Skribli opened verified notes from the {} in read-only recovery mode. {reason}",
+                    selected.source
+                ),
+                source: selected.source,
+                revision: selected.revision,
+                migrated_from_schema: selected.migrated_from_schema,
+                quarantined_files,
+                backup_directory: parent_directory_for_display(&self.primary_path),
+            }),
+        }
+    }
+
+    fn block_writes(&mut self, reason: String) -> StorageError {
+        self.blocked_reason = Some(reason.clone());
+        StorageError::WriteBlocked { reason }
     }
 
     pub fn save(&mut self, skribs: &[SkribNote]) -> Result<SaveOutcome, StorageError> {
@@ -433,11 +475,18 @@ impl StorageService {
         atomic_replace(&temporary, &self.primary_path)?;
         sync_parent_directory(parent)?;
 
-        let committed = decode_candidate(&self.primary_path, StorageSource::Primary)?;
+        let committed = match decode_candidate(&self.primary_path, StorageSource::Primary) {
+            Ok(committed) => committed,
+            Err(error) => {
+                return Err(self.block_writes(format!(
+                    "The committed primary generation could not be verified: {error}"
+                )));
+            }
+        };
         if committed.revision != revision || committed.skribs != skribs {
-            let reason = "the committed primary generation could not be verified".to_string();
-            self.blocked_reason = Some(reason.clone());
-            return Err(StorageError::WriteBlocked { reason });
+            return Err(self.block_writes(
+                "The committed primary generation did not match the requested revision".to_string(),
+            ));
         }
 
         self.revision = revision;
@@ -447,7 +496,7 @@ impl StorageService {
         })
     }
 
-    fn restore_candidate(&self, selected: &DecodedCandidate) -> Result<(), StorageError> {
+    fn restore_candidate(&mut self, selected: &DecodedCandidate) -> Result<(), StorageError> {
         let parent = self
             .primary_path
             .parent()
@@ -485,7 +534,7 @@ impl StorageService {
         Ok(())
     }
 
-    fn rotate_backups(&self) -> Result<(), StorageError> {
+    fn rotate_backups(&mut self) -> Result<(), StorageError> {
         let backup1 = self.backup1_path();
         let backup2 = self.backup2_path();
 
@@ -496,7 +545,9 @@ impl StorageService {
                     copy_verified_generation(&backup1, &stage2, StorageSource::Backup1)?;
                     atomic_replace(&stage2, &backup2)?;
                 }
-                Err(error @ StorageError::UnsupportedSchema { .. }) => return Err(error),
+                Err(error @ StorageError::UnsupportedSchema { .. }) => {
+                    return Err(self.block_writes(error.to_string()));
+                }
                 Err(_) => {
                     quarantine_file(&backup1, StorageSource::Backup1, 0)?;
                 }
@@ -504,6 +555,11 @@ impl StorageService {
         }
 
         if self.primary_path.exists() {
+            if let Err(error) = decode_candidate(&self.primary_path, StorageSource::Primary) {
+                return Err(self.block_writes(format!(
+                    "The existing primary generation changed or became invalid before backup rotation: {error}"
+                )));
+            }
             let stage1 = sibling_path(&self.primary_path, ".bak.1.stage");
             copy_verified_generation(&self.primary_path, &stage1, StorageSource::Primary)?;
             atomic_replace(&stage1, &backup1)?;
@@ -1156,6 +1212,57 @@ mod tests {
             })
             .count();
         assert_eq!(quarantine_count, 1);
+        cleanup(&path);
+    }
+
+    #[test]
+    fn read_only_recovery_outcome_exposes_verified_notes_and_blocks_writes() {
+        let path = test_path("read-only-recovery");
+        let mut storage = StorageService::new(path.clone());
+        let selected = DecodedCandidate {
+            source: StorageSource::Backup1,
+            path: storage.backup1_path(),
+            revision: 7,
+            written_at_ms: 10,
+            skribs: vec![note("safe", "Verified recovery text")],
+            migrated_from_schema: None,
+        };
+
+        let outcome = storage.read_only_recovery_outcome(
+            &selected,
+            "Primary replacement was denied".to_string(),
+            Vec::new(),
+        );
+        assert_eq!(outcome.skribs, selected.skribs);
+        assert_eq!(outcome.revision, 7);
+        assert!(!storage.is_writable());
+        assert!(storage.save(&[note("new", "Must remain blocked")]).is_err());
+        assert!(outcome
+            .notice
+            .expect("read-only notice")
+            .message
+            .contains("read-only recovery mode"));
+        cleanup(&path);
+    }
+
+    #[test]
+    fn unsupported_backup_generation_blocks_further_writes() {
+        let path = test_path("unsupported-backup");
+        let mut storage = StorageService::new(path.clone());
+        storage.load().expect("empty load");
+        storage.save(&[note("one", "One")]).expect("save one");
+        storage.save(&[note("two", "Two")]).expect("save two");
+        write_bytes_synced(
+            &storage.backup1_path(),
+            br#"{"schema_version":99,"revision":50,"written_at_ms":1,"integrity":"future","skribs":[]}"#,
+        )
+        .expect("future backup fixture");
+
+        let error = storage
+            .save(&[note("three", "Three")])
+            .expect_err("future backup must block writes");
+        assert!(matches!(error, StorageError::WriteBlocked { .. }));
+        assert!(!storage.is_writable());
         cleanup(&path);
     }
 
