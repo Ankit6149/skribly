@@ -257,8 +257,8 @@ impl StorageService {
         });
         let selected = valid.remove(0);
 
-        let needs_restore = selected.source != StorageSource::Primary
-            || selected.migrated_from_schema.is_some();
+        let needs_restore =
+            selected.source != StorageSource::Primary || selected.migrated_from_schema.is_some();
         if needs_restore {
             self.restore_candidate(&selected)?;
         }
@@ -312,15 +312,15 @@ impl StorageService {
                 reason: reason.clone(),
             });
         }
-        license::require_global_write_access().map_err(|reason| StorageError::WriteBlocked {
-            reason,
-        })?;
+        license::require_global_write_access()
+            .map_err(|reason| StorageError::WriteBlocked { reason })?;
 
         let parent = self
             .primary_path
             .parent()
             .ok_or(StorageError::MissingParent)?;
-        fs::create_dir_all(parent).map_err(|error| io_error("create data directory", parent, error))?;
+        fs::create_dir_all(parent)
+            .map_err(|error| io_error("create data directory", parent, error))?;
 
         let revision = self
             .revision
@@ -330,12 +330,11 @@ impl StorageService {
             })?;
         let written_at_ms = now_millis();
         let envelope = build_envelope(revision, written_at_ms, skribs)?;
-        let payload = serde_json::to_vec_pretty(&envelope).map_err(|error| {
-            StorageError::InvalidData {
+        let payload =
+            serde_json::to_vec_pretty(&envelope).map_err(|error| StorageError::InvalidData {
                 path: file_name_for_display(&self.primary_path),
                 reason: format!("failed to encode the storage envelope: {error}"),
-            }
-        })?;
+            })?;
 
         let temporary = self.temporary_path();
         write_bytes_synced(&temporary, &payload)?;
@@ -346,11 +345,23 @@ impl StorageService {
                 reason: "the durable temporary generation did not verify after writing".to_string(),
             });
         }
-        maybe_fail(fault, SaveFault::AfterTemporarySync, "after temporary file sync")?;
+        maybe_fail(
+            fault,
+            SaveFault::AfterTemporarySync,
+            "after temporary file sync",
+        )?;
 
         self.rotate_backups()?;
-        maybe_fail(fault, SaveFault::AfterBackupRotation, "after backup rotation")?;
-        maybe_fail(fault, SaveFault::BeforePrimaryReplace, "before primary replacement")?;
+        maybe_fail(
+            fault,
+            SaveFault::AfterBackupRotation,
+            "after backup rotation",
+        )?;
+        maybe_fail(
+            fault,
+            SaveFault::BeforePrimaryReplace,
+            "before primary replacement",
+        )?;
 
         atomic_replace(&temporary, &self.primary_path)?;
         sync_parent_directory(parent)?;
@@ -374,7 +385,8 @@ impl StorageService {
             .primary_path
             .parent()
             .ok_or(StorageError::MissingParent)?;
-        fs::create_dir_all(parent).map_err(|error| io_error("create data directory", parent, error))?;
+        fs::create_dir_all(parent)
+            .map_err(|error| io_error("create data directory", parent, error))?;
 
         if self.primary_path.exists() {
             let _ = decode_candidate(&self.primary_path, StorageSource::Primary)?;
@@ -386,12 +398,11 @@ impl StorageService {
             selected.written_at_ms.max(now_millis()),
             &selected.skribs,
         )?;
-        let payload = serde_json::to_vec_pretty(&envelope).map_err(|error| {
-            StorageError::InvalidData {
+        let payload =
+            serde_json::to_vec_pretty(&envelope).map_err(|error| StorageError::InvalidData {
                 path: file_name_for_display(&self.primary_path),
                 reason: format!("failed to encode the recovered storage envelope: {error}"),
-            }
-        })?;
+            })?;
         let recovery_temporary = sibling_path(&self.primary_path, ".recovery.tmp");
         write_bytes_synced(&recovery_temporary, &payload)?;
         let verified = decode_candidate(&recovery_temporary, selected.source)?;
@@ -519,20 +530,24 @@ fn crc32(bytes: &[u8]) -> u32 {
 }
 
 fn decode_candidate(path: &Path, source: StorageSource) -> Result<DecodedCandidate, StorageError> {
-    let mut file = File::open(path).map_err(|error| io_error("open storage generation", path, error))?;
+    let mut file =
+        File::open(path).map_err(|error| io_error("open storage generation", path, error))?;
     let mut bytes = Vec::new();
     file.read_to_end(&mut bytes)
         .map_err(|error| io_error("read storage generation", path, error))?;
-    let value: Value = serde_json::from_slice(&bytes).map_err(|error| StorageError::InvalidData {
-        path: file_name_for_display(path),
-        reason: format!("invalid JSON: {error}"),
-    })?;
+    let value: Value =
+        serde_json::from_slice(&bytes).map_err(|error| StorageError::InvalidData {
+            path: file_name_for_display(path),
+            reason: format!("invalid JSON: {error}"),
+        })?;
 
     if let Some(schema_value) = value.get("schema_version") {
-        let schema_version = schema_value.as_u64().ok_or_else(|| StorageError::InvalidData {
-            path: file_name_for_display(path),
-            reason: "schema_version must be an unsigned integer".to_string(),
-        })?;
+        let schema_version = schema_value
+            .as_u64()
+            .ok_or_else(|| StorageError::InvalidData {
+                path: file_name_for_display(path),
+                reason: "schema_version must be an unsigned integer".to_string(),
+            })?;
         if schema_version != u64::from(CURRENT_SCHEMA_VERSION) {
             return Err(StorageError::UnsupportedSchema {
                 path: file_name_for_display(path),
@@ -540,12 +555,11 @@ fn decode_candidate(path: &Path, source: StorageSource) -> Result<DecodedCandida
             });
         }
 
-        let stored: StoredSkribsV2 = serde_json::from_value(value).map_err(|error| {
-            StorageError::InvalidData {
+        let stored: StoredSkribsV2 =
+            serde_json::from_value(value).map_err(|error| StorageError::InvalidData {
                 path: file_name_for_display(path),
                 reason: format!("invalid schema-v2 envelope: {error}"),
-            }
-        })?;
+            })?;
         let expected = calculate_integrity(stored.revision, stored.written_at_ms, &stored.skribs)?;
         if stored.integrity != expected {
             return Err(StorageError::InvalidData {
@@ -565,22 +579,23 @@ fn decode_candidate(path: &Path, source: StorageSource) -> Result<DecodedCandida
     }
 
     if let Some(version_value) = value.get("version") {
-        let version = version_value.as_u64().ok_or_else(|| StorageError::InvalidData {
-            path: file_name_for_display(path),
-            reason: "legacy version must be an unsigned integer".to_string(),
-        })?;
+        let version = version_value
+            .as_u64()
+            .ok_or_else(|| StorageError::InvalidData {
+                path: file_name_for_display(path),
+                reason: "legacy version must be an unsigned integer".to_string(),
+            })?;
         if version != u64::from(LEGACY_SCHEMA_VERSION) {
             return Err(StorageError::UnsupportedSchema {
                 path: file_name_for_display(path),
                 version,
             });
         }
-        let stored: StoredSkribsV1 = serde_json::from_value(value).map_err(|error| {
-            StorageError::InvalidData {
+        let stored: StoredSkribsV1 =
+            serde_json::from_value(value).map_err(|error| StorageError::InvalidData {
                 path: file_name_for_display(path),
                 reason: format!("invalid legacy storage envelope: {error}"),
-            }
-        })?;
+            })?;
         return Ok(DecodedCandidate {
             source,
             path: path.to_path_buf(),
@@ -603,7 +618,8 @@ fn copy_verified_generation(
     source_kind: StorageSource,
 ) -> Result<(), StorageError> {
     let expected = decode_candidate(source, source_kind)?;
-    let bytes = fs::read(source).map_err(|error| io_error("read known-good generation", source, error))?;
+    let bytes =
+        fs::read(source).map_err(|error| io_error("read known-good generation", source, error))?;
     write_bytes_synced(destination, &bytes)?;
     let copied = decode_candidate(destination, source_kind)?;
     if copied.revision != expected.revision || copied.skribs != expected.skribs {
@@ -901,10 +917,7 @@ mod tests {
         storage.load().expect("empty load");
         storage.save(&[note("one", "First")]).expect("first save");
         let error = storage
-            .save_internal(
-                &[note("two", "Newest")],
-                SaveFault::AfterTemporarySync,
-            )
+            .save_internal(&[note("two", "Newest")], SaveFault::AfterTemporarySync)
             .expect_err("fault should interrupt save");
         assert!(matches!(error, StorageError::InjectedFailure { .. }));
 
@@ -925,10 +938,7 @@ mod tests {
         storage.load().expect("empty load");
         storage.save(&[note("one", "First")]).expect("first save");
         storage
-            .save_internal(
-                &[note("two", "Newest")],
-                SaveFault::AfterBackupRotation,
-            )
+            .save_internal(&[note("two", "Newest")], SaveFault::AfterBackupRotation)
             .expect_err("fault should interrupt save");
 
         let mut reopened = StorageService::new(path.clone());
@@ -987,9 +997,7 @@ mod tests {
             .load()
             .expect_err("future schema must block downgrade");
         assert!(matches!(error, StorageError::WriteBlocked { .. }));
-        assert!(storage
-            .save(&[note("new", "Must not overwrite")])
-            .is_err());
+        assert!(storage.save(&[note("new", "Must not overwrite")]).is_err());
         assert_eq!(fs::read(&path).expect("future file remains"), original);
         cleanup(&path);
     }
@@ -1002,8 +1010,8 @@ mod tests {
         storage.save(&[note("one", "One")]).expect("save one");
         storage.save(&[note("two", "Two")]).expect("save two");
 
-        let mut value: Value = serde_json::from_slice(&fs::read(&path).expect("read primary"))
-            .expect("primary JSON");
+        let mut value: Value =
+            serde_json::from_slice(&fs::read(&path).expect("read primary")).expect("primary JSON");
         value["skribs"][0]["text"] = Value::String("Tampered".into());
         write_bytes_synced(
             &path,
