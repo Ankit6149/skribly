@@ -1,7 +1,11 @@
-# Proprietary notice
+# Proprietary source notice
 
 Copyright © 2026 Ankit Bhardwaj. All rights reserved.
 
-This repository and its contents are private commercial work for Skribli. No permission is granted to copy, modify, distribute, sublicense, or sell this software or its design assets unless a separate written licence explicitly grants that permission.
+This repository is publicly visible for product development, issue tracking, and limited technical review. Public visibility does **not** make Skribli open source and does not grant permission to use the source code in another product.
 
-Third-party dependencies remain governed by their own licences. A complete dependency notice must be generated before every public release.
+Except for rights necessarily granted to GitHub under its platform terms, no licence is granted to copy, modify, distribute, sublicense, sell, host, deploy, or create derivative works from this repository or its design assets without prior written permission from the copyright owner.
+
+External code contributions are accepted only when explicitly invited and may require separate written contributor terms before they are merged.
+
+Third-party dependencies and assets remain governed by their own licences. Their notices and obligations must be reviewed and included before every public release.
