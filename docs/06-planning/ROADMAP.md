@@ -20,7 +20,9 @@ The active release target is a local-first Windows contextual typed-note product
 - one-instance background lifecycle and tray controls;
 - fail-closed context matching;
 - a normal non-floating library/recovery surface;
-- search, export/import, archive, reversible trash, and support diagnostics;
+- search, export/import, archive, reversible trash, verified backups, and support diagnostics;
+- privacy-lock and sensitive-context behavior;
+- an evidence-backed Windows compatibility matrix;
 - keyboard, screen-reader, high-contrast, reduced-motion, text-scaling, multi-monitor, and mixed-DPI support;
 - a signed, reproducible, recoverable installer/update path.
 
@@ -41,7 +43,7 @@ No public release or feature expansion happens while a P0 issue remains open.
 
 ## Phase 1 — Real Windows MVP
 
-Issues #20–#23, #31–#32, #48–#56, #59, #70, #72, #79, and #80:
+Issues #20–#23, #31–#32, #48–#56, #59, #70, #72, #79–#80, #82, and #84–#85:
 
 - canonical product lifecycle;
 - library, recovery, export/import, archive, and trash;
@@ -54,7 +56,10 @@ Issues #20–#23, #31–#32, #48–#56, #59, #70, #72, #79, and #80:
 - accessibility;
 - privacy-safe support diagnostics;
 - local search/indexing;
-- permission/network/data transparency.
+- verified user backups and disaster recovery;
+- privacy lock, sensitive-context rules, and screen-sharing behavior;
+- permission/network/data transparency;
+- documented Windows version, architecture, hardware, and application compatibility.
 
 ## Phase 2 — Engineering and release confidence
 
@@ -96,6 +101,7 @@ Tracked under #46:
 - shapes, arrows, pins, labels, and checklists;
 - reminders;
 - attachments;
+- local revision history and undo/redo;
 - Chromium URL/DOM anchoring;
 - macOS;
 - optional encrypted sync research.
@@ -107,7 +113,7 @@ Collaboration, mobile, AI, OCR, third-party plugins, and marketplace execution a
 1. Work in dependency order.
 2. Do not close partial issues; add a complete progress comment instead.
 3. Compilation is not native runtime evidence.
-4. Persistent changes require migration, backup, recovery, downgrade, export, and rollback plans.
-5. New permissions, network paths, capabilities, public claims, or platforms require reviewed decisions.
+4. Persistent changes require migration, backup, recovery, downgrade, export, deletion, retention, and rollback plans.
+5. New permissions, network paths, privacy/capture behavior, capabilities, compatibility claims, public claims, or platforms require reviewed decisions.
 6. Deferred code must be excluded from production bundles rather than merely hidden.
 7. Contributors should start only from issues marked ready after product and architecture decisions are complete.
