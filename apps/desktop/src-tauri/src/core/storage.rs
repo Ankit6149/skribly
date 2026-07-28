@@ -427,9 +427,10 @@ impl StorageService {
         let parent = self
             .primary_path
             .parent()
-            .ok_or(StorageError::MissingParent)?;
-        fs::create_dir_all(parent)
-            .map_err(|error| io_error("create data directory", parent, error))?;
+            .ok_or(StorageError::MissingParent)?
+            .to_path_buf();
+        fs::create_dir_all(&parent)
+            .map_err(|error| io_error("create data directory", &parent, error))?;
 
         let revision = self
             .revision
@@ -473,7 +474,7 @@ impl StorageService {
         )?;
 
         atomic_replace(&temporary, &self.primary_path)?;
-        sync_parent_directory(parent)?;
+        sync_parent_directory(&parent)?;
 
         let committed = match decode_candidate(&self.primary_path, StorageSource::Primary) {
             Ok(committed) => committed,
@@ -500,9 +501,10 @@ impl StorageService {
         let parent = self
             .primary_path
             .parent()
-            .ok_or(StorageError::MissingParent)?;
-        fs::create_dir_all(parent)
-            .map_err(|error| io_error("create data directory", parent, error))?;
+            .ok_or(StorageError::MissingParent)?
+            .to_path_buf();
+        fs::create_dir_all(&parent)
+            .map_err(|error| io_error("create data directory", &parent, error))?;
 
         if self.primary_path.exists() {
             let _ = decode_candidate(&self.primary_path, StorageSource::Primary)?;
@@ -529,7 +531,7 @@ impl StorageService {
             });
         }
         atomic_replace(&recovery_temporary, &self.primary_path)?;
-        sync_parent_directory(parent)?;
+        sync_parent_directory(&parent)?;
         let _ = decode_candidate(&self.primary_path, StorageSource::Primary)?;
         Ok(())
     }
