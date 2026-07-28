@@ -1,0 +1,18 @@
+# Default ownership
+* @Ankit6149
+
+# Repository governance and automation
+/.github/ @Ankit6149
+/CONTRIBUTING.md @Ankit6149
+/NOTICE.md @Ankit6149
+/SECURITY.md @Ankit6149
+/docs/06-planning/REPOSITORY_GOVERNANCE.md @Ankit6149
+
+# Native runtime, persistence, security, licensing, and release surfaces
+/apps/desktop/src-tauri/ @Ankit6149
+/scripts/license/ @Ankit6149
+/docs/03-security/ @Ankit6149
+/docs/05-business/ @Ankit6149
+
+# Product website and commerce-facing surfaces
+/site/ @Ankit6149
