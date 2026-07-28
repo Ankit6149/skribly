@@ -70,7 +70,8 @@ At startup, Skribli inspects the primary, temporary, current backup, legacy back
 - Invalid candidates are quarantined only when another valid candidate exists.
 - If files exist but no valid generation is available, the damaged files remain in place and writes are blocked.
 - A second launch must produce the same blocked recovery state; it must never reinterpret the quarantined/missing primary as a new empty database.
-- Any unsupported future schema blocks writes and remains untouched.
+- Any unsupported future schema remains untouched and blocks writes.
+- When a future-schema generation exists alongside an older verified generation, Skribli shows the verified notes in read-only recovery mode instead of hiding them or overwriting the newer file.
 
 After successful recovery, Skribli shows what source was used and where the recovery files are stored.
 
@@ -153,9 +154,11 @@ The storage unit and integration suites cover:
 - corrupt-only repeated launches without silent empty state;
 - interruption after temporary-file sync;
 - interruption after backup rotation;
+- interruption after durable primary replacement but before in-process verification;
 - two known-good backup generations;
 - damaged old backup quarantine without blocking a valid new save;
 - unsupported future schema preservation and blocked writes;
+- verified older notes opening read-only when an unsupported newer generation also exists;
 - integrity mismatch fallback;
 - metadata-only diagnostics privacy;
 - coordinator rollback after native persistence failure;
@@ -207,7 +210,7 @@ The editor must remain open with the unsaved draft when the commit fails.
 - Corrupt primary and backup 1 and verify backup 2 recovery.
 - Remove the primary while keeping a valid temporary generation and verify latest-revision recovery.
 - Leave only corrupt candidates, launch twice, and verify neither launch creates an empty writable database.
-- Place a future-schema primary and verify the old build never rewrites it.
+- Place a future-schema primary alongside a verified older backup and confirm the older notes remain visible read-only while the future file is preserved.
 
 ### Installer and restart
 
