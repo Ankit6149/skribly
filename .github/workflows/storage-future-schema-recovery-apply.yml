@@ -1,0 +1,53 @@
+name: Storage future-schema recovery apply
+
+on:
+  pull_request:
+    paths:
+      - scripts/storage/apply-issue-14-future-schema-recovery.mjs
+      - .github/workflows/storage-future-schema-recovery-apply.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-future-schema-recovery:
+    name: Apply checked future-schema recovery
+    if: >-
+      github.head_ref == 'fix/14-crash-safe-storage' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out exact pull-request branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/14-crash-safe-storage
+          fetch-depth: 1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - name: Apply checked future-schema recovery transform
+        run: node scripts/storage/apply-issue-14-future-schema-recovery.mjs
+
+      - name: Format Rust source
+        run: cargo fmt --manifest-path apps/desktop/src-tauri/Cargo.toml
+
+      - name: Commit recovery changes
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/desktop/src-tauri/src/core/storage.rs
+          if git diff --cached --quiet; then
+            echo "No future-schema recovery changes were produced"
+            exit 1
+          fi
+          git commit -m "fix(storage): preserve future generations with read-only fallback"
+          git push origin HEAD:fix/14-crash-safe-storage
