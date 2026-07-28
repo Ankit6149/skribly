@@ -15,6 +15,10 @@ Skribli is a local-first contextual note utility for Windows. The intended inter
 
 There should be no permanent floating toolbar, mandatory account, target-selection wizard, or full-screen interaction layer.
 
+## Repository and licence status
+
+This repository is publicly visible for development and issue tracking, but Skribli is proprietary software and is **not open source**. Public access to the repository does not grant permission to copy, deploy, redistribute, or build another product from its source or assets. See [`NOTICE.md`](NOTICE.md) and [`docs/06-planning/REPOSITORY_GOVERNANCE.md`](docs/06-planning/REPOSITORY_GOVERNANCE.md).
+
 ## Production priorities
 
 - The transparent overlay must remain click-through everywhere except the exact note or editor bounds.
@@ -60,4 +64,4 @@ Windows runtime verification must additionally confirm that empty overlay space 
 
 ## Distribution status
 
-Skribli is **not currently available for download**. A new installer will be provided only after the production build passes native Windows runtime validation. This repository does not grant an open-source licence; see [`NOTICE.md`](NOTICE.md).
+Skribli is **not currently available for download**. A new installer will be provided only after the production build passes native Windows runtime validation.
