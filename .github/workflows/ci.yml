@@ -6,7 +6,25 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
+  repository-governance:
+    name: Repository governance validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Validate repository governance controls
+        run: node scripts/governance/validate-repository.mjs
+
   landing-site:
     name: Landing site validation
     runs-on: ubuntu-latest

@@ -1,17 +1,41 @@
 # Security policy
 
-Skribli is local-first software that will interact with application-window metadata and accessibility APIs. Treat this as sensitive system software.
+Skribli is local-first system software that interacts with application-window metadata and Windows accessibility/runtime APIs. Treat reports, logs, builds, signing material, and user data as sensitive.
 
-## Initial security boundaries
+## Supported versions
+
+Skribli is in active production development and no public installer is currently supported. Security fixes are applied to the active `main` development line unless a release notice states otherwise.
+
+## Security boundaries
 
 - No screen recording in v1.
-- No reading keystroke contents; typing activity may only be used when explicitly needed and must never capture text.
-- No network access during normal use except an explicit update check.
+- No capture of typed content outside Skribli.
 - No cloud account or sync in v1.
-- SQLite data remains in the user's application data directory.
-- Browser-extension communication must be local, authenticated, origin-limited, and permission-minimal.
-- Logs must not contain note content, document paths, page text, URLs with secrets, or accessibility-tree text by default.
+- No network access during normal note use except an explicitly approved update, activation, or support flow.
+- Application data remains in the user's local application-data directory by default.
+- Browser-extension communication, if implemented later, must be local, authenticated, origin-limited, and permission-minimal.
+- Logs must not contain note content, raw document paths, page text, secret-bearing URLs, accessibility-tree text, credentials, private keys, customer records, or production licence tokens by default.
 
-## Reporting
+## Reporting a vulnerability
 
-Until a public security mailbox exists, report vulnerabilities privately to the repository owner. Do not open public issues containing exploit details or private user data.
+Do **not** open a public issue containing exploit details, credentials, private user data, signing material, licence secrets, or a working proof of concept.
+
+Use GitHub's private vulnerability reporting for this repository when the option is available. If the private-reporting button is not enabled, contact the repository owner privately through the contact method listed on the owner's GitHub profile and include only the minimum information needed to establish a secure follow-up channel.
+
+A useful report includes:
+
+- the affected commit or build identifier;
+- the affected Windows version and architecture;
+- a concise impact statement;
+- minimal reproduction steps;
+- whether user interaction or elevated privileges are required;
+- sanitized evidence with private content removed;
+- any temporary mitigation known to the reporter.
+
+Do not test against another person's data or system, perform denial-of-service testing, publish the vulnerability before coordinated disclosure, or retain data obtained during testing.
+
+## Maintainer handling
+
+The repository owner must acknowledge the report privately, preserve evidence without exposing user content, assess severity, rotate any exposed secrets immediately, prepare the fix in a restricted branch or private advisory, and coordinate disclosure only after affected users can be protected.
+
+Security fixes must include regression tests and an explicit review of logging, update delivery, signing, storage migration, and rollback impact where relevant.

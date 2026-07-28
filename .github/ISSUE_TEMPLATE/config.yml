@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security reporting policy
+    url: https://github.com/Ankit6149/skribly/security/policy
+    about: Read the private-reporting requirements before sharing a vulnerability or sensitive data.
+  - name: Production-readiness execution plan
+    url: https://github.com/Ankit6149/skribly/issues/34
+    about: Review the approved execution order and existing work before proposing a new change.

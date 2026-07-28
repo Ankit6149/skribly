@@ -1,0 +1,86 @@
+name: Bug report
+description: Report a reproducible Skribli defect without exposing private data.
+title: "[Bug] "
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include note contents, private file paths, credentials, licence keys, customer data, exploit details, or other sensitive information. Follow SECURITY.md for vulnerabilities.
+
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      description: Installer version, commit SHA, or branch tested.
+      placeholder: "Example: commit abc1234"
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Windows version, architecture, display layout/scaling, and relevant application.
+      placeholder: "Windows 11 24H2, x64, two displays at 100% and 150%"
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Describe the observed behavior without private content.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      description: Provide the smallest repeatable sequence.
+      placeholder: |
+        1. Start Skribli
+        2. Open ...
+        3. Press ...
+        4. Observe ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Safe evidence
+      description: Add sanitized logs, screenshots, or measurements. Remove all private content first.
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Impact
+      options:
+        - Data loss or corruption
+        - Security or privacy risk
+        - App unusable or blocks other apps
+        - Major feature failure
+        - Minor defect
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: confirmation
+    attributes:
+      label: Confirmation
+      options:
+        - label: I removed private data, credentials, licence material, and sensitive note content.
+          required: true
+        - label: I searched existing issues for the same defect.
+          required: true
+        - label: This is not a confidential security report.
+          required: true

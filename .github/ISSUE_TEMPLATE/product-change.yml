@@ -1,0 +1,57 @@
+name: Product or engineering change
+description: Propose a bounded change aligned with the active Skribli milestone.
+title: "[Proposal] "
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Skribli is focused on Windows product safety and the approved local-first scope. Broad feature expansion may be deferred until release foundations are complete.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+      description: Describe the user or engineering problem, not only the desired feature.
+    validations:
+      required: true
+
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Required outcome
+      description: State observable behavior and success criteria.
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Proposed scope
+      description: Include what should change and what must remain out of scope.
+    validations:
+      required: true
+
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Local-first, privacy, performance, and accessibility constraints
+      description: Explain data handling, network use, background cost, permissions, and keyboard/accessibility effects.
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Supporting evidence
+      description: User scenario, measurements, design reference, or technical findings.
+
+  - type: checkboxes
+    id: confirmation
+    attributes:
+      label: Confirmation
+      options:
+        - label: This proposal does not include credentials, private user data, or confidential vulnerability details.
+          required: true
+        - label: I checked the roadmap and existing issues for overlap.
+          required: true
