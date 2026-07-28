@@ -619,23 +619,6 @@ impl StorageService {
     }
 }
 
-pub fn load(path: &Path) -> Result<Vec<SkribNote>, String> {
-    let mut storage = StorageService::new(path.to_path_buf());
-    storage
-        .load()
-        .map(|outcome| outcome.skribs)
-        .map_err(|error| error.to_string())
-}
-
-pub fn save(path: &Path, skribs: &[SkribNote]) -> Result<(), String> {
-    let mut storage = StorageService::new(path.to_path_buf());
-    storage.load().map_err(|error| error.to_string())?;
-    storage
-        .save(skribs)
-        .map(|_| ())
-        .map_err(|error| error.to_string())
-}
-
 fn build_envelope(
     revision: u64,
     written_at_ms: u64,
