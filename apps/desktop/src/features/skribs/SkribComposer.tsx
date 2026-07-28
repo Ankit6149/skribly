@@ -22,13 +22,16 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target }) =>
     exportStorageDiagnostics,
   } = useSkribStore();
   const licenseStatus = useLicenseStore((state) => state.status);
-  const canWrite =
-    storageWritable && (!licenseStatus.enforcementEnabled || licenseStatus.canWrite);
+  const licenceAllowsWrite = !licenseStatus.enforcementEnabled || licenseStatus.canWrite;
+  const canWrite = storageWritable && licenceAllowsWrite;
   const { closeComposer } = useSkribUiStore();
   const [text, setText] = useState(note.text);
   const [composerError, setComposerError] = useState<string | null>(null);
   const [diagnosticsPath, setDiagnosticsPath] = useState<string | null>(null);
   const textSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const textRef = useRef(note.text);
+  const draftIsDirty = useRef(false);
+  const activeNoteId = useRef(note.id);
 
   const contextLabel = useMemo(() => {
     if (!target) return note.target_title || note.target_process_name || 'Current application';
@@ -36,7 +39,20 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target }) =>
   }, [note.target_process_name, note.target_title, target]);
 
   useEffect(() => {
-    setText(note.text);
+    if (activeNoteId.current !== note.id) {
+      activeNoteId.current = note.id;
+      textRef.current = note.text;
+      draftIsDirty.current = false;
+      setText(note.text);
+      setComposerError(null);
+      setDiagnosticsPath(null);
+      return;
+    }
+
+    if (!draftIsDirty.current) {
+      textRef.current = note.text;
+      setText(note.text);
+    }
   }, [note.id, note.text]);
 
   useEffect(() => {
@@ -50,23 +66,54 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target }) =>
     await getCurrentWindow().hide();
   };
 
+  const persistDraft = async (draft: string): Promise<boolean> => {
+    const saved = await updateSkribText(note.id, draft);
+    if (saved && textRef.current === draft) {
+      draftIsDirty.current = false;
+      setComposerError(null);
+    }
+    return saved;
+  };
+
   const saveTextNow = async (): Promise<boolean> => {
     if (textSaveTimer.current) clearTimeout(textSaveTimer.current);
     textSaveTimer.current = null;
-    if (!canWrite) return false;
-    if (text === note.text) return true;
-    return updateSkribText(note.id, text);
+
+    if (!storageWritable) {
+      setComposerError(
+        'Local storage needs recovery. Skribli kept this draft open so it can be copied or retried.'
+      );
+      return false;
+    }
+    if (!licenceAllowsWrite) return false;
+    if (!draftIsDirty.current) return true;
+
+    const draft = textRef.current;
+    if (draft === note.text) {
+      draftIsDirty.current = false;
+      return true;
+    }
+    return persistDraft(draft);
   };
 
   const finishAndHide = async () => {
-    if (!canWrite) {
+    if (!storageWritable) {
+      setComposerError(
+        'This draft is not safely stored yet. Skribli will stay open until storage is available or the text is copied elsewhere.'
+      );
+      return;
+    }
+
+    if (!licenceAllowsWrite) {
       await hideWindow();
       return;
     }
 
-    if (text.trim().length === 0) {
+    const currentDraft = textRef.current;
+    if (currentDraft.trim().length === 0) {
       const deleted = await deleteSkrib(note.id);
       if (deleted) {
+        draftIsDirty.current = false;
         await hideWindow();
       } else {
         setComposerError('The empty note could not be removed safely. Skribli kept the editor open.');
@@ -78,7 +125,9 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target }) =>
     if (saved) {
       await hideWindow();
     } else {
-      setComposerError('The note could not be saved safely. Skribli kept the editor open so the text is not lost.');
+      setComposerError(
+        'The note could not be saved safely. Skribli kept the editor open so the text is not lost.'
+      );
     }
   };
 
@@ -95,15 +144,19 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target }) =>
 
   const handleTextChange = (value: string) => {
     if (!canWrite) {
-      setComposerError(storageErrorMessage || licenseStatus.message || 'This build is currently read-only.');
+      setComposerError(
+        storageErrorMessage || licenseStatus.message || 'This build is currently read-only.'
+      );
       return;
     }
 
+    textRef.current = value;
+    draftIsDirty.current = true;
     setText(value);
     setComposerError(null);
     if (textSaveTimer.current) clearTimeout(textSaveTimer.current);
     textSaveTimer.current = setTimeout(() => {
-      void updateSkribText(note.id, value).then((saved) => {
+      void persistDraft(value).then((saved) => {
         if (!saved) {
           setComposerError('The latest text is not saved. Keep this window open and retry.');
         }
@@ -117,15 +170,22 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target }) =>
   };
 
   const handleDelete = async () => {
-    if (!canWrite) return;
+    if (!storageWritable) {
+      setComposerError('Storage needs recovery, so Skribli did not delete this note.');
+      return;
+    }
+    if (!licenceAllowsWrite) return;
     if (textSaveTimer.current) clearTimeout(textSaveTimer.current);
     const deleted = await deleteSkrib(note.id);
     if (deleted) {
+      draftIsDirty.current = false;
       await hideWindow();
     } else {
       setComposerError('The note could not be deleted safely. It remains available.');
     }
   };
+
+  const recoveryDirectory = storageNotice?.backupDirectory || storageBackupDirectory;
 
   return (
     <div className="skrib-composer-backdrop">
@@ -142,8 +202,8 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target }) =>
             type="button"
             className="composer-close"
             onClick={() => void finishAndHide()}
-            aria-label="Save and close Skribli"
-            title="Save and close"
+            aria-label={storageWritable ? 'Save and close Skribli' : 'Storage recovery required'}
+            title={storageWritable ? 'Save and close' : 'Storage recovery required'}
           >
             ✕
           </button>
@@ -152,16 +212,21 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target }) =>
         {storageNotice && (
           <div className="composer-recovery" role="status">
             <span>{storageNotice.message}</span>
-            <button type="button" onClick={dismissStorageNotice}>Dismiss</button>
+            {recoveryDirectory && <small>Recovery folder: {recoveryDirectory}</small>}
+            <div className="composer-storage-actions">
+              <button type="button" onClick={() => void handleExportDiagnostics()}>
+                Save safe diagnostics
+              </button>
+              <button type="button" onClick={dismissStorageNotice}>Dismiss</button>
+            </div>
+            {diagnosticsPath && <small>Diagnostics saved to: {diagnosticsPath}</small>}
           </div>
         )}
 
         {(composerError || storageErrorMessage) && (
           <div className="composer-error" role="alert">
             <span>{composerError || storageErrorMessage}</span>
-            {storageBackupDirectory && (
-              <small>Recovery folder: {storageBackupDirectory}</small>
-            )}
+            {recoveryDirectory && <small>Recovery folder: {recoveryDirectory}</small>}
             <button type="button" onClick={() => void handleExportDiagnostics()}>
               Save safe diagnostics
             </button>
@@ -177,16 +242,29 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target }) =>
           placeholder="Write the thought before it disappears…"
           spellCheck
           onChange={(event) => handleTextChange(event.target.value)}
-          onBlur={() => void saveTextNow()}
+          onBlur={() => {
+            void saveTextNow().then((saved) => {
+              if (!saved && draftIsDirty.current) {
+                setComposerError('The latest text is not saved. Keep this window open and retry.');
+              }
+            });
+          }}
         />
 
         <footer className="composer-footer">
           <div className="composer-status">
             <span>{composerError || storageErrorMessage ? 'Not saved' : 'Saved locally'}</span>
-            <small>Esc closes</small>
+            <small>
+              {storageWritable ? 'Esc closes after saving' : 'Recovery required before closing'}
+            </small>
           </div>
           <div className="composer-footer-actions">
-            <button type="button" className="secondary danger" disabled={!canWrite} onClick={() => void handleDelete()}>
+            <button
+              type="button"
+              className="secondary danger"
+              disabled={!canWrite}
+              onClick={() => void handleDelete()}
+            >
               Delete
             </button>
             <button type="button" className="primary" onClick={() => void finishAndHide()}>
