@@ -16,6 +16,23 @@ export interface OverlayStatePayload {
   init_status?: OverlayInitializationStatus;
 }
 
+export interface StorageNotice {
+  message: string;
+  source: 'primary' | 'temporary' | 'backup1' | 'legacyBackup' | 'backup2';
+  revision: number;
+  migratedFromSchema: number | null;
+  quarantinedFiles: string[];
+  backupDirectory: string;
+}
+
+export interface StorageHealthPayload {
+  notice: StorageNotice | null;
+  error: string | null;
+  writable: boolean;
+  revision: number;
+  backupDirectory: string;
+}
+
 const DEFAULT_METRICS: OverlayMetrics = {
   overlay_physical_x: 0,
   overlay_physical_y: 0,
@@ -42,6 +59,11 @@ function disposeTauriListeners() {
 }
 
 function writeBlockMessage(): string | null {
+  const storage = useSkribStore.getState();
+  if (!storage.storageWritable) {
+    return storage.errorMessage || 'Local note storage is currently read-only to protect existing data.';
+  }
+
   const status = useLicenseStore.getState().status;
   if (!status.enforcementEnabled || status.canWrite) return null;
   return status.message || 'Skribli is currently read-only on this device.';
@@ -56,6 +78,10 @@ interface SkribStoreState {
   isAmbiguous: boolean;
   isTauriAvailable: boolean;
   errorMessage: string | null;
+  storageNotice: StorageNotice | null;
+  storageWritable: boolean;
+  storageRevision: number;
+  storageBackupDirectory: string;
   allSkribs: SkribNote[];
   isLibraryOpen: boolean;
 
@@ -65,6 +91,7 @@ interface SkribStoreState {
   ) => void;
 
   clearError: () => void;
+  dismissStorageNotice: () => void;
   openLibrary: () => Promise<void>;
   closeLibrary: () => void;
   fetchTargetWindows: () => Promise<void>;
@@ -79,10 +106,10 @@ interface SkribStoreState {
     width: number,
     height: number
   ) => Promise<void>;
-  updateSkribText: (id: string, text: string) => Promise<void>;
+  updateSkribText: (id: string, text: string) => Promise<boolean>;
   updateSkribColor: (id: string, color: SkribNote['color']) => Promise<void>;
   toggleSkribCollapse: (id: string) => Promise<void>;
-  deleteSkrib: (id: string) => Promise<void>;
+  deleteSkrib: (id: string) => Promise<boolean>;
   updateHitTestRects: (
     rects: Array<{ x: number; y: number; width: number; height: number }>
   ) => Promise<void>;
@@ -98,6 +125,10 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
   isAmbiguous: false,
   isTauriAvailable: typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window,
   errorMessage: null,
+  storageNotice: null,
+  storageWritable: true,
+  storageRevision: 0,
+  storageBackupDirectory: '',
   allSkribs: [],
   isLibraryOpen: false,
   activeInteractionRect: null,
@@ -108,6 +139,10 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
 
   clearError: () => {
     set({ errorMessage: null });
+  },
+
+  dismissStorageNotice: () => {
+    set({ storageNotice: null });
   },
 
   openLibrary: async () => {
@@ -260,7 +295,7 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
     const blocked = writeBlockMessage();
     if (blocked) {
       set({ errorMessage: blocked });
-      return;
+      return false;
     }
 
     const previousSkribs = get().skribs;
@@ -270,17 +305,20 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
       ),
     });
 
-    if (!get().isTauriAvailable) return;
+    if (!get().isTauriAvailable) return true;
     try {
       const payload = await invoke<OverlayStatePayload>('update_skrib_text', { id, text });
       set({
         skribs: payload.skribs,
         overlayMetrics: payload.overlay_metrics || get().overlayMetrics,
         initStatus: payload.init_status || get().initStatus,
+        errorMessage: null,
       });
+      return true;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       set({ skribs: previousSkribs, errorMessage: `Failed to save text: ${msg}` });
+      return false;
     }
   },
 
@@ -340,23 +378,26 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
     const blocked = writeBlockMessage();
     if (blocked) {
       set({ errorMessage: blocked });
-      return;
+      return false;
     }
 
     const previousSkribs = get().skribs;
     set({ skribs: previousSkribs.filter((n) => n.id !== id) });
 
-    if (!get().isTauriAvailable) return;
+    if (!get().isTauriAvailable) return true;
     try {
       const payload = await invoke<OverlayStatePayload>('delete_skrib_note', { id });
       set({
         skribs: payload.skribs,
         overlayMetrics: payload.overlay_metrics || get().overlayMetrics,
         initStatus: payload.init_status || get().initStatus,
+        errorMessage: null,
       });
+      return true;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       set({ skribs: previousSkribs, errorMessage: `Failed to delete Skrib: ${msg}` });
+      return false;
     }
   },
 
@@ -413,6 +454,17 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
         });
 
         unlistenCallbacks.push(overlayUnlisten, shortcutUnlisten, hotkeyErrorUnlisten, storageErrorUnlisten, initStatusUnlisten);
+
+        const storageHealth = await invoke<StorageHealthPayload>('get_storage_health');
+        set({
+          storageNotice: storageHealth.notice,
+          storageWritable: storageHealth.writable,
+          storageRevision: storageHealth.revision,
+          storageBackupDirectory: storageHealth.backupDirectory,
+          errorMessage: storageHealth.error
+            ? `Local note storage needs attention: ${storageHealth.error}`
+            : get().errorMessage,
+        });
 
         const payload = await invoke<OverlayStatePayload>('refresh_target_state');
         set({

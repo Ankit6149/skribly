@@ -28,22 +28,58 @@ use platform::windows::{
 #[cfg(target_os = "windows")]
 use platform::windows_focus::focus_external_window;
 
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct StorageHealthPayload {
+    notice: Option<storage::StorageNotice>,
+    error: Option<String>,
+    writable: bool,
+    revision: u64,
+    backup_directory: String,
+}
+
 pub struct AppState {
     pub coordinator: Coordinator,
     pub running: Arc<AtomicBool>,
     pub init_status: Mutex<OverlayInitializationStatus>,
-    pub storage_path: Mutex<std::path::PathBuf>,
+    pub storage: Mutex<storage::StorageService>,
+    pub storage_notice: Mutex<Option<storage::StorageNotice>>,
+    pub storage_error: Mutex<Option<String>>,
     #[cfg(target_os = "windows")]
     pub win_event_sender: std::sync::mpsc::Sender<WinEventNotice>,
 }
 
 fn persist_skribs(state: &AppState) -> Result<(), String> {
-    let path = state
-        .storage_path
-        .lock()
-        .map_err(|_| "Local storage path is unavailable".to_string())?
-        .clone();
-    storage::save(&path, &state.coordinator.get_all_skribs())
+    let skribs = state.coordinator.get_all_skribs();
+    let result = {
+        let mut storage = state
+            .storage
+            .lock()
+            .map_err(|_| "Local storage service is unavailable".to_string())?;
+        storage
+            .save(&skribs)
+            .map(|_| ())
+            .map_err(|error| error.to_string())
+    };
+
+    match result {
+        Ok(()) => {
+            state.clear_storage_error();
+            Ok(())
+        }
+        Err(message) => {
+            state.record_storage_error(message.clone());
+            Err(message)
+        }
+    }
+}
+
+fn persist_or_restore(state: &AppState, previous: Vec<SkribNote>) -> Result<(), String> {
+    if let Err(message) = persist_skribs(state) {
+        state.coordinator.replace_all_skribs(previous);
+        return Err(message);
+    }
+    Ok(())
 }
 
 impl AppState {
@@ -58,6 +94,63 @@ impl AppState {
             lock.clone()
         } else {
             OverlayInitializationStatus::Initializing
+        }
+    }
+
+    fn set_storage_notice(&self, notice: Option<storage::StorageNotice>) {
+        if let Ok(mut lock) = self.storage_notice.lock() {
+            *lock = notice;
+        }
+    }
+
+    fn record_storage_error(&self, message: String) {
+        if let Ok(mut lock) = self.storage_error.lock() {
+            *lock = Some(message);
+        }
+    }
+
+    fn clear_storage_error(&self) {
+        if let Ok(mut lock) = self.storage_error.lock() {
+            *lock = None;
+        }
+    }
+
+    fn storage_health(&self) -> StorageHealthPayload {
+        let notice = self
+            .storage_notice
+            .lock()
+            .ok()
+            .and_then(|notice| notice.clone());
+        let mut error = self
+            .storage_error
+            .lock()
+            .ok()
+            .and_then(|message| message.clone());
+
+        let (writable, revision, backup_directory) = match self.storage.lock() {
+            Ok(storage) => (
+                storage.is_writable(),
+                storage.current_revision(),
+                storage
+                    .primary_path()
+                    .parent()
+                    .map(|path| path.to_string_lossy().into_owned())
+                    .unwrap_or_default(),
+            ),
+            Err(_) => {
+                if error.is_none() {
+                    error = Some("Local storage service is unavailable".to_string());
+                }
+                (false, 0, String::new())
+            }
+        };
+
+        StorageHealthPayload {
+            notice,
+            error,
+            writable,
+            revision,
+            backup_directory,
         }
     }
 }
@@ -247,13 +340,19 @@ fn set_active_target(
 }
 
 #[tauri::command]
+fn get_storage_health(state: State<'_, AppState>) -> StorageHealthPayload {
+    state.storage_health()
+}
+
+#[tauri::command]
 fn upsert_skrib_note(
     app_handle: AppHandle,
     state: State<'_, AppState>,
     note: SkribNote,
 ) -> Result<OverlayStatePayload, String> {
+    let previous = state.coordinator.get_all_skribs();
     state.coordinator.upsert_skrib(note);
-    persist_skribs(&state)?;
+    persist_or_restore(&state, previous)?;
     Ok(build_mutation_payload(&app_handle, &state, false))
 }
 
@@ -267,10 +366,14 @@ fn update_skrib_position(
     width: f64,
     height: f64,
 ) -> Result<OverlayStatePayload, String> {
-    state
+    let previous = state.coordinator.get_all_skribs();
+    if !state
         .coordinator
-        .update_skrib_position(&id, rel_x, rel_y, width, height);
-    persist_skribs(&state)?;
+        .update_skrib_position(&id, rel_x, rel_y, width, height)
+    {
+        return Err("Skrib note was not found or is not writable".to_string());
+    }
+    persist_or_restore(&state, previous)?;
     Ok(build_mutation_payload(&app_handle, &state, false))
 }
 
@@ -281,8 +384,11 @@ fn update_skrib_text(
     id: String,
     text: String,
 ) -> Result<OverlayStatePayload, String> {
-    state.coordinator.update_skrib_text(&id, text);
-    persist_skribs(&state)?;
+    let previous = state.coordinator.get_all_skribs();
+    if !state.coordinator.update_skrib_text(&id, text) {
+        return Err("Skrib note was not found or is not writable".to_string());
+    }
+    persist_or_restore(&state, previous)?;
     Ok(build_mutation_payload(&app_handle, &state, false))
 }
 
@@ -293,8 +399,11 @@ fn update_skrib_color(
     id: String,
     color: String,
 ) -> Result<OverlayStatePayload, String> {
-    state.coordinator.update_skrib_color(&id, color);
-    persist_skribs(&state)?;
+    let previous = state.coordinator.get_all_skribs();
+    if !state.coordinator.update_skrib_color(&id, color) {
+        return Err("Skrib note was not found or is not writable".to_string());
+    }
+    persist_or_restore(&state, previous)?;
     Ok(build_mutation_payload(&app_handle, &state, false))
 }
 
@@ -304,8 +413,11 @@ fn toggle_skrib_collapse(
     state: State<'_, AppState>,
     id: String,
 ) -> Result<OverlayStatePayload, String> {
-    state.coordinator.toggle_skrib_collapse(&id);
-    persist_skribs(&state)?;
+    let previous = state.coordinator.get_all_skribs();
+    if state.coordinator.toggle_skrib_collapse(&id).is_none() {
+        return Err("Skrib note was not found or is not writable".to_string());
+    }
+    persist_or_restore(&state, previous)?;
     Ok(build_mutation_payload(&app_handle, &state, false))
 }
 
@@ -315,8 +427,11 @@ fn delete_skrib_note(
     state: State<'_, AppState>,
     id: String,
 ) -> Result<OverlayStatePayload, String> {
-    state.coordinator.remove_skrib(&id);
-    persist_skribs(&state)?;
+    let previous = state.coordinator.get_all_skribs();
+    if state.coordinator.remove_skrib(&id).is_none() {
+        return Err("Skrib note was not found or is not writable".to_string());
+    }
+    persist_or_restore(&state, previous)?;
     Ok(build_mutation_payload(&app_handle, &state, false))
 }
 
@@ -399,7 +514,9 @@ pub fn run() {
         coordinator: coordinator.clone(),
         running: running.clone(),
         init_status: Mutex::new(OverlayInitializationStatus::Initializing),
-        storage_path: Mutex::new(storage_path),
+        storage: Mutex::new(storage::StorageService::new(storage_path)),
+        storage_notice: Mutex::new(None),
+        storage_error: Mutex::new(None),
         #[cfg(target_os = "windows")]
         win_event_sender: event_sender.clone(),
     };
@@ -412,6 +529,7 @@ pub fn run() {
             get_overlay_metrics,
             retry_overlay_initialization,
             set_active_target,
+            get_storage_health,
             upsert_skrib_note,
             update_skrib_position,
             update_skrib_text,
@@ -427,19 +545,25 @@ pub fn run() {
             let app_handle = app.handle().clone();
             let data_dir = app.path().app_data_dir()?;
             let storage_path = data_dir.join("skribs.json");
-            let loaded = storage::load(&storage_path).or_else(|primary_error| {
-                let backup = storage_path.with_extension("json.bak");
-                storage::load(&backup).map_err(|_| primary_error)
-            });
+            let mut storage_service = storage::StorageService::new(storage_path);
+            let loaded = storage_service.load();
             {
                 let state = app.state::<AppState>();
-                if let Ok(mut path) = state.storage_path.lock() {
-                    *path = storage_path;
-                }
+                let mut storage = state
+                    .storage
+                    .lock()
+                    .map_err(|_| "Local storage service is unavailable")?;
+                *storage = storage_service;
+                drop(storage);
+
                 match loaded {
-                    Ok(skribs) => state.coordinator.replace_all_skribs(skribs),
-                    Err(message) => {
-                        let _ = app_handle.emit("skribly://storage-error", message);
+                    Ok(outcome) => {
+                        state.coordinator.replace_all_skribs(outcome.skribs);
+                        state.set_storage_notice(outcome.notice);
+                        state.clear_storage_error();
+                    }
+                    Err(error) => {
+                        state.record_storage_error(error.to_string());
                     }
                 }
             }
@@ -512,8 +636,10 @@ pub fn run() {
                                 created_at: (timestamp / 1000) as u64,
                                 updated_at: (timestamp / 1000) as u64,
                             };
+                            let previous_skribs = coordinator_hk.get_all_skribs();
                             coordinator_hk.upsert_skrib(new_note);
                             if let Err(message) = persist_skribs(&state_hk) {
+                                coordinator_hk.replace_all_skribs(previous_skribs);
                                 let _ = app_handle_hk.emit("skribly://storage-error", message);
                             }
                         }
@@ -735,7 +861,11 @@ mod tests {
             coordinator: Coordinator::new(),
             running: Arc::new(AtomicBool::new(true)),
             init_status: Mutex::new(OverlayInitializationStatus::Initializing),
-            storage_path: Mutex::new(std::env::temp_dir().join("skribly-test.json")),
+            storage: Mutex::new(storage::StorageService::new(
+                std::env::temp_dir().join("skribly-test.json"),
+            )),
+            storage_notice: Mutex::new(None),
+            storage_error: Mutex::new(None),
             #[cfg(target_os = "windows")]
             win_event_sender: channel().0,
         };
