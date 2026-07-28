@@ -1,103 +1,113 @@
-# Roadmap
+# Skribli roadmap
 
-## Phase 0 — repository and product truth
+This file is a navigation summary. The issue tracker is the source of truth for scope, dependencies, acceptance criteria, evidence, and completion status.
 
-- [x] product vision
-- [x] selected visual direction
-- [x] component inventory
-- [x] provisional architecture
-- [x] business/tax working notes
-- [ ] make GitHub repository private
-- [x] push the working scaffold
+## Canonical trackers
 
-## Phase 1 — Windows overlay technical spike
+- [#34 — Production-readiness execution plan](https://github.com/Ankit6149/skribly/issues/34)
+- [#45 — Professional product experience, UI/UX, and design system](https://github.com/Ankit6149/skribly/issues/45)
+- [#46 — Future annotation, context, and platform architecture](https://github.com/Ankit6149/skribly/issues/46)
+- [#47 — Contributor experience, maintainability, and scalable quality](https://github.com/Ankit6149/skribly/issues/47)
+- [`PRODUCT_BACKLOG_AND_CONTRIBUTION_MAP.md`](PRODUCT_BACKLOG_AND_CONTRIBUTION_MAP.md)
 
-No database, browser extension, payments, AI, or full library UI.
+## Current product target
 
-### Implemented in code
+The active release target is a local-first Windows contextual typed-note product with:
 
-- [x] transparent always-on-top Windows overlay foundation
-- [x] real Win32 global shortcut registration and native event delivery
-- [x] native hit-test rectangle pipeline
-- [x] WinEvent-based target-window observation
-- [x] numeric HWND handling and Win32 process-handle cleanup
-- [x] same-session context reconnection and ambiguity handling foundation
-- [x] canonical physical-screen to overlay-client coordinate protocol
-- [x] negative virtual-desktop origin and uniform-DPI coordinate tests
-- [x] local drag and resize preview with one native persistence call on release
-- [x] idempotent Tauri event-listener initialization
+- a fast global-shortcut capture flow;
+- a compact transient editor;
+- durable crash-safe local storage;
+- one-instance background lifecycle and tray controls;
+- fail-closed context matching;
+- a normal non-floating library/recovery surface;
+- search, export/import, archive, reversible trash, and support diagnostics;
+- keyboard, screen-reader, high-contrast, reduced-motion, text-scaling, multi-monitor, and mixed-DPI support;
+- a signed, reproducible, recoverable installer/update path.
 
-### Required runtime acceptance before Phase 1 is closed
+The current release target does not include a permanently interactive full-screen overlay or persistent floating dots/widgets.
 
-- [ ] verify Ctrl+Shift+Space while Notepad has focus on the latest commit
-- [ ] verify clicks pass through empty overlay space into an external process
-- [ ] verify note controls remain interactive immediately after click-through
-- [ ] verify target movement, resize, minimize, restore, close, and same-session reopen
-- [ ] verify overlay HWND bounds match Windows virtual-screen bounds at runtime
-- [ ] capture CPU, memory, handle-count, and thread-count evidence with the committed script
-- [ ] attach a short screen recording from the exact tested commit
-- [ ] verify the latest frontend, cargo-fmt, and windows-rust CI jobs
-- [ ] make a Windows go/no-go decision from evidence rather than implementation claims
+## Phase 0 — Safety foundation
 
-### Explicit Phase 1 limitations
+Issues #14–#19:
 
-- mixed-DPI multi-monitor behavior remains experimental
-- physical second-monitor behavior is not accepted without hardware testing
-- `HTTRANSPARENT` is not considered proven cross-process click-through until observed with another application
-- macOS overlay behavior has not been implemented or tested
+- crash-safe storage and recovery;
+- one-instance lifecycle;
+- ordered/lossless editing;
+- bounded native event processing;
+- durable fail-closed context identity;
+- monitor/DPI-safe placement.
 
-## Phase 2 — durable local Windows MVP
+No public release or feature expansion happens while a P0 issue remains open.
 
-- [ ] SQLite schema and migrations
-- [ ] persist Skribs across application restarts
-- [ ] durable create/edit/delete typed Skribs
-- [ ] tray menu and background lifecycle
-- [x] global shortcut foundation
-- [ ] whole-window anchoring hardening
-- [x] collapse and color prototype
-- [ ] lock note interaction
-- [ ] crash recovery
-- [ ] All Skribs recovery and search panel
-- [ ] local export and backup
-- [ ] first-run onboarding
+## Phase 1 — Real Windows MVP
 
-## Phase 3 — expressive annotations
+Issues #20–#23, #31–#32, #48–#56, #59, #70, #72, #79, and #80:
 
-- [ ] pen and stylus ink
-- [ ] highlighter
-- [ ] arrows and shapes
-- [ ] checklists
-- [ ] reminders and notifications
-- [ ] touch mode
-- [ ] re-anchor flow
+- canonical product lifecycle;
+- library, recovery, export/import, archive, and trash;
+- minimal validated native/frontend API;
+- removal/isolation of retired prototypes;
+- documentation and capability truth;
+- user research and information architecture;
+- production design system;
+- onboarding, Settings, tray, shortcuts, focus, and truthful error states;
+- accessibility;
+- privacy-safe support diagnostics;
+- local search/indexing;
+- permission/network/data transparency.
 
-## Phase 4 — browser precision
+## Phase 2 — Engineering and release confidence
 
-- [ ] Chromium extension
-- [ ] URL context
-- [ ] DOM element selection
-- [ ] scroll tracking
-- [ ] selector fallbacks
-- [ ] local secure desktop bridge
+Issues #24–#25, #30, #33, and #71–#78:
 
-## Phase 5 — commercial Windows beta
+- exact-binary Windows validation;
+- signed reproducible releases;
+- CI, security, visual, accessibility, performance, and architecture gates;
+- repository protection, secrets, backup, and recovery;
+- contributor bootstrap and deterministic test harnesses;
+- performance budgets;
+- update channels and rollback;
+- install, repair, upgrade, uninstall, and data-retention behavior.
 
-- [ ] unsigned internal Windows installer
-- [ ] signed public Windows installer
-- [ ] licence and checkout decision
-- [ ] privacy, terms, and refund documents
-- [ ] CA review
-- [ ] onboarding and update system
-- [ ] crash-reporting decision
-- [ ] 10–20 person Windows tester cohort
-- [ ] Founder Early Access launch
+## Phase 3 — Truthful launch surface
 
-## Later
+Issues #26 and #29:
 
-- signed and notarized macOS build
-- cloud sync
-- collaboration
-- mobile
-- AI
-- OCR
-- marketplace
+- website and download behavior matching the exact binary;
+- security, privacy, data handling, support, legal, retention, and incident baseline.
+
+## Phase 4 — Optional commercial system
+
+Issues #27 and #28 only after the product is stable:
+
+- checkout, fulfilment, refunds, chargebacks, reconciliation, and support;
+- licence activation, offline entitlement, transfer, revocation, and recovery.
+
+Payments remain disabled until these workflows and the real legal/accounting treatment are verified.
+
+## Phase 5 — Deferred post-MVP capabilities
+
+Tracked under #46:
+
+- versioned multi-annotation domain model;
+- re-anchor and context-rule management;
+- touch/pen input architecture;
+- ink/highlighter;
+- shapes, arrows, pins, labels, and checklists;
+- reminders;
+- attachments;
+- Chromium URL/DOM anchoring;
+- macOS;
+- optional encrypted sync research.
+
+Collaboration, mobile, AI, OCR, third-party plugins, and marketplace execution are not implementation commitments. They require separate research, security, architecture, and business approval.
+
+## Execution rules
+
+1. Work in dependency order.
+2. Do not close partial issues; add a complete progress comment instead.
+3. Compilation is not native runtime evidence.
+4. Persistent changes require migration, backup, recovery, downgrade, export, and rollback plans.
+5. New permissions, network paths, capabilities, public claims, or platforms require reviewed decisions.
+6. Deferred code must be excluded from production bundles rather than merely hidden.
+7. Contributors should start only from issues marked ready after product and architecture decisions are complete.
