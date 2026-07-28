@@ -1,5 +1,6 @@
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import React, { useEffect, useRef, useState } from 'react';
+import '../../styles/storage-recovery.css';
 import { useSkribStore } from '../../stores/skribStore';
 import { useSkribUiStore } from '../../stores/skribUiStore';
 import { SkribComposer } from '../skribs/SkribComposer';
@@ -65,7 +66,10 @@ export const OverlayHost: React.FC = () => {
       storageErrorMessage ||
       storageNotice?.message ||
       'Local note storage needs attention before Skribli can create another note.';
-    const title = storageWritable && !storageErrorMessage ? 'Local notes recovered' : 'Local notes need recovery';
+    const title =
+      storageWritable && !storageErrorMessage
+        ? 'Local notes recovered'
+        : 'Local notes need recovery';
 
     const saveDiagnostics = async () => {
       const output = await exportStorageDiagnostics();
@@ -85,8 +89,12 @@ export const OverlayHost: React.FC = () => {
         >
           <header className="storage-recovery-header" data-tauri-drag-region>
             <div data-tauri-drag-region>
-              <span className="storage-recovery-kicker" data-tauri-drag-region>SKRIBLI STORAGE</span>
-              <h1 id="storage-recovery-title" data-tauri-drag-region>{title}</h1>
+              <span className="storage-recovery-kicker" data-tauri-drag-region>
+                SKRIBLI STORAGE
+              </span>
+              <h1 id="storage-recovery-title" data-tauri-drag-region>
+                {title}
+              </h1>
             </div>
             <button
               type="button"
