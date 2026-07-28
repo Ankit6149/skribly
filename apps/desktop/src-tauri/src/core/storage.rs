@@ -164,6 +164,7 @@ enum SaveFault {
     AfterTemporarySync,
     AfterBackupRotation,
     BeforePrimaryReplace,
+    AfterPrimaryReplace,
 }
 
 #[derive(Debug)]
@@ -227,15 +228,13 @@ impl StorageService {
             }
         }
 
-        if !unsupported.is_empty() {
-            let reason = unsupported
+        let unsupported_reason = (!unsupported.is_empty()).then(|| {
+            unsupported
                 .iter()
                 .map(ToString::to_string)
                 .collect::<Vec<_>>()
-                .join("; ");
-            self.blocked_reason = Some(reason.clone());
-            return Err(StorageError::WriteBlocked { reason });
-        }
+                .join("; ")
+        });
 
         if !found_any_file {
             self.revision = 0;
@@ -252,6 +251,11 @@ impl StorageService {
             .collect::<Vec<_>>();
 
         if valid.is_empty() {
+            if let Some(reason) = unsupported_reason {
+                self.blocked_reason = Some(reason.clone());
+                return Err(StorageError::WriteBlocked { reason });
+            }
+
             let details = if invalid_details.is_empty() {
                 "No valid primary, temporary, or backup generation was found".to_string()
             } else {
@@ -272,6 +276,16 @@ impl StorageService {
                 .then_with(|| right.written_at_ms.cmp(&left.written_at_ms))
         });
         let selected = valid.remove(0);
+
+        if let Some(reason) = unsupported_reason {
+            return Ok(self.read_only_recovery_outcome(
+                &selected,
+                format!(
+                    "A newer unsupported storage generation was preserved and writes are blocked: {reason}"
+                ),
+                Vec::new(),
+            ));
+        }
 
         let mut quarantined_files = Vec::new();
         for (index, candidate) in invalid.into_iter().enumerate() {
@@ -475,6 +489,11 @@ impl StorageService {
 
         atomic_replace(&temporary, &self.primary_path)?;
         sync_parent_directory(&parent)?;
+        maybe_fail(
+            fault,
+            SaveFault::AfterPrimaryReplace,
+            "after primary replacement",
+        )?;
 
         let committed = match decode_candidate(&self.primary_path, StorageSource::Primary) {
             Ok(committed) => committed,
@@ -1144,6 +1163,31 @@ mod tests {
     }
 
     #[test]
+    fn interruption_after_primary_replace_keeps_the_committed_revision() {
+        let path = test_path("fault-after-replace");
+        let mut storage = StorageService::new(path.clone());
+        storage.load().expect("empty load");
+        storage.save(&[note("one", "First")]).expect("first save");
+        storage
+            .save_internal(
+                &[note("two", "Committed before interruption")],
+                SaveFault::AfterPrimaryReplace,
+            )
+            .expect_err("fault should interrupt verification");
+
+        let mut reopened = StorageService::new(path.clone());
+        let loaded = reopened
+            .load()
+            .expect("the replaced primary should verify on restart");
+        assert_eq!(
+            loaded.skribs,
+            vec![note("two", "Committed before interruption")]
+        );
+        assert_eq!(loaded.revision, 2);
+        cleanup(&path);
+    }
+
+    #[test]
     fn rotates_two_known_good_backup_generations() {
         let path = test_path("rotation");
         let mut storage = StorageService::new(path.clone());
@@ -1244,6 +1288,35 @@ mod tests {
             .expect("read-only notice")
             .message
             .contains("read-only recovery mode"));
+        cleanup(&path);
+    }
+
+    #[test]
+    fn future_backup_with_valid_primary_opens_verified_notes_read_only() {
+        let path = test_path("future-backup-startup");
+        let mut storage = StorageService::new(path.clone());
+        storage.load().expect("empty load");
+        storage
+            .save(&[note("one", "Verified primary")])
+            .expect("save one");
+        write_bytes_synced(
+            &storage.backup1_path(),
+            br#"{"schema_version":99,"revision":50,"written_at_ms":1,"integrity":"future","skribs":[]}"#,
+        )
+        .expect("future backup fixture");
+
+        let mut reopened = StorageService::new(path.clone());
+        let loaded = reopened
+            .load()
+            .expect("verified primary should remain visible read-only");
+        assert_eq!(loaded.skribs, vec![note("one", "Verified primary")]);
+        assert!(!reopened.is_writable());
+        assert!(loaded
+            .notice
+            .expect("future-schema recovery notice")
+            .message
+            .contains("newer unsupported storage generation"));
+        assert!(storage.backup1_path().exists());
         cleanup(&path);
     }
 
