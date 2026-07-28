@@ -1,0 +1,185 @@
+.storage-recovery-backdrop {
+  position: fixed;
+  inset: 0;
+  padding: 10px;
+  display: grid;
+  pointer-events: auto;
+  background: transparent;
+}
+
+.storage-recovery-panel {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgba(38, 39, 31, 0.16);
+  border-radius: 18px 18px 30px 18px;
+  background:
+    linear-gradient(rgba(38, 39, 31, 0.028) 1px, transparent 1px),
+    #fff7d6;
+  background-size: 100% 30px;
+  box-shadow: 0 24px 70px rgba(38, 39, 31, 0.26);
+  color: var(--skribli-ink);
+  animation: note-enter 150ms ease-out;
+}
+
+.storage-recovery-header {
+  min-height: 72px;
+  padding: 18px 16px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border-bottom: 1px dashed var(--skribli-line);
+  cursor: grab;
+}
+
+.storage-recovery-header:active {
+  cursor: grabbing;
+}
+
+.storage-recovery-kicker {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--skribli-muted);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+.storage-recovery-header h1 {
+  margin: 0;
+  font-family: var(--skribli-ui-font);
+  font-size: 16px;
+  font-weight: 720;
+  letter-spacing: -0.025em;
+}
+
+.storage-recovery-close {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(38, 39, 31, 0.1);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.52);
+  color: rgba(38, 39, 31, 0.66);
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 130ms ease, transform 130ms ease;
+}
+
+.storage-recovery-close:hover {
+  background: rgba(255, 255, 255, 0.82);
+  transform: scale(1.04);
+}
+
+.storage-recovery-body {
+  flex: 1;
+  min-height: 0;
+  padding: 22px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  font-family: var(--skribli-ui-font);
+}
+
+.storage-recovery-body p {
+  margin: 0;
+  color: rgba(38, 39, 31, 0.78);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.storage-recovery-protection {
+  padding: 10px 12px;
+  border: 1px solid rgba(146, 52, 52, 0.17);
+  border-radius: 11px;
+  background: rgba(255, 242, 242, 0.72);
+  color: #7f2929 !important;
+}
+
+.storage-recovery-path {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.storage-recovery-path span {
+  color: var(--skribli-muted);
+  font-size: 9px;
+  font-weight: 760;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.storage-recovery-path code {
+  max-width: 100%;
+  padding: 9px 10px;
+  overflow-wrap: anywhere;
+  user-select: text;
+  border: 1px solid rgba(38, 39, 31, 0.1);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.46);
+  color: rgba(38, 39, 31, 0.84);
+  font-family: "Cascadia Mono", "Consolas", monospace;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.storage-recovery-footer {
+  min-height: 62px;
+  padding: 10px 12px 12px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  border-top: 1px dashed var(--skribli-line);
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.storage-recovery-footer button {
+  min-height: 36px;
+  padding: 0 13px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  cursor: pointer;
+  font-family: var(--skribli-ui-font);
+  font-size: 10px;
+  font-weight: 720;
+  transition: transform 130ms ease, background 130ms ease, box-shadow 130ms ease;
+}
+
+.storage-recovery-footer button:hover {
+  transform: translateY(-1px);
+}
+
+.storage-recovery-footer button.secondary {
+  border-color: rgba(38, 39, 31, 0.1);
+  background: rgba(255, 255, 255, 0.44);
+  color: var(--skribli-ink);
+}
+
+.storage-recovery-footer button.primary {
+  background: var(--skribli-ink);
+  color: #fffdf4;
+  box-shadow: 0 8px 20px rgba(38, 39, 31, 0.16);
+}
+
+.storage-recovery-close:focus-visible,
+.storage-recovery-footer button:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .storage-recovery-panel {
+    animation: none;
+  }
+}
