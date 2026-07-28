@@ -1,105 +1,117 @@
 # Product requirements document
 
-**Product:** Skribli
-**Status:** Definition / technical spike  
-**Platforms:** Windows and macOS  
-**Distribution:** Direct installers first; store listings optional  
-**Business model:** One-time lifetime purchase, with an early-access tier
+> **Status: long-term product vision, not the current release contract.**  
+> The current Windows MVP behavior and release sequence are defined by [issue #34](https://github.com/Ankit6149/skribly/issues/34), [issue #20](https://github.com/Ankit6149/skribly/issues/20), and the [product backlog/contribution map](../06-planning/PRODUCT_BACKLOG_AND_CONTRIBUTION_MAP.md).  
+> Future annotations, browser integration, macOS, and sync are tracked under [issue #46](https://github.com/Ankit6149/skribly/issues/46) and must not be treated as implemented or approved release scope.
+
+**Product:** Skribli  
+**Current release target:** local-first Windows contextual typed notes  
+**Future platforms/capabilities:** separate gated roadmaps  
+**Distribution:** direct installer after signed release and runtime acceptance  
+**Business model:** undecided until the product and commercial workflows are ready
 
 ## 1. Core job
 
-When a user notices something worth remembering inside an app, webpage, file, folder, or screen location, Skribli must let them capture it immediately and restore it automatically when the relevant context returns.
+When a user notices something worth remembering inside an application, webpage, file, folder, or screen context, Skribli should let them capture it quickly and restore it safely when the intended context returns.
 
-## 2. Core objects
+For the current Windows MVP, this job is limited to typed contextual notes through a compact transient editor and a non-floating recovery/library surface.
 
-A contextual annotation is called a **Skrib**.
+## 2. Current Windows MVP objects
 
-Initial Skrib types:
+The initial supported persistent object is a typed contextual note.
 
-1. typed note
-2. handwritten/ink note
-3. highlight
-4. arrow
-5. pin/label
-6. checklist
-7. reminder
+The exact fields, one-versus-many behavior, create/open semantics, close behavior, archive/trash rules, and context identity are decided and implemented through #20, #14, #18, #21, and #60 where applicable.
 
-## 3. Creation flow
+## 3. Current creation flow
 
-1. User invokes the global shortcut or tray action.
-2. Skribli enters placement mode and reveals a compact tool palette.
-3. User selects a tool and places it over the current app/window.
-4. User types, draws, or configures the Skrib.
-5. Skribli derives and stores context automatically.
-6. Clicking outside commits the Skrib; no explicit Save button is required.
+The current intended flow is:
 
-## 4. Context behavior
+1. The user focuses the application where the thought belongs.
+2. The user invokes the configured global shortcut.
+3. Skribli captures a supported foreground context before taking focus.
+4. A compact editor opens near the target on the correct display.
+5. The user types while the application reports truthful saving/saved/error state.
+6. Done/Close/Escape hides the editor only after the final draft is durable, or keeps it open with recovery when persistence fails.
+7. The user can later recover every note through the non-floating All Skribs library.
 
-- Whole-window anchoring must work before fine-grained anchors.
-- A Skrib follows its target window when moved or resized.
-- A Skrib hides when the target minimizes, closes, or leaves its matching context.
-- A Skrib restores when the context returns.
-- If confidence is low after layout changes, Skribli presents a re-anchor flow rather than pretending the match is exact.
-- Website element anchoring is provided later through a browser extension.
+This flow must not require a permanently interactive full-screen overlay or persistent floating dots/widgets.
 
-## 5. Editing behavior
+## 4. Current context behavior
 
-A Skrib can be:
+- Whole-application/window/document-context matching is hardened before browser-element anchoring.
+- Context capture fails closed for unsupported or ambiguous targets.
+- Confidence and recovery are visible rather than hidden.
+- A stale previous target is never silently reused.
+- Re-anchor, move, detach, and context-rule management are tracked under #61.
+- Browser URL/DOM anchoring is deferred to #67.
 
-- selected
-- typed into or inked on
-- dragged
-- resized
-- recolored
-- collapsed
-- locked
-- re-anchored
-- archived
-- deleted through a reversible trash state
+## 5. Current editing and lifecycle behavior
 
-## 6. Library
+The final Windows MVP contract is owned by #20. It must define:
 
-“All Skribs” is a recovery and search surface, not the primary workflow. It provides:
+- create versus reopen behavior;
+- one or multiple notes per context;
+- ordering and note switching;
+- final-save/close behavior;
+- empty-note behavior;
+- archive, reversible trash, restore, and permanent deletion;
+- supported fields and appearance choices;
+- tray, library, Settings, and recovery entry points.
 
-- full-text search
-- filters by app, date, type, reminder, status, and context
-- preview and jump-to-context
-- archived/trash recovery
-- local export and backup
+## 6. All Skribs library
 
-## 7. Touch and pen
+The library is a normal non-floating recovery and management surface owned by #21 and #79. It includes, as approved:
 
-- Use Pointer Events in the shared UI.
-- Support mouse, touch, stylus, pressure, and tilt where available.
-- Touch mode increases target sizes.
-- Ink strokes remain editable vector-like data; do not store only flattened screenshots.
+- full-text search and filters;
+- context-safe open/re-anchor behavior;
+- archive and reversible trash;
+- versioned export/import and backup;
+- read-only access where required;
+- accessible keyboard navigation;
+- scalable indexing and index recovery.
 
-## 8. Privacy
+## 7. Privacy and trust baseline
 
-- v1 stores data locally.
-- no account or cloud requirement
-- no screenshot capture
-- no OCR
-- no keystroke content collection
-- Accessibility permission is used only for context/window identification
-- no network activity except explicit update checks
+- local data remains usable without an account;
+- no screenshot capture, OCR, or keystroke-content collection in the Windows MVP;
+- context/window metadata is minimized and used only for approved matching behavior;
+- no undeclared network activity;
+- update, licence, extension, feedback, and future sync traffic must appear in the canonical network/capability registry;
+- diagnostics exclude note content and sensitive context data by default;
+- permissions and data locations are visible through #80.
 
-## 9. Quality requirements
+## 8. Quality requirements
 
-- idle CPU approximately zero when windows are static
-- no permanent animation loops
-- instant note editing and local saving
-- multi-monitor and mixed-DPI support
-- recover safely from app crashes
-- signed installers before broad public launch
-- clear permission onboarding on macOS
+- no silent data loss under interrupted writes;
+- one process, tray icon, hotkey, and hook set per user session;
+- exact final text is durable before close;
+- idle CPU and memory remain within #76 budgets;
+- multi-monitor and mixed-DPI behavior passes #19/#24 evidence;
+- keyboard, screen-reader, high-contrast, reduced-motion, and text-scaling flows pass #31;
+- install, repair, upgrade, uninstall, update, rollback, and recovery preserve data exactly as documented;
+- signed reproducible installers before public distribution.
 
-## 10. Monetization
+## 9. Deferred expressive annotations
 
-Planned initial offer:
+The following are long-term possibilities, not current release commitments:
 
-- private/free tester build
-- paid early-access lifetime licence
-- final pricing to be validated through demand and support cost
+- editable ink and highlighter;
+- arrows, shapes, pins, labels, and checklists;
+- reminders and notifications;
+- secure local attachments;
+- touch/pen-specific interaction;
+- browser URL/DOM anchoring.
 
-No subscription is required for local v1. Future paid cloud sync must remain optional.
+They require #60–#67 and may not reuse the rejected global overlay architecture without a new approved decision.
+
+## 10. Deferred platforms and services
+
+- macOS is tracked by #68 and is not currently implemented.
+- Optional end-to-end encrypted sync is research under #69.
+- Collaboration, mobile, AI, OCR, plugins, and a marketplace require separate approved issue sets.
+
+## 11. Commercial status
+
+Public downloads and payments remain disabled until the relevant #34 gates pass.
+
+A one-time purchase, paid updates, Merchant of Record, store distribution, self-managed checkout, and licence enforcement remain business decisions rather than current promises. Commerce and licensing are tracked by #27 and #28 and must not be implemented ahead of product readiness.
