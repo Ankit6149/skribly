@@ -2,7 +2,7 @@
 
 > **Status: long-term product vision, not the current release contract.**  
 > The current Windows MVP behavior and release sequence are defined by [issue #34](https://github.com/Ankit6149/skribly/issues/34), [issue #20](https://github.com/Ankit6149/skribly/issues/20), and the [product backlog/contribution map](../06-planning/PRODUCT_BACKLOG_AND_CONTRIBUTION_MAP.md).  
-> Future annotations, browser integration, macOS, and sync are tracked under [issue #46](https://github.com/Ankit6149/skribly/issues/46) and must not be treated as implemented or approved release scope.
+> Future annotations, browser integration, macOS, revision history, and sync are tracked under [issue #46](https://github.com/Ankit6149/skribly/issues/46) and must not be treated as implemented or approved release scope.
 
 **Product:** Skribli  
 **Current release target:** local-first Windows contextual typed notes  
@@ -43,6 +43,7 @@ This flow must not require a permanently interactive full-screen overlay or pers
 - Confidence and recovery are visible rather than hidden.
 - A stale previous target is never silently reused.
 - Re-anchor, move, detach, and context-rule management are tracked under #61.
+- Sensitive-context exclusions and privacy-lock behavior are tracked under #84.
 - Browser URL/DOM anchoring is deferred to #67.
 
 ## 5. Current editing and lifecycle behavior
@@ -56,19 +57,23 @@ The final Windows MVP contract is owned by #20. It must define:
 - empty-note behavior;
 - archive, reversible trash, restore, and permanent deletion;
 - supported fields and appearance choices;
-- tray, library, Settings, and recovery entry points.
+- tray, library, Settings, privacy-lock, and recovery entry points.
 
-## 6. All Skribs library
+Persistent note revision history and cross-session undo/redo are deferred to #83. The MVP must remain architecturally compatible with bounded future history but does not need to ship it.
+
+## 6. All Skribs library and backups
 
 The library is a normal non-floating recovery and management surface owned by #21 and #79. It includes, as approved:
 
 - full-text search and filters;
 - context-safe open/re-anchor behavior;
 - archive and reversible trash;
-- versioned export/import and backup;
+- versioned export/import;
 - read-only access where required;
 - accessible keyboard navigation;
 - scalable indexing and index recovery.
+
+Internal crash-recovery generations are owned by #14. Verified user-controlled backups, restore preview, retention, and clean-device disaster recovery are owned by #82. Portable export, internal recovery, and recurring backup must remain distinct concepts in product copy and implementation.
 
 ## 7. Privacy and trust baseline
 
@@ -78,17 +83,21 @@ The library is a normal non-floating recovery and management surface owned by #2
 - no undeclared network activity;
 - update, licence, extension, feedback, and future sync traffic must appear in the canonical network/capability registry;
 - diagnostics exclude note content and sensitive context data by default;
-- permissions and data locations are visible through #80.
+- permissions and data locations are visible through #80;
+- users can quickly hide visible note content, and screen-sharing/capture limitations are explained truthfully through #84;
+- local storage is not described as encrypted unless a separately reviewed encryption feature actually provides it.
 
-## 8. Quality requirements
+## 8. Quality and compatibility requirements
 
 - no silent data loss under interrupted writes;
 - one process, tray icon, hotkey, and hook set per user session;
 - exact final text is durable before close;
+- internal recovery and user backups pass forced-failure and clean-device restore evidence;
 - idle CPU and memory remain within #76 budgets;
 - multi-monitor and mixed-DPI behavior passes #19/#24 evidence;
 - keyboard, screen-reader, high-contrast, reduced-motion, and text-scaling flows pass #31;
 - install, repair, upgrade, uninstall, update, rollback, and recovery preserve data exactly as documented;
+- supported Windows versions, architectures, hardware tiers, runtimes, applications, RDP/VM behavior, and known limitations are defined and evidence-backed through #85;
 - signed reproducible installers before public distribution.
 
 ## 9. Deferred expressive annotations
@@ -100,9 +109,10 @@ The following are long-term possibilities, not current release commitments:
 - reminders and notifications;
 - secure local attachments;
 - touch/pen-specific interaction;
+- local revision history and cross-session undo/redo;
 - browser URL/DOM anchoring.
 
-They require #60–#67 and may not reuse the rejected global overlay architecture without a new approved decision.
+They require #60–#67 and #83 and may not reuse the rejected global overlay architecture without a new approved decision.
 
 ## 10. Deferred platforms and services
 
