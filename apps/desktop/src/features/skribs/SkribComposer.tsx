@@ -14,7 +14,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target }) =>
   const {
     updateSkribText,
     deleteSkrib,
-    errorMessage: storageErrorMessage,
+    storageErrorMessage,
     storageNotice,
     storageWritable,
     dismissStorageNotice,

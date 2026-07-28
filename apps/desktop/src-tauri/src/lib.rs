@@ -42,6 +42,7 @@ pub struct AppState {
     pub coordinator: Coordinator,
     pub running: Arc<AtomicBool>,
     pub init_status: Mutex<OverlayInitializationStatus>,
+    pub mutation_lock: Mutex<()>,
     pub storage: Mutex<storage::StorageService>,
     pub storage_notice: Mutex<Option<storage::StorageNotice>>,
     pub storage_error: Mutex<Option<String>>,
@@ -74,12 +75,22 @@ fn persist_skribs(state: &AppState) -> Result<(), String> {
     }
 }
 
-fn persist_or_restore(state: &AppState, previous: Vec<SkribNote>) -> Result<(), String> {
+fn run_persisted_mutation<T>(
+    state: &AppState,
+    mutation: impl FnOnce(&Coordinator) -> Result<T, String>,
+) -> Result<T, String> {
+    let _mutation_guard = state
+        .mutation_lock
+        .lock()
+        .map_err(|_| "Local note mutation lock is unavailable".to_string())?;
+    let previous = state.coordinator.get_all_skribs();
+    let result = mutation(&state.coordinator)?;
+
     if let Err(message) = persist_skribs(state) {
         state.coordinator.replace_all_skribs(previous);
         return Err(message);
     }
-    Ok(())
+    Ok(result)
 }
 
 impl AppState {
@@ -350,9 +361,10 @@ fn upsert_skrib_note(
     state: State<'_, AppState>,
     note: SkribNote,
 ) -> Result<OverlayStatePayload, String> {
-    let previous = state.coordinator.get_all_skribs();
-    state.coordinator.upsert_skrib(note);
-    persist_or_restore(&state, previous)?;
+    run_persisted_mutation(&state, |coordinator| {
+        coordinator.upsert_skrib(note);
+        Ok(())
+    })?;
     Ok(build_mutation_payload(&app_handle, &state, false))
 }
 
@@ -366,14 +378,12 @@ fn update_skrib_position(
     width: f64,
     height: f64,
 ) -> Result<OverlayStatePayload, String> {
-    let previous = state.coordinator.get_all_skribs();
-    if !state
-        .coordinator
-        .update_skrib_position(&id, rel_x, rel_y, width, height)
-    {
-        return Err("Skrib note was not found or is not writable".to_string());
-    }
-    persist_or_restore(&state, previous)?;
+    run_persisted_mutation(&state, |coordinator| {
+        coordinator
+            .update_skrib_position(&id, rel_x, rel_y, width, height)
+            .then_some(())
+            .ok_or_else(|| "Skrib note was not found or is not writable".to_string())
+    })?;
     Ok(build_mutation_payload(&app_handle, &state, false))
 }
 
@@ -384,11 +394,12 @@ fn update_skrib_text(
     id: String,
     text: String,
 ) -> Result<OverlayStatePayload, String> {
-    let previous = state.coordinator.get_all_skribs();
-    if !state.coordinator.update_skrib_text(&id, text) {
-        return Err("Skrib note was not found or is not writable".to_string());
-    }
-    persist_or_restore(&state, previous)?;
+    run_persisted_mutation(&state, |coordinator| {
+        coordinator
+            .update_skrib_text(&id, text)
+            .then_some(())
+            .ok_or_else(|| "Skrib note was not found or is not writable".to_string())
+    })?;
     Ok(build_mutation_payload(&app_handle, &state, false))
 }
 
@@ -399,11 +410,12 @@ fn update_skrib_color(
     id: String,
     color: String,
 ) -> Result<OverlayStatePayload, String> {
-    let previous = state.coordinator.get_all_skribs();
-    if !state.coordinator.update_skrib_color(&id, color) {
-        return Err("Skrib note was not found or is not writable".to_string());
-    }
-    persist_or_restore(&state, previous)?;
+    run_persisted_mutation(&state, |coordinator| {
+        coordinator
+            .update_skrib_color(&id, color)
+            .then_some(())
+            .ok_or_else(|| "Skrib note was not found or is not writable".to_string())
+    })?;
     Ok(build_mutation_payload(&app_handle, &state, false))
 }
 
@@ -413,11 +425,12 @@ fn toggle_skrib_collapse(
     state: State<'_, AppState>,
     id: String,
 ) -> Result<OverlayStatePayload, String> {
-    let previous = state.coordinator.get_all_skribs();
-    if state.coordinator.toggle_skrib_collapse(&id).is_none() {
-        return Err("Skrib note was not found or is not writable".to_string());
-    }
-    persist_or_restore(&state, previous)?;
+    run_persisted_mutation(&state, |coordinator| {
+        coordinator
+            .toggle_skrib_collapse(&id)
+            .map(|_| ())
+            .ok_or_else(|| "Skrib note was not found or is not writable".to_string())
+    })?;
     Ok(build_mutation_payload(&app_handle, &state, false))
 }
 
@@ -427,11 +440,12 @@ fn delete_skrib_note(
     state: State<'_, AppState>,
     id: String,
 ) -> Result<OverlayStatePayload, String> {
-    let previous = state.coordinator.get_all_skribs();
-    if state.coordinator.remove_skrib(&id).is_none() {
-        return Err("Skrib note was not found or is not writable".to_string());
-    }
-    persist_or_restore(&state, previous)?;
+    run_persisted_mutation(&state, |coordinator| {
+        coordinator
+            .remove_skrib(&id)
+            .map(|_| ())
+            .ok_or_else(|| "Skrib note was not found or is not writable".to_string())
+    })?;
     Ok(build_mutation_payload(&app_handle, &state, false))
 }
 
@@ -514,6 +528,7 @@ pub fn run() {
         coordinator: coordinator.clone(),
         running: running.clone(),
         init_status: Mutex::new(OverlayInitializationStatus::Initializing),
+        mutation_lock: Mutex::new(()),
         storage: Mutex::new(storage::StorageService::new(storage_path)),
         storage_notice: Mutex::new(None),
         storage_error: Mutex::new(None),
@@ -636,10 +651,12 @@ pub fn run() {
                                 created_at: (timestamp / 1000) as u64,
                                 updated_at: (timestamp / 1000) as u64,
                             };
-                            let previous_skribs = coordinator_hk.get_all_skribs();
-                            coordinator_hk.upsert_skrib(new_note);
-                            if let Err(message) = persist_skribs(&state_hk) {
-                                coordinator_hk.replace_all_skribs(previous_skribs);
+                            if let Err(message) =
+                                run_persisted_mutation(&state_hk, |coordinator| {
+                                    coordinator.upsert_skrib(new_note);
+                                    Ok(())
+                                })
+                            {
                                 let _ = app_handle_hk.emit("skribly://storage-error", message);
                             }
                         }
@@ -861,6 +878,7 @@ mod tests {
             coordinator: Coordinator::new(),
             running: Arc::new(AtomicBool::new(true)),
             init_status: Mutex::new(OverlayInitializationStatus::Initializing),
+            mutation_lock: Mutex::new(()),
             storage: Mutex::new(storage::StorageService::new(
                 std::env::temp_dir().join("skribly-test.json"),
             )),
@@ -919,5 +937,63 @@ mod tests {
 
         assert!(visible_skribs(&coordinator, None).is_empty());
         assert_eq!(coordinator.get_all_skribs().len(), 1);
+    }
+
+    #[test]
+    fn failed_persistence_restores_the_previous_coordinator_snapshot() {
+        let directory = std::env::temp_dir().join(format!(
+            "skribly-lib-storage-rollback-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&directory);
+        std::fs::create_dir_all(&directory).expect("create test directory");
+        let storage_path = directory.join("skribs.json");
+        std::fs::write(
+            &storage_path,
+            r#"{"schema_version":99,"revision":1,"written_at_ms":1,"integrity":"future","skribs":[]}"#,
+        )
+        .expect("write unsupported schema fixture");
+
+        let mut storage_service = storage::StorageService::new(storage_path);
+        assert!(storage_service.load().is_err());
+        let coordinator = Coordinator::new();
+        let original = SkribNote {
+            id: "note-a".into(),
+            target_process_name: "notepad.exe".into(),
+            target_title: "Document-A.txt - Notepad".into(),
+            rel_x: 20.0,
+            rel_y: 20.0,
+            width: 300.0,
+            height: 220.0,
+            text: "Original".into(),
+            color: "yellow".into(),
+            collapsed: false,
+            created_at: 1,
+            updated_at: 1,
+        };
+        coordinator.upsert_skrib(original.clone());
+        let app_state = AppState {
+            coordinator: coordinator.clone(),
+            running: Arc::new(AtomicBool::new(true)),
+            init_status: Mutex::new(OverlayInitializationStatus::Initializing),
+            mutation_lock: Mutex::new(()),
+            storage: Mutex::new(storage_service),
+            storage_notice: Mutex::new(None),
+            storage_error: Mutex::new(None),
+            #[cfg(target_os = "windows")]
+            win_event_sender: channel().0,
+        };
+
+        let result = run_persisted_mutation(&app_state, |coordinator| {
+            coordinator
+                .update_skrib_text("note-a", "Unsaved".to_string())
+                .then_some(())
+                .ok_or_else(|| "note missing".to_string())
+        });
+        assert!(result.is_err());
+        assert_eq!(coordinator.get_all_skribs(), vec![original]);
+        assert!(app_state.storage_health().error.is_some());
+        assert!(!app_state.storage_health().writable);
+        let _ = std::fs::remove_dir_all(&directory);
     }
 }

@@ -61,7 +61,7 @@ function disposeTauriListeners() {
 function writeBlockMessage(): string | null {
   const storage = useSkribStore.getState();
   if (!storage.storageWritable) {
-    return storage.errorMessage || 'Local note storage is currently read-only to protect existing data.';
+    return storage.storageErrorMessage || 'Local note storage is currently read-only to protect existing data.';
   }
 
   const status = useLicenseStore.getState().status;
@@ -78,6 +78,7 @@ interface SkribStoreState {
   isAmbiguous: boolean;
   isTauriAvailable: boolean;
   errorMessage: string | null;
+  storageErrorMessage: string | null;
   storageNotice: StorageNotice | null;
   storageWritable: boolean;
   storageRevision: number;
@@ -92,6 +93,7 @@ interface SkribStoreState {
 
   clearError: () => void;
   dismissStorageNotice: () => void;
+  refreshStorageHealth: () => Promise<void>;
   openLibrary: () => Promise<void>;
   closeLibrary: () => void;
   fetchTargetWindows: () => Promise<void>;
@@ -125,6 +127,7 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
   isAmbiguous: false,
   isTauriAvailable: typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window,
   errorMessage: null,
+  storageErrorMessage: null,
   storageNotice: null,
   storageWritable: true,
   storageRevision: 0,
@@ -143,6 +146,25 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
 
   dismissStorageNotice: () => {
     set({ storageNotice: null });
+  },
+
+  refreshStorageHealth: async () => {
+    if (!get().isTauriAvailable) return;
+    try {
+      const storageHealth = await invoke<StorageHealthPayload>('get_storage_health');
+      set({
+        storageNotice: storageHealth.notice,
+        storageWritable: storageHealth.writable,
+        storageRevision: storageHealth.revision,
+        storageBackupDirectory: storageHealth.backupDirectory,
+        storageErrorMessage: storageHealth.error
+          ? `Local note storage needs attention: ${storageHealth.error}`
+          : null,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      set({ errorMessage: `Failed to read local storage health: ${message}` });
+    }
   },
 
   openLibrary: async () => {
@@ -313,11 +335,13 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
         overlayMetrics: payload.overlay_metrics || get().overlayMetrics,
         initStatus: payload.init_status || get().initStatus,
         errorMessage: null,
+        storageErrorMessage: null,
       });
       return true;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      set({ skribs: previousSkribs, errorMessage: `Failed to save text: ${msg}` });
+      set({ skribs: previousSkribs, storageErrorMessage: `Failed to save text: ${msg}` });
+      await get().refreshStorageHealth();
       return false;
     }
   },
@@ -392,11 +416,13 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
         overlayMetrics: payload.overlay_metrics || get().overlayMetrics,
         initStatus: payload.init_status || get().initStatus,
         errorMessage: null,
+        storageErrorMessage: null,
       });
       return true;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      set({ skribs: previousSkribs, errorMessage: `Failed to delete Skrib: ${msg}` });
+      set({ skribs: previousSkribs, storageErrorMessage: `Failed to delete Skrib: ${msg}` });
+      await get().refreshStorageHealth();
       return false;
     }
   },
@@ -446,7 +472,8 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
         });
 
         const storageErrorUnlisten = await listen<string>('skribly://storage-error', (event) => {
-          set({ errorMessage: `Failed to save locally: ${event.payload}` });
+          set({ storageErrorMessage: `Failed to save locally: ${event.payload}` });
+          void get().refreshStorageHealth();
         });
 
         const initStatusUnlisten = await listen<OverlayInitializationStatus>('skribly://overlay-init-status', (event) => {
@@ -455,16 +482,7 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
 
         unlistenCallbacks.push(overlayUnlisten, shortcutUnlisten, hotkeyErrorUnlisten, storageErrorUnlisten, initStatusUnlisten);
 
-        const storageHealth = await invoke<StorageHealthPayload>('get_storage_health');
-        set({
-          storageNotice: storageHealth.notice,
-          storageWritable: storageHealth.writable,
-          storageRevision: storageHealth.revision,
-          storageBackupDirectory: storageHealth.backupDirectory,
-          errorMessage: storageHealth.error
-            ? `Local note storage needs attention: ${storageHealth.error}`
-            : get().errorMessage,
-        });
+        await get().refreshStorageHealth();
 
         const payload = await invoke<OverlayStatePayload>('refresh_target_state');
         set({

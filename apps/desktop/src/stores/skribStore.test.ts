@@ -42,6 +42,11 @@ describe('skribStore', () => {
       isAmbiguous: false,
       isTauriAvailable: false,
       errorMessage: null,
+      storageErrorMessage: null,
+      storageNotice: null,
+      storageWritable: true,
+      storageRevision: 0,
+      storageBackupDirectory: '',
     });
   });
 
@@ -121,6 +126,43 @@ describe('skribStore', () => {
 
     expect(useSkribStore.getState().skribs).toEqual([note]);
     expect(useSkribStore.getState().errorMessage).toBe('Your seven-day trial has ended.');
+  });
+
+  it('keeps existing notes unchanged when storage is read only', async () => {
+    await useSkribStore.getState().addSkrib('Original text', 'yellow');
+    const note = useSkribStore.getState().skribs[0]!;
+    useSkribStore.setState({
+      storageWritable: false,
+      storageErrorMessage: 'Local note data needs recovery.',
+    });
+
+    const updated = await useSkribStore.getState().updateSkribText(note.id, 'Should not appear');
+    const deleted = await useSkribStore.getState().deleteSkrib(note.id);
+
+    expect(updated).toBe(false);
+    expect(deleted).toBe(false);
+    expect(useSkribStore.getState().skribs).toEqual([note]);
+    expect(useSkribStore.getState().errorMessage).toBe('Local note data needs recovery.');
+  });
+
+  it('dismisses a recovery notice without changing storage health', () => {
+    useSkribStore.setState({
+      storageNotice: {
+        message: 'Recovered notes.',
+        source: 'backup1',
+        revision: 2,
+        migratedFromSchema: null,
+        quarantinedFiles: [],
+        backupDirectory: 'C:/Skribli',
+      },
+      storageWritable: true,
+      storageRevision: 2,
+    });
+
+    useSkribStore.getState().dismissStorageNotice();
+    expect(useSkribStore.getState().storageNotice).toBeNull();
+    expect(useSkribStore.getState().storageWritable).toBe(true);
+    expect(useSkribStore.getState().storageRevision).toBe(2);
   });
 
   it('creates a blank note when no initial text is supplied', async () => {

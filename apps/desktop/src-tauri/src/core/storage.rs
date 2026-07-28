@@ -221,10 +221,26 @@ impl StorageService {
             });
         }
 
+        let mut invalid_details = invalid
+            .iter()
+            .map(|candidate| candidate.error.to_string())
+            .collect::<Vec<_>>();
+
+        if valid.is_empty() {
+            let details = if invalid_details.is_empty() {
+                "No valid primary, temporary, or backup generation was found".to_string()
+            } else {
+                format!(
+                    "{}. Damaged files were preserved in place for recovery.",
+                    invalid_details.join("; ")
+                )
+            };
+            self.blocked_reason = Some(details.clone());
+            return Err(StorageError::NoRecoverableData { details });
+        }
+
         let mut quarantined_files = Vec::new();
-        let mut invalid_details = Vec::new();
         for (index, candidate) in invalid.into_iter().enumerate() {
-            invalid_details.push(candidate.error.to_string());
             match quarantine_file(&candidate.path, candidate.source, index) {
                 Ok(path) => quarantined_files.push(file_name_for_display(&path)),
                 Err(error) if candidate.source == StorageSource::Primary => {
@@ -236,16 +252,6 @@ impl StorageService {
                 }
                 Err(error) => invalid_details.push(error.to_string()),
             }
-        }
-
-        if valid.is_empty() {
-            let details = if invalid_details.is_empty() {
-                "No valid primary, temporary, or backup generation was found".to_string()
-            } else {
-                invalid_details.join("; ")
-            };
-            self.blocked_reason = Some(details.clone());
-            return Err(StorageError::NoRecoverableData { details });
         }
 
         valid.sort_by(|left, right| {
@@ -423,9 +429,17 @@ impl StorageService {
         let backup2 = self.backup2_path();
 
         if backup1.exists() {
-            let stage2 = sibling_path(&self.primary_path, ".bak.2.stage");
-            copy_verified_generation(&backup1, &stage2, StorageSource::Backup1)?;
-            atomic_replace(&stage2, &backup2)?;
+            match decode_candidate(&backup1, StorageSource::Backup1) {
+                Ok(_) => {
+                    let stage2 = sibling_path(&self.primary_path, ".bak.2.stage");
+                    copy_verified_generation(&backup1, &stage2, StorageSource::Backup1)?;
+                    atomic_replace(&stage2, &backup2)?;
+                }
+                Err(error @ StorageError::UnsupportedSchema { .. }) => return Err(error),
+                Err(_) => {
+                    quarantine_file(&backup1, StorageSource::Backup1, 0)?;
+                }
+            }
         }
 
         if self.primary_path.exists() {
@@ -976,6 +990,48 @@ mod tests {
             .expect_err("corrupt-only storage must fail closed");
         assert!(matches!(error, StorageError::NoRecoverableData { .. }));
         assert!(!storage.is_writable());
+        assert!(path.exists());
+
+        let mut reopened = StorageService::new(path.clone());
+        let second_error = reopened
+            .load()
+            .expect_err("a second launch must not convert corruption into an empty store");
+        assert!(matches!(
+            second_error,
+            StorageError::NoRecoverableData { .. }
+        ));
+        assert!(!reopened.is_writable());
+        assert!(path.exists());
+        cleanup(&path);
+    }
+
+    #[test]
+    fn damaged_old_backup_is_quarantined_without_blocking_a_new_save() {
+        let path = test_path("damaged-backup");
+        let mut storage = StorageService::new(path.clone());
+        storage.load().expect("empty load");
+        storage.save(&[note("one", "One")]).expect("save one");
+        storage.save(&[note("two", "Two")]).expect("save two");
+        write_bytes_synced(&storage.backup1_path(), b"damaged").expect("damage backup fixture");
+
+        storage
+            .save(&[note("three", "Three")])
+            .expect("valid primary should still be saved");
+
+        let backup1 = decode_candidate(&storage.backup1_path(), StorageSource::Backup1)
+            .expect("latest known-good primary should replace the damaged backup");
+        assert_eq!(backup1.skribs, vec![note("two", "Two")]);
+        let quarantine_count = fs::read_dir(path.parent().expect("parent"))
+            .expect("read data directory")
+            .filter_map(Result::ok)
+            .filter(|entry| {
+                entry
+                    .file_name()
+                    .to_string_lossy()
+                    .contains(".bak.1.corrupt.")
+            })
+            .count();
+        assert_eq!(quarantine_count, 1);
         cleanup(&path);
     }
 
