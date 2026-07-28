@@ -17,7 +17,9 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target }) =>
     storageErrorMessage,
     storageNotice,
     storageWritable,
+    storageBackupDirectory,
     dismissStorageNotice,
+    exportStorageDiagnostics,
   } = useSkribStore();
   const licenseStatus = useLicenseStore((state) => state.status);
   const canWrite =
@@ -25,6 +27,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target }) =>
   const { closeComposer } = useSkribUiStore();
   const [text, setText] = useState(note.text);
   const [composerError, setComposerError] = useState<string | null>(null);
+  const [diagnosticsPath, setDiagnosticsPath] = useState<string | null>(null);
   const textSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const contextLabel = useMemo(() => {
@@ -108,6 +111,11 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target }) =>
     }, 350);
   };
 
+  const handleExportDiagnostics = async () => {
+    const output = await exportStorageDiagnostics();
+    if (output) setDiagnosticsPath(output);
+  };
+
   const handleDelete = async () => {
     if (!canWrite) return;
     if (textSaveTimer.current) clearTimeout(textSaveTimer.current);
@@ -150,7 +158,14 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target }) =>
 
         {(composerError || storageErrorMessage) && (
           <div className="composer-error" role="alert">
-            {composerError || storageErrorMessage}
+            <span>{composerError || storageErrorMessage}</span>
+            {storageBackupDirectory && (
+              <small>Recovery folder: {storageBackupDirectory}</small>
+            )}
+            <button type="button" onClick={() => void handleExportDiagnostics()}>
+              Save safe diagnostics
+            </button>
+            {diagnosticsPath && <small>Diagnostics saved to: {diagnosticsPath}</small>}
           </div>
         )}
 

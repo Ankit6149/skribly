@@ -94,6 +94,7 @@ interface SkribStoreState {
   clearError: () => void;
   dismissStorageNotice: () => void;
   refreshStorageHealth: () => Promise<void>;
+  exportStorageDiagnostics: () => Promise<string | null>;
   openLibrary: () => Promise<void>;
   closeLibrary: () => void;
   fetchTargetWindows: () => Promise<void>;
@@ -164,6 +165,17 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       set({ errorMessage: `Failed to read local storage health: ${message}` });
+    }
+  },
+
+  exportStorageDiagnostics: async () => {
+    if (!get().isTauriAvailable) return null;
+    try {
+      return await invoke<string>('export_storage_diagnostics');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      set({ errorMessage: `Failed to export storage diagnostics: ${message}` });
+      return null;
     }
   },
 
@@ -272,10 +284,13 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
         skribs: payload.skribs,
         overlayMetrics: payload.overlay_metrics || get().overlayMetrics,
         initStatus: payload.init_status || get().initStatus,
+        errorMessage: null,
+        storageErrorMessage: null,
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       set({ skribs: previousSkribs, errorMessage: `Failed to create Skrib note: ${msg}` });
+      await get().refreshStorageHealth();
     }
   },
 
@@ -306,10 +321,13 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
         skribs: payload.skribs,
         overlayMetrics: payload.overlay_metrics || get().overlayMetrics,
         initStatus: payload.init_status || get().initStatus,
+        errorMessage: null,
+        storageErrorMessage: null,
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       set({ skribs: previousSkribs, errorMessage: `Failed to save Skrib position: ${msg}` });
+      await get().refreshStorageHealth();
     }
   },
 
@@ -340,7 +358,11 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
       return true;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      set({ skribs: previousSkribs, storageErrorMessage: `Failed to save text: ${msg}` });
+      set({
+        skribs: previousSkribs,
+        errorMessage: `Failed to save text: ${msg}`,
+        storageErrorMessage: `Failed to save text: ${msg}`,
+      });
       await get().refreshStorageHealth();
       return false;
     }
@@ -365,10 +387,13 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
         skribs: payload.skribs,
         overlayMetrics: payload.overlay_metrics || get().overlayMetrics,
         initStatus: payload.init_status || get().initStatus,
+        errorMessage: null,
+        storageErrorMessage: null,
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       set({ skribs: previousSkribs, errorMessage: `Failed to change color: ${msg}` });
+      await get().refreshStorageHealth();
     }
   },
 
@@ -391,10 +416,13 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
         skribs: payload.skribs,
         overlayMetrics: payload.overlay_metrics || get().overlayMetrics,
         initStatus: payload.init_status || get().initStatus,
+        errorMessage: null,
+        storageErrorMessage: null,
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       set({ skribs: previousSkribs, errorMessage: `Failed to toggle collapse: ${msg}` });
+      await get().refreshStorageHealth();
     }
   },
 
@@ -421,7 +449,11 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
       return true;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      set({ skribs: previousSkribs, storageErrorMessage: `Failed to delete Skrib: ${msg}` });
+      set({
+        skribs: previousSkribs,
+        errorMessage: `Failed to delete Skrib: ${msg}`,
+        storageErrorMessage: `Failed to delete Skrib: ${msg}`,
+      });
       await get().refreshStorageHealth();
       return false;
     }

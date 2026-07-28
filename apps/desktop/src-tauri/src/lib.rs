@@ -356,6 +356,18 @@ fn get_storage_health(state: State<'_, AppState>) -> StorageHealthPayload {
 }
 
 #[tauri::command]
+fn export_storage_diagnostics(state: State<'_, AppState>) -> Result<String, String> {
+    let storage = state
+        .storage
+        .lock()
+        .map_err(|_| "Local storage service is unavailable".to_string())?;
+    storage
+        .export_diagnostics()
+        .map(|path| path.to_string_lossy().into_owned())
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
 fn upsert_skrib_note(
     app_handle: AppHandle,
     state: State<'_, AppState>,
@@ -545,6 +557,7 @@ pub fn run() {
             retry_overlay_initialization,
             set_active_target,
             get_storage_health,
+            export_storage_diagnostics,
             upsert_skrib_note,
             update_skrib_position,
             update_skrib_text,

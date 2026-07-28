@@ -71,6 +71,31 @@ pub struct SaveOutcome {
     pub written_at_ms: u64,
 }
 
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct StorageFileDiagnostic {
+    pub source: StorageSource,
+    pub file_name: String,
+    pub exists: bool,
+    pub size_bytes: Option<u64>,
+    pub modified_at_ms: Option<u64>,
+    pub status: String,
+    pub revision: Option<u64>,
+    pub schema_version: Option<u32>,
+    pub error: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct StorageDiagnostics {
+    pub generated_at_ms: u64,
+    pub current_schema_version: u32,
+    pub current_revision: u64,
+    pub writable: bool,
+    pub blocked_reason: Option<String>,
+    pub files: Vec<StorageFileDiagnostic>,
+}
+
 #[derive(Debug, Error)]
 pub enum StorageError {
     #[error("Local Skrib storage path has no parent directory")]
@@ -306,6 +331,42 @@ impl StorageService {
 
     pub fn save(&mut self, skribs: &[SkribNote]) -> Result<SaveOutcome, StorageError> {
         self.save_internal(skribs, SaveFault::None)
+    }
+
+    pub fn diagnostics(&self) -> StorageDiagnostics {
+        let files = self
+            .candidate_paths()
+            .into_iter()
+            .map(|(source, path)| diagnose_candidate(source, &path))
+            .collect();
+
+        StorageDiagnostics {
+            generated_at_ms: now_millis(),
+            current_schema_version: CURRENT_SCHEMA_VERSION,
+            current_revision: self.revision,
+            writable: self.is_writable(),
+            blocked_reason: self.blocked_reason.clone(),
+            files,
+        }
+    }
+
+    pub fn export_diagnostics(&self) -> Result<PathBuf, StorageError> {
+        let parent = self
+            .primary_path
+            .parent()
+            .ok_or(StorageError::MissingParent)?;
+        fs::create_dir_all(parent)
+            .map_err(|error| io_error("create diagnostics directory", parent, error))?;
+        let file_name = format!("skribli-storage-diagnostics-{}.json", now_millis());
+        let output = parent.join(file_name);
+        let payload = serde_json::to_vec_pretty(&self.diagnostics()).map_err(|error| {
+            StorageError::InvalidData {
+                path: file_name_for_display(&output),
+                reason: format!("failed to encode storage diagnostics: {error}"),
+            }
+        })?;
+        write_bytes_synced(&output, &payload)?;
+        Ok(output)
     }
 
     fn save_internal(
@@ -624,6 +685,69 @@ fn decode_candidate(path: &Path, source: StorageSource) -> Result<DecodedCandida
         path: file_name_for_display(path),
         reason: "missing schema_version/version field".to_string(),
     })
+}
+
+fn diagnose_candidate(source: StorageSource, path: &Path) -> StorageFileDiagnostic {
+    if !path.exists() {
+        return StorageFileDiagnostic {
+            source,
+            file_name: file_name_for_display(path),
+            exists: false,
+            size_bytes: None,
+            modified_at_ms: None,
+            status: "missing".to_string(),
+            revision: None,
+            schema_version: None,
+            error: None,
+        };
+    }
+
+    let metadata = fs::metadata(path).ok();
+    let size_bytes = metadata.as_ref().map(fs::Metadata::len);
+    let modified_at_ms = metadata
+        .and_then(|metadata| metadata.modified().ok())
+        .and_then(|modified| modified.duration_since(UNIX_EPOCH).ok())
+        .and_then(|duration| duration.as_millis().try_into().ok());
+
+    match decode_candidate(path, source) {
+        Ok(candidate) => StorageFileDiagnostic {
+            source,
+            file_name: file_name_for_display(path),
+            exists: true,
+            size_bytes,
+            modified_at_ms,
+            status: "valid".to_string(),
+            revision: Some(candidate.revision),
+            schema_version: Some(
+                candidate
+                    .migrated_from_schema
+                    .unwrap_or(CURRENT_SCHEMA_VERSION),
+            ),
+            error: None,
+        },
+        Err(error @ StorageError::UnsupportedSchema { .. }) => StorageFileDiagnostic {
+            source,
+            file_name: file_name_for_display(path),
+            exists: true,
+            size_bytes,
+            modified_at_ms,
+            status: "unsupportedSchema".to_string(),
+            revision: None,
+            schema_version: None,
+            error: Some(error.to_string()),
+        },
+        Err(error) => StorageFileDiagnostic {
+            source,
+            file_name: file_name_for_display(path),
+            exists: true,
+            size_bytes,
+            modified_at_ms,
+            status: "invalid".to_string(),
+            revision: None,
+            schema_version: None,
+            error: Some(error.to_string()),
+        },
+    }
 }
 
 fn copy_verified_generation(
@@ -1032,6 +1156,27 @@ mod tests {
             })
             .count();
         assert_eq!(quarantine_count, 1);
+        cleanup(&path);
+    }
+
+    #[test]
+    fn exported_diagnostics_never_include_note_contents_or_target_titles() {
+        let path = test_path("diagnostics");
+        let mut storage = StorageService::new(path.clone());
+        storage.load().expect("empty load");
+        storage
+            .save(&[note("private", "Never include this private text")])
+            .expect("save diagnostics fixture");
+
+        let diagnostics_path = storage
+            .export_diagnostics()
+            .expect("diagnostics should export");
+        let diagnostics =
+            fs::read_to_string(diagnostics_path).expect("diagnostics should be readable");
+        assert!(!diagnostics.contains("Never include this private text"));
+        assert!(!diagnostics.contains("Notes - Notepad"));
+        assert!(diagnostics.contains("currentSchemaVersion"));
+        assert!(diagnostics.contains("skribs.json"));
         cleanup(&path);
     }
 
