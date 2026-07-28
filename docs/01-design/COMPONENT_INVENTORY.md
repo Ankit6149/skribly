@@ -1,181 +1,326 @@
-# Complete UI component inventory
+# Skribli UI component and product-surface inventory
 
-This inventory prevents coding agents from reducing Skribli to a single yellow textarea.
+> **Status:** planning inventory, not a statement that every listed component exists or is approved for the current release.  
+> The current product contract is defined by [#20](https://github.com/Ankit6149/skribly/issues/20), the production sequence by [#34](https://github.com/Ankit6149/skribly/issues/34), professional UX by [#45](https://github.com/Ankit6149/skribly/issues/45), and deferred capabilities by [#46](https://github.com/Ankit6149/skribly/issues/46).
 
-## A. Overlay surfaces
+This inventory prevents two opposite failures:
 
-- transparent per-context overlay host
-- placement-mode dimmer
-- click-through background regions
-- active drawing surface
-- anchor and snap guides
-- context lost/degraded indicator
+1. reducing Skribli to an unconsidered textarea with no recovery, settings, support, or system behavior;
+2. treating every old overlay, annotation, browser, or macOS concept as current approved scope.
 
-## B. Floating creation tools
+Production components must be registered through #70 and documented/tested through #50 and #73.
 
-- quick tool palette
-- Note tool
-- Pen tool
-- Highlighter tool
-- Arrow tool
-- Pin tool
-- Checklist tool
-- Reminder tool
-- Eraser tool
-- palette drag handle
-- current-tool indicator
-- pen color and width popover
-- undo/redo controls
+## 1. Current Windows MVP surfaces
 
-## C. Skrib states
+### 1.1 Compact contextual editor
 
-- default
-- hover
-- selected
-- editing
-- drawing
-- dragging
-- resizing
-- collapsed
-- locked
-- pinned
-- reminder upcoming
-- reminder overdue
-- read-only/degraded context
-- archived
-- trash pending
+Required states and components:
 
-## D. Typed note internals
+- compact transient window shell;
+- target/context summary with privacy-conscious display rules;
+- typed-note editor;
+- primary Done/Close action;
+- delete/trash action according to #20/#21;
+- saving, saved, unsaved, failed, recovered, blocked, and read-only status;
+- retry and recovery actions;
+- keyboard instructions that adapt to configured shortcuts;
+- storage-recovery panel when no valid note can be loaded;
+- accessible names, live regions, focus boundaries, and system-font fallback;
+- high-contrast, reduced-motion, large-text, and solid-background variants.
 
-- optional title
-- rich plain-text body (v1 should avoid a complex document editor)
-- checklist rows
-- reminder chip
-- context chip
-- color picker
-- pin/unpin
-- collapse/expand
-- lock/unlock
-- more menu
-- archive
-- delete
-- resize affordance
+The current editor does not imply a full-screen interactive overlay, persistent floating tab, dot, widget, drawing surface, or tool palette.
 
-## E. Ink note internals
+### 1.2 All Skribs library
 
-- Canvas layer
-- live stroke preview
-- pressure-aware pen
-- translucent highlighter
-- eraser
-- lasso/select (later)
-- undo/redo
-- stroke color
-- stroke width
-- clear canvas confirmation
+Owned by #21 and #79:
 
-## F. Structured annotation objects
+- normal non-floating application window;
+- search input and query status;
+- filters for approved fields such as app/context, date, archive, and trash;
+- deterministic sort and grouping controls;
+- list/grid presentation only if usability evidence supports both;
+- note preview with privacy-safe context information;
+- open/edit action;
+- context confidence and re-anchor entry point;
+- archive/restore;
+- trash/restore/permanent-delete confirmation;
+- export selected/all;
+- import preview, duplicate handling, migration, and rollback;
+- backup and storage-health status;
+- empty, loading, indexing, rebuilding, error, blocked, and read-only states;
+- pagination or virtualization at scale;
+- keyboard navigation and screen-reader result announcements.
 
-- arrow with endpoints
-- rectangle/circle highlight
-- freeform highlight stroke
-- small pin/label
-- “continue here” marker
-- warning label
-- countdown/reminder marker
+### 1.3 Settings
 
-## G. Context controls
+Owned by #52:
 
-- current app/window chip
-- URL/document chip
-- anchor confidence state
-- re-anchor action
-- attach to whole window
-- attach to element (browser extension)
-- detach and make desktop-local
-- move to another context
+- General;
+- Appearance and readability;
+- Hotkeys;
+- Behavior and focus/fullscreen exceptions;
+- Accessibility;
+- Privacy and permissions;
+- Backups and data access;
+- Updates;
+- Diagnostics and support;
+- About/version/build information.
 
-## H. Drag and re-anchor
+Each setting needs a typed default, validation, migration, ownership, apply/restart behavior, error state, reset behavior, and documentation. Controls for unavailable capabilities are not shown in production.
 
-- drag ghost
-- original-context placeholder
-- target snap outline
-- accepted/rejected target state
-- drop confirmation animation
-- “things moved” dialog
-- suggested matches
-- manual point picker
-- always use this rule toggle
+### 1.4 Onboarding
 
-## I. All Skribs library
+Owned by #51:
 
-- search input
-- filters: app, date, type, reminder, archived, trash
-- context grouping
-- grid/list modes
-- compact preview
-- open context
-- edit
-- archive/restore
-- export
-- local backup status
-- empty, loading, and error states
+- truthful value demonstration;
+- first-run progress and resumable state;
+- shortcut tutorial and registration confirmation;
+- hotkey-conflict recovery;
+- local-storage and privacy explanation;
+- tray, Close versus Quit, library, and diagnostics education;
+- supported-target and failure guidance;
+- skip, back, restart, and revisit actions;
+- keyboard, screen-reader, reduced-motion, and large-text variants.
 
-## J. Reminder UI
+macOS permissions, browser extension pairing, ink, or other deferred features are not included in Windows MVP onboarding.
 
-- quick options
-- date picker
-- time picker
-- recurrence (later)
-- notification preview
-- overdue state
-- snooze
-- complete/dismiss
+### 1.5 Tray and background status
 
-## K. System UI
+Owned by #53:
 
-- tray icon
-- tray menu
-- pause Skribli globally
-- pause on current app
-- reveal all Skribs shortcut
-- lock all Skribs
-- update indicator
-- quit action
+- tray icon and status representation;
+- ready, paused, degraded, storage-blocked, hotkey-conflict, read-only, and update states;
+- approved new/open-note action;
+- All Skribs;
+- Settings;
+- pause/resume;
+- diagnostics/support;
+- update status;
+- About;
+- explicit Quit.
 
-## L. Settings
+The tray must recover after Explorer restart and must not create duplicate icons.
 
-- General
-- Appearance
-- Hotkeys
-- Behavior
-- Touch & Pen
-- Privacy
-- Backups
-- Updates
-- About
+### 1.6 Recovery, diagnostics, and support
 
-Settings include startup, shortcut editor, theme, touch mode, topmost behavior, fullscreen pause, local backup schedule, update channel, permission status, data-folder access, export, and reset.
+Owned by #14, #56, and #59:
 
-## M. Onboarding and permissions
+- recoverable-storage summary;
+- source/recovery generation status;
+- quarantine notice;
+- safe data and backup folder access;
+- content-free diagnostics preview and export;
+- version/build/OS/runtime/capability status;
+- hotkey, permission, update, and lifecycle status;
+- user-facing error ID and safe troubleshooting path;
+- vulnerability/private-reporting guidance;
+- explicit opt-in for any attachment or future network submission.
 
-- value demonstration
-- “Add a Skrib” shortcut tutorial
-- interactive first placement
-- macOS Accessibility explanation
-- browser extension optional step
-- privacy promise
-- skip and revisit
+## 2. Shared production design-system components
 
-## N. Failure and recovery
+Owned by #50 and reviewed through #31/#73:
 
-- database migration failure
-- corrupt local file recovery
-- inaccessible target app
-- lost anchor
-- unsupported fullscreen app
-- hotkey conflict
-- permission revoked
-- extension disconnected
-- update failed
-- crash recovery draft
+- semantic typography, spacing, surface, border, status, elevation, motion, and z-index tokens;
+- buttons, icon buttons, links, inputs, text areas, selects, checkboxes, switches, and shortcut recorders;
+- menus, tooltips, popovers, dialogs, banners, toasts, inline errors, and progress indicators;
+- lists, rows, cards, filters, tabs only where information architecture requires them;
+- empty, loading, skeleton, no-results, failure, recovery, offline, and read-only patterns;
+- destructive-action and irreversible-confirmation patterns;
+- focus indicators and keyboard-state patterns;
+- icons from one approved source/style;
+- note theme/color tokens with accessible text contrast;
+- system-font and expressive-note-font modes;
+- forced-colors, reduced-motion, touch-target, and text-expansion variants.
+
+Every production component requires documented hover, focus, active, pressed, selected, disabled, loading, saving, error, and read-only states where applicable.
+
+## 3. Current contextual states
+
+Current typed notes and context UX may require:
+
+- supported context;
+- unsupported target;
+- ambiguous context;
+- degraded/low-confidence context;
+- target closed or unavailable;
+- target elevated/protected;
+- context changed while editing;
+- re-anchor/move/detach recovery entry point;
+- app-level versus more precise approved scope;
+- archived;
+- trash pending;
+- read-only;
+- import/migration pending;
+- storage recovery required.
+
+The final state model belongs to #18, #20, #21, and #61. UI code must not invent matching rules.
+
+## 4. Deferred annotation components
+
+The following are post-MVP and may not be included in production until their parent foundations and capability gates pass.
+
+### 4.1 Input and creation controls
+
+Tracked by #62–#64:
+
+- explicit annotation interaction surface;
+- pointer/pen/touch state indicators;
+- approved tool selection mechanism;
+- pen and highlighter controls;
+- shapes/arrows/pins/labels/checklist tools;
+- eraser;
+- undo/redo;
+- selection, move, resize, lock, grouping, and z-order controls;
+- snap/anchor guides;
+- keyboard alternatives.
+
+A floating tool palette and placement dimmer are not approved by this inventory. Their necessity and architecture require product/usability review and must not restore a screen-blocking overlay.
+
+### 4.2 Ink and highlighter internals
+
+Tracked by #63:
+
+- vector stroke renderer;
+- live stroke preview;
+- pressure/tilt-aware input where supported;
+- translucent highlighter;
+- stroke erase and clear confirmation;
+- selection/lasso if separately approved;
+- color/width controls;
+- typed summary/alt text;
+- performance and storage-limit states.
+
+### 4.3 Structured annotation objects
+
+Tracked by #64:
+
+- arrow endpoints;
+- rectangle/circle/freeform highlight;
+- pin/label;
+- warning or “continue here” label only if validated;
+- checklist rows and completion controls;
+- geometry handles and keyboard manipulation;
+- accessible object summary and state.
+
+### 4.4 Reminder UI
+
+Tracked by #65:
+
+- date/time picker;
+- timezone interpretation;
+- notification preview and privacy setting;
+- upcoming, overdue, missed, failed, snoozed, completed, and dismissed states;
+- recurrence only after one-time reminders are accepted;
+- permission/status guidance;
+- locked-screen redaction controls.
+
+### 4.5 Attachment UI
+
+Tracked by #66:
+
+- supported file picker/drop target;
+- upload/copy progress for local storage;
+- type/size/quota validation;
+- bounded thumbnail/preview;
+- duplicate state;
+- missing linked-source state if links are supported;
+- low-disk and storage-management state;
+- remove/restore/permanent-delete behavior;
+- export/import and orphan-cleanup reporting.
+
+## 5. Deferred context and platform surfaces
+
+### 5.1 Re-anchor and rule management
+
+Tracked by #61:
+
+- confidence explanation;
+- candidate list;
+- re-anchor to current target;
+- move to another context;
+- detach to broader/local scope;
+- undo/revert anchor change;
+- matching-rule preview, approval, edit, and delete;
+- batch recovery when an application changes.
+
+### 5.2 Browser extension
+
+Tracked by #67:
+
+- explicit desktop pairing;
+- permission and site-scope controls;
+- URL/DOM anchor selection;
+- connection/version status;
+- unsupported/protected page state;
+- anchor-lost/re-anchor state;
+- privacy/incognito controls.
+
+The placeholder extension is not a production component.
+
+### 5.3 macOS
+
+Tracked by #68:
+
+- menu-bar lifecycle;
+- Accessibility permission onboarding/status/revocation;
+- platform capability differences;
+- Spaces/fullscreen/display behavior;
+- signed/notarized update and support states.
+
+macOS UI does not appear in Windows builds or public claims before acceptance.
+
+### 5.4 Optional encrypted sync
+
+Research only under #69:
+
+- device authorization;
+- key/recovery state;
+- sync status and offline queue;
+- conflict resolution;
+- account/export/deletion/provider-shutdown flows.
+
+No sync component is approved for implementation or marketing yet.
+
+## 6. Explicitly unplanned concepts
+
+The following require new approved research, security, architecture, and business issue sets before they enter this inventory as implementation work:
+
+- collaboration;
+- mobile companion applications;
+- AI-assisted note generation or classification;
+- OCR or handwriting recognition;
+- third-party plugins;
+- marketplace execution of third-party code.
+
+## 7. Failure-state coverage
+
+Every applicable production or approved future surface must define:
+
+- initial/loading;
+- empty/no results;
+- progress/saving;
+- durable success;
+- recoverable failure and retry;
+- non-recoverable/blocking failure;
+- read-only/degraded mode;
+- permission denied/revoked;
+- low disk/quota reached;
+- migration/import/update in progress;
+- unsupported future schema/capability;
+- offline or unavailable service where network is optional;
+- cancellation and interruption;
+- accessible announcement and keyboard recovery.
+
+## 8. Contribution rule
+
+A component is contribution-ready only when:
+
+- its product surface and owner are approved;
+- behavior and all required states are documented;
+- design tokens and reusable primitives exist;
+- data/API contracts are stable;
+- accessibility, privacy, performance, and localization requirements are explicit;
+- deterministic fixtures/tests can demonstrate the change;
+- the capability is enabled for the intended build channel.
+
+Do not implement dormant items merely because they appear in this inventory. Use the linked issue as the source of truth.
