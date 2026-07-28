@@ -7,7 +7,7 @@
 
 ## Why this document exists
 
-Skribli is no longer represented by a small list of implementation bugs. A professional desktop product needs coordinated work across data safety, native lifecycle, product behavior, UI/UX, onboarding, settings, accessibility, support, install/update operations, privacy, testing, maintainability, and future architecture.
+Skribli is no longer represented by a small list of implementation bugs. A professional desktop product needs coordinated work across data safety, native lifecycle, product behavior, UI/UX, onboarding, settings, accessibility, support, backups, install/update operations, privacy, compatibility, testing, maintainability, and future architecture.
 
 This document explains how the issue tracker is structured, which work is safe to start, and how contributors should avoid making hidden product or architecture decisions.
 
@@ -41,7 +41,10 @@ P1 work defines and completes the real product:
 - #20–#23 product lifecycle, library, API, and retired-code cleanup;
 - #31–#33 accessibility, documentation truth, and governance;
 - #48–#56 research, navigation, design system, onboarding, settings, tray, shortcuts, focus, and microcopy;
-- #59, #70–#80 diagnostics, capability isolation, contributor setup, architecture, test harnesses, performance, update/install behavior, search, and privacy transparency.
+- #59, #70–#80 diagnostics, capability isolation, contributor setup, architecture, test harnesses, performance, update/install behavior, search, and privacy transparency;
+- #82 verified user backups and disaster recovery;
+- #84 privacy lock, sensitive-context, screen-sharing, and capture behavior;
+- #85 evidence-backed Windows compatibility and support matrix.
 
 ### P2 — post-MVP quality and approved capabilities
 
@@ -49,7 +52,8 @@ P2 work begins only after its foundations are stable:
 
 - #57 appearance/readability preferences;
 - #58 localization/time-zone readiness;
-- #62–#68 input, expressive annotations, reminders, attachments, browser precision, and macOS.
+- #62–#68 input, expressive annotations, reminders, attachments, browser precision, and macOS;
+- #83 local revision history, undo/redo, and accidental-edit recovery.
 
 ### P3 — research only
 
@@ -66,11 +70,11 @@ Use this order unless an issue explicitly documents a safe parallel path:
 3. context identity, event processing, and placement;
 4. canonical Windows MVP state model;
 5. minimal native/frontend API and retired-code cleanup;
-6. information architecture, design system, accessibility, onboarding, settings, tray, shortcuts, focus, and recovery language;
-7. library/search/export/import and support/diagnostics;
-8. deterministic test harnesses, performance budgets, install/update/release operations;
+6. information architecture, design system, accessibility, onboarding, settings, tray, shortcuts, focus, privacy lock, and recovery language;
+7. library/search/export/import, verified backups, and support/diagnostics;
+8. deterministic test harnesses, compatibility evidence, performance budgets, install/update/release operations;
 9. website, privacy/security/legal, and optional commerce;
-10. deferred annotation and platform capabilities.
+10. deferred annotation, revision-history, and platform capabilities.
 
 ## What makes an issue contribution-ready
 
@@ -101,21 +105,22 @@ After parent foundations are approved, good contribution candidates include:
 - performance datasets and reproducible benchmarks;
 - environment-doctor checks and troubleshooting documentation;
 - search ranking/filter fixtures;
+- backup manifest and restore fixtures;
 - safe decoder/validator tests for approved attachment types;
 - native compatibility evidence tied to exact builds.
 
 ## Work that requires maintainer approval before implementation
 
 - note lifecycle or shortcut semantics;
-- persistent schema changes;
+- persistent schema, revision-history, backup, or restore changes;
 - context matching or stored identity fields;
-- Windows hooks, focus, permissions, or background behavior;
+- Windows hooks, focus, permissions, privacy lock, capture behavior, or background behavior;
 - new network access or telemetry;
 - new feature flags/capabilities;
 - security, cryptography, licence signing, payments, refunds, or customer data;
 - installer/update/signing behavior;
 - new platforms, extensions, or annotation types;
-- product terminology, public claims, or legal/privacy copy.
+- product terminology, public claims, compatibility claims, or legal/privacy copy.
 
 ## Partial-work rule
 
