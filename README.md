@@ -51,18 +51,19 @@ skribly/
 
 ## Development prerequisites
 
-- **Node.js 22.23.1 LTS** — the canonical version is recorded in [`.nvmrc`](.nvmrc).
-- **npm 10.9.8**, bundled with Node.js 22.23.1.
+- **Node.js 22.23.1 LTS** is the canonical local-development and CI version recorded in [`.nvmrc`](.nvmrc).
+- The repository accepts supported Node 22 releases from **22.12.0 up to, but not including, Node 23** so managed deployment platforms can supply their current Node 22 patch release.
+- **npm 10.9.8** is the canonical npm version used with the pinned local and CI runtime.
 - The current stable Rust toolchain with `rustfmt`.
 
-The repository enforces the supported Node range through `package.json` and `.npmrc`. Install or activate Node.js 22.23.1 before running npm commands. Verify the environment with:
+The supported range is enforced through `package.json` and `.npmrc`; unsupported major versions and Node 22 releases below Vite’s minimum fail installation. For reproducible local work, activate Node.js 22.23.1 before running npm commands. Verify the environment with:
 
 ```bash
 node --version
 npm --version
 ```
 
-The expected versions are `v22.23.1` and `10.9.8`.
+The canonical local and CI versions are `v22.23.1` and `10.9.8`.
 
 ## Local validation
 
