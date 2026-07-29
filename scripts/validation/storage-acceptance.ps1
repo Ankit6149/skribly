@@ -57,7 +57,7 @@ function New-HarnessProcess {
   $process = [System.Diagnostics.Process]::new()
   $process.StartInfo = $startInfo
   if (-not $process.Start()) {
-    throw "Failed to start storage acceptance binary."
+    throw 'Failed to start storage acceptance binary.'
   }
   return $process
 }
@@ -232,11 +232,12 @@ function Stop-WithPartialTemporary {
 function Run-Scenario {
   param(
     [string]$Name,
-    [scriptblock]$Body
+    [scriptblock]$Body,
+    [object[]]$ArgumentList = @()
   )
 
   try {
-    $details = & $Body
+    $details = & $Body @ArgumentList
     Add-Result -Name $Name -Passed $true -Details $details
   }
   catch {
@@ -260,20 +261,24 @@ Run-Scenario -Name 'real-app-data-directory-semantics' -Body {
   }
 }
 
+$forcedTerminationBody = {
+  param([string]$Stage)
+  $path = New-ScenarioPath "kill-$Stage"
+  Seed-Scenario $path
+  $marker = "recovered-$Stage"
+  $termination = Stop-AtStorageStage -Path $path -Stage $Stage -Marker $marker
+  $verification = Verify-Scenario -Path $path -ExpectedMarker $marker -ExpectedWritable $true
+  [ordered]@{
+    termination = $termination
+    verification = $verification
+  }
+}
+
 foreach ($stageValue in @('afterTemporarySync', 'afterBackupRotation', 'beforePrimaryReplace', 'afterPrimaryReplace')) {
-  $capturedStage = $stageValue
-  $scenarioBody = {
-    $path = New-ScenarioPath "kill-$capturedStage"
-    Seed-Scenario $path
-    $marker = "recovered-$capturedStage"
-    $termination = Stop-AtStorageStage -Path $path -Stage $capturedStage -Marker $marker
-    $verification = Verify-Scenario -Path $path -ExpectedMarker $marker -ExpectedWritable $true
-    [ordered]@{
-      termination = $termination
-      verification = $verification
-    }
-  }.GetNewClosure()
-  Run-Scenario -Name "forced-process-termination-$capturedStage" -Body $scenarioBody
+  Run-Scenario `
+    -Name "forced-process-termination-$stageValue" `
+    -Body $forcedTerminationBody `
+    -ArgumentList @($stageValue)
 }
 
 Run-Scenario -Name 'forced-process-termination-during-partial-temporary-write' -Body {
@@ -332,12 +337,28 @@ Run-Scenario -Name 'future-schema-is-preserved-and-blocks-downgrade-writes' -Bod
 Run-Scenario -Name 'temporary-file-creation-denied-is-surfaced' -Body {
   $path = New-ScenarioPath 'temporary-denied'
   Seed-Scenario $path
-  $temporary = "$path.tmp"
-  New-Item $temporary -ItemType Directory -Force | Out-Null
-  $failure = Invoke-Harness -Arguments @('save', $path, 'temporary-denied-attempt', '4') -ExpectFailure
-  Remove-Item $temporary -Recurse -Force
+  $directory = [System.IO.Path]::GetDirectoryName($path)
+  $identity = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
+  $originalAcl = Get-Acl $directory
+  $rule = [System.Security.AccessControl.FileSystemAccessRule]::new(
+    $identity,
+    [System.Security.AccessControl.FileSystemRights]'CreateFiles,CreateDirectories',
+    [System.Security.AccessControl.InheritanceFlags]'ContainerInherit,ObjectInherit',
+    [System.Security.AccessControl.PropagationFlags]::None,
+    [System.Security.AccessControl.AccessControlType]::Deny
+  )
+  try {
+    $restrictedAcl = Get-Acl $directory
+    [void]$restrictedAcl.AddAccessRule($rule)
+    Set-Acl -Path $directory -AclObject $restrictedAcl
+    $failure = Invoke-Harness -Arguments @('save', $path, 'temporary-denied-attempt', '4') -ExpectFailure
+  }
+  finally {
+    Set-Acl -Path $directory -AclObject $originalAcl
+  }
   $verification = Verify-Scenario -Path $path -ExpectedMarker 'generation-3' -ExpectedWritable $true
   [ordered]@{
+    identity = $identity
     failure = $failure
     verification = $verification
   }
