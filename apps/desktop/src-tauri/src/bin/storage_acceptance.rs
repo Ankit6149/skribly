@@ -1,8 +1,7 @@
 use serde_json::json;
 use std::env;
-use std::fs::{self, File, OpenOptions};
-use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::fs;
+use std::path::Path;
 use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -17,10 +16,6 @@ mod core {
 
     pub mod storage {
         include!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/core/storage.rs"));
-
-        use std::fs::OpenOptions;
-        use std::io::Write;
-        use std::path::{Path, PathBuf};
 
         pub fn acceptance_save_with_interruption(
             primary_path: PathBuf,
@@ -59,12 +54,11 @@ mod core {
         ) -> Result<PathBuf, StorageError> {
             let mut storage = StorageService::new(primary_path);
             storage.load()?;
-            let revision = storage
-                .current_revision()
-                .checked_add(1)
-                .ok_or_else(|| StorageError::WriteBlocked {
+            let revision = storage.current_revision().checked_add(1).ok_or_else(|| {
+                StorageError::WriteBlocked {
                     reason: "The local storage revision counter is exhausted".to_string(),
-                })?;
+                }
+            })?;
             let envelope = build_envelope(revision, now_millis(), skribs)?;
             let bytes = serde_json::to_vec_pretty(&envelope).map_err(|error| {
                 StorageError::InvalidData {
@@ -239,11 +233,18 @@ fn command_partial_temp(
     )
     .map_err(|error| error.to_string())?;
     write_ready_marker(ready_marker, "partialTemporarySynced")?;
-    eprintln!("partial temporary fixture written to {}", temporary.display());
+    eprintln!(
+        "partial temporary fixture written to {}",
+        temporary.display()
+    );
     sleep_until_killed();
 }
 
-fn command_verify(path: &Path, expected_marker: &str, expected_writable: bool) -> Result<(), String> {
+fn command_verify(
+    path: &Path,
+    expected_marker: &str,
+    expected_writable: bool,
+) -> Result<(), String> {
     let (storage, outcome) = load_service(path)?;
     let actual_marker = outcome
         .skribs
@@ -283,7 +284,8 @@ fn command_expect_load_failure(path: &Path) -> Result<(), String> {
     match storage.load() {
         Ok(outcome) => Err(format!(
             "expected load failure, but loaded {} notes at revision {}",
-            outcome.skribs.len(), outcome.revision
+            outcome.skribs.len(),
+            outcome.revision
         )),
         Err(error) => {
             println!(
@@ -309,8 +311,7 @@ fn command_corrupt(path: &Path, source: &str) -> Result<(), String> {
     if let Some(parent) = candidate.parent() {
         fs::create_dir_all(parent).map_err(|error| error.to_string())?;
     }
-    fs::write(&candidate, b"{corrupt-storage-generation")
-        .map_err(|error| error.to_string())?;
+    fs::write(&candidate, b"{corrupt-storage-generation").map_err(|error| error.to_string())?;
     println!(
         "{}",
         json!({ "command": "corrupt", "source": source, "path": candidate })
