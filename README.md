@@ -49,6 +49,21 @@ skribly/
 └── site/                      Product website
 ```
 
+## Development prerequisites
+
+- **Node.js 22.23.1 LTS** — the canonical version is recorded in [`.nvmrc`](.nvmrc).
+- **npm 10.9.8**, bundled with Node.js 22.23.1.
+- The current stable Rust toolchain with `rustfmt`.
+
+The repository enforces the supported Node range through `package.json` and `.npmrc`. Install or activate Node.js 22.23.1 before running npm commands. Verify the environment with:
+
+```bash
+node --version
+npm --version
+```
+
+The expected versions are `v22.23.1` and `10.9.8`.
+
 ## Local validation
 
 ```bash
