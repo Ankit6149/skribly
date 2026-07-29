@@ -1,17 +1,17 @@
 # Local storage recovery and support runbook
 
-**Applies to:** Skribli Windows MVP  
+**Applies to:** Skribli Windows typed-note MVP  
 **Storage implementation:** schema-v2 integrity-checked JSON envelope  
 **Related issue:** [#14](https://github.com/Ankit6149/skribly/issues/14)  
 **Architecture decision:** [`ADR-0001-hardened-json-storage.md`](../02-engineering/ADR-0001-hardened-json-storage.md)
 
 ## 1. User-data contract
 
-Skribli keeps note data in the operating system application-data directory resolved by Tauri for the application identifier `app.skribly.desktop`.
+Skribli keeps note data in the operating-system application-data directory resolved for the application identifier `app.skribly.desktop`.
 
-The exact recovery folder is shown inside the compact editor whenever Skribli recovers data or blocks writes. Do not guess the directory from a username, installer location, or development checkout.
+The exact recovery folder is shown inside the compact editor whenever Skribli recovers data or blocks writes. Do not infer the directory from a username, installer location, or development checkout.
 
-Normal note use does not require a cloud account or network connection. The authoritative note store is owned by the Rust process. The frontend does not maintain a second durable copy of text notes.
+Normal note use requires neither a cloud account nor a network connection. The Rust process owns the authoritative text-note store; the frontend does not maintain a second durable copy.
 
 ## 2. Storage files
 
@@ -24,10 +24,10 @@ The storage service may create these files in the recovery folder:
 | `skribs.json.bak.1` | Previous verified primary generation |
 | `skribs.json.bak.2` | Older verified primary generation |
 | `skribs.json.bak` | Legacy backup name retained for migration/recovery compatibility |
-| `skribs.json.corrupt.*` and equivalent backup names | Damaged generations preserved in quarantine after a verified recovery source exists |
+| `skribs.json.corrupt.*` and equivalent backup names | Damaged generations preserved in quarantine after another verified recovery source exists |
 | `skribli-storage-diagnostics-*.json` | User-requested metadata-only support report |
 
-Stage and recovery-temporary files may briefly exist during backup rotation or recovery. They are never treated as the only committed copy without integrity verification.
+Stage and recovery-temporary files may briefly exist during rotation or restoration. They are never accepted as the committed source without structural and integrity verification.
 
 ## 3. Envelope and integrity
 
@@ -39,7 +39,7 @@ Schema v2 contains:
 - `integrity`;
 - `skribs`.
 
-The integrity value detects accidental corruption and incomplete or externally modified JSON. It is not a cryptographic authenticity guarantee and does not protect against software running with the same user permissions.
+The integrity value detects accidental corruption, incomplete writes, and externally modified JSON. It is not a cryptographic authenticity guarantee and does not protect against software running with the same user permissions.
 
 Schema v1 (`version: 1`) is migrated explicitly. An unknown future schema is preserved and blocks writes so an older build cannot overwrite newer data.
 
@@ -65,29 +65,29 @@ Native note mutations are serialized. If persistence fails, the Rust coordinator
 At startup, Skribli inspects the primary, temporary, current backup, legacy backup, and older backup.
 
 - Missing files are ignored.
-- Valid candidates are ordered by revision, then source priority, then write time.
+- Valid candidates are ordered by revision, source priority, and write time.
 - The best verified candidate is restored to the primary location when necessary.
 - Invalid candidates are quarantined only when another valid candidate exists.
-- If files exist but no valid generation is available, the damaged files remain in place and writes are blocked.
-- A second launch must produce the same blocked recovery state; it must never reinterpret the quarantined/missing primary as a new empty database.
-- Any unsupported future schema remains untouched and blocks writes.
-- When a future-schema generation exists alongside an older verified generation, Skribli shows the verified notes in read-only recovery mode instead of hiding them or overwriting the newer file.
+- If files exist but no valid generation is available, damaged files remain in place and writes are blocked.
+- Repeated launches preserve the same blocked recovery state; they never reinterpret a missing or damaged primary as a new empty database.
+- Unsupported future schemas remain untouched and block writes.
+- When a future-schema generation exists beside an older verified generation, Skribli displays the verified notes read-only rather than hiding them or overwriting the newer file.
 
-After successful recovery, Skribli shows what source was used and where the recovery files are stored.
+After successful recovery, Skribli reports the selected source and recovery directory.
 
 ## 6. User-facing failure behavior
 
 When storage cannot commit a note:
 
 - the compact editor displays **Not saved**;
-- the editor remains open when the current draft is not durable;
-- **Done**, the close button, and `Esc` do not hide the only visible draft while storage is blocked;
-- local draft text is not replaced by the last persisted prop value after rollback;
-- delete is rejected rather than removing the only copy from the UI;
-- a recovery-folder path and safe diagnostics action are available;
+- the editor remains open while the current draft is not durable;
+- **Done**, Close, Delete, and `Esc` cannot hide or remove the only visible unsaved draft;
+- local draft text is not replaced by the previous persisted value after native rollback;
+- the storage error remains distinct from unrelated hotkey or window errors;
+- the recovery directory and metadata-only diagnostics action remain available;
 - retry remains possible for transient failures when the native service is still writable.
 
-A licence-only read-only state may still close an unchanged note because no editable draft can be created in that state.
+A licence-only read-only state may close an unchanged note because that mode cannot create an editable draft.
 
 ## 7. Safe diagnostics export
 
@@ -96,136 +96,132 @@ The **Save safe diagnostics** action writes a JSON report to the recovery folder
 The report includes only:
 
 - report generation time;
-- current supported schema version and in-memory revision;
-- writable/blocked state;
-- blocked reason using storage file names rather than note content;
+- supported schema and in-memory revision;
+- writable or blocked state;
+- blocked reason expressed through storage file names rather than note content;
 - candidate source and file name;
-- existence, file size, modification time, status, revision, and schema version;
-- structural/integrity errors.
+- existence, size, modification time, status, revision, schema, and structural/integrity errors.
 
 The report must never include:
 
 - note text;
 - target window titles;
-- target process data from note records;
+- target process values from note records;
 - customer data;
 - licence tokens or signing material;
-- arbitrary file contents.
+- arbitrary storage-file contents.
 
-A regression test saves distinctive private note text and target-title text, exports diagnostics, and verifies both strings are absent.
+Both Rust tests and the Windows acceptance gate save distinctive private fixture values, export diagnostics, and verify those values are absent.
 
 ## 8. User recovery procedure
 
 When Skribli reports a storage problem:
 
 1. Keep the editor open if it contains unsaved text.
-2. Copy critical unsaved text to a separate local file before experimenting with storage files.
+2. Copy critical unsaved text to a separate local file before changing recovery files.
 3. Use **Save safe diagnostics**.
 4. Record the displayed recovery folder and diagnostics output path.
 5. Quit Skribli explicitly before copying or moving recovery files.
-6. Copy the entire recovery folder to a separate safe location. Do not copy only `skribs.json`.
+6. Copy the complete recovery folder to another safe location; do not copy only `skribs.json`.
 7. Do not rename, delete, or edit the original files until a recovery copy exists.
-8. Share only the metadata diagnostics report by default. Share note data only through an explicit, informed support decision.
+8. Share only the metadata report by default. Share note files only through an explicit, informed support decision.
 
-Skribli currently does not provide a destructive “reset database” button. Resetting or replacing local data must remain an explicit recovery action until the note library/trash work defines a safer workflow.
+Skribli does not provide a destructive “reset database” button. Reset or replacement must remain an explicit recovery operation until the library, backup, and trash work defines a safer product flow.
 
 ## 9. Maintainer recovery procedure
 
-1. Obtain the exact app version/commit and diagnostics report.
-2. Confirm the user has copied the complete recovery folder.
-3. Do not ask for note files until metadata-only diagnostics are insufficient and the user understands that note content may be exposed.
-4. Reproduce with copies, never with the user's only originals.
+1. Obtain the exact application version or commit and the diagnostics report.
+2. Confirm the complete recovery directory has been copied.
+3. Do not request note files until metadata-only diagnostics are insufficient and the user understands that content may be exposed.
+4. Reproduce against copies, never the only originals.
 5. Verify every candidate independently.
 6. Prefer the highest verified revision; do not assume the primary is newest.
-7. Preserve unsupported schemas for the build that understands them.
-8. If a manual restoration is required, write to a new location first and verify before replacing anything.
-9. Record which candidate was selected, its revision, and every file changed.
-10. Provide a rollback copy and clear user instructions.
+7. Preserve unsupported schemas for a build that understands them.
+8. Write manual restoration output to a new location and verify it before replacement.
+9. Record the selected source, revision, integrity result, and every changed file.
+10. Preserve a rollback copy and provide explicit restoration instructions.
 
-## 10. Automated evidence
+## 10. Automated unit and integration evidence
 
-The storage unit and integration suites cover:
+The Rust and frontend suites cover:
 
-- empty first launch;
-- schema-v2 round trip;
+- empty first launch and schema-v2 round trip;
 - schema-v1 migration;
-- missing primary with valid backup;
-- corrupt primary with verified-backup recovery and quarantine;
+- missing-primary recovery;
+- corrupt-primary recovery and quarantine;
 - corrupt-only repeated launches without silent empty state;
-- interruption after temporary-file sync;
-- interruption after backup rotation;
-- interruption after durable primary replacement but before in-process verification;
+- interruption after temporary sync, backup rotation, before replacement, and after replacement;
 - two known-good backup generations;
-- damaged old backup quarantine without blocking a valid new save;
-- unsupported future schema preservation and blocked writes;
-- verified older notes opening read-only when an unsupported newer generation also exists;
+- damaged old-backup quarantine;
+- unsupported primary and backup protection;
+- verified older notes opening read-only beside a newer unsupported generation;
 - integrity mismatch fallback;
+- read-only verified recovery;
 - metadata-only diagnostics privacy;
-- coordinator rollback after native persistence failure;
-- frontend storage read-only mutation blocking and recovery-notice dismissal.
+- native coordinator rollback after persistence failure;
+- frontend rollback, recovery notice, blocked mutation, and zero-note recovery-surface behavior;
+- user-visible disk-full, permission, sharing-lock, antivirus/indexer, and atomic-replacement errors.
 
-CI compilation and unit tests do not prove Windows power-loss, antivirus, or filesystem semantics by themselves.
+Compilation and unit tests alone do not prove Windows replacement, sharing, ACL, or process-termination behavior. Those semantics are covered by the release-mode gate below.
 
-## 11. Required manual Windows evidence before issue #14 closes
+## 11. Release-mode Windows storage acceptance gate
 
-Use the exact release-mode binary and record its hash and commit.
+`.github/workflows/storage-acceptance.yml` is required whenever the storage implementation, acceptance harness, frontend failure tests, or this runbook changes.
 
-### Real app-data path
+The workflow:
 
-- Confirm the production binary writes to the Tauri application-data directory, not a temporary/development path.
-- Confirm recovery-folder and diagnostics paths displayed in the UI match the actual files.
+1. runs on a clean hosted Windows machine;
+2. builds `storage_acceptance.exe` in release mode;
+3. compiles the same `models.rs`, `license.rs`, and `storage.rs` source used by the application rather than a copied storage algorithm;
+4. writes under `%APPDATA%\app.skribly.desktop\storage-acceptance\<commit>`;
+5. records the exact tested commit, runner, Windows version, release binary path, and SHA-256;
+6. uploads `storage-acceptance-evidence.json` as a retained workflow artifact;
+7. fails when any scenario fails or the evidence artifact is missing.
 
-### Forced termination matrix
+The destructive matrix covers:
 
-For each injected or externally controlled stage, terminate the exact process and restart:
-
-- before temporary write;
-- during temporary write;
-- after temporary flush;
-- during backup rotation;
-- immediately before primary replacement;
-- immediately after replacement;
-- while the editor has a pending draft.
-
-Record the selected recovery source, resulting revision, user message, and whether the exact expected text survives.
-
-### Filesystem failures
-
-Validate and capture UI behavior for:
-
-- disk-full or quota exhaustion;
+- forced process termination after temporary sync;
+- forced process termination after backup rotation;
+- forced process termination immediately before primary replacement;
+- forced process termination immediately after primary replacement;
+- process termination with a partially written temporary generation;
+- primary and backup-1 corruption with backup-2 recovery;
+- repeated corrupt-only launches;
+- future-schema preservation and blocked downgrade writes;
+- temporary-generation creation denial;
 - data-directory permission denial;
-- primary-file read-only state;
-- temporary-file creation denial;
-- backup-file lock;
-- primary replacement lock;
-- simulated antivirus/indexer interference;
-- path disappearance or removable-profile interruption where applicable.
+- primary replacement sharing lock;
+- backup rotation sharing lock;
+- read-only primary replacement failure;
+- metadata-only diagnostics privacy;
+- real application-data-root semantics.
 
-The editor must remain open with the unsaved draft when the commit fails.
+The test driver uses explicit `.NET ProcessStartInfo`, argument passing, captured output and exit codes, Windows ACLs, sharing modes, and forced child-process termination. Expected filesystem failures are treated as successful evidence only when the previous committed generation remains recoverable and the failure is surfaced.
 
-### Recovery generations
+The workflow evidence is storage-subsystem acceptance. It does not replace:
 
-- Corrupt the primary and verify automatic recovery from backup 1.
-- Corrupt primary and backup 1 and verify backup 2 recovery.
-- Remove the primary while keeping a valid temporary generation and verify latest-revision recovery.
-- Leave only corrupt candidates, launch twice, and verify neither launch creates an empty writable database.
-- Place a future-schema primary alongside a verified older backup and confirm the older notes remain visible read-only while the future file is preserved.
+- #15 lifecycle validation for one-instance startup, shutdown, restart, suspend/resume, tray ownership, and installer upgrade;
+- #16 end-user pending-draft ordering and final editor-save protocol;
+- #24 exact signed-installer validation across the supported Windows matrix.
 
-### Installer and restart
+## 12. Closure gate for issue #14
 
-- Restart Windows with a pending edit.
-- Test normal Quit and forced Task Manager termination.
-- Test installer upgrade while Skribli is running after issue #15 defines lifecycle ownership.
+Issue #14 may close only when:
 
-## 12. Rollback
+- the final PR head passes the complete `CI` workflow;
+- the same head passes `Storage acceptance` and publishes its evidence artifact;
+- the PR is merged without weakening the storage or evidence paths;
+- the resulting `main` commit passes both workflows again;
+- the issue receives a completion comment linking the PR, merge commit, workflow runs, artifact, scenario count, and remaining adjacent issue boundaries.
 
-If the schema-v2 implementation must be rolled back:
+No check may be treated as passing because the code compiled or because a manual spot check appeared successful.
 
-- preserve `skribs.json`, temporary, backups, quarantine files, and diagnostics;
-- do not launch an older build that can write until downgrade handling is proven;
-- use a read-only recovery tool or migration build to export verified notes;
+## 13. Rollback
+
+If schema v2 must be rolled back:
+
+- preserve `skribs.json`, temporary, backup, quarantine, and diagnostics files;
+- do not launch an older writable build until downgrade handling is proven;
+- use a read-only recovery/export tool or explicit migration build;
 - never overwrite schema-v2 data with schema-v1 output;
 - record the source revision and integrity result used for restoration.
-
-Issue #14 must remain open until the manual Windows matrix is complete and attached to the issue with the exact binary identity.
