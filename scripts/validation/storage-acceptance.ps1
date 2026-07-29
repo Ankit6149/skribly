@@ -37,6 +37,31 @@ function Add-Result {
   })
 }
 
+function New-HarnessProcess {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string[]]$Arguments,
+    [bool]$RedirectOutput = $true
+  )
+
+  $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+  $startInfo.FileName = $BinaryPath
+  $startInfo.UseShellExecute = $false
+  $startInfo.CreateNoWindow = $true
+  $startInfo.RedirectStandardOutput = $RedirectOutput
+  $startInfo.RedirectStandardError = $RedirectOutput
+  foreach ($argument in $Arguments) {
+    [void]$startInfo.ArgumentList.Add($argument)
+  }
+
+  $process = [System.Diagnostics.Process]::new()
+  $process.StartInfo = $startInfo
+  if (-not $process.Start()) {
+    throw "Failed to start storage acceptance binary."
+  }
+  return $process
+}
+
 function Invoke-Harness {
   param(
     [Parameter(Mandatory = $true)]
@@ -44,8 +69,21 @@ function Invoke-Harness {
     [switch]$ExpectFailure
   )
 
-  $output = & $BinaryPath @Arguments 2>&1 | ForEach-Object { $_.ToString() }
-  $exitCode = $LASTEXITCODE
+  $process = New-HarnessProcess -Arguments $Arguments -RedirectOutput $true
+  $stdoutTask = $process.StandardOutput.ReadToEndAsync()
+  $stderrTask = $process.StandardError.ReadToEndAsync()
+  $process.WaitForExit()
+  $stdout = $stdoutTask.GetAwaiter().GetResult()
+  $stderr = $stderrTask.GetAwaiter().GetResult()
+  $exitCode = $process.ExitCode
+  $output = @()
+  if ($stdout) {
+    $output += $stdout.TrimEnd() -split "`r?`n"
+  }
+  if ($stderr) {
+    $output += $stderr.TrimEnd() -split "`r?`n"
+  }
+
   if ($ExpectFailure) {
     if ($exitCode -eq 0) {
       throw "Expected storage harness failure for '$($Arguments -join ' ')', but it succeeded. Output: $($output -join [Environment]::NewLine)"
@@ -71,7 +109,6 @@ function New-ScenarioPath {
 
 function Seed-Scenario {
   param([string]$Path)
-
   Invoke-Harness -Arguments @('seed', $Path) | Out-Null
 }
 
@@ -90,9 +127,43 @@ function Verify-Scenario {
   )
   $jsonLine = $result.output | Where-Object { $_.TrimStart().StartsWith('{') } | Select-Object -Last 1
   if (-not $jsonLine) {
-    throw "Verify command returned no JSON output."
+    throw 'Verify command returned no JSON output.'
   }
   return $jsonLine | ConvertFrom-Json -Depth 20
+}
+
+function Wait-ForReadyMarker {
+  param(
+    [System.Diagnostics.Process]$Process,
+    [string]$ReadyMarker,
+    [string]$Description
+  )
+
+  $deadline = [DateTime]::UtcNow.AddSeconds(45)
+  while (-not (Test-Path $ReadyMarker)) {
+    if ($Process.HasExited) {
+      throw "$Description exited before reaching the ready marker with code $($Process.ExitCode)."
+    }
+    if ([DateTime]::UtcNow -gt $deadline) {
+      if (-not $Process.HasExited) {
+        $Process.Kill($true)
+        $Process.WaitForExit()
+      }
+      throw "Timed out waiting for $Description."
+    }
+    Start-Sleep -Milliseconds 50
+    $Process.Refresh()
+  }
+}
+
+function Kill-HarnessProcess {
+  param([System.Diagnostics.Process]$Process)
+
+  if (-not $Process.HasExited) {
+    $Process.Kill($true)
+  }
+  $Process.WaitForExit()
+  return $Process.ExitCode
 }
 
 function Stop-AtStorageStage {
@@ -108,37 +179,24 @@ function Stop-AtStorageStage {
     Remove-Item $ready -Force
   }
 
-  $process = Start-Process -FilePath $BinaryPath -ArgumentList @(
+  $process = New-HarnessProcess -Arguments @(
     'interrupt',
     $Path,
     $Stage,
     $Marker,
     $PayloadKiB.ToString(),
     $ready
-  ) -PassThru -WindowStyle Hidden
+  ) -RedirectOutput $false
 
-  $deadline = [DateTime]::UtcNow.AddSeconds(45)
-  while (-not (Test-Path $ready)) {
-    if ($process.HasExited) {
-      throw "Interruption child exited before reaching $Stage with code $($process.ExitCode)."
-    }
-    if ([DateTime]::UtcNow -gt $deadline) {
-      Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
-      throw "Timed out waiting for storage stage $Stage."
-    }
-    Start-Sleep -Milliseconds 50
-    $process.Refresh()
-  }
-
+  Wait-ForReadyMarker -Process $process -ReadyMarker $ready -Description "interruption stage $Stage"
   $readyData = Get-Content $ready -Raw | ConvertFrom-Json
-  Stop-Process -Id $process.Id -Force
-  $process.WaitForExit()
+  $exitCode = Kill-HarnessProcess -Process $process
 
   return [ordered]@{
     stage = $Stage
     pid = $readyData.pid
     forcedExit = $true
-    exitCode = $process.ExitCode
+    exitCode = $exitCode
     readyMarker = $ready
   }
 }
@@ -151,32 +209,22 @@ function Stop-WithPartialTemporary {
   )
 
   $ready = Join-Path ([System.IO.Path]::GetDirectoryName($Path)) 'partial-temp.ready.json'
-  $process = Start-Process -FilePath $BinaryPath -ArgumentList @(
+  if (Test-Path $ready) {
+    Remove-Item $ready -Force
+  }
+  $process = New-HarnessProcess -Arguments @(
     'partial-temp',
     $Path,
     $Marker,
     $PayloadKiB.ToString(),
     $ready
-  ) -PassThru -WindowStyle Hidden
+  ) -RedirectOutput $false
 
-  $deadline = [DateTime]::UtcNow.AddSeconds(45)
-  while (-not (Test-Path $ready)) {
-    if ($process.HasExited) {
-      throw "Partial-temporary child exited before the fixture was durable."
-    }
-    if ([DateTime]::UtcNow -gt $deadline) {
-      Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
-      throw "Timed out waiting for partial-temporary fixture."
-    }
-    Start-Sleep -Milliseconds 50
-    $process.Refresh()
-  }
-
-  Stop-Process -Id $process.Id -Force
-  $process.WaitForExit()
+  Wait-ForReadyMarker -Process $process -ReadyMarker $ready -Description 'partial-temporary fixture'
+  $exitCode = Kill-HarnessProcess -Process $process
   return [ordered]@{
     forcedExit = $true
-    exitCode = $process.ExitCode
+    exitCode = $exitCode
     readyMarker = $ready
   }
 }
@@ -199,7 +247,7 @@ function Run-Scenario {
   }
 }
 
-Run-Scenario 'real-app-data-directory-semantics' {
+Run-Scenario -Name 'real-app-data-directory-semantics' -Body {
   $expectedPrefix = [System.IO.Path]::GetFullPath($appDataRoot).TrimEnd('\')
   $actual = [System.IO.Path]::GetFullPath($acceptanceRoot)
   if (-not $actual.StartsWith($expectedPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
@@ -212,21 +260,23 @@ Run-Scenario 'real-app-data-directory-semantics' {
   }
 }
 
-foreach ($stage in @('afterTemporarySync', 'afterBackupRotation', 'beforePrimaryReplace', 'afterPrimaryReplace')) {
-  Run-Scenario "forced-process-termination-$stage" {
-    $path = New-ScenarioPath "kill-$stage"
+foreach ($stageValue in @('afterTemporarySync', 'afterBackupRotation', 'beforePrimaryReplace', 'afterPrimaryReplace')) {
+  $capturedStage = $stageValue
+  $scenarioBody = {
+    $path = New-ScenarioPath "kill-$capturedStage"
     Seed-Scenario $path
-    $marker = "recovered-$stage"
-    $termination = Stop-AtStorageStage -Path $path -Stage $stage -Marker $marker
+    $marker = "recovered-$capturedStage"
+    $termination = Stop-AtStorageStage -Path $path -Stage $capturedStage -Marker $marker
     $verification = Verify-Scenario -Path $path -ExpectedMarker $marker -ExpectedWritable $true
     [ordered]@{
       termination = $termination
       verification = $verification
     }
   }.GetNewClosure()
+  Run-Scenario -Name "forced-process-termination-$capturedStage" -Body $scenarioBody
 }
 
-Run-Scenario 'forced-process-termination-during-partial-temporary-write' {
+Run-Scenario -Name 'forced-process-termination-during-partial-temporary-write' -Body {
   $path = New-ScenarioPath 'partial-temporary'
   Seed-Scenario $path
   $termination = Stop-WithPartialTemporary -Path $path -Marker 'must-not-replace-durable-primary'
@@ -237,7 +287,7 @@ Run-Scenario 'forced-process-termination-during-partial-temporary-write' {
   }
 }
 
-Run-Scenario 'primary-and-backup1-corrupt-recovers-backup2' {
+Run-Scenario -Name 'primary-and-backup1-corrupt-recovers-backup2' -Body {
   $path = New-ScenarioPath 'backup2-recovery'
   Seed-Scenario $path
   Invoke-Harness -Arguments @('corrupt', $path, 'primary') | Out-Null
@@ -246,7 +296,7 @@ Run-Scenario 'primary-and-backup1-corrupt-recovers-backup2' {
   [ordered]@{ verification = $verification }
 }
 
-Run-Scenario 'corrupt-only-storage-fails-closed-across-restarts' {
+Run-Scenario -Name 'corrupt-only-storage-fails-closed-across-restarts' -Body {
   $path = New-ScenarioPath 'corrupt-only'
   Invoke-Harness -Arguments @('corrupt', $path, 'primary') | Out-Null
   $first = Invoke-Harness -Arguments @('expect-load-failure', $path)
@@ -261,7 +311,7 @@ Run-Scenario 'corrupt-only-storage-fails-closed-across-restarts' {
   }
 }
 
-Run-Scenario 'future-schema-is-preserved-and-blocks-downgrade-writes' {
+Run-Scenario -Name 'future-schema-is-preserved-and-blocks-downgrade-writes' -Body {
   $path = New-ScenarioPath 'future-schema'
   Seed-Scenario $path
   Invoke-Harness -Arguments @('future', $path, 'primary') | Out-Null
@@ -279,7 +329,7 @@ Run-Scenario 'future-schema-is-preserved-and-blocks-downgrade-writes' {
   }
 }
 
-Run-Scenario 'temporary-file-creation-denied-is-surfaced' {
+Run-Scenario -Name 'temporary-file-creation-denied-is-surfaced' -Body {
   $path = New-ScenarioPath 'temporary-denied'
   Seed-Scenario $path
   $temporary = "$path.tmp"
@@ -293,7 +343,7 @@ Run-Scenario 'temporary-file-creation-denied-is-surfaced' {
   }
 }
 
-Run-Scenario 'directory-permission-denial-is-surfaced' {
+Run-Scenario -Name 'directory-permission-denial-is-surfaced' -Body {
   $path = New-ScenarioPath 'permission-denied'
   Seed-Scenario $path
   $directory = [System.IO.Path]::GetDirectoryName($path)
@@ -323,7 +373,7 @@ Run-Scenario 'directory-permission-denial-is-surfaced' {
   }
 }
 
-Run-Scenario 'primary-replacement-lock-is-surfaced-and-recovers-temporary' {
+Run-Scenario -Name 'primary-replacement-lock-is-surfaced-and-recovers-temporary' -Body {
   $path = New-ScenarioPath 'primary-lock'
   Seed-Scenario $path
   $stream = [System.IO.File]::Open(
@@ -345,7 +395,7 @@ Run-Scenario 'primary-replacement-lock-is-surfaced-and-recovers-temporary' {
   }
 }
 
-Run-Scenario 'backup-lock-is-surfaced-and-recovers-temporary' {
+Run-Scenario -Name 'backup-lock-is-surfaced-and-recovers-temporary' -Body {
   $path = New-ScenarioPath 'backup-lock'
   Seed-Scenario $path
   $backup1 = "$path.bak.1"
@@ -368,11 +418,10 @@ Run-Scenario 'backup-lock-is-surfaced-and-recovers-temporary' {
   }
 }
 
-Run-Scenario 'read-only-primary-replacement-failure-is-surfaced' {
+Run-Scenario -Name 'read-only-primary-replacement-failure-is-surfaced' -Body {
   $path = New-ScenarioPath 'read-only-primary'
   Seed-Scenario $path
-  $file = Get-Item $path
-  $file.IsReadOnly = $true
+  (Get-Item $path).IsReadOnly = $true
   try {
     $failure = Invoke-Harness -Arguments @('save', $path, 'read-only-attempt', '4') -ExpectFailure
   }
@@ -386,7 +435,7 @@ Run-Scenario 'read-only-primary-replacement-failure-is-surfaced' {
   }
 }
 
-Run-Scenario 'metadata-only-diagnostics-exclude-note-content' {
+Run-Scenario -Name 'metadata-only-diagnostics-exclude-note-content' -Body {
   $path = New-ScenarioPath 'diagnostics'
   Seed-Scenario $path
   Invoke-Harness -Arguments @('save', $path, 'private-diagnostic-marker', '4') | Out-Null
@@ -436,6 +485,9 @@ Write-Host "Storage acceptance evidence: $EvidencePath"
 Write-Host "Scenarios: $($results.Count); all passed: $allPassed"
 
 if (-not $allPassed) {
-  $failedNames = ($results | Where-Object { -not $_.passed } | ForEach-Object { $_.name }) -join ', '
+  $failed = $results | Where-Object { -not $_.passed }
+  Write-Host 'Failed scenario details:'
+  Write-Host ($failed | ConvertTo-Json -Depth 20)
+  $failedNames = ($failed | ForEach-Object { $_.name }) -join ', '
   throw "Storage acceptance failed: $failedNames"
 }
