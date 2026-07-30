@@ -1,4 +1,4 @@
-import React, { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { SkribNote, TargetWindowInfo } from '../../lib/geometry';
 import { useLicenseStore } from '../../stores/licenseStore';
@@ -72,7 +72,10 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target }) =>
     setSaveSnapshot(saveController.getSnapshot());
     setComposerError(null);
     setDiagnosticsPath(null);
-    return saveController.subscribe(setSaveSnapshot);
+    return saveController.subscribe((snapshot) => {
+      setSaveSnapshot(snapshot);
+      setText(snapshot.draft);
+    });
   }, [saveController]);
 
   useEffect(() => {
