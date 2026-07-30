@@ -29,9 +29,9 @@ describe('mergePersistedTextResult', () => {
     const result = mergePersistedTextResult([first, edited, last], persisted);
 
     expect(result.map((entry) => entry.id)).toEqual(['first', 'edited', 'last']);
-    expect(result[0]).toBe(first);
-    expect(result[2]).toBe(last);
-    expect(result[1]).toEqual(persisted);
+    expect(result[0]!).toBe(first);
+    expect(result[2]!).toBe(last);
+    expect(result[1]!).toEqual(persisted);
   });
 
   it('preserves a newer pending draft over an older persistence response', () => {
@@ -40,7 +40,7 @@ describe('mergePersistedTextResult', () => {
 
     const result = mergePersistedTextResult([edited], persisted, 'newest draft');
 
-    expect(result[0].text).toBe('newest draft');
-    expect(result[0].updated_at).toBe(2);
+    expect(result[0]!.text).toBe('newest draft');
+    expect(result[0]!.updated_at).toBe(2);
   });
 });
