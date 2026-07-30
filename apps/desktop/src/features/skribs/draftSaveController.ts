@@ -35,7 +35,7 @@ export class DraftSaveController {
   private status: DraftSaveStatus = 'saved';
   private error: string | null = null;
   private readonly persist: (draft: string) => Promise<boolean>;
-  private readonly onChange?: (snapshot: DraftSaveSnapshot) => void;
+  private readonly onChange: ((snapshot: DraftSaveSnapshot) => void) | undefined;
   private listeners = new Set<(snapshot: DraftSaveSnapshot) => void>();
   private readonly debounceMs: number;
   private readonly maxCharacters: number;
