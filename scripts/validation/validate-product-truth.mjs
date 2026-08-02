@@ -23,6 +23,8 @@ const singleInstanceAcceptance = await read('docs/04-operations/SINGLE_INSTANCE_
 
 const requiredReadmeClaims = [
   'Skribli hides only after the latest non-empty draft is durably saved.',
+  'A compact note editor opens inside that target monitor’s usable work area.',
+  'Launching Skribli again in the same Windows user session signals the existing process',
   'The current build does **not** leave a floating dot, attached tab, permanent toolbar, or full-screen interactive overlay',
   'macOS support;',
   'Skribli is **not currently available for download**.',
