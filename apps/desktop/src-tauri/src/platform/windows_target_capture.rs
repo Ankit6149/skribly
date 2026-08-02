@@ -121,14 +121,18 @@ fn is_skribli_process(process_name: &str) -> bool {
     process == "skribli.exe" || process == "skribly.exe" || process.starts_with("skribli")
 }
 
-fn is_system_surface(class_name: &str) -> bool {
+fn is_system_surface(class_name: &str, process_name: &str) -> bool {
+    let process = process_name.trim().to_ascii_lowercase();
     matches!(
         class_name.trim(),
-        "Progman"
-            | "WorkerW"
-            | "Shell_TrayWnd"
-            | "Shell_SecondaryTrayWnd"
-            | "Windows.UI.Core.CoreWindow"
+        "Progman" | "WorkerW" | "Shell_TrayWnd" | "Shell_SecondaryTrayWnd"
+    ) || matches!(
+        process.as_str(),
+        "startmenuexperiencehost.exe"
+            | "shellexperiencehost.exe"
+            | "searchhost.exe"
+            | "searchui.exe"
+            | "lockapp.exe"
     )
 }
 
@@ -148,7 +152,7 @@ fn validate_candidate(snapshot: &CandidateSnapshot) -> Result<(), TargetCaptureE
             TargetCaptureErrorCode::SkribliIsForeground,
         ));
     }
-    if is_system_surface(&snapshot.class_name) {
+    if is_system_surface(&snapshot.class_name, &snapshot.process_name) {
         return Err(TargetCaptureError::new(
             TargetCaptureErrorCode::DesktopOrSystemSurface,
         ));
@@ -302,6 +306,16 @@ mod tests {
     }
 
     #[test]
+    fn accepts_a_normal_packaged_application_window() {
+        let packaged = CandidateSnapshot {
+            class_name: "Windows.UI.Core.CoreWindow".into(),
+            process_name: "calculatorapp.exe".into(),
+            ..candidate()
+        };
+        assert!(validate_candidate(&packaged).is_ok());
+    }
+
+    #[test]
     fn rejects_self_shell_hidden_minimized_identity_and_bounds_failures() {
         let cases = [
             (
@@ -314,6 +328,14 @@ mod tests {
             (
                 CandidateSnapshot {
                     class_name: "Shell_TrayWnd".into(),
+                    ..candidate()
+                },
+                TargetCaptureErrorCode::DesktopOrSystemSurface,
+            ),
+            (
+                CandidateSnapshot {
+                    class_name: "Windows.UI.Core.CoreWindow".into(),
+                    process_name: "StartMenuExperienceHost.exe".into(),
                     ..candidate()
                 },
                 TargetCaptureErrorCode::DesktopOrSystemSurface,
