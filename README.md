@@ -13,11 +13,13 @@ The active compact-note flow is:
 
 1. Focus a supported Windows application.
 2. Press **Ctrl + Shift + Space**.
-3. Skribli captures the foreground target before taking focus.
+3. Skribli captures the foreground target once, clears any previous runtime target, and revalidates the exact HWND and process identity before using it.
 4. A compact note editor opens inside that target monitor’s usable work area.
 5. Type while Skribli reports truthful **Unsaved**, **Saving**, **Saved**, or **Save failed** state.
 6. Choose **Done**, press **Escape**, or press **Ctrl + Enter**.
 7. Skribli hides only after the latest non-empty draft is durably saved. If persistence fails, the editor remains open so the draft is not silently lost.
+
+When Windows cannot provide or revalidate a safe target, Skribli shows one actionable compact message, clears the previous target, and does not create, reopen, move, or focus a note.
 
 Launching Skribli again in the same Windows user session signals the existing process through the same note-opening path instead of starting a second storage writer, tray process, hotkey registration, or WinEvent hook set.
 
@@ -25,13 +27,14 @@ Windows accessibility events use bounded, non-blocking delivery with callback-si
 
 The current build does **not** leave a floating dot, attached tab, permanent toolbar, or full-screen interactive overlay after the editor closes.
 
-The final create/reopen lifecycle, safe context identity, reversible trash, complete All Skribs library, physical Windows acceptance, installer lifecycle, and signed release evidence remain tracked in the production-readiness backlog. Do not treat a successful compile or website deployment as proof that the Windows product is ready to distribute.
+The final create/reopen lifecycle, durable versioned context identity, reversible trash, complete All Skribs library, physical Windows acceptance, installer lifecycle, and signed release evidence remain tracked in the production-readiness backlog. Do not treat a successful compile or website deployment as proof that the Windows product is ready to distribute.
 
 ## Implemented foundations
 
 - Tauri 2 desktop shell with React, TypeScript, Vite, and Rust.
 - Compact fully interactive note window rather than a screen-blocking overlay.
-- Foreground-target capture before the Skribli window takes focus.
+- Fail-closed one-shot foreground capture with HWND and process-identity revalidation before placement or note access.
+- Visible privacy-safe recovery guidance when target capture fails, without creating or reopening a note.
 - Target-monitor work-area placement using fresh HWND geometry and per-monitor DPI.
 - Final native placement validation, fail-closed errors, and a keyboard-accessible **Reposition** action.
 - Per-Windows-session named-mutex guard acquired before the Tauri runtime starts.
@@ -53,7 +56,7 @@ The canonical execution tracker is [issue #34](https://github.com/Ankit6149/skri
 
 - [#15](https://github.com/Ankit6149/skribly/issues/15) remaining shutdown, installer, suspend/resume, and lifecycle evidence after the core single-instance guard;
 - [#17](https://github.com/Ankit6149/skribly/issues/17) physical idle, event-storm, accessibility-heavy application, Remote Desktop, suspend/resume, and long-session evidence after bounded event delivery implementation;
-- [#18](https://github.com/Ankit6149/skribly/issues/18) fail-closed durable context identity;
+- [#18](https://github.com/Ankit6149/skribly/issues/18) durable versioned context identity, ambiguity/re-anchor policy, migration, and physical evidence after fail-closed shortcut capture;
 - [#19](https://github.com/Ankit6149/skribly/issues/19) physical mixed-DPI, topology-change, taskbar, and Remote Desktop evidence after monitor-safe placement implementation;
 - [#20](https://github.com/Ankit6149/skribly/issues/20) final note lifecycle contract;
 - [#21](https://github.com/Ankit6149/skribly/issues/21) non-floating library, search, export, archive, and reversible trash;
@@ -133,9 +136,11 @@ These commands prove static, frontend, and Rust test gates only. Windows accepta
 - [Production-readiness execution plan](docs/06-planning/FULL_PRODUCT_AUDIT_AND_EXECUTION_PLAN.md)
 - [Product backlog and contribution map](docs/06-planning/PRODUCT_BACKLOG_AND_CONTRIBUTION_MAP.md)
 - [Current and future product requirements](docs/00-product/PRD.md)
+- [Target-capture acceptance](docs/04-operations/TARGET_CAPTURE_ACCEPTANCE.md)
 - [Compact editor placement acceptance](docs/04-operations/WINDOW_PLACEMENT_ACCEPTANCE.md)
 - [Single-instance and lifecycle acceptance](docs/04-operations/SINGLE_INSTANCE_ACCEPTANCE.md)
 - [Windows event-pipeline acceptance](docs/04-operations/WIN_EVENT_ACCEPTANCE.md)
+- [Vercel deployment scope](docs/04-operations/VERCEL_DEPLOYMENT.md)
 - [Repository governance](docs/06-planning/REPOSITORY_GOVERNANCE.md)
 
 When code behavior changes, update the relevant issue, tests, README, product documents, website claims, and release evidence together.
