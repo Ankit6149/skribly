@@ -4,6 +4,9 @@
 pub mod windows;
 
 #[cfg(target_os = "windows")]
+pub mod windows_events;
+
+#[cfg(target_os = "windows")]
 pub mod windows_focus;
 
 #[cfg(target_os = "windows")]
