@@ -31,21 +31,14 @@ use windows::Win32::UI::WindowsAndMessaging::{
 use crate::core::coordinator::Coordinator;
 use crate::core::models::{HitTestRect, OverlayMetrics, TargetWindowInfo, WindowRect};
 
-#[derive(Debug, Clone)]
-pub struct WinEventNotice {
-    pub event_type: u32,
-    pub hwnd_val: isize,
-}
-
-pub const EVENT_SYSTEM_FOREGROUND: u32 = 0x0003;
-pub const EVENT_SYSTEM_MINIMIZESTART: u32 = 0x0016;
-pub const EVENT_SYSTEM_MINIMIZEEND: u32 = 0x0017;
-pub const EVENT_OBJECT_DESTROY: u32 = 0x8001;
-pub const EVENT_OBJECT_LOCATIONCHANGE: u32 = 0x800B;
+use super::windows_events::{deliver_global_win_event, WinEventPipeline};
+pub use super::windows_events::{
+    WinEventNotice, EVENT_OBJECT_DESTROY, EVENT_OBJECT_LOCATIONCHANGE, EVENT_SYSTEM_FOREGROUND,
+    EVENT_SYSTEM_MINIMIZEEND, EVENT_SYSTEM_MINIMIZESTART,
+};
 
 static ORIGINAL_WNDPROC: AtomicIsize = AtomicIsize::new(0);
 static GLOBAL_COORDINATOR: OnceLock<Coordinator> = OnceLock::new();
-static EVENT_SENDER: OnceLock<Sender<WinEventNotice>> = OnceLock::new();
 static HOTKEY_SENDER: OnceLock<Sender<i32>> = OnceLock::new();
 static ACTIVE_WINEVENT_HOOKS: std::sync::Mutex<Vec<isize>> = std::sync::Mutex::new(Vec::new());
 static ENUMERATION_COUNT: AtomicU64 = AtomicU64::new(0);
@@ -281,39 +274,25 @@ pub fn uninstall_overlay_subclass(hwnd: HWND) {
     }
 }
 
-/// WinEvent callback for Win32 event hooks. Passes lightweight notifications over channel.
+/// WinEvent callback. Filtering, coalescing, and non-blocking delivery happen in the pipeline.
 unsafe extern "system" fn win_event_proc(
     _h_win_event_hook: HWINEVENTHOOK,
     event: u32,
     hwnd: HWND,
-    _id_object: i32,
-    _id_child: i32,
+    id_object: i32,
+    id_child: i32,
     _id_event_thread: u32,
     _dwms_event_time: u32,
 ) {
-    if hwnd.0 != std::ptr::null_mut()
-        && matches!(
-            event,
-            EVENT_SYSTEM_FOREGROUND
-                | EVENT_SYSTEM_MINIMIZESTART
-                | EVENT_SYSTEM_MINIMIZEEND
-                | EVENT_OBJECT_DESTROY
-                | EVENT_OBJECT_LOCATIONCHANGE
-        )
-    {
-        if let Some(sender) = EVENT_SENDER.get() {
-            let notice = WinEventNotice {
-                event_type: event,
-                hwnd_val: hwnd.0 as isize,
-            };
-            let _ = sender.send(notice);
-        }
-    }
+    deliver_global_win_event(event, hwnd.0 as isize, id_object, id_child);
 }
 
-/// Install narrow WinEvent hooks specifically for target foreground and positioning events.
-pub fn install_winevent_hooks(sender: Sender<WinEventNotice>) -> bool {
-    let _ = EVENT_SENDER.set(sender);
+/// Install the exact hook set once. Retrying initialization is idempotent.
+pub fn install_winevent_hooks(pipeline: WinEventPipeline) -> bool {
+    if !pipeline.install_global() {
+        return false;
+    }
+
     let target_events = [
         EVENT_SYSTEM_FOREGROUND,
         EVENT_SYSTEM_MINIMIZESTART,
@@ -322,30 +301,46 @@ pub fn install_winevent_hooks(sender: Sender<WinEventNotice>) -> bool {
         EVENT_OBJECT_LOCATIONCHANGE,
     ];
 
-    let mut installed_count = 0;
-    if let Ok(mut hooks_guard) = ACTIVE_WINEVENT_HOOKS.lock() {
+    let Ok(mut hooks_guard) = ACTIVE_WINEVENT_HOOKS.lock() else {
+        return false;
+    };
+    if hooks_guard.len() == target_events.len() {
+        return true;
+    }
+
+    for raw in hooks_guard.drain(..) {
         unsafe {
-            for &event in &target_events {
-                let hook = SetWinEventHook(
-                    event,
-                    event,
-                    None,
-                    Some(win_event_proc),
-                    0,
-                    0,
-                    WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS,
-                );
-                if hook.0 != std::ptr::null_mut() {
-                    hooks_guard.push(hook.0 as isize);
-                    installed_count += 1;
-                }
+            let hook = HWINEVENTHOOK(raw as *mut _);
+            let _ = UnhookWinEvent(hook);
+        }
+    }
+
+    unsafe {
+        for &event in &target_events {
+            let hook = SetWinEventHook(
+                event,
+                event,
+                None,
+                Some(win_event_proc),
+                0,
+                0,
+                WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS,
+            );
+            if hook.0 != std::ptr::null_mut() {
+                hooks_guard.push(hook.0 as isize);
             }
         }
     }
-    if installed_count == target_events.len() {
+
+    if hooks_guard.len() == target_events.len() {
         true
     } else {
-        uninstall_winevent_hooks();
+        for raw in hooks_guard.drain(..) {
+            unsafe {
+                let hook = HWINEVENTHOOK(raw as *mut _);
+                let _ = UnhookWinEvent(hook);
+            }
+        }
         false
     }
 }
@@ -398,7 +393,7 @@ pub fn get_window_class(hwnd: HWND) -> String {
 pub fn get_window_process_name(hwnd: HWND) -> String {
     unsafe {
         let mut pid: u32 = 0;
-        GetWindowThreadProcessId(hwnd, Some(&mut pid));
+        let _ = GetWindowThreadProcessId(hwnd, Some(&mut pid));
         if pid == 0 {
             return String::new();
         }
