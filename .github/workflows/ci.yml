@@ -28,6 +28,9 @@ jobs:
       - name: Validate current product claims
         run: node scripts/validation/validate-product-truth.mjs
 
+      - name: Validate Vercel ignored build policy
+        run: node --test scripts/validation/vercel-ignore.test.mjs
+
   landing-site:
     name: Landing site validation
     runs-on: ubuntu-latest
