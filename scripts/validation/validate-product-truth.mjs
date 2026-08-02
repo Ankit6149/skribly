@@ -16,15 +16,18 @@ const cargoManifest = await read('apps/desktop/src-tauri/Cargo.toml');
 const processEntry = await read('apps/desktop/src-tauri/src/main.rs');
 const nativeEntry = await read('apps/desktop/src-tauri/src/lib.rs');
 const windowsPlatform = await read('apps/desktop/src-tauri/src/platform/windows.rs');
+const windowsEvents = await read('apps/desktop/src-tauri/src/platform/windows_events.rs');
 const windowsPlacement = await read('apps/desktop/src-tauri/src/platform/windows_placement.rs');
 const windowsSingleInstance = await read('apps/desktop/src-tauri/src/windows_single_instance.rs');
 const placementAcceptance = await read('docs/04-operations/WINDOW_PLACEMENT_ACCEPTANCE.md');
 const singleInstanceAcceptance = await read('docs/04-operations/SINGLE_INSTANCE_ACCEPTANCE.md');
+const winEventAcceptance = await read('docs/04-operations/WIN_EVENT_ACCEPTANCE.md');
 
 const requiredReadmeClaims = [
   'Skribli hides only after the latest non-empty draft is durably saved.',
   'A compact note editor opens inside that target monitor’s usable work area.',
   'Launching Skribli again in the same Windows user session signals the existing process',
+  'Windows accessibility events use bounded, non-blocking delivery with callback-side filtering and duplicate coalescing.',
   'The current build does **not** leave a floating dot, attached tab, permanent toolbar, or full-screen interactive overlay',
   'macOS support;',
   'Skribli is **not currently available for download**.',
@@ -120,6 +123,46 @@ if (!processEntry.includes('SingleInstanceOutcome::Primary(guard)')) {
 
 if (!singleInstanceAcceptance.includes('Parent issue 15 remains open')) {
   failures.push('Single-instance acceptance documentation must state that physical lifecycle evidence is still required.');
+}
+
+const requiredWinEventImplementation = [
+  'sync_channel',
+  'WIN_EVENT_QUEUE_CAPACITY',
+  'try_send',
+  'active_target_hwnd',
+  'pending: Mutex<HashSet<WinEventKey>>',
+  'coalesced',
+  'saturated',
+  'disconnected',
+  'processed',
+];
+for (const claim of requiredWinEventImplementation) {
+  if (!windowsEvents.includes(claim)) {
+    failures.push(`Windows event delivery is missing required bounded behavior: ${claim}`);
+  }
+}
+
+const retiredWinEventPatterns = [
+  'std::sync::mpsc::Sender<WinEventNotice>',
+  'static EVENT_SENDER',
+  'sender.send(notice)',
+];
+for (const pattern of retiredWinEventPatterns) {
+  if (nativeEntry.includes(pattern) || windowsPlatform.includes(pattern) || windowsEvents.includes(pattern)) {
+    failures.push(`Retired unbounded or blocking WinEvent delivery returned: ${pattern}`);
+  }
+}
+
+if (!nativeEntry.includes('WinEventPipeline::new(WIN_EVENT_QUEUE_CAPACITY)')) {
+  failures.push('The runtime must create the bounded WinEvent pipeline with the approved capacity.');
+}
+
+if (!windowsPlatform.includes('deliver_global_win_event')) {
+  failures.push('The native WinEvent callback must delegate to the bounded delivery pipeline.');
+}
+
+if (!winEventAcceptance.includes('Parent issue 17 remains open')) {
+  failures.push('WinEvent acceptance documentation must state that physical runtime evidence is still required.');
 }
 
 if (failures.length > 0) {
