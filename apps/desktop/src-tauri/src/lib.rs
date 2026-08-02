@@ -17,12 +17,12 @@ use core::storage;
 
 #[cfg(target_os = "windows")]
 use platform::windows::{
-    get_foreground_target_window, get_overlay_metrics as query_overlay_metrics,
-    inspect_target_window, install_hotkey_sender, install_overlay_subclass, install_winevent_hooks,
-    list_candidate_target_windows, reconstruct_hwnd, register_global_hotkey, set_dpi_awareness,
-    uninstall_overlay_subclass, uninstall_winevent_hooks, unregister_global_hotkey,
-    EVENT_OBJECT_DESTROY, EVENT_OBJECT_LOCATIONCHANGE, EVENT_SYSTEM_FOREGROUND,
-    EVENT_SYSTEM_MINIMIZEEND, EVENT_SYSTEM_MINIMIZESTART,
+    get_overlay_metrics as query_overlay_metrics, inspect_target_window, install_hotkey_sender,
+    install_overlay_subclass, install_winevent_hooks, list_candidate_target_windows,
+    reconstruct_hwnd, register_global_hotkey, set_dpi_awareness, uninstall_overlay_subclass,
+    uninstall_winevent_hooks, unregister_global_hotkey, EVENT_OBJECT_DESTROY,
+    EVENT_OBJECT_LOCATIONCHANGE, EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_MINIMIZEEND,
+    EVENT_SYSTEM_MINIMIZESTART,
 };
 #[cfg(target_os = "windows")]
 use platform::windows_events::{WinEventPipeline, WIN_EVENT_QUEUE_CAPACITY};
@@ -30,6 +30,10 @@ use platform::windows_events::{WinEventPipeline, WIN_EVENT_QUEUE_CAPACITY};
 use platform::windows_focus::focus_external_window;
 #[cfg(target_os = "windows")]
 use platform::windows_placement::{initialize_compact_window, position_compact_window_for_target};
+#[cfg(target_os = "windows")]
+use platform::windows_target_capture::{
+    capture_foreground_target, revalidate_captured_target, TargetCaptureError,
+};
 
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -59,6 +63,26 @@ fn set_runtime_active_target(state: &AppState, target: Option<TargetWindowInfo>)
         .win_event_pipeline
         .set_active_target(target.as_ref().map(|target| target.hwnd_val));
     state.coordinator.set_active_target(target);
+}
+
+#[cfg(target_os = "windows")]
+fn present_target_capture_error(
+    app_handle: &AppHandle,
+    state: &AppState,
+    error: TargetCaptureError,
+) {
+    set_runtime_active_target(state, None);
+    let _ = app_handle.emit("skribly://target-capture-error", error);
+    if let Some(window) = app_handle.get_webview_window("main") {
+        let _ = window.center();
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn clear_target_capture_error(app_handle: &AppHandle) {
+    let _ = app_handle.emit("skribly://target-capture-clear", ());
 }
 
 fn persist_skribs(state: &AppState) -> Result<(), String> {
@@ -186,7 +210,9 @@ impl AppState {
 fn get_foreground_window() -> Option<TargetWindowInfo> {
     #[cfg(target_os = "windows")]
     {
-        get_foreground_target_window()
+        capture_foreground_target()
+            .ok()
+            .and_then(|capture| revalidate_captured_target(&capture).ok())
     }
     #[cfg(not(target_os = "windows"))]
     {
@@ -646,27 +672,33 @@ pub fn run() {
                             continue;
                         }
 
-                        let target_to_use = {
-                            #[cfg(target_os = "windows")]
-                            {
-                                get_foreground_target_window()
-                                    .or_else(|| coordinator_hk.get_active_target())
-                            }
-                            #[cfg(not(target_os = "windows"))]
-                            {
-                                coordinator_hk.get_active_target()
+                        let state_hk = app_handle_hk.state::<AppState>();
+                        set_runtime_active_target(&state_hk, None);
+
+                        #[cfg(target_os = "windows")]
+                        let capture = match capture_foreground_target() {
+                            Ok(capture) => capture,
+                            Err(error) => {
+                                present_target_capture_error(&app_handle_hk, &state_hk, error);
+                                continue;
                             }
                         };
 
-                        let state_hk = app_handle_hk.state::<AppState>();
-                        let Some(target) = target_to_use else {
-                            set_runtime_active_target(&state_hk, None);
-                            let _ = app_handle_hk.emit(
-                                "skribly://hotkey-error",
-                                "Skribli could not detect the active application. Click the application and try the shortcut again.",
-                            );
-                            continue;
+                        #[cfg(target_os = "windows")]
+                        let target = match revalidate_captured_target(&capture) {
+                            Ok(target) => target,
+                            Err(error) => {
+                                present_target_capture_error(&app_handle_hk, &state_hk, error);
+                                continue;
+                            }
                         };
+
+                        #[cfg(not(target_os = "windows"))]
+                        let target = match coordinator_hk.get_active_target() {
+                            Some(target) => target,
+                            None => continue,
+                        };
+
                         let Some(window) = app_handle_hk.get_webview_window("main") else {
                             let _ = app_handle_hk.emit(
                                 "skribly://hotkey-error",
@@ -684,6 +716,8 @@ pub fn run() {
                             continue;
                         }
 
+                        #[cfg(target_os = "windows")]
+                        clear_target_capture_error(&app_handle_hk);
                         set_runtime_active_target(&state_hk, Some(target.clone()));
                         let existing_notes = coordinator_hk.get_skribs_for_target(&target);
                         if existing_notes.is_empty() {
