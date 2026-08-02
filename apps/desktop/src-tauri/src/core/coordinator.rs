@@ -32,9 +32,9 @@ fn is_valid_note_id(id: &str) -> bool {
     let character_count = id.chars().count();
     character_count > 0
         && character_count <= MAX_NOTE_ID_CHARACTERS
-        && !id.chars().any(|character| {
-            character.is_control() || character.is_whitespace()
-        })
+        && !id
+            .chars()
+            .any(|character| character.is_control() || character.is_whitespace())
 }
 
 fn is_valid_note_text(text: &str) -> bool {
@@ -45,12 +45,7 @@ fn is_valid_note_color(color: &str) -> bool {
     ALLOWED_NOTE_COLORS.contains(&color)
 }
 
-fn is_valid_note_geometry(
-    rel_x: f64,
-    rel_y: f64,
-    width: f64,
-    height: f64,
-) -> bool {
+fn is_valid_note_geometry(rel_x: f64, rel_y: f64, width: f64, height: f64) -> bool {
     [rel_x, rel_y, width, height]
         .iter()
         .all(|value| value.is_finite())
@@ -66,12 +61,7 @@ fn is_valid_note(note: &SkribNote) -> bool {
     is_valid_note_id(&note.id)
         && is_valid_note_text(&note.text)
         && is_valid_note_color(&note.color)
-        && is_valid_note_geometry(
-            note.rel_x,
-            note.rel_y,
-            note.width,
-            note.height,
-        )
+        && is_valid_note_geometry(note.rel_x, note.rel_y, note.width, note.height)
 }
 
 impl Coordinator {
@@ -388,8 +378,8 @@ mod tests {
         let candidate_a = sample_target_a();
         let candidate_b = sample_target_b();
 
-        let result = coordinator
-            .find_best_context_match(&[candidate_a.clone(), candidate_b.clone()]);
+        let result =
+            coordinator.find_best_context_match(&[candidate_a.clone(), candidate_b.clone()]);
         assert_eq!(result, MatchResult::Unique(candidate_a));
     }
 
