@@ -1,7 +1,7 @@
 [package]
 name = "skribly"
 version = "0.1.3"
-description = "Contextual desktop annotations for Windows and macOS"
+description = "Local-first contextual typed notes for Windows"
 authors = ["Ankit Bhardwaj"]
 edition = "2021"
 

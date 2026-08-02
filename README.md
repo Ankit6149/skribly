@@ -1,74 +1,112 @@
 # Skribli
 
-**Leave a note exactly where the thought belongs.**
+**Leave a note where the thought belongs.**
 
 > **Status — active production development**  
-> Installer access is temporarily disabled. The previous Windows beta has been withdrawn while the native overlay, shortcut flow, click-through behaviour, typography, and close controls are rebuilt and validated.
+> Public downloads remain disabled while the Windows desktop build completes its data-safety, lifecycle, context, placement, recovery, accessibility, and release-validation gates.
 
-Skribli is a local-first contextual note utility for Windows. The intended interaction is deliberately small:
+Skribli is a local-first contextual typed-note utility for Windows. The current product direction is deliberately small: capture a thought in a compact editor, save it safely on the user’s computer, then return to the original application.
 
-1. Open the application where the note belongs.
+## Current Windows build contract
+
+The active compact-note flow is:
+
+1. Focus a supported Windows application.
 2. Press **Ctrl + Shift + Space**.
-3. Write the note immediately.
-4. Close it into a small attached note tab.
-5. Return to the application later and find the note in the same context.
+3. Skribli captures the foreground target before taking focus.
+4. A compact note editor opens near that target.
+5. Type while Skribli reports truthful **Unsaved**, **Saving**, **Saved**, or **Save failed** state.
+6. Choose **Done**, press **Escape**, or press **Ctrl + Enter**.
+7. Skribli hides only after the latest non-empty draft is durably saved. If persistence fails, the editor remains open so the draft is not silently lost.
 
-There should be no permanent floating toolbar, mandatory account, target-selection wizard, or full-screen interaction layer.
+The current build does **not** leave a floating dot, attached tab, permanent toolbar, or full-screen interactive overlay after the editor closes.
+
+The final create/reopen lifecycle, safe context identity, multi-monitor placement, reversible trash, complete All Skribs library, single-instance behavior, and native release evidence remain tracked in the production-readiness backlog. Do not treat a successful compile or website deployment as proof that the Windows product is ready to distribute.
+
+## Implemented foundations
+
+- Tauri 2 desktop shell with React, TypeScript, Vite, and Rust.
+- Compact fully interactive note window rather than a screen-blocking overlay.
+- Foreground-target capture before the Skribli window takes focus.
+- Local versioned JSON persistence with crash-recovery generations and storage diagnostics.
+- Ordered/coalesced text persistence with truthful save and retry states.
+- Final-save flush before the compact editor hides.
+- No console window in the Windows release build configuration.
+- Global **Ctrl + Shift + Space** shortcut and tray-based background process.
+- Public downloads and payment flows disabled while release gates are incomplete.
+
+## Current release blockers
+
+The canonical execution tracker is [issue #34](https://github.com/Ankit6149/skribly/issues/34). The most immediate blockers include:
+
+- [#15](https://github.com/Ankit6149/skribly/issues/15) single-instance execution and safe background lifecycle;
+- [#17](https://github.com/Ankit6149/skribly/issues/17) bounded Windows event processing;
+- [#18](https://github.com/Ankit6149/skribly/issues/18) fail-closed durable context identity;
+- [#19](https://github.com/Ankit6149/skribly/issues/19) mixed-DPI and multi-monitor placement;
+- [#20](https://github.com/Ankit6149/skribly/issues/20) final note lifecycle contract;
+- [#21](https://github.com/Ankit6149/skribly/issues/21) non-floating library, search, export, archive, and reversible trash;
+- [#24](https://github.com/Ankit6149/skribly/issues/24) release-blocking Windows runtime evidence;
+- [#25](https://github.com/Ankit6149/skribly/issues/25) signed reproducible installer and rollback pipeline.
+
+An issue must remain open when only part of its acceptance criteria has been implemented. Progress belongs in a detailed issue comment with exact commits, checks, missing runtime evidence, and remaining work.
+
+## Product boundaries
+
+### Current release target
+
+- Windows desktop only.
+- Typed contextual notes through a compact transient editor.
+- Local-first use without a mandatory account.
+
+### Deferred and unavailable in the current build
+
+- macOS support;
+- browser URL or DOM-element anchoring;
+- ink, highlighters, arrows, shapes, pins, checklists, reminders, and attachments;
+- cloud sync, collaboration, mobile apps, AI, OCR, plugins, and a marketplace.
+
+Deferred capabilities are tracked under [issue #46](https://github.com/Ankit6149/skribly/issues/46). Their placeholder code or documentation must not be interpreted as released support.
 
 ## Repository and licence status
 
-This repository is publicly visible for development and issue tracking, but Skribli is proprietary software and is **not open source**. Public access to the repository does not grant permission to copy, deploy, redistribute, or build another product from its source or assets. See [`NOTICE.md`](NOTICE.md) and [`docs/06-planning/REPOSITORY_GOVERNANCE.md`](docs/06-planning/REPOSITORY_GOVERNANCE.md).
-
-## Production priorities
-
-- The transparent overlay must remain click-through everywhere except the exact note or editor bounds.
-- The release executable must never open a terminal window.
-- The shortcut must attach a note to the foreground application automatically.
-- The app must start quietly in the system tray and provide clear **Show**, **Hide**, and **Quit** controls.
-- Notes must use a warm, natural handwritten type treatment while controls remain readable.
-- Notes and attachments remain on the user’s computer by default.
-
-## Current stack
-
-- Tauri 2 desktop shell
-- React + TypeScript + Vite interface
-- Rust native core and Windows adapters
-- Local versioned storage
-- Native `RegisterHotKey`, WinEvent hooks, per-monitor DPI handling, and selective `WM_NCHITTEST` click-through
+This repository is publicly visible for development and issue tracking, but Skribli is proprietary software and is **not open source**. Public access does not grant permission to copy, deploy, redistribute, or build another product from its source or assets. See [`NOTICE.md`](NOTICE.md) and [`docs/06-planning/REPOSITORY_GOVERNANCE.md`](docs/06-planning/REPOSITORY_GOVERNANCE.md).
 
 ## Repository map
 
 ```text
 skribly/
-├── apps/desktop/              Tauri + React Windows application
-├── extensions/chromium/       Future exact webpage anchoring adapter
-├── packages/design-system/    Shared visual tokens
-├── packages/shared/           Shared TypeScript models
+├── apps/desktop/              Active Tauri + React Windows application
+├── extensions/chromium/       Deferred placeholder; not a released capability
+├── packages/design-system/    Shared visual tokens and primitives
+├── packages/shared/           Shared models; production use must remain capability-gated
 ├── assets/                    Product and branding assets
-├── docs/                      Product and engineering documentation
-└── site/                      Product website
+├── docs/                      Product, engineering, operations, and planning documents
+├── scripts/                   Validation, governance, storage, and licence tooling
+└── site/                      Product website with downloads disabled
 ```
 
 ## Development prerequisites
 
-- **Node.js 22.23.1 LTS** is the canonical local-development and CI version recorded in [`.nvmrc`](.nvmrc).
-- The repository accepts supported Node 22 releases from **22.12.0 up to, but not including, Node 23** so managed deployment platforms can supply their current Node 22 patch release.
-- **npm 10.9.8** is the canonical npm version used with the pinned local and CI runtime.
-- The current stable Rust toolchain with `rustfmt`.
+- **Node.js 22.23.1 LTS** is the canonical local and CI runtime recorded in [`.nvmrc`](.nvmrc).
+- Supported managed environments may use Node `>=22.12.0 <23`.
+- **npm 10.9.8** is the canonical npm version.
+- Current stable Rust toolchain with `rustfmt`.
+- Windows build tools, SDK, and WebView requirements for native desktop work.
 
-The supported range is enforced through `package.json` and `.npmrc`; unsupported major versions and Node 22 releases below Vite’s minimum fail installation. For reproducible local work, activate Node.js 22.23.1 before running npm commands. Verify the environment with:
+Verify the local runtime before installing dependencies:
 
 ```bash
 node --version
 npm --version
 ```
 
-The canonical local and CI versions are `v22.23.1` and `10.9.8`.
-
 ## Local validation
 
 ```bash
 npm ci
+npm run governance:validate
+npm run product-truth:validate
+npm run site:validate
 npm run typecheck
 npm run test
 npm run build
@@ -76,8 +114,17 @@ cargo fmt --manifest-path apps/desktop/src-tauri/Cargo.toml --check
 cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -- --test-threads=1
 ```
 
-Windows runtime verification must additionally confirm that empty overlay space does not capture mouse input, the global shortcut creates one note for the foreground app, the window can be hidden or quit cleanly, and no console window appears in a release build.
+These commands prove static, frontend, and Rust test gates only. Windows acceptance must also exercise the exact release binary across supported OS versions, applications, display arrangements, scaling values, shortcut conflicts, storage faults, lifecycle events, and installer paths. Evidence must identify the exact commit and binary hash.
+
+## Documentation sources of truth
+
+- [Production-readiness execution plan](docs/06-planning/FULL_PRODUCT_AUDIT_AND_EXECUTION_PLAN.md)
+- [Product backlog and contribution map](docs/06-planning/PRODUCT_BACKLOG_AND_CONTRIBUTION_MAP.md)
+- [Current and future product requirements](docs/00-product/PRD.md)
+- [Repository governance](docs/06-planning/REPOSITORY_GOVERNANCE.md)
+
+When code behavior changes, update the relevant issue, tests, README, product documents, website claims, and release evidence together.
 
 ## Distribution status
 
-Skribli is **not currently available for download**. A new installer will be provided only after the production build passes native Windows runtime validation.
+Skribli is **not currently available for download**. A public installer must not be enabled until the applicable release gates in issue #34 pass against an exact signed Windows package.
