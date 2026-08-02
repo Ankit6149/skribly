@@ -155,8 +155,7 @@ pub fn acquire_or_signal_existing() -> Result<SingleInstanceOutcome, String> {
         )
         .map_err(|error| format!("Windows could not create the Skribli instance guard: {error}"))?
     };
-    let already_exists =
-        matches!(unsafe { GetLastError() }, Ok(code) if code == ERROR_ALREADY_EXISTS);
+    let already_exists = unsafe { GetLastError() == ERROR_ALREADY_EXISTS };
 
     if already_exists {
         let secondary_handle = SingleInstanceGuard { handle };
