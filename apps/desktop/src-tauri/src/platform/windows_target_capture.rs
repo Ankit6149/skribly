@@ -213,9 +213,8 @@ pub fn capture_foreground_target() -> Result<CapturedTarget, TargetCaptureError>
 
     let snapshot = snapshot_window(hwnd);
     validate_candidate(&snapshot)?;
-    let process_id = query_process_id(hwnd).ok_or_else(|| {
-        TargetCaptureError::new(TargetCaptureErrorCode::MissingProcessIdentity)
-    })?;
+    let process_id = query_process_id(hwnd)
+        .ok_or_else(|| TargetCaptureError::new(TargetCaptureErrorCode::MissingProcessIdentity))?;
     let target = inspect_target_window(hwnd)
         .ok_or_else(|| TargetCaptureError::new(TargetCaptureErrorCode::UnsupportedWindow))?;
     if !target.is_focused {
@@ -245,9 +244,8 @@ pub fn revalidate_captured_target(
         ));
     }
 
-    let hwnd = reconstruct_hwnd(capture.target.hwnd_val).ok_or_else(|| {
-        TargetCaptureError::new(TargetCaptureErrorCode::HiddenOrDestroyedWindow)
-    })?;
+    let hwnd = reconstruct_hwnd(capture.target.hwnd_val)
+        .ok_or_else(|| TargetCaptureError::new(TargetCaptureErrorCode::HiddenOrDestroyedWindow))?;
     if !unsafe { IsWindow(Some(hwnd)).as_bool() } {
         return Err(TargetCaptureError::new(
             TargetCaptureErrorCode::HiddenOrDestroyedWindow,
@@ -263,9 +261,8 @@ pub fn revalidate_captured_target(
 
     let snapshot = snapshot_window(hwnd);
     validate_candidate(&snapshot)?;
-    let current_process_id = query_process_id(hwnd).ok_or_else(|| {
-        TargetCaptureError::new(TargetCaptureErrorCode::MissingProcessIdentity)
-    })?;
+    let current_process_id = query_process_id(hwnd)
+        .ok_or_else(|| TargetCaptureError::new(TargetCaptureErrorCode::MissingProcessIdentity))?;
     if !process_identity_matches(
         capture.process_id,
         &capture.target.process_name,
@@ -353,7 +350,9 @@ mod tests {
 
         for (snapshot, expected) in cases {
             assert_eq!(
-                validate_candidate(&snapshot).expect_err("candidate must fail").code,
+                validate_candidate(&snapshot)
+                    .expect_err("candidate must fail")
+                    .code,
                 expected
             );
         }
