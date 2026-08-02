@@ -13,13 +13,18 @@ async function read(relativePath) {
 const failures = [];
 const readme = await read('README.md');
 const cargoManifest = await read('apps/desktop/src-tauri/Cargo.toml');
+const processEntry = await read('apps/desktop/src-tauri/src/main.rs');
 const nativeEntry = await read('apps/desktop/src-tauri/src/lib.rs');
 const windowsPlatform = await read('apps/desktop/src-tauri/src/platform/windows.rs');
 const windowsPlacement = await read('apps/desktop/src-tauri/src/platform/windows_placement.rs');
+const windowsSingleInstance = await read('apps/desktop/src-tauri/src/windows_single_instance.rs');
 const placementAcceptance = await read('docs/04-operations/WINDOW_PLACEMENT_ACCEPTANCE.md');
+const singleInstanceAcceptance = await read('docs/04-operations/SINGLE_INSTANCE_ACCEPTANCE.md');
 
 const requiredReadmeClaims = [
   'Skribli hides only after the latest non-empty draft is durably saved.',
+  'A compact note editor opens inside that target monitor’s usable work area.',
+  'Launching Skribli again in the same Windows user session signals the existing process',
   'The current build does **not** leave a floating dot, attached tab, permanent toolbar, or full-screen interactive overlay',
   'macOS support;',
   'Skribli is **not currently available for download**.',
@@ -85,6 +90,36 @@ if (!nativeEntry.includes('reposition_compact_window')) {
 
 if (!placementAcceptance.includes('Parent issue 19 remains open')) {
   failures.push('Placement acceptance documentation must state that physical runtime evidence is still required.');
+}
+
+const requiredSingleInstanceImplementation = [
+  'CreateMutexW',
+  'ERROR_ALREADY_EXISTS',
+  'Local\\\\app.skribly.desktop.single-instance.2026-08',
+  'EnumWindows',
+  'PostMessageW',
+  'WM_HOTKEY',
+  'GLOBAL_HOTKEY_ID',
+  'SingleInstanceOutcome::SecondarySignalled',
+];
+for (const claim of requiredSingleInstanceImplementation) {
+  if (!windowsSingleInstance.includes(claim)) {
+    failures.push(`Windows single-instance implementation is missing required behavior: ${claim}`);
+  }
+}
+
+const guardPosition = processEntry.indexOf('acquire_or_signal_existing');
+const runtimePosition = processEntry.indexOf('skribly_lib::run()');
+if (guardPosition < 0 || runtimePosition < 0 || guardPosition > runtimePosition) {
+  failures.push('The Windows single-instance guard must run before the Tauri library runtime.');
+}
+
+if (!processEntry.includes('SingleInstanceOutcome::Primary(guard)')) {
+  failures.push('The primary process must retain the single-instance guard for the runtime lifetime.');
+}
+
+if (!singleInstanceAcceptance.includes('Parent issue 15 remains open')) {
+  failures.push('Single-instance acceptance documentation must state that physical lifecycle evidence is still required.');
 }
 
 if (failures.length > 0) {
