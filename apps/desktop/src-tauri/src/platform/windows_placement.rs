@@ -16,9 +16,7 @@ use windows::Win32::Graphics::Gdi::{
 
 use crate::core::models::{OverlayMetrics, TargetWindowInfo, WindowRect};
 
-use super::windows::{
-    get_overlay_metrics, get_window_bounds, get_window_dpi, reconstruct_hwnd,
-};
+use super::windows::{get_overlay_metrics, get_window_bounds, get_window_dpi, reconstruct_hwnd};
 
 pub const COMPACT_WINDOW_LOGICAL_WIDTH: i32 = 420;
 pub const COMPACT_WINDOW_LOGICAL_HEIGHT: i32 = 360;
@@ -41,7 +39,11 @@ pub struct CompactWindowPlacement {
 }
 
 fn normalized_dpi(dpi: u32) -> u32 {
-    if dpi > 0 { dpi } else { 96 }
+    if dpi > 0 {
+        dpi
+    } else {
+        96
+    }
 }
 
 fn logical_to_physical(logical: i32, scale_factor: f64) -> i32 {
@@ -136,7 +138,9 @@ pub fn calculate_compact_window_placement(
         height,
     };
     if !rect_is_within_work_area(&final_rect, work_area) {
-        return Err("Skribli could not calculate a safe position inside the display work area.".into());
+        return Err(
+            "Skribli could not calculate a safe position inside the display work area.".into(),
+        );
     }
 
     Ok(placement)
@@ -146,7 +150,9 @@ pub fn monitor_work_area_for_window(hwnd: HWND) -> Result<WindowRect, String> {
     unsafe {
         let monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
         if monitor.0.is_null() {
-            return Err("Windows could not identify the display nearest the target application.".into());
+            return Err(
+                "Windows could not identify the display nearest the target application.".into(),
+            );
         }
 
         let mut monitor_info = MONITORINFO {
@@ -182,10 +188,7 @@ fn actual_rect(metrics: &OverlayMetrics) -> WindowRect {
     }
 }
 
-fn actual_matches_placement(
-    metrics: &OverlayMetrics,
-    placement: &CompactWindowPlacement,
-) -> bool {
+fn actual_matches_placement(metrics: &OverlayMetrics, placement: &CompactWindowPlacement) -> bool {
     let rect = actual_rect(metrics);
     rect_is_within_work_area(&rect, &placement.work_area)
         && (rect.x - placement.x).abs() <= FINAL_RECT_TOLERANCE_PX
@@ -221,8 +224,9 @@ pub fn position_compact_window_for_target(
 ) -> Result<OverlayMetrics, String> {
     let target_hwnd = reconstruct_hwnd(target.hwnd_val)
         .ok_or_else(|| "The original target application is no longer available.".to_string())?;
-    let target_bounds = get_window_bounds(target_hwnd)
-        .ok_or_else(|| "Windows could not read the target application's current bounds.".to_string())?;
+    let target_bounds = get_window_bounds(target_hwnd).ok_or_else(|| {
+        "Windows could not read the target application's current bounds.".to_string()
+    })?;
     let work_area = monitor_work_area_for_window(target_hwnd)?;
     let (dpi, _) = get_window_dpi(target_hwnd);
     let placement = calculate_compact_window_placement(&work_area, &target_bounds, dpi)?;
@@ -252,9 +256,7 @@ pub fn position_compact_window_for_target(
     ))
 }
 
-pub fn initialize_compact_window(
-    window: &tauri::WebviewWindow,
-) -> Result<OverlayMetrics, String> {
+pub fn initialize_compact_window(window: &tauri::WebviewWindow) -> Result<OverlayMetrics, String> {
     let hwnd = window
         .hwnd()
         .map_err(|error| format!("Failed to acquire compact editor HWND: {error}"))?;
@@ -293,11 +295,7 @@ mod tests {
 
     #[test]
     fn converts_logical_dimensions_at_common_windows_scaling_values() {
-        for (dpi, expected) in [
-            (120, (525, 450)),
-            (144, (630, 540)),
-            (192, (840, 720)),
-        ] {
+        for (dpi, expected) in [(120, (525, 450)), (144, (630, 540)), (192, (840, 720))] {
             let placement = calculate_compact_window_placement(
                 &rect(1920, 0, 2560, 1440),
                 &rect(2200, 100, 1200, 900),
@@ -341,12 +339,7 @@ mod tests {
         .expect("portrait placement");
         assert_eq!((portrait.width, portrait.height), (840, 720));
         assert!(rect_is_within_work_area(
-            &rect(
-                portrait.x,
-                portrait.y,
-                portrait.width,
-                portrait.height
-            ),
+            &rect(portrait.x, portrait.y, portrait.width, portrait.height),
             &portrait.work_area
         ));
 
@@ -387,24 +380,18 @@ mod tests {
 
     #[test]
     fn shrinks_to_a_usable_size_when_the_work_area_is_constrained() {
-        let placement = calculate_compact_window_placement(
-            &rect(0, 0, 800, 600),
-            &rect(0, 0, 800, 600),
-            192,
-        )
-        .expect("constrained placement");
+        let placement =
+            calculate_compact_window_placement(&rect(0, 0, 800, 600), &rect(0, 0, 800, 600), 192)
+                .expect("constrained placement");
         assert_eq!((placement.width, placement.height), (728, 528));
         assert_eq!((placement.x, placement.y), (36, 36));
     }
 
     #[test]
     fn fails_closed_when_the_work_area_cannot_fit_a_readable_editor() {
-        let error = calculate_compact_window_placement(
-            &rect(0, 0, 500, 400),
-            &rect(0, 0, 500, 400),
-            192,
-        )
-        .expect_err("undersized work areas must fail");
+        let error =
+            calculate_compact_window_placement(&rect(0, 0, 500, 400), &rect(0, 0, 500, 400), 192)
+                .expect_err("undersized work areas must fail");
         assert!(error.contains("too small"));
     }
 }
