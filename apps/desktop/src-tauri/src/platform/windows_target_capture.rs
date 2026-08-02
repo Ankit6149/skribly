@@ -184,6 +184,17 @@ fn process_identity_matches(
         && captured_class_name.eq_ignore_ascii_case(current_class_name)
 }
 
+fn next_capture_sequence() -> u64 {
+    CAPTURE_SEQUENCE.fetch_add(1, Ordering::Relaxed) + 1
+}
+
+fn current_unix_ms() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64
+}
+
 fn query_process_id(hwnd: HWND) -> Option<u32> {
     let mut process_id = 0u32;
     let thread_id = unsafe { GetWindowThreadProcessId(hwnd, Some(&mut process_id)) };
@@ -230,11 +241,8 @@ pub fn capture_foreground_target() -> Result<CapturedTarget, TargetCaptureError>
     Ok(CapturedTarget {
         target,
         process_id,
-        sequence: CAPTURE_SEQUENCE.fetch_add(1, Ordering::Relaxed) + 1,
-        captured_at_unix_ms: SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_millis() as u64,
+        sequence: next_capture_sequence(),
+        captured_at_unix_ms: current_unix_ms(),
         captured_at: Instant::now(),
     })
 }
@@ -313,6 +321,14 @@ mod tests {
             ..candidate()
         };
         assert!(validate_candidate(&packaged).is_ok());
+    }
+
+    #[test]
+    fn capture_metadata_is_monotonic_and_timestamped() {
+        let first = next_capture_sequence();
+        let second = next_capture_sequence();
+        assert_eq!(second, first + 1);
+        assert!(current_unix_ms() > 0);
     }
 
     #[test]
