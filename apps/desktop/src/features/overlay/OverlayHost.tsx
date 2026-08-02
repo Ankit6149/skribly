@@ -6,10 +6,8 @@ import { useSkribStore } from '../../stores/skribStore';
 import { useSkribUiStore } from '../../stores/skribUiStore';
 import { SkribComposer } from '../skribs/SkribComposer';
 import { selectStorageSurface } from './storageSurface';
-import {
-  TargetCaptureErrorPayload,
-  TargetCaptureErrorSurface,
-} from './TargetCaptureErrorSurface';
+import type { TargetCaptureErrorPayload } from './targetCaptureError';
+import { TargetCaptureErrorSurface } from './TargetCaptureErrorSurface';
 
 export const OverlayHost: React.FC = () => {
   const {
