@@ -21,6 +21,8 @@ The active compact-note flow is:
 
 Launching Skribli again in the same Windows user session signals the existing process through the same note-opening path instead of starting a second storage writer, tray process, hotkey registration, or WinEvent hook set.
 
+Windows accessibility events use bounded, non-blocking delivery with callback-side filtering and duplicate coalescing. Relevant foreground and active-target changes are processed by a separate consumer thread; unrelated child-object and non-target movement events are discarded before queue delivery.
+
 The current build does **not** leave a floating dot, attached tab, permanent toolbar, or full-screen interactive overlay after the editor closes.
 
 The final create/reopen lifecycle, safe context identity, reversible trash, complete All Skribs library, physical Windows acceptance, installer lifecycle, and signed release evidence remain tracked in the production-readiness backlog. Do not treat a successful compile or website deployment as proof that the Windows product is ready to distribute.
@@ -34,6 +36,8 @@ The final create/reopen lifecycle, safe context identity, reversible trash, comp
 - Final native placement validation, fail-closed errors, and a keyboard-accessible **Reposition** action.
 - Per-Windows-session named-mutex guard acquired before the Tauri runtime starts.
 - Second-launch routing through the existing global-shortcut note flow.
+- Bounded, non-blocking, filtered, and duplicate-coalesced Windows event delivery.
+- Privacy-safe event counters for filtering, delivery, saturation, disconnection, processing, and pending capacity.
 - Local versioned JSON persistence with crash-recovery generations and storage diagnostics.
 - Ordered/coalesced text persistence with truthful save and retry states.
 - Final-save flush before the compact editor hides.
@@ -48,7 +52,7 @@ The final create/reopen lifecycle, safe context identity, reversible trash, comp
 The canonical execution tracker is [issue #34](https://github.com/Ankit6149/skribly/issues/34). The most immediate blockers include:
 
 - [#15](https://github.com/Ankit6149/skribly/issues/15) remaining shutdown, installer, suspend/resume, and lifecycle evidence after the core single-instance guard;
-- [#17](https://github.com/Ankit6149/skribly/issues/17) bounded Windows event processing;
+- [#17](https://github.com/Ankit6149/skribly/issues/17) physical idle, event-storm, accessibility-heavy application, Remote Desktop, suspend/resume, and long-session evidence after bounded event delivery implementation;
 - [#18](https://github.com/Ankit6149/skribly/issues/18) fail-closed durable context identity;
 - [#19](https://github.com/Ankit6149/skribly/issues/19) physical mixed-DPI, topology-change, taskbar, and Remote Desktop evidence after monitor-safe placement implementation;
 - [#20](https://github.com/Ankit6149/skribly/issues/20) final note lifecycle contract;
@@ -131,6 +135,7 @@ These commands prove static, frontend, and Rust test gates only. Windows accepta
 - [Current and future product requirements](docs/00-product/PRD.md)
 - [Compact editor placement acceptance](docs/04-operations/WINDOW_PLACEMENT_ACCEPTANCE.md)
 - [Single-instance and lifecycle acceptance](docs/04-operations/SINGLE_INSTANCE_ACCEPTANCE.md)
+- [Windows event-pipeline acceptance](docs/04-operations/WIN_EVENT_ACCEPTANCE.md)
 - [Repository governance](docs/06-planning/REPOSITORY_GOVERNANCE.md)
 
 When code behavior changes, update the relevant issue, tests, README, product documents, website claims, and release evidence together.
