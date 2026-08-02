@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   repository-governance:
-    name: Repository governance validation
+    name: Repository governance and product truth
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -24,6 +24,9 @@ jobs:
 
       - name: Validate repository governance controls
         run: node scripts/governance/validate-repository.mjs
+
+      - name: Validate current product claims
+        run: node scripts/validation/validate-product-truth.mjs
 
   landing-site:
     name: Landing site validation
