@@ -18,14 +18,27 @@ const nativeEntry = await read('apps/desktop/src-tauri/src/lib.rs');
 const windowsPlatform = await read('apps/desktop/src-tauri/src/platform/windows.rs');
 const windowsEvents = await read('apps/desktop/src-tauri/src/platform/windows_events.rs');
 const windowsPlacement = await read('apps/desktop/src-tauri/src/platform/windows_placement.rs');
+const windowsTargetCapture = await read(
+  'apps/desktop/src-tauri/src/platform/windows_target_capture.rs'
+);
 const windowsSingleInstance = await read('apps/desktop/src-tauri/src/windows_single_instance.rs');
+const overlayHost = await read('apps/desktop/src/features/overlay/OverlayHost.tsx');
+const captureErrorSurface = await read(
+  'apps/desktop/src/features/overlay/TargetCaptureErrorSurface.tsx'
+);
+const captureErrorModel = await read(
+  'apps/desktop/src/features/overlay/targetCaptureError.ts'
+);
 const placementAcceptance = await read('docs/04-operations/WINDOW_PLACEMENT_ACCEPTANCE.md');
 const singleInstanceAcceptance = await read('docs/04-operations/SINGLE_INSTANCE_ACCEPTANCE.md');
 const winEventAcceptance = await read('docs/04-operations/WIN_EVENT_ACCEPTANCE.md');
+const targetCaptureAcceptance = await read('docs/04-operations/TARGET_CAPTURE_ACCEPTANCE.md');
 
 const requiredReadmeClaims = [
   'Skribli hides only after the latest non-empty draft is durably saved.',
   'A compact note editor opens inside that target monitor’s usable work area.',
+  'Skribli captures the foreground target once, clears any previous runtime target, and revalidates the exact HWND and process identity before using it.',
+  'Skribli shows one actionable compact message, clears the previous target, and does not create, reopen, move, or focus a note.',
   'Launching Skribli again in the same Windows user session signals the existing process',
   'Windows accessibility events use bounded, non-blocking delivery with callback-side filtering and duplicate coalescing.',
   'The current build does **not** leave a floating dot, attached tab, permanent toolbar, or full-screen interactive overlay',
@@ -148,7 +161,11 @@ const retiredWinEventPatterns = [
   'sender.send(notice)',
 ];
 for (const pattern of retiredWinEventPatterns) {
-  if (nativeEntry.includes(pattern) || windowsPlatform.includes(pattern) || windowsEvents.includes(pattern)) {
+  if (
+    nativeEntry.includes(pattern) ||
+    windowsPlatform.includes(pattern) ||
+    windowsEvents.includes(pattern)
+  ) {
     failures.push(`Retired unbounded or blocking WinEvent delivery returned: ${pattern}`);
   }
 }
@@ -163,6 +180,72 @@ if (!windowsPlatform.includes('deliver_global_win_event')) {
 
 if (!winEventAcceptance.includes('Parent issue 17 remains open')) {
   failures.push('WinEvent acceptance documentation must state that physical runtime evidence is still required.');
+}
+
+const requiredTargetCaptureImplementation = [
+  'GetForegroundWindow',
+  'GetWindowThreadProcessId',
+  'CAPTURE_SEQUENCE',
+  'capture_foreground_target',
+  'revalidate_captured_target',
+  'process_identity_matches',
+  'TargetCaptureErrorCode',
+  'MAX_CAPTURE_AGE',
+];
+for (const claim of requiredTargetCaptureImplementation) {
+  if (!windowsTargetCapture.includes(claim)) {
+    failures.push(`Windows target capture is missing required fail-closed behavior: ${claim}`);
+  }
+}
+
+const requiredShortcutFlow = [
+  'set_runtime_active_target(&state_hk, None);',
+  'capture_foreground_target()',
+  'revalidate_captured_target(&capture)',
+  'present_target_capture_error',
+  'skribly://target-capture-error',
+  'skribly://target-capture-clear',
+];
+for (const claim of requiredShortcutFlow) {
+  if (!nativeEntry.includes(claim)) {
+    failures.push(`The shortcut path is missing required capture safety: ${claim}`);
+  }
+}
+
+const retiredTargetFallbacks = [
+  '.or_else(|| coordinator_hk.get_active_target())',
+  'get_foreground_target_window()\n                                    .or_else',
+];
+for (const pattern of retiredTargetFallbacks) {
+  if (nativeEntry.includes(pattern)) {
+    failures.push(`Retired stale-target shortcut fallback returned: ${pattern}`);
+  }
+}
+
+if (!overlayHost.includes("listen<TargetCaptureErrorPayload>('skribly://target-capture-error'")) {
+  failures.push('The hidden compact window must listen for typed target-capture failures.');
+}
+
+const requiredCaptureErrorUi = [
+  'NO NOTE WAS OPENED',
+  'Skribli cleared the previous target',
+  'role="alert"',
+  'Ctrl',
+  'Shift',
+  'Space',
+];
+for (const claim of requiredCaptureErrorUi) {
+  if (!captureErrorSurface.includes(claim)) {
+    failures.push(`The capture recovery surface is missing required guidance: ${claim}`);
+  }
+}
+
+if (!captureErrorModel.includes('processIdentityChanged')) {
+  failures.push('The frontend capture-error model must include recycled-process identity failure.');
+}
+
+if (!targetCaptureAcceptance.includes('Parent issue 18 remains open')) {
+  failures.push('Target-capture acceptance must keep the durable context parent open.');
 }
 
 if (failures.length > 0) {
