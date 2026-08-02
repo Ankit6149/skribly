@@ -24,8 +24,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
 };
 
 pub const GLOBAL_HOTKEY_ID: i32 = 0x534B;
-pub const SINGLE_INSTANCE_MUTEX_NAME: &str =
-    "Local\\app.skribly.desktop.single-instance.2026-08";
+pub const SINGLE_INSTANCE_MUTEX_NAME: &str = "Local\\app.skribly.desktop.single-instance.2026-08";
 const SIGNAL_ATTEMPTS: usize = 40;
 const SIGNAL_RETRY_DELAY: Duration = Duration::from_millis(50);
 
@@ -54,7 +53,7 @@ struct ProcessHandle(HANDLE);
 
 impl Drop for ProcessHandle {
     fn drop(&mut self) {
-        if !self.0.is_invalid() && !self.0.0.is_null() {
+        if !self.0.is_invalid() && !self.0 .0.is_null() {
             unsafe {
                 let _ = CloseHandle(self.0);
             }
