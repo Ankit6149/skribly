@@ -246,6 +246,37 @@ body {
   gap: 8px;
 }
 
+.composer-delete-confirmation {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.composer-delete-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.composer-delete-copy strong {
+  color: #6f2424;
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+.composer-delete-copy small {
+  color: rgba(81, 31, 31, 0.72);
+  font-size: 8px;
+  line-height: 1.35;
+}
+
+.composer-delete-confirmation .composer-footer-actions {
+  flex: 0 0 auto;
+}
+
 .composer-footer button {
   min-height: 36px;
   padding: 0 14px;
@@ -270,6 +301,13 @@ body {
 
 .composer-footer button.secondary.danger {
   color: #854040;
+}
+
+.composer-footer button.danger-confirm {
+  border-color: rgba(91, 28, 28, 0.24);
+  background: #7f2929;
+  color: #fffaf6;
+  box-shadow: 0 8px 18px rgba(91, 28, 28, 0.18);
 }
 
 .composer-footer button.primary {
