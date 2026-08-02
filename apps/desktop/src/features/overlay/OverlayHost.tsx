@@ -1,3 +1,4 @@
+import { listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import React, { useEffect, useRef, useState } from 'react';
 import '../../styles/storage-recovery.css';
@@ -5,6 +6,10 @@ import { useSkribStore } from '../../stores/skribStore';
 import { useSkribUiStore } from '../../stores/skribUiStore';
 import { SkribComposer } from '../skribs/SkribComposer';
 import { selectStorageSurface } from './storageSurface';
+import {
+  TargetCaptureErrorPayload,
+  TargetCaptureErrorSurface,
+} from './TargetCaptureErrorSurface';
 
 export const OverlayHost: React.FC = () => {
   const {
@@ -21,6 +26,7 @@ export const OverlayHost: React.FC = () => {
   } = useSkribStore();
   const { composerNoteId, openComposer } = useSkribUiStore();
   const [diagnosticsPath, setDiagnosticsPath] = useState<string | null>(null);
+  const [captureError, setCaptureError] = useState<TargetCaptureErrorPayload | null>(null);
 
   const initialSnapshotTakenRef = useRef(false);
   const knownNoteIdsRef = useRef<Set<string>>(new Set());
@@ -28,6 +34,31 @@ export const OverlayHost: React.FC = () => {
   useEffect(() => {
     void initTauri();
   }, [initTauri]);
+
+  useEffect(() => {
+    let disposed = false;
+    const unlistenCallbacks: Array<() => void> = [];
+
+    void Promise.all([
+      listen<TargetCaptureErrorPayload>('skribly://target-capture-error', (event) => {
+        if (!disposed) setCaptureError(event.payload);
+      }),
+      listen('skribly://target-capture-clear', () => {
+        if (!disposed) setCaptureError(null);
+      }),
+    ]).then((callbacks) => {
+      if (disposed) {
+        callbacks.forEach((unlisten) => unlisten());
+      } else {
+        unlistenCallbacks.push(...callbacks);
+      }
+    });
+
+    return () => {
+      disposed = true;
+      unlistenCallbacks.forEach((unlisten) => unlisten());
+    };
+  }, []);
 
   useEffect(() => {
     if (initStatus.type === 'Initializing') return;
@@ -143,6 +174,15 @@ export const OverlayHost: React.FC = () => {
           </footer>
         </section>
       </div>
+    );
+  }
+
+  if (captureError) {
+    return (
+      <TargetCaptureErrorSurface
+        error={captureError}
+        onDismiss={() => setCaptureError(null)}
+      />
     );
   }
 
