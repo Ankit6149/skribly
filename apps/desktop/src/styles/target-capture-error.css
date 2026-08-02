@@ -1,0 +1,208 @@
+.target-capture-error-backdrop {
+  width: 100%;
+  height: 100%;
+  padding: 12px;
+  display: grid;
+  place-items: center;
+  background: transparent;
+}
+
+.target-capture-error-panel {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  border: 1px solid rgba(79, 67, 50, 0.2);
+  border-radius: 18px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.56), transparent 42%),
+    #fffaf0;
+  box-shadow:
+    0 22px 54px rgba(55, 44, 31, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.86);
+  color: #302a22;
+}
+
+.target-capture-error-header {
+  min-height: 86px;
+  padding: 18px 18px 12px 20px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid rgba(91, 72, 50, 0.12);
+  cursor: default;
+}
+
+.target-capture-error-kicker {
+  display: block;
+  margin-bottom: 6px;
+  color: #9b5d43;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+}
+
+.target-capture-error-header h1 {
+  margin: 0;
+  max-width: 300px;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(1.35rem, 5vw, 1.78rem);
+  line-height: 1.08;
+  font-weight: 650;
+}
+
+.target-capture-error-close {
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(69, 56, 40, 0.07);
+  color: #554b3e;
+  font: inherit;
+  cursor: pointer;
+}
+
+.target-capture-error-close:hover {
+  background: rgba(69, 56, 40, 0.12);
+}
+
+.target-capture-error-close:focus-visible,
+.target-capture-error-footer .primary:focus-visible {
+  outline: 3px solid rgba(83, 105, 85, 0.38);
+  outline-offset: 2px;
+}
+
+.target-capture-error-body {
+  min-height: 0;
+  overflow: auto;
+  padding: 16px 20px;
+  display: grid;
+  align-content: start;
+  gap: 13px;
+}
+
+.target-capture-error-body > p {
+  margin: 0;
+  color: #4f463a;
+  font-size: 0.95rem;
+  line-height: 1.48;
+}
+
+.target-capture-error-safety,
+.target-capture-error-next {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: start;
+  padding: 11px 12px;
+  border-radius: 12px;
+}
+
+.target-capture-error-safety {
+  background: rgba(100, 137, 102, 0.1);
+  color: #39583e;
+}
+
+.target-capture-error-safety > span {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(67, 119, 75, 0.13);
+  font-weight: 800;
+}
+
+.target-capture-error-next {
+  grid-template-columns: 42px 1fr;
+  background: rgba(171, 127, 68, 0.09);
+}
+
+.target-capture-error-next > span {
+  color: #8b6330;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.target-capture-error-safety p,
+.target-capture-error-next p {
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.4;
+}
+
+.target-capture-error-next kbd {
+  display: inline-block;
+  min-width: 22px;
+  padding: 1px 5px 2px;
+  border: 1px solid rgba(69, 56, 40, 0.2);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.62);
+  font-family: inherit;
+  font-size: 0.76rem;
+  text-align: center;
+}
+
+.target-capture-error-footer {
+  padding: 12px 18px 16px;
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid rgba(91, 72, 50, 0.1);
+}
+
+.target-capture-error-footer .primary {
+  min-width: 112px;
+  min-height: 42px;
+  padding: 9px 18px;
+  border: 0;
+  border-radius: 999px;
+  background: #334b3a;
+  color: #fffdf7;
+  font: inherit;
+  font-weight: 750;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(51, 75, 58, 0.2);
+}
+
+.target-capture-error-footer .primary:hover {
+  background: #293e30;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .target-capture-error-panel {
+    animation: target-capture-error-enter 150ms ease-out;
+  }
+}
+
+@keyframes target-capture-error-enter {
+  from {
+    opacity: 0;
+    transform: translateY(5px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (forced-colors: active) {
+  .target-capture-error-panel,
+  .target-capture-error-close,
+  .target-capture-error-safety,
+  .target-capture-error-next,
+  .target-capture-error-footer .primary {
+    border: 1px solid CanvasText;
+    background: Canvas;
+    color: CanvasText;
+    box-shadow: none;
+  }
+}
