@@ -553,8 +553,7 @@ pub fn run() {
 
     let coordinator = Coordinator::new();
     #[cfg(target_os = "windows")]
-    let (win_event_pipeline, event_receiver) =
-        WinEventPipeline::new(WIN_EVENT_QUEUE_CAPACITY);
+    let (win_event_pipeline, event_receiver) = WinEventPipeline::new(WIN_EVENT_QUEUE_CAPACITY);
     let running = Arc::new(AtomicBool::new(true));
     let storage_path = std::env::temp_dir().join("skribly-uninitialized.json");
     let app_state = AppState {
@@ -797,8 +796,7 @@ pub fn run() {
                                             &state_ev,
                                             false,
                                         );
-                                        let _ = app_handle_ev
-                                            .emit("skribly://overlay-update", payload);
+                                        let _ = app_handle_ev.emit("skribly://overlay-update", payload);
                                     } else if let Some(hwnd) = reconstruct_hwnd(notice.hwnd_val) {
                                         if let Some(updated) = inspect_target_window(hwnd) {
                                             set_runtime_active_target(
@@ -810,8 +808,7 @@ pub fn run() {
                                                 &state_ev,
                                                 false,
                                             );
-                                            let _ = app_handle_ev
-                                                .emit("skribly://overlay-update", payload);
+                                            let _ = app_handle_ev.emit("skribly://overlay-update", payload);
                                         } else {
                                             set_runtime_active_target(&state_ev, None);
                                             let payload = build_mutation_payload(
@@ -819,8 +816,7 @@ pub fn run() {
                                                 &state_ev,
                                                 false,
                                             );
-                                            let _ = app_handle_ev
-                                                .emit("skribly://overlay-update", payload);
+                                            let _ = app_handle_ev.emit("skribly://overlay-update", payload);
                                         }
                                     }
                                 } else if notice.event_type == EVENT_SYSTEM_FOREGROUND {
@@ -829,10 +825,7 @@ pub fn run() {
                                             let candidates = vec![new_target.clone()];
                                             match coordinator.find_best_context_match(&candidates) {
                                                 MatchResult::Unique(best) => {
-                                                    set_runtime_active_target(
-                                                        &state_ev,
-                                                        Some(best),
-                                                    );
+                                                    set_runtime_active_target(&state_ev, Some(best));
                                                 }
                                                 _ => {
                                                     set_runtime_active_target(
@@ -846,8 +839,7 @@ pub fn run() {
                                                 &state_ev,
                                                 false,
                                             );
-                                            let _ = app_handle_ev
-                                                .emit("skribly://overlay-update", payload);
+                                            let _ = app_handle_ev.emit("skribly://overlay-update", payload);
                                         }
                                     }
                                 }
@@ -866,8 +858,7 @@ pub fn run() {
                                                     true,
                                                 );
                                                 payload.available_windows = matched;
-                                                let _ = app_handle_ev
-                                                    .emit("skribly://overlay-update", payload);
+                                                let _ = app_handle_ev.emit("skribly://overlay-update", payload);
                                             }
                                             MatchResult::None => {
                                                 set_runtime_active_target(
@@ -881,8 +872,7 @@ pub fn run() {
                                             &state_ev,
                                             false,
                                         );
-                                        let _ = app_handle_ev
-                                            .emit("skribly://overlay-update", payload);
+                                        let _ = app_handle_ev.emit("skribly://overlay-update", payload);
                                     }
                                 }
                             }
@@ -997,8 +987,7 @@ mod tests {
     fn test_overlay_initialization_status_transitions() {
         let coordinator = Coordinator::new();
         #[cfg(target_os = "windows")]
-        let (win_event_pipeline, _event_receiver) =
-            WinEventPipeline::new(WIN_EVENT_QUEUE_CAPACITY);
+        let (win_event_pipeline, _event_receiver) = WinEventPipeline::new(WIN_EVENT_QUEUE_CAPACITY);
         let app_state = AppState {
             coordinator,
             running: Arc::new(AtomicBool::new(true)),
@@ -1098,8 +1087,7 @@ mod tests {
         };
         coordinator.upsert_skrib(original.clone());
         #[cfg(target_os = "windows")]
-        let (win_event_pipeline, _event_receiver) =
-            WinEventPipeline::new(WIN_EVENT_QUEUE_CAPACITY);
+        let (win_event_pipeline, _event_receiver) = WinEventPipeline::new(WIN_EVENT_QUEUE_CAPACITY);
         let app_state = AppState {
             coordinator: coordinator.clone(),
             running: Arc::new(AtomicBool::new(true)),
