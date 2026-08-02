@@ -80,7 +80,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
+  gap: 12px;
   border-bottom: 1px dashed var(--skribli-line);
   cursor: grab;
 }
@@ -91,6 +91,7 @@ body {
 
 .composer-context {
   min-width: 0;
+  flex: 1 1 auto;
 }
 
 .composer-kicker {
@@ -104,7 +105,7 @@ body {
 
 .composer-context strong {
   display: block;
-  max-width: 300px;
+  max-width: 220px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -113,24 +114,51 @@ body {
   letter-spacing: -0.015em;
 }
 
-.composer-close {
-  width: 32px;
-  height: 32px;
+.composer-header-actions {
   flex: 0 0 auto;
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.composer-reposition,
+.composer-close {
+  flex: 0 0 auto;
   border: 1px solid rgba(38, 39, 31, 0.1);
-  border-radius: 50%;
   background: rgba(255, 255, 255, 0.44);
   color: rgba(38, 39, 31, 0.66);
   cursor: pointer;
-  font-size: 13px;
+  font-family: var(--skribli-ui-font);
   transition: background 130ms ease, transform 130ms ease;
 }
 
-.composer-close:hover {
+.composer-reposition {
+  min-height: 30px;
+  padding: 0 9px;
+  border-radius: 10px;
+  font-size: 9px;
+  font-weight: 750;
+}
+
+.composer-close {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 13px;
+}
+
+.composer-reposition:hover:not(:disabled),
+.composer-close:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.74);
-  transform: scale(1.04);
+  transform: translateY(-1px);
+}
+
+.composer-reposition:disabled,
+.composer-close:disabled {
+  opacity: 0.46;
+  cursor: not-allowed;
 }
 
 .composer-textarea {
@@ -208,6 +236,7 @@ body {
 
 .composer-recovery button:focus-visible,
 .composer-error button:focus-visible,
+.composer-reposition:focus-visible,
 .composer-close:focus-visible,
 .composer-footer button:focus-visible {
   outline: 2px solid currentColor;
@@ -226,6 +255,7 @@ body {
 }
 
 .composer-status {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -241,6 +271,7 @@ body {
 }
 
 .composer-footer-actions {
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -336,6 +367,55 @@ body {
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
+  }
+}
+
+@media (max-width: 360px), (max-height: 300px) {
+  .skrib-composer-backdrop {
+    padding: 6px;
+  }
+
+  .composer-header {
+    min-height: 56px;
+    padding: 14px 10px 8px;
+    gap: 8px;
+  }
+
+  .composer-context strong {
+    max-width: 145px;
+    font-size: 11px;
+  }
+
+  .composer-reposition {
+    padding: 0 7px;
+    font-size: 8px;
+  }
+
+  .composer-textarea {
+    padding: 14px 16px 10px;
+    font-size: 17px;
+    line-height: 1.45;
+  }
+
+  .composer-footer {
+    min-height: 56px;
+    padding: 8px 8px 9px 10px;
+    gap: 8px;
+  }
+
+  .composer-footer button {
+    min-height: 32px;
+    padding: 0 10px;
+    font-size: 10px;
+  }
+
+  .composer-delete-confirmation {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+
+  .composer-delete-confirmation .composer-footer-actions {
+    justify-content: flex-end;
   }
 }
 
