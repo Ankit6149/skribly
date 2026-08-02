@@ -3,7 +3,7 @@
 **Leave a note where the thought belongs.**
 
 > **Status — active production development**  
-> Public downloads remain disabled while the Windows desktop build completes its data-safety, lifecycle, context, placement, recovery, accessibility, and release-validation gates.
+> Public downloads remain disabled while the Windows desktop build completes its data-safety, lifecycle, context, recovery, accessibility, physical-runtime, and release-validation gates.
 
 Skribli is a local-first contextual typed-note utility for Windows. The current product direction is deliberately small: capture a thought in a compact editor, save it safely on the user’s computer, then return to the original application.
 
@@ -14,23 +14,31 @@ The active compact-note flow is:
 1. Focus a supported Windows application.
 2. Press **Ctrl + Shift + Space**.
 3. Skribli captures the foreground target before taking focus.
-4. A compact note editor opens near that target.
+4. A compact note editor opens inside that target monitor’s usable work area.
 5. Type while Skribli reports truthful **Unsaved**, **Saving**, **Saved**, or **Save failed** state.
 6. Choose **Done**, press **Escape**, or press **Ctrl + Enter**.
 7. Skribli hides only after the latest non-empty draft is durably saved. If persistence fails, the editor remains open so the draft is not silently lost.
 
+Launching Skribli again in the same Windows user session signals the existing process through the same note-opening path instead of starting a second storage writer, tray process, hotkey registration, or WinEvent hook set.
+
 The current build does **not** leave a floating dot, attached tab, permanent toolbar, or full-screen interactive overlay after the editor closes.
 
-The final create/reopen lifecycle, safe context identity, multi-monitor placement, reversible trash, complete All Skribs library, single-instance behavior, and native release evidence remain tracked in the production-readiness backlog. Do not treat a successful compile or website deployment as proof that the Windows product is ready to distribute.
+The final create/reopen lifecycle, safe context identity, reversible trash, complete All Skribs library, physical Windows acceptance, installer lifecycle, and signed release evidence remain tracked in the production-readiness backlog. Do not treat a successful compile or website deployment as proof that the Windows product is ready to distribute.
 
 ## Implemented foundations
 
 - Tauri 2 desktop shell with React, TypeScript, Vite, and Rust.
 - Compact fully interactive note window rather than a screen-blocking overlay.
 - Foreground-target capture before the Skribli window takes focus.
+- Target-monitor work-area placement using fresh HWND geometry and per-monitor DPI.
+- Final native placement validation, fail-closed errors, and a keyboard-accessible **Reposition** action.
+- Per-Windows-session named-mutex guard acquired before the Tauri runtime starts.
+- Second-launch routing through the existing global-shortcut note flow.
 - Local versioned JSON persistence with crash-recovery generations and storage diagnostics.
 - Ordered/coalesced text persistence with truthful save and retry states.
 - Final-save flush before the compact editor hides.
+- Rust-side note mutation validation for IDs, Unicode length, colours, and geometry.
+- Two-step explicit confirmation before the current irreversible delete operation.
 - No console window in the Windows release build configuration.
 - Global **Ctrl + Shift + Space** shortcut and tray-based background process.
 - Public downloads and payment flows disabled while release gates are incomplete.
@@ -39,10 +47,10 @@ The final create/reopen lifecycle, safe context identity, multi-monitor placemen
 
 The canonical execution tracker is [issue #34](https://github.com/Ankit6149/skribly/issues/34). The most immediate blockers include:
 
-- [#15](https://github.com/Ankit6149/skribly/issues/15) single-instance execution and safe background lifecycle;
+- [#15](https://github.com/Ankit6149/skribly/issues/15) remaining shutdown, installer, suspend/resume, and lifecycle evidence after the core single-instance guard;
 - [#17](https://github.com/Ankit6149/skribly/issues/17) bounded Windows event processing;
 - [#18](https://github.com/Ankit6149/skribly/issues/18) fail-closed durable context identity;
-- [#19](https://github.com/Ankit6149/skribly/issues/19) mixed-DPI and multi-monitor placement;
+- [#19](https://github.com/Ankit6149/skribly/issues/19) physical mixed-DPI, topology-change, taskbar, and Remote Desktop evidence after monitor-safe placement implementation;
 - [#20](https://github.com/Ankit6149/skribly/issues/20) final note lifecycle contract;
 - [#21](https://github.com/Ankit6149/skribly/issues/21) non-floating library, search, export, archive, and reversible trash;
 - [#24](https://github.com/Ankit6149/skribly/issues/24) release-blocking Windows runtime evidence;
@@ -121,6 +129,8 @@ These commands prove static, frontend, and Rust test gates only. Windows accepta
 - [Production-readiness execution plan](docs/06-planning/FULL_PRODUCT_AUDIT_AND_EXECUTION_PLAN.md)
 - [Product backlog and contribution map](docs/06-planning/PRODUCT_BACKLOG_AND_CONTRIBUTION_MAP.md)
 - [Current and future product requirements](docs/00-product/PRD.md)
+- [Compact editor placement acceptance](docs/04-operations/WINDOW_PLACEMENT_ACCEPTANCE.md)
+- [Single-instance and lifecycle acceptance](docs/04-operations/SINGLE_INSTANCE_ACCEPTANCE.md)
 - [Repository governance](docs/06-planning/REPOSITORY_GOVERNANCE.md)
 
 When code behavior changes, update the relevant issue, tests, README, product documents, website claims, and release evidence together.
