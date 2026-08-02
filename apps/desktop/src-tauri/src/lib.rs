@@ -20,10 +20,12 @@ use platform::windows::{
     get_foreground_target_window, get_overlay_metrics as query_overlay_metrics,
     inspect_target_window, install_hotkey_sender, install_overlay_subclass, install_winevent_hooks,
     list_candidate_target_windows, reconstruct_hwnd, register_global_hotkey, set_dpi_awareness,
-    uninstall_overlay_subclass, uninstall_winevent_hooks, unregister_global_hotkey, WinEventNotice,
+    uninstall_overlay_subclass, uninstall_winevent_hooks, unregister_global_hotkey,
     EVENT_OBJECT_DESTROY, EVENT_OBJECT_LOCATIONCHANGE, EVENT_SYSTEM_FOREGROUND,
     EVENT_SYSTEM_MINIMIZEEND, EVENT_SYSTEM_MINIMIZESTART,
 };
+#[cfg(target_os = "windows")]
+use platform::windows_events::{WinEventPipeline, WIN_EVENT_QUEUE_CAPACITY};
 #[cfg(target_os = "windows")]
 use platform::windows_focus::focus_external_window;
 #[cfg(target_os = "windows")]
@@ -48,7 +50,15 @@ pub struct AppState {
     pub storage_notice: Mutex<Option<storage::StorageNotice>>,
     pub storage_error: Mutex<Option<String>>,
     #[cfg(target_os = "windows")]
-    pub win_event_sender: std::sync::mpsc::Sender<WinEventNotice>,
+    pub win_event_pipeline: WinEventPipeline,
+}
+
+fn set_runtime_active_target(state: &AppState, target: Option<TargetWindowInfo>) {
+    #[cfg(target_os = "windows")]
+    state
+        .win_event_pipeline
+        .set_active_target(target.as_ref().map(|target| target.hwnd_val));
+    state.coordinator.set_active_target(target);
 }
 
 fn persist_skribs(state: &AppState) -> Result<(), String> {
@@ -283,8 +293,7 @@ fn initialize_native_overlay(
 
         unregister_global_hotkey(win_hwnd, GLOBAL_HOTKEY_ID);
         register_global_hotkey(win_hwnd, GLOBAL_HOTKEY_ID)?;
-        uninstall_winevent_hooks();
-        if !install_winevent_hooks(state.win_event_sender.clone()) {
+        if !install_winevent_hooks(state.win_event_pipeline.clone()) {
             unregister_global_hotkey(win_hwnd, GLOBAL_HOTKEY_ID);
             return Err("Failed to install required Windows event hooks".into());
         }
@@ -342,7 +351,7 @@ fn reposition_compact_window(
             .get_webview_window("main")
             .ok_or_else(|| "The compact editor window is unavailable.".to_string())?;
         let metrics = position_compact_window_for_target(&window, &refreshed_target)?;
-        state.coordinator.set_active_target(Some(refreshed_target));
+        set_runtime_active_target(&state, Some(refreshed_target));
         Ok(metrics)
     }
     #[cfg(not(target_os = "windows"))]
@@ -358,7 +367,7 @@ fn set_active_target(
     state: State<'_, AppState>,
     target: Option<TargetWindowInfo>,
 ) -> OverlayStatePayload {
-    state.coordinator.set_active_target(target);
+    set_runtime_active_target(&state, target);
     build_overlay_payload(&app_handle, &state, false)
 }
 
@@ -508,18 +517,18 @@ fn refresh_target_state(app_handle: AppHandle, state: State<'_, AppState>) -> Ov
         if let Some(target) = state.coordinator.get_active_target() {
             if let Some(hwnd) = reconstruct_hwnd(target.hwnd_val) {
                 if let Some(updated_target) = inspect_target_window(hwnd) {
-                    state.coordinator.set_active_target(Some(updated_target));
+                    set_runtime_active_target(&state, Some(updated_target));
                 } else {
-                    state.coordinator.set_active_target(None);
+                    set_runtime_active_target(&state, None);
                 }
             } else {
-                state.coordinator.set_active_target(None);
+                set_runtime_active_target(&state, None);
             }
         } else {
             let candidates = list_candidate_target_windows();
             match state.coordinator.find_best_context_match(&candidates) {
                 MatchResult::Unique(best) => {
-                    state.coordinator.set_active_target(Some(best));
+                    set_runtime_active_target(&state, Some(best));
                 }
                 MatchResult::Ambiguous(_) => {
                     is_ambiguous = true;
@@ -540,14 +549,12 @@ pub fn run() {
         set_dpi_awareness();
     }
 
-    let (event_sender, event_receiver): (
-        std::sync::mpsc::Sender<WinEventNotice>,
-        Receiver<WinEventNotice>,
-    ) = channel();
-
     let (hotkey_sender, hotkey_receiver): (std::sync::mpsc::Sender<i32>, Receiver<i32>) = channel();
 
     let coordinator = Coordinator::new();
+    #[cfg(target_os = "windows")]
+    let (win_event_pipeline, event_receiver) =
+        WinEventPipeline::new(WIN_EVENT_QUEUE_CAPACITY);
     let running = Arc::new(AtomicBool::new(true));
     let storage_path = std::env::temp_dir().join("skribly-uninitialized.json");
     let app_state = AppState {
@@ -559,7 +566,7 @@ pub fn run() {
         storage_notice: Mutex::new(None),
         storage_error: Mutex::new(None),
         #[cfg(target_os = "windows")]
-        win_event_sender: event_sender.clone(),
+        win_event_pipeline: win_event_pipeline.clone(),
     };
 
     let app = tauri::Builder::default()
@@ -654,7 +661,7 @@ pub fn run() {
 
                         let state_hk = app_handle_hk.state::<AppState>();
                         let Some(target) = target_to_use else {
-                            coordinator_hk.set_active_target(None);
+                            set_runtime_active_target(&state_hk, None);
                             let _ = app_handle_hk.emit(
                                 "skribly://hotkey-error",
                                 "Skribli could not detect the active application. Click the application and try the shortcut again.",
@@ -678,7 +685,7 @@ pub fn run() {
                             continue;
                         }
 
-                        coordinator_hk.set_active_target(Some(target.clone()));
+                        set_runtime_active_target(&state_hk, Some(target.clone()));
                         let existing_notes = coordinator_hk.get_skribs_for_target(&target);
                         if existing_notes.is_empty() {
                             let timestamp = std::time::SystemTime::now()
@@ -728,7 +735,9 @@ pub fn run() {
                 let mut tick_counter: u32 = 0;
                 while running_flag.load(Ordering::Relaxed) {
                     tick_counter = tick_counter.wrapping_add(1);
-                    if let Ok(notice) = event_receiver.recv_timeout(Duration::from_millis(500)) {
+                    if let Ok(mut notice) = event_receiver.recv_timeout(Duration::from_millis(500)) {
+                        notice.mark_processing_started();
+                        let state_ev = app_handle_ev.state::<AppState>();
                         let note_window_visible = app_handle_ev
                             .get_webview_window("main")
                             .and_then(|window| window.is_visible().ok())
@@ -744,8 +753,10 @@ pub fn run() {
                                     if target.hwnd_val == notice.hwnd_val {
                                         if let Some(hwnd) = reconstruct_hwnd(notice.hwnd_val) {
                                             if let Some(updated) = inspect_target_window(hwnd) {
-                                                coordinator
-                                                    .set_active_target(Some(updated.clone()));
+                                                set_runtime_active_target(
+                                                    &state_ev,
+                                                    Some(updated.clone()),
+                                                );
                                                 if let Some(window) =
                                                     app_handle_ev.get_webview_window("main")
                                                 {
@@ -769,20 +780,31 @@ pub fn run() {
                         }
 
                         #[cfg(target_os = "windows")]
-                        {
-                            let state_ev = app_handle_ev.state::<AppState>();
-                            if matches!(
-                                notice.event_type,
-                                EVENT_SYSTEM_FOREGROUND
-                                    | EVENT_SYSTEM_MINIMIZESTART
-                                    | EVENT_SYSTEM_MINIMIZEEND
-                                    | EVENT_OBJECT_DESTROY
-                                    | EVENT_OBJECT_LOCATIONCHANGE
-                            ) {
-                                if let Some(target) = coordinator.get_active_target() {
-                                    if target.hwnd_val == notice.hwnd_val {
-                                        if notice.event_type == EVENT_OBJECT_DESTROY {
-                                            coordinator.set_active_target(None);
+                        if matches!(
+                            notice.event_type,
+                            EVENT_SYSTEM_FOREGROUND
+                                | EVENT_SYSTEM_MINIMIZESTART
+                                | EVENT_SYSTEM_MINIMIZEEND
+                                | EVENT_OBJECT_DESTROY
+                                | EVENT_OBJECT_LOCATIONCHANGE
+                        ) {
+                            if let Some(target) = coordinator.get_active_target() {
+                                if target.hwnd_val == notice.hwnd_val {
+                                    if notice.event_type == EVENT_OBJECT_DESTROY {
+                                        set_runtime_active_target(&state_ev, None);
+                                        let payload = build_mutation_payload(
+                                            &app_handle_ev,
+                                            &state_ev,
+                                            false,
+                                        );
+                                        let _ = app_handle_ev
+                                            .emit("skribly://overlay-update", payload);
+                                    } else if let Some(hwnd) = reconstruct_hwnd(notice.hwnd_val) {
+                                        if let Some(updated) = inspect_target_window(hwnd) {
+                                            set_runtime_active_target(
+                                                &state_ev,
+                                                Some(updated.clone()),
+                                            );
                                             let payload = build_mutation_payload(
                                                 &app_handle_ev,
                                                 &state_ev,
@@ -790,52 +812,15 @@ pub fn run() {
                                             );
                                             let _ = app_handle_ev
                                                 .emit("skribly://overlay-update", payload);
-                                        } else if let Some(hwnd) = reconstruct_hwnd(notice.hwnd_val)
-                                        {
-                                            if let Some(updated) = inspect_target_window(hwnd) {
-                                                coordinator
-                                                    .set_active_target(Some(updated.clone()));
-                                                let payload = build_mutation_payload(
-                                                    &app_handle_ev,
-                                                    &state_ev,
-                                                    false,
-                                                );
-                                                let _ = app_handle_ev
-                                                    .emit("skribly://overlay-update", payload);
-                                            } else {
-                                                coordinator.set_active_target(None);
-                                                let payload = build_mutation_payload(
-                                                    &app_handle_ev,
-                                                    &state_ev,
-                                                    false,
-                                                );
-                                                let _ = app_handle_ev
-                                                    .emit("skribly://overlay-update", payload);
-                                            }
-                                        }
-                                    } else if notice.event_type == EVENT_SYSTEM_FOREGROUND {
-                                        if let Some(hwnd) = reconstruct_hwnd(notice.hwnd_val) {
-                                            if let Some(new_target) = inspect_target_window(hwnd) {
-                                                let candidates = vec![new_target.clone()];
-                                                match coordinator
-                                                    .find_best_context_match(&candidates)
-                                                {
-                                                    MatchResult::Unique(best) => {
-                                                        coordinator.set_active_target(Some(best));
-                                                    }
-                                                    _ => {
-                                                        coordinator
-                                                            .set_active_target(Some(new_target));
-                                                    }
-                                                }
-                                                let payload = build_mutation_payload(
-                                                    &app_handle_ev,
-                                                    &state_ev,
-                                                    false,
-                                                );
-                                                let _ = app_handle_ev
-                                                    .emit("skribly://overlay-update", payload);
-                                            }
+                                        } else {
+                                            set_runtime_active_target(&state_ev, None);
+                                            let payload = build_mutation_payload(
+                                                &app_handle_ev,
+                                                &state_ev,
+                                                false,
+                                            );
+                                            let _ = app_handle_ev
+                                                .emit("skribly://overlay-update", payload);
                                         }
                                     }
                                 } else if notice.event_type == EVENT_SYSTEM_FOREGROUND {
@@ -844,20 +829,16 @@ pub fn run() {
                                             let candidates = vec![new_target.clone()];
                                             match coordinator.find_best_context_match(&candidates) {
                                                 MatchResult::Unique(best) => {
-                                                    coordinator.set_active_target(Some(best));
-                                                }
-                                                MatchResult::Ambiguous(matched) => {
-                                                    let mut payload = build_mutation_payload(
-                                                        &app_handle_ev,
+                                                    set_runtime_active_target(
                                                         &state_ev,
-                                                        true,
+                                                        Some(best),
                                                     );
-                                                    payload.available_windows = matched;
-                                                    let _ = app_handle_ev
-                                                        .emit("skribly://overlay-update", payload);
                                                 }
-                                                MatchResult::None => {
-                                                    coordinator.set_active_target(Some(new_target));
+                                                _ => {
+                                                    set_runtime_active_target(
+                                                        &state_ev,
+                                                        Some(new_target),
+                                                    );
                                                 }
                                             }
                                             let payload = build_mutation_payload(
@@ -870,6 +851,40 @@ pub fn run() {
                                         }
                                     }
                                 }
+                            } else if notice.event_type == EVENT_SYSTEM_FOREGROUND {
+                                if let Some(hwnd) = reconstruct_hwnd(notice.hwnd_val) {
+                                    if let Some(new_target) = inspect_target_window(hwnd) {
+                                        let candidates = vec![new_target.clone()];
+                                        match coordinator.find_best_context_match(&candidates) {
+                                            MatchResult::Unique(best) => {
+                                                set_runtime_active_target(&state_ev, Some(best));
+                                            }
+                                            MatchResult::Ambiguous(matched) => {
+                                                let mut payload = build_mutation_payload(
+                                                    &app_handle_ev,
+                                                    &state_ev,
+                                                    true,
+                                                );
+                                                payload.available_windows = matched;
+                                                let _ = app_handle_ev
+                                                    .emit("skribly://overlay-update", payload);
+                                            }
+                                            MatchResult::None => {
+                                                set_runtime_active_target(
+                                                    &state_ev,
+                                                    Some(new_target),
+                                                );
+                                            }
+                                        }
+                                        let payload = build_mutation_payload(
+                                            &app_handle_ev,
+                                            &state_ev,
+                                            false,
+                                        );
+                                        let _ = app_handle_ev
+                                            .emit("skribly://overlay-update", payload);
+                                    }
+                                }
                             }
                         }
                     } else if tick_counter % 4 == 0 {
@@ -878,7 +893,7 @@ pub fn run() {
                             let state_ev = app_handle_ev.state::<AppState>();
                             if let Some(target) = coordinator.get_active_target() {
                                 let Some(hwnd) = reconstruct_hwnd(target.hwnd_val) else {
-                                    coordinator.set_active_target(None);
+                                    set_runtime_active_target(&state_ev, None);
                                     let payload =
                                         build_mutation_payload(&app_handle_ev, &state_ev, false);
                                     let _ = app_handle_ev.emit("skribly://overlay-update", payload);
@@ -888,7 +903,7 @@ pub fn run() {
                                 if let Some(updated) = inspect_target_window(hwnd) {
                                     let placement_changed = updated.bounds != target.bounds
                                         || updated.dpi != target.dpi;
-                                    coordinator.set_active_target(Some(updated.clone()));
+                                    set_runtime_active_target(&state_ev, Some(updated.clone()));
                                     let note_window_visible = app_handle_ev
                                         .get_webview_window("main")
                                         .and_then(|window| window.is_visible().ok())
@@ -980,8 +995,12 @@ mod tests {
 
     #[test]
     fn test_overlay_initialization_status_transitions() {
+        let coordinator = Coordinator::new();
+        #[cfg(target_os = "windows")]
+        let (win_event_pipeline, _event_receiver) =
+            WinEventPipeline::new(WIN_EVENT_QUEUE_CAPACITY);
         let app_state = AppState {
-            coordinator: Coordinator::new(),
+            coordinator,
             running: Arc::new(AtomicBool::new(true)),
             init_status: Mutex::new(OverlayInitializationStatus::Initializing),
             mutation_lock: Mutex::new(()),
@@ -991,7 +1010,7 @@ mod tests {
             storage_notice: Mutex::new(None),
             storage_error: Mutex::new(None),
             #[cfg(target_os = "windows")]
-            win_event_sender: channel().0,
+            win_event_pipeline,
         };
 
         assert_eq!(
@@ -1078,6 +1097,9 @@ mod tests {
             updated_at: 1,
         };
         coordinator.upsert_skrib(original.clone());
+        #[cfg(target_os = "windows")]
+        let (win_event_pipeline, _event_receiver) =
+            WinEventPipeline::new(WIN_EVENT_QUEUE_CAPACITY);
         let app_state = AppState {
             coordinator: coordinator.clone(),
             running: Arc::new(AtomicBool::new(true)),
@@ -1087,7 +1109,7 @@ mod tests {
             storage_notice: Mutex::new(None),
             storage_error: Mutex::new(None),
             #[cfg(target_os = "windows")]
-            win_event_sender: channel().0,
+            win_event_pipeline,
         };
 
         let initial_health = app_state.storage_health();
