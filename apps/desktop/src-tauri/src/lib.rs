@@ -18,19 +18,16 @@ use core::storage;
 #[cfg(target_os = "windows")]
 use platform::windows::{
     get_foreground_target_window, get_overlay_metrics as query_overlay_metrics,
-    inspect_target_window, install_hotkey_sender, install_overlay_subclass,
-    install_winevent_hooks, list_candidate_target_windows, reconstruct_hwnd,
-    register_global_hotkey, set_dpi_awareness, uninstall_overlay_subclass,
-    uninstall_winevent_hooks, unregister_global_hotkey, WinEventNotice, EVENT_OBJECT_DESTROY,
-    EVENT_OBJECT_LOCATIONCHANGE, EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_MINIMIZEEND,
-    EVENT_SYSTEM_MINIMIZESTART,
+    inspect_target_window, install_hotkey_sender, install_overlay_subclass, install_winevent_hooks,
+    list_candidate_target_windows, reconstruct_hwnd, register_global_hotkey, set_dpi_awareness,
+    uninstall_overlay_subclass, uninstall_winevent_hooks, unregister_global_hotkey, WinEventNotice,
+    EVENT_OBJECT_DESTROY, EVENT_OBJECT_LOCATIONCHANGE, EVENT_SYSTEM_FOREGROUND,
+    EVENT_SYSTEM_MINIMIZEEND, EVENT_SYSTEM_MINIMIZESTART,
 };
 #[cfg(target_os = "windows")]
 use platform::windows_focus::focus_external_window;
 #[cfg(target_os = "windows")]
-use platform::windows_placement::{
-    initialize_compact_window, position_compact_window_for_target,
-};
+use platform::windows_placement::{initialize_compact_window, position_compact_window_for_target};
 
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -345,9 +342,7 @@ fn reposition_compact_window(
             .get_webview_window("main")
             .ok_or_else(|| "The compact editor window is unavailable.".to_string())?;
         let metrics = position_compact_window_for_target(&window, &refreshed_target)?;
-        state
-            .coordinator
-            .set_active_target(Some(refreshed_target));
+        state.coordinator.set_active_target(Some(refreshed_target));
         Ok(metrics)
     }
     #[cfg(not(target_os = "windows"))]
