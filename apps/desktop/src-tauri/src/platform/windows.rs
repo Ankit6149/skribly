@@ -24,8 +24,8 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
 use windows::Win32::UI::WindowsAndMessaging::{
     CallWindowProcW, EnumWindows, GetClassNameW, GetForegroundWindow, GetWindowLongPtrW,
     GetWindowRect, GetWindowTextW, GetWindowThreadProcessId, IsIconic, IsWindow, IsWindowVisible,
-    SetWindowLongPtrW, GWLP_WNDPROC, HTCLIENT, WINEVENT_OUTOFCONTEXT,
-    WINEVENT_SKIPOWNPROCESS, WM_HOTKEY, WM_NCHITTEST, WNDPROC,
+    SetWindowLongPtrW, GWLP_WNDPROC, HTCLIENT, WINEVENT_OUTOFCONTEXT, WINEVENT_SKIPOWNPROCESS,
+    WM_HOTKEY, WM_NCHITTEST, WNDPROC,
 };
 
 use crate::core::coordinator::Coordinator;
@@ -594,9 +594,7 @@ mod tests {
         assert!(check_hit_test_rect_math(0, 0, 1.25, &rects, 700, 300));
         assert!(!check_hit_test_rect_math(0, 0, 1.25, &rects, 100, 20));
         assert!(check_hit_test_rect_math(0, 0, 1.5, &rects, 300, 50));
-        assert!(check_hit_test_rect_math(
-            -1920, 0, 1.0, &rects, -1800, 30
-        ));
+        assert!(check_hit_test_rect_math(-1920, 0, 1.0, &rects, -1800, 30));
         assert!(!check_hit_test_rect_math(-1920, 0, 1.0, &rects, 150, 30));
         assert!(check_hit_test_rect_math(100, 200, 1.0, &rects, 250, 230));
         assert!(!check_hit_test_rect_math(100, 200, 1.0, &rects, 150, 30));
