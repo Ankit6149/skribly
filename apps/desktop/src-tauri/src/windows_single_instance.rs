@@ -24,6 +24,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
 };
 
 pub const GLOBAL_HOTKEY_ID: i32 = 0x534B;
+#[allow(dead_code)]
 pub const SINGLE_INSTANCE_MUTEX_NAME: &str = "Local\\app.skribly.desktop.single-instance.2026-08";
 const SIGNAL_ATTEMPTS: usize = 40;
 const SIGNAL_RETRY_DELAY: Duration = Duration::from_millis(50);
@@ -69,7 +70,7 @@ fn is_skribli_process_name(process_name: &str) -> bool {
 fn process_name_for_window(hwnd: HWND) -> String {
     unsafe {
         let mut process_id = 0u32;
-        windows::Win32::UI::WindowsAndMessaging::GetWindowThreadProcessId(
+        let _ = windows::Win32::UI::WindowsAndMessaging::GetWindowThreadProcessId(
             hwnd,
             Some(&mut process_id),
         );
@@ -154,7 +155,8 @@ pub fn acquire_or_signal_existing() -> Result<SingleInstanceOutcome, String> {
         )
         .map_err(|error| format!("Windows could not create the Skribli instance guard: {error}"))?
     };
-    let already_exists = unsafe { GetLastError() } == ERROR_ALREADY_EXISTS;
+    let already_exists =
+        matches!(unsafe { GetLastError() }, Ok(code) if code == ERROR_ALREADY_EXISTS);
 
     if already_exists {
         let secondary_handle = SingleInstanceGuard { handle };
