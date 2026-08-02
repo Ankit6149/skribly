@@ -13,6 +13,10 @@ async function read(relativePath) {
 const failures = [];
 const readme = await read('README.md');
 const cargoManifest = await read('apps/desktop/src-tauri/Cargo.toml');
+const nativeEntry = await read('apps/desktop/src-tauri/src/lib.rs');
+const windowsPlatform = await read('apps/desktop/src-tauri/src/platform/windows.rs');
+const windowsPlacement = await read('apps/desktop/src-tauri/src/platform/windows_placement.rs');
+const placementAcceptance = await read('docs/04-operations/WINDOW_PLACEMENT_ACCEPTANCE.md');
 
 const requiredReadmeClaims = [
   'Skribli hides only after the latest non-empty draft is durably saved.',
@@ -47,6 +51,40 @@ if (!cargoManifest.includes(expectedCargoDescription)) {
 
 if (/^description\s*=.*macOS/im.test(cargoManifest)) {
   failures.push('Cargo package description must not claim current macOS support.');
+}
+
+const requiredPlacementImplementation = [
+  'MonitorFromWindow',
+  'MONITOR_DEFAULTTONEAREST',
+  'GetMonitorInfoW',
+  'monitor_info.rcWork',
+  'calculate_compact_window_placement',
+  'position_compact_window_for_target',
+];
+for (const claim of requiredPlacementImplementation) {
+  if (!windowsPlacement.includes(claim)) {
+    failures.push(`Windows placement implementation is missing required behavior: ${claim}`);
+  }
+}
+
+const retiredPlacementSymbols = [
+  'get_virtual_screen_bounds',
+  'verify_overlay_bounds',
+  'attempt_overlay_bounds_initialization',
+  'initialize_overlay_with_retry',
+];
+for (const symbol of retiredPlacementSymbols) {
+  if (nativeEntry.includes(symbol) || windowsPlatform.includes(symbol)) {
+    failures.push(`Retired virtual-desktop placement symbol returned: ${symbol}`);
+  }
+}
+
+if (!nativeEntry.includes('reposition_compact_window')) {
+  failures.push('The native compact editor must expose the reposition command.');
+}
+
+if (!placementAcceptance.includes('Parent issue 19 remains open')) {
+  failures.push('Placement acceptance documentation must state that physical runtime evidence is still required.');
 }
 
 if (failures.length > 0) {
