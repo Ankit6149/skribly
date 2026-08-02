@@ -262,6 +262,10 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target }) =>
   const saveDetail = storageWritable
     ? 'Esc or Ctrl+Enter closes after the latest text is saved'
     : 'Recovery required before closing';
+  const textareaDescription =
+    deleteConfirmation === 'confirming'
+      ? 'composer-delete-warning'
+      : 'composer-save-status composer-character-count';
 
   return (
     <div className="skrib-composer-backdrop">
@@ -323,7 +327,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target }) =>
           readOnly={!canWrite}
           placeholder="Write the thought before it disappears…"
           spellCheck
-          aria-describedby="composer-save-status composer-character-count"
+          aria-describedby={textareaDescription}
           onChange={(event: ChangeEvent<HTMLTextAreaElement>) => handleTextChange(event.target.value)}
           onBlur={() => {
             if (!canWrite || operationInProgress.current) return;
@@ -340,7 +344,9 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target }) =>
             <div className="composer-delete-confirmation" role="alert" aria-live="assertive">
               <div className="composer-delete-copy">
                 <strong>Delete this note permanently?</strong>
-                <small>Trash is not available in this build. This action cannot be undone.</small>
+                <small id="composer-delete-warning">
+                  Trash is not available in this build. This action cannot be undone.
+                </small>
               </div>
               <div className="composer-footer-actions">
                 <button
