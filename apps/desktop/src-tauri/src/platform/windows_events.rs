@@ -153,13 +153,7 @@ impl WinEventPipeline {
         GLOBAL_PIPELINE.set(self.clone()).is_ok()
     }
 
-    pub fn deliver_raw(
-        &self,
-        event_type: u32,
-        hwnd_val: isize,
-        id_object: i32,
-        id_child: i32,
-    ) {
+    pub fn deliver_raw(&self, event_type: u32, hwnd_val: isize, id_object: i32, id_child: i32) {
         self.inner.received.fetch_add(1, Ordering::Relaxed);
 
         let active_target_hwnd = self.inner.active_target_hwnd.load(Ordering::Acquire);
@@ -241,12 +235,7 @@ fn classify_event(
     }
 }
 
-pub fn deliver_global_win_event(
-    event_type: u32,
-    hwnd_val: isize,
-    id_object: i32,
-    id_child: i32,
-) {
+pub fn deliver_global_win_event(event_type: u32, hwnd_val: isize, id_object: i32, id_child: i32) {
     if let Some(pipeline) = GLOBAL_PIPELINE.get() {
         pipeline.deliver_raw(event_type, hwnd_val, id_object, id_child);
     }
