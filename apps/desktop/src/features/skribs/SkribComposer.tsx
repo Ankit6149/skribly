@@ -9,6 +9,11 @@ import {
   DraftSaveSnapshot,
   MAX_NOTE_CHARACTERS,
 } from './draftSaveController';
+import {
+  INITIAL_DELETE_CONFIRMATION_STATE,
+  reduceDeleteConfirmation,
+  type DeleteConfirmationState,
+} from './deleteConfirmation';
 import { discardSkribDraft, persistSkribText, stageSkribDraft } from './textPersistence';
 
 interface SkribComposerProps {
@@ -48,6 +53,9 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target }) =>
   const [composerError, setComposerError] = useState<string | null>(null);
   const [diagnosticsPath, setDiagnosticsPath] = useState<string | null>(null);
   const [isFinishing, setIsFinishing] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState<DeleteConfirmationState>(
+    INITIAL_DELETE_CONFIRMATION_STATE
+  );
   const operationInProgress = useRef(false);
 
   const saveController = useMemo(
@@ -72,6 +80,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target }) =>
     setSaveSnapshot(saveController.getSnapshot());
     setComposerError(null);
     setDiagnosticsPath(null);
+    setDeleteConfirmation((state) => reduceDeleteConfirmation(state, 'note-changed'));
     return saveController.subscribe((snapshot) => {
       setSaveSnapshot(snapshot);
       setText(snapshot.draft);
@@ -149,8 +158,20 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target }) =>
     storageWritable,
   ]);
 
+  const cancelDeleteConfirmation = useCallback(() => {
+    setDeleteConfirmation((state) => reduceDeleteConfirmation(state, 'cancel'));
+  }, []);
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (deleteConfirmation === 'confirming') {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          cancelDeleteConfirmation();
+        }
+        return;
+      }
+
       const shouldFinish =
         event.key === 'Escape' ||
         (event.key === 'Enter' && (event.ctrlKey || event.metaKey));
@@ -161,7 +182,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target }) =>
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [finishAndHide]);
+  }, [cancelDeleteConfirmation, deleteConfirmation, finishAndHide]);
 
   const handleTextChange = (value: string) => {
     if (!canWrite) {
@@ -195,13 +216,31 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target }) =>
     }
   };
 
+  const requestDeleteConfirmation = () => {
+    if (!storageWritable) {
+      setComposerError('Storage needs recovery, so Skribli cannot delete this note.');
+      return;
+    }
+    if (!licenceAllowsWrite) {
+      setComposerError(licenseStatus.message || 'This build is currently read-only.');
+      return;
+    }
+
+    setComposerError(null);
+    setDeleteConfirmation((state) => reduceDeleteConfirmation(state, 'request'));
+  };
+
   const handleDelete = async () => {
     await runExclusive(async () => {
       if (!storageWritable) {
+        setDeleteConfirmation((state) => reduceDeleteConfirmation(state, 'delete-failed'));
         setComposerError('Storage needs recovery, so Skribli did not delete this note.');
         return;
       }
-      if (!licenceAllowsWrite) return;
+      if (!licenceAllowsWrite) {
+        setDeleteConfirmation((state) => reduceDeleteConfirmation(state, 'delete-failed'));
+        return;
+      }
 
       await saveController.prepareForDelete();
       const deleted = await deleteSkrib(note.id);
@@ -211,6 +250,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target }) =>
       } else {
         const message = 'The note could not be deleted safely. It remains available.';
         saveController.resumeAfterDeleteFailure(message);
+        setDeleteConfirmation((state) => reduceDeleteConfirmation(state, 'delete-failed'));
         setComposerError(message);
       }
     });
@@ -296,37 +336,67 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target }) =>
         />
 
         <footer className="composer-footer">
-          <div
-            id="composer-save-status"
-            className="composer-status"
-            data-state={saveSnapshot.status}
-            role="status"
-            aria-live="polite"
-          >
-            <span>{saveLabel}</span>
-            <small>{saveDetail}</small>
-            <small id="composer-character-count" className="composer-character-count">
-              {saveSnapshot.characterCount.toLocaleString()} / {MAX_NOTE_CHARACTERS.toLocaleString()}
-            </small>
-          </div>
-          <div className="composer-footer-actions">
-            <button
-              type="button"
-              className="secondary danger"
-              disabled={!canWrite || isFinishing}
-              onClick={() => void handleDelete()}
-            >
-              Delete
-            </button>
-            <button
-              type="button"
-              className="primary"
-              disabled={isFinishing}
-              onClick={() => void finishAndHide()}
-            >
-              {isFinishing ? 'Finishing…' : 'Done'}
-            </button>
-          </div>
+          {deleteConfirmation === 'confirming' ? (
+            <div className="composer-delete-confirmation" role="alert" aria-live="assertive">
+              <div className="composer-delete-copy">
+                <strong>Delete this note permanently?</strong>
+                <small>Trash is not available in this build. This action cannot be undone.</small>
+              </div>
+              <div className="composer-footer-actions">
+                <button
+                  type="button"
+                  className="secondary"
+                  autoFocus
+                  disabled={isFinishing}
+                  onClick={cancelDeleteConfirmation}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="danger-confirm"
+                  disabled={isFinishing}
+                  onClick={() => void handleDelete()}
+                >
+                  {isFinishing ? 'Deleting…' : 'Delete permanently'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div
+                id="composer-save-status"
+                className="composer-status"
+                data-state={saveSnapshot.status}
+                role="status"
+                aria-live="polite"
+              >
+                <span>{saveLabel}</span>
+                <small>{saveDetail}</small>
+                <small id="composer-character-count" className="composer-character-count">
+                  {saveSnapshot.characterCount.toLocaleString()} / {MAX_NOTE_CHARACTERS.toLocaleString()}
+                </small>
+              </div>
+              <div className="composer-footer-actions">
+                <button
+                  type="button"
+                  className="secondary danger"
+                  disabled={!canWrite || isFinishing}
+                  onClick={requestDeleteConfirmation}
+                >
+                  Delete
+                </button>
+                <button
+                  type="button"
+                  className="primary"
+                  disabled={isFinishing}
+                  onClick={() => void finishAndHide()}
+                >
+                  {isFinishing ? 'Finishing…' : 'Done'}
+                </button>
+              </div>
+            </>
+          )}
         </footer>
       </section>
     </div>
