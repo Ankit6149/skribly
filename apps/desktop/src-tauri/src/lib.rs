@@ -18,8 +18,7 @@ use core::storage;
 #[cfg(target_os = "windows")]
 use platform::windows::{
     get_foreground_target_window, get_overlay_metrics as query_overlay_metrics,
-    get_virtual_screen_bounds, initialize_overlay_with_retry, inspect_target_window,
-    install_hotkey_sender, install_overlay_subclass, install_winevent_hooks,
+    inspect_target_window, install_hotkey_sender, install_overlay_subclass, install_winevent_hooks,
     list_candidate_target_windows, reconstruct_hwnd, register_global_hotkey, set_dpi_awareness,
     uninstall_overlay_subclass, uninstall_winevent_hooks, unregister_global_hotkey, WinEventNotice,
     EVENT_OBJECT_DESTROY, EVENT_OBJECT_LOCATIONCHANGE, EVENT_SYSTEM_FOREGROUND,
@@ -27,6 +26,8 @@ use platform::windows::{
 };
 #[cfg(target_os = "windows")]
 use platform::windows_focus::focus_external_window;
+#[cfg(target_os = "windows")]
+use platform::windows_placement::{initialize_compact_window, position_compact_window_for_target};
 
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -171,26 +172,6 @@ impl AppState {
     }
 }
 
-#[cfg(target_os = "windows")]
-fn position_compact_note_window(window: &tauri::WebviewWindow, target: &TargetWindowInfo) {
-    const WIDTH: i32 = 420;
-    const HEIGHT: i32 = 360;
-    const MARGIN: i32 = 18;
-
-    let screen = get_virtual_screen_bounds();
-    let min_x = screen.x + MARGIN;
-    let min_y = screen.y + MARGIN;
-    let max_x = (screen.x + screen.width - WIDTH - MARGIN).max(min_x);
-    let max_y = (screen.y + screen.height - HEIGHT - MARGIN).max(min_y);
-    let preferred_x = target.bounds.x + target.bounds.width - WIDTH - 24;
-    let preferred_y = target.bounds.y + 48;
-    let x = preferred_x.clamp(min_x, max_x);
-    let y = preferred_y.clamp(min_y, max_y);
-
-    let _ = window.set_size(tauri::PhysicalSize::new(WIDTH as u32, HEIGHT as u32));
-    let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
-}
-
 #[tauri::command]
 fn get_foreground_window() -> Option<TargetWindowInfo> {
     #[cfg(target_os = "windows")]
@@ -294,9 +275,9 @@ fn initialize_native_overlay(
     let result = (|| {
         let hwnd = window
             .hwnd()
-            .map_err(|error| format!("Failed to acquire overlay HWND: {error}"))?;
+            .map_err(|error| format!("Failed to acquire compact editor HWND: {error}"))?;
         let win_hwnd = windows::Win32::Foundation::HWND(hwnd.0 as *mut _);
-        let metrics = initialize_overlay_with_retry(window)?;
+        let metrics = initialize_compact_window(window)?;
 
         install_overlay_subclass(win_hwnd, state.coordinator.clone())?;
 
@@ -336,13 +317,39 @@ fn retry_overlay_initialization(
     #[cfg(target_os = "windows")]
     {
         if let Some(window) = app_handle.get_webview_window("main") {
-            if let Ok(hwnd) = window.hwnd() {
-                let _ = hwnd;
-                initialize_native_overlay(&app_handle, &state, &window);
-            }
+            initialize_native_overlay(&app_handle, &state, &window);
         }
     }
     build_overlay_payload(&app_handle, &state, false)
+}
+
+#[tauri::command]
+fn reposition_compact_window(
+    app_handle: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<OverlayMetrics, String> {
+    #[cfg(target_os = "windows")]
+    {
+        let target = state
+            .coordinator
+            .get_active_target()
+            .ok_or_else(|| "Skribli no longer has an active target application.".to_string())?;
+        let hwnd = reconstruct_hwnd(target.hwnd_val)
+            .ok_or_else(|| "The original target application is no longer available.".to_string())?;
+        let refreshed_target = inspect_target_window(hwnd)
+            .ok_or_else(|| "Windows could not refresh the target application.".to_string())?;
+        let window = app_handle
+            .get_webview_window("main")
+            .ok_or_else(|| "The compact editor window is unavailable.".to_string())?;
+        let metrics = position_compact_window_for_target(&window, &refreshed_target)?;
+        state.coordinator.set_active_target(Some(refreshed_target));
+        Ok(metrics)
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = (app_handle, state);
+        Err("Compact editor repositioning is currently available on Windows only.".into())
+    }
 }
 
 #[tauri::command]
@@ -379,8 +386,10 @@ fn upsert_skrib_note(
     note: SkribNote,
 ) -> Result<OverlayStatePayload, String> {
     run_persisted_mutation(&state, |coordinator| {
-        coordinator.upsert_skrib(note);
-        Ok(())
+        coordinator
+            .upsert_skrib(note)
+            .then_some(())
+            .ok_or_else(|| "Skrib note input is invalid or storage is read-only".to_string())
     })?;
     Ok(build_mutation_payload(&app_handle, &state, false))
 }
@@ -560,6 +569,7 @@ pub fn run() {
             list_target_windows,
             get_overlay_metrics,
             retry_overlay_initialization,
+            reposition_compact_window,
             set_active_target,
             get_storage_health,
             export_storage_diagnostics,
@@ -610,8 +620,7 @@ pub fn run() {
             #[cfg(target_os = "windows")]
             {
                 if let Some(ref window) = main_window {
-                    if let Ok(hwnd) = window.hwnd() {
-                        let _ = hwnd;
+                    if window.hwnd().is_ok() {
                         install_hotkey_sender(hotkey_sender);
                         let state = app.state::<AppState>();
                         initialize_native_overlay(&app_handle, &state, window);
@@ -627,36 +636,57 @@ pub fn run() {
                 while running_flag_hk.load(Ordering::Relaxed) {
                     if let Ok(hotkey_id) = hotkey_receiver.recv_timeout(Duration::from_millis(100))
                     {
-                        if hotkey_id == GLOBAL_HOTKEY_ID {
-                            let target_to_use = {
-                                #[cfg(target_os = "windows")]
-                                {
-                                    get_foreground_target_window()
-                                        .or_else(|| coordinator_hk.get_active_target())
-                                }
-                                #[cfg(not(target_os = "windows"))]
-                                {
-                                    coordinator_hk.get_active_target()
-                                }
-                            };
-
-                            let state_hk = app_handle_hk.state::<AppState>();
-                            if let Some(ref target) = target_to_use {
-                                if let Some(window) = app_handle_hk.get_webview_window("main") {
-                            #[cfg(target_os = "windows")]
-                            position_compact_note_window(&window, target);
-                            let _ = window.show();
-                            let _ = window.set_focus();
+                        if hotkey_id != GLOBAL_HOTKEY_ID {
+                            continue;
                         }
-                                coordinator_hk.set_active_target(Some(target.clone()));
-                        let existing_notes = coordinator_hk.get_skribs_for_target(target);
+
+                        let target_to_use = {
+                            #[cfg(target_os = "windows")]
+                            {
+                                get_foreground_target_window()
+                                    .or_else(|| coordinator_hk.get_active_target())
+                            }
+                            #[cfg(not(target_os = "windows"))]
+                            {
+                                coordinator_hk.get_active_target()
+                            }
+                        };
+
+                        let state_hk = app_handle_hk.state::<AppState>();
+                        let Some(target) = target_to_use else {
+                            coordinator_hk.set_active_target(None);
+                            let _ = app_handle_hk.emit(
+                                "skribly://hotkey-error",
+                                "Skribli could not detect the active application. Click the application and try the shortcut again.",
+                            );
+                            continue;
+                        };
+                        let Some(window) = app_handle_hk.get_webview_window("main") else {
+                            let _ = app_handle_hk.emit(
+                                "skribly://hotkey-error",
+                                "The compact editor window is unavailable. Restart Skribli and try again.",
+                            );
+                            continue;
+                        };
+
+                        #[cfg(target_os = "windows")]
+                        if let Err(message) = position_compact_window_for_target(&window, &target) {
+                            let _ = app_handle_hk.emit(
+                                "skribly://hotkey-error",
+                                format!("Skribli could not place the compact editor safely: {message}"),
+                            );
+                            continue;
+                        }
+
+                        coordinator_hk.set_active_target(Some(target.clone()));
+                        let existing_notes = coordinator_hk.get_skribs_for_target(&target);
                         if existing_notes.is_empty() {
                             let timestamp = std::time::SystemTime::now()
                                 .duration_since(std::time::UNIX_EPOCH)
                                 .unwrap_or_default()
                                 .as_millis();
                             let new_note = SkribNote {
-                                id: format!("skrib-hotkey-{}", timestamp),
+                                id: format!("skrib-hotkey-{timestamp}"),
                                 target_process_name: target.process_name.clone(),
                                 target_title: target.title.clone(),
                                 rel_x: 0.0,
@@ -671,24 +701,24 @@ pub fn run() {
                             };
                             if let Err(message) =
                                 run_persisted_mutation(&state_hk, |coordinator| {
-                                    coordinator.upsert_skrib(new_note);
-                                    Ok(())
+                                    coordinator
+                                        .upsert_skrib(new_note)
+                                        .then_some(())
+                                        .ok_or_else(|| {
+                                            "The new note did not pass native validation."
+                                                .to_string()
+                                        })
                                 })
                             {
                                 let _ = app_handle_hk.emit("skribly://storage-error", message);
+                                continue;
                             }
                         }
-                                let payload =
-                                    build_overlay_payload(&app_handle_hk, &state_hk, false);
-                                let _ = app_handle_hk.emit("skribly://global-shortcut", payload);
-                            } else {
-                                coordinator_hk.set_active_target(None);
-                                let _ = app_handle_hk.emit(
-                                    "skribly://hotkey-error",
-                                    "Skribli could not detect the active application. Click the application and try the shortcut again.",
-                                );
-                            }
-                        }
+
+                        let _ = window.show();
+                        let _ = window.set_focus();
+                        let payload = build_overlay_payload(&app_handle_hk, &state_hk, false);
+                        let _ = app_handle_hk.emit("skribly://global-shortcut", payload);
                     }
                 }
             });
@@ -697,18 +727,49 @@ pub fn run() {
             std::thread::spawn(move || {
                 let mut tick_counter: u32 = 0;
                 while running_flag.load(Ordering::Relaxed) {
-                    tick_counter += 1;
+                    tick_counter = tick_counter.wrapping_add(1);
                     if let Ok(notice) = event_receiver.recv_timeout(Duration::from_millis(500)) {
-                let note_window_visible = app_handle_ev
-                    .get_webview_window("main")
-                    .and_then(|window| window.is_visible().ok())
-                    .unwrap_or(false);
-                if note_window_visible {
-                    continue;
-                }
+                        let note_window_visible = app_handle_ev
+                            .get_webview_window("main")
+                            .and_then(|window| window.is_visible().ok())
+                            .unwrap_or(false);
 
-                #[cfg(target_os = "windows")]
-                {
+                        #[cfg(target_os = "windows")]
+                        if note_window_visible {
+                            if matches!(
+                                notice.event_type,
+                                EVENT_OBJECT_LOCATIONCHANGE | EVENT_SYSTEM_MINIMIZEEND
+                            ) {
+                                if let Some(target) = coordinator.get_active_target() {
+                                    if target.hwnd_val == notice.hwnd_val {
+                                        if let Some(hwnd) = reconstruct_hwnd(notice.hwnd_val) {
+                                            if let Some(updated) = inspect_target_window(hwnd) {
+                                                coordinator
+                                                    .set_active_target(Some(updated.clone()));
+                                                if let Some(window) =
+                                                    app_handle_ev.get_webview_window("main")
+                                                {
+                                                    if let Err(message) =
+                                                        position_compact_window_for_target(
+                                                            &window, &updated,
+                                                        )
+                                                    {
+                                                        let _ = app_handle_ev.emit(
+                                                            "skribly://hotkey-error",
+                                                            format!("Skribli could not keep the editor on the target display: {message}"),
+                                                        );
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            continue;
+                        }
+
+                        #[cfg(target_os = "windows")]
+                        {
                             let state_ev = app_handle_ev.state::<AppState>();
                             if matches!(
                                 notice.event_type,
@@ -816,11 +877,38 @@ pub fn run() {
                         {
                             let state_ev = app_handle_ev.state::<AppState>();
                             if let Some(target) = coordinator.get_active_target() {
-                                if reconstruct_hwnd(target.hwnd_val).is_none() {
+                                let Some(hwnd) = reconstruct_hwnd(target.hwnd_val) else {
                                     coordinator.set_active_target(None);
                                     let payload =
                                         build_mutation_payload(&app_handle_ev, &state_ev, false);
                                     let _ = app_handle_ev.emit("skribly://overlay-update", payload);
+                                    continue;
+                                };
+
+                                if let Some(updated) = inspect_target_window(hwnd) {
+                                    let placement_changed = updated.bounds != target.bounds
+                                        || updated.dpi != target.dpi;
+                                    coordinator.set_active_target(Some(updated.clone()));
+                                    let note_window_visible = app_handle_ev
+                                        .get_webview_window("main")
+                                        .and_then(|window| window.is_visible().ok())
+                                        .unwrap_or(false);
+                                    if placement_changed && note_window_visible {
+                                        if let Some(window) =
+                                            app_handle_ev.get_webview_window("main")
+                                        {
+                                            if let Err(message) =
+                                                position_compact_window_for_target(
+                                                    &window, &updated,
+                                                )
+                                            {
+                                                let _ = app_handle_ev.emit(
+                                                    "skribly://hotkey-error",
+                                                    format!("Skribli could not update the editor position after a display change: {message}"),
+                                                );
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }

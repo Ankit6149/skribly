@@ -6,6 +6,9 @@ pub mod windows;
 #[cfg(target_os = "windows")]
 pub mod windows_focus;
 
+#[cfg(target_os = "windows")]
+pub mod windows_placement;
+
 #[cfg(target_os = "macos")]
 pub mod macos;
 

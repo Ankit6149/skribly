@@ -1,6 +1,7 @@
 import React, { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { SkribNote, TargetWindowInfo } from '../../lib/geometry';
+import { OverlayMetrics, SkribNote, TargetWindowInfo } from '../../lib/geometry';
 import { useLicenseStore } from '../../stores/licenseStore';
 import { useSkribStore } from '../../stores/skribStore';
 import { useSkribUiStore } from '../../stores/skribUiStore';
@@ -44,6 +45,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target }) =>
     storageBackupDirectory,
     dismissStorageNotice,
     exportStorageDiagnostics,
+    isTauriAvailable,
   } = useSkribStore();
   const licenseStatus = useLicenseStore((state) => state.status);
   const licenceAllowsWrite = !licenseStatus.enforcementEnabled || licenseStatus.canWrite;
@@ -53,6 +55,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target }) =>
   const [composerError, setComposerError] = useState<string | null>(null);
   const [diagnosticsPath, setDiagnosticsPath] = useState<string | null>(null);
   const [isFinishing, setIsFinishing] = useState(false);
+  const [isRepositioning, setIsRepositioning] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState<DeleteConfirmationState>(
     INITIAL_DELETE_CONFIRMATION_STATE
   );
@@ -216,6 +219,20 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target }) =>
     }
   };
 
+  const handleReposition = async () => {
+    if (!isTauriAvailable || isRepositioning) return;
+    setIsRepositioning(true);
+    setComposerError(null);
+    try {
+      await invoke<OverlayMetrics>('reposition_compact_window');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setComposerError(`Skribli could not reposition the editor safely: ${message}`);
+    } finally {
+      setIsRepositioning(false);
+    }
+  };
+
   const requestDeleteConfirmation = () => {
     if (!storageWritable) {
       setComposerError('Storage needs recovery, so Skribli cannot delete this note.');
@@ -275,19 +292,33 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target }) =>
       >
         <header className="composer-header" data-tauri-drag-region>
           <div className="composer-context" data-tauri-drag-region>
-            <span className="composer-kicker" data-tauri-drag-region>NOTE FOR</span>
+            <span className="composer-kicker" data-tauri-drag-region>
+              NOTE FOR
+            </span>
             <strong data-tauri-drag-region>{contextLabel}</strong>
           </div>
-          <button
-            type="button"
-            className="composer-close"
-            onClick={() => void finishAndHide()}
-            disabled={isFinishing}
-            aria-label={storageWritable ? 'Save and close Skribli' : 'Storage recovery required'}
-            title={storageWritable ? 'Save and close' : 'Storage recovery required'}
-          >
-            ✕
-          </button>
+          <div className="composer-header-actions">
+            <button
+              type="button"
+              className="composer-reposition"
+              onClick={() => void handleReposition()}
+              disabled={!isTauriAvailable || isRepositioning || isFinishing}
+              aria-label="Reposition Skribli beside the target application"
+              title="Reposition beside target"
+            >
+              {isRepositioning ? 'Moving…' : 'Reposition'}
+            </button>
+            <button
+              type="button"
+              className="composer-close"
+              onClick={() => void finishAndHide()}
+              disabled={isFinishing || isRepositioning}
+              aria-label={storageWritable ? 'Save and close Skribli' : 'Storage recovery required'}
+              title={storageWritable ? 'Save and close' : 'Storage recovery required'}
+            >
+              ✕
+            </button>
+          </div>
         </header>
 
         {storageNotice && (
@@ -298,7 +329,9 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target }) =>
               <button type="button" onClick={() => void handleExportDiagnostics()}>
                 Save safe diagnostics
               </button>
-              <button type="button" onClick={dismissStorageNotice}>Dismiss</button>
+              <button type="button" onClick={dismissStorageNotice}>
+                Dismiss
+              </button>
             </div>
             {diagnosticsPath && <small>Diagnostics saved to: {diagnosticsPath}</small>}
           </div>
@@ -332,7 +365,10 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target }) =>
           onBlur={() => {
             if (!canWrite || operationInProgress.current) return;
             void saveController.flush().then((saved) => {
-              if (!saved && saveController.getSnapshot().draft !== saveController.getSnapshot().committed) {
+              if (
+                !saved &&
+                saveController.getSnapshot().draft !== saveController.getSnapshot().committed
+              ) {
                 setComposerError('The latest text is not saved. Keep this window open and retry.');
               }
             });
@@ -380,7 +416,8 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target }) =>
                 <span>{saveLabel}</span>
                 <small>{saveDetail}</small>
                 <small id="composer-character-count" className="composer-character-count">
-                  {saveSnapshot.characterCount.toLocaleString()} / {MAX_NOTE_CHARACTERS.toLocaleString()}
+                  {saveSnapshot.characterCount.toLocaleString()} /{' '}
+                  {MAX_NOTE_CHARACTERS.toLocaleString()}
                 </small>
               </div>
               <div className="composer-footer-actions">
