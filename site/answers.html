@@ -3,11 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Clear answers about Skribli, contextual notes, privacy, Windows support, and the current production rebuild." />
+    <meta name="description" content="Clear answers about Skribli's compact Windows note editor, local-first privacy, and current pre-release validation status." />
     <meta name="robots" content="index,follow,max-snippet:-1" />
     <link rel="canonical" href="https://skribly-desktop.vercel.app/answers" />
-    <meta property="og:title" content="Skribli Answers — Contextual notes for Windows" />
-    <meta property="og:description" content="Frequently asked questions about Skribli, privacy, contextual notes, Windows support, and current production status." />
+    <meta property="og:title" content="Skribli Answers — Contextual typed notes for Windows" />
+    <meta property="og:description" content="Frequently asked questions about Skribli's real compact-editor workflow, privacy, Windows support, and download status." />
     <meta property="og:url" content="https://skribly-desktop.vercel.app/answers" />
     <title>Answers and FAQ — Skribli</title>
     <link rel="icon" href="./assets/skribly-icon.svg" type="image/svg+xml" />
@@ -23,15 +23,23 @@
             "name": "What is Skribli?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Skribli is a local-first contextual notes app for Windows. Press a shortcut, write a note, and keep it associated with the application where it belongs."
+              "text": "Skribli is a local-first contextual typed-notes app for Windows. Focus an application, press Ctrl+Shift+Space, write in a compact editor, and choose Done to save locally and fully hide it."
             }
           },
           {
             "@type": "Question",
-            "name": "How is Skribli different from ordinary sticky notes?",
+            "name": "What happens when I press the shortcut?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Skribli is designed around application context. A note can stay attached to the foreground app and close into a compact tab instead of remaining as a separate notes window."
+              "text": "Skribli clears any previous target, captures and revalidates the foreground Windows application, then creates a new note or reopens the deterministic existing note for that context."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Does Skribli leave a floating note after Done?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "No. The current MVP leaves no floating dot, attached tab, checklist, permanent toolbar, or full-screen overlay after the compact editor hides."
             }
           },
           {
@@ -39,7 +47,7 @@
             "name": "Does Skribli upload my notes?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "The core Windows experience is local-first and does not require an account, cloud sync, or screen recording."
+              "text": "Core note use is local-first and does not require an account, cloud sync, advertising tracker, or screen recording."
             }
           },
           {
@@ -47,7 +55,7 @@
             "name": "Can I download Skribli now?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "No. Public downloads are paused while the Windows application is rebuilt and validated."
+              "text": "No. Public downloads are disabled while the exact Windows release candidate completes lifecycle, installer, recovery, accessibility, and physical desktop validation."
             }
           }
         ]
@@ -57,49 +65,54 @@
   <body>
     <header class="site-header is-scrolled">
       <a class="brand" href="/"><img src="./assets/skribly-icon.svg" alt="" /><span>Skribli</span></a>
-      <nav class="desktop-nav" aria-label="Answers navigation"><a href="/">Product</a><a href="/privacy">Privacy</a><a href="/release-notes">Production notes</a></nav>
-      <a class="button button-dark button-small" aria-disabled="true">App in production</a>
+      <nav class="desktop-nav" aria-label="Answers navigation"><a href="/">Product</a><a href="/privacy">Privacy</a><a href="/release-notes">Development notes</a></nav>
+      <a class="button button-dark button-small" aria-disabled="true">Downloads unavailable</a>
     </header>
 
     <main class="legal-page">
       <article class="legal-shell">
         <p class="overline">Skribli answers</p>
-        <h1>Contextual notes, clearly explained.</h1>
-        <p class="legal-intro">Direct answers about the intended product and its current production status.</p>
+        <h1>The current product, clearly explained.</h1>
+        <p class="legal-intro">These answers describe what the active Windows build does now, not deferred ideas or retired prototypes.</p>
 
         <section>
           <h2>What is Skribli?</h2>
-          <p>Skribli is a local-first contextual notes app for Windows. The intended flow is simple: focus the application where a thought belongs, press Ctrl + Shift + Space, write immediately, and close the note into a small attached tab.</p>
+          <p>Skribli is a local-first contextual typed-notes app for Windows. Focus an application, press Ctrl + Shift + Space, write in one compact editor, and choose Done to save locally and fully hide it.</p>
         </section>
 
         <section>
-          <h2>What problem does it solve?</h2>
-          <p>Ordinary notes remember text but often lose the surrounding situation. Skribli is designed to preserve application context so a reminder stays with the software where it is useful.</p>
+          <h2>Does the shortcut create a new note or reopen one?</h2>
+          <p>Native code makes that decision explicitly. With no match, Skribli creates one empty note. With an existing match, it reopens that note. Legacy duplicate data is resolved deterministically rather than by collection order. The editor labels the result as new or reopened.</p>
         </section>
 
         <section>
-          <h2>Why is there no app picker or permanent toolbar?</h2>
-          <p>The production rebuild removes unnecessary floating controls. The shortcut should use the foreground application automatically, and empty overlay space must remain click-through.</p>
+          <h2>What remains on screen after Done?</h2>
+          <p>Nothing from Skribli remains floating. The compact editor fully hides while the background process stays available in the Windows tray. The current MVP does not ship floating dots, attached tabs, checklists, or a full-screen interactive overlay.</p>
+        </section>
+
+        <section>
+          <h2>What happens when saving fails?</h2>
+          <p>Skribli keeps the editor visible and reports that the latest text is not safely stored. It does not hide the only visible draft or display a false saved state.</p>
         </section>
 
         <section>
           <h2>Is Skribli private?</h2>
-          <p>The core Windows experience is local-first and does not require an account, cloud sync, or screen recording. Skribli reads limited local window information only to identify and position the attached note. See the full <a href="/privacy">privacy policy</a>.</p>
+          <p>Core use is local-first and requires no account, cloud sync, advertising tracker, or screen recording. Skribli reads limited Windows identity and geometry information locally so it can validate the foreground target and place the compact editor safely. See the <a href="/privacy">privacy policy</a>.</p>
         </section>
 
         <section>
           <h2>Can I download it now?</h2>
-          <p>No. Public downloads are paused while the native overlay, shortcut flow, click-through behaviour, close controls, typography, and installer are rebuilt and validated.</p>
+          <p>No. Public downloads are disabled while the exact Windows release candidate completes lifecycle, installer, recovery, accessibility, upgrade, uninstall, and physical desktop validation.</p>
         </section>
 
         <section>
-          <h2>Which systems are planned?</h2>
-          <p>The current production work targets Windows 10 and Windows 11 on x64 computers. macOS is not available.</p>
+          <h2>Which systems are supported?</h2>
+          <p>The current release target is Windows 10 and Windows 11 on x64 computers. macOS is not currently available.</p>
         </section>
 
         <nav class="legal-nav" aria-label="Answer page links">
           <a class="button button-dark" href="/">Back to Skribli</a>
-          <a class="button button-light" href="/release-notes">Read production notes</a>
+          <a class="button button-light" href="/release-notes">Read development notes</a>
         </nav>
       </article>
     </main>
