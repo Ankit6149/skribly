@@ -15,11 +15,13 @@ import {
   reduceDeleteConfirmation,
   type DeleteConfirmationState,
 } from './deleteConfirmation';
+import type { OpenNoteAction } from './noteLifecycle';
 import { discardSkribDraft, persistSkribText, stageSkribDraft } from './textPersistence';
 
 interface SkribComposerProps {
   note: SkribNote;
   target: TargetWindowInfo | null;
+  openAction: OpenNoteAction;
 }
 
 function saveStatusLabel(snapshot: DraftSaveSnapshot): string {
@@ -36,7 +38,7 @@ function saveStatusLabel(snapshot: DraftSaveSnapshot): string {
   }
 }
 
-export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target }) => {
+export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, openAction }) => {
   const {
     deleteSkrib,
     storageErrorMessage,
@@ -282,20 +284,32 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target }) =>
   const textareaDescription =
     deleteConfirmation === 'confirming'
       ? 'composer-delete-warning'
-      : 'composer-save-status composer-character-count';
+      : 'composer-open-state composer-save-status composer-character-count';
+  const isNewNote = openAction === 'created';
 
   return (
     <div className="skrib-composer-backdrop">
       <section
         className={`skrib-composer skrib-color-${note.color}`}
-        aria-label={canWrite ? 'Write an attached note' : 'View attached note'}
+        aria-label={
+          canWrite
+            ? isNewNote
+              ? 'Write a new contextual note'
+              : 'Edit a reopened contextual note'
+            : 'View contextual note'
+        }
       >
         <header className="composer-header" data-tauri-drag-region>
           <div className="composer-context" data-tauri-drag-region>
             <span className="composer-kicker" data-tauri-drag-region>
-              NOTE FOR
+              {isNewNote ? 'NEW NOTE FOR' : 'REOPENED NOTE FOR'}
             </span>
             <strong data-tauri-drag-region>{contextLabel}</strong>
+            <span id="composer-open-state" className="sr-only">
+              {isNewNote
+                ? 'Skribli created a new empty note for this application context.'
+                : 'Skribli reopened the existing note for this application context.'}
+            </span>
           </div>
           <div className="composer-header-actions">
             <button
