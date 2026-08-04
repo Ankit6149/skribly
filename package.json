@@ -16,7 +16,7 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "site:validate": "node site/validate.mjs",
     "governance:validate": "node scripts/governance/validate-repository.mjs",
-    "product-truth:validate": "node scripts/validation/validate-product-truth.mjs",
+    "product-truth:validate": "node scripts/validation/validate-product-truth.mjs && node scripts/validation/validate-note-lifecycle.mjs",
     "license:keypair": "node scripts/license/generate-keypair.mjs",
     "license:issue": "node scripts/license/issue-license.mjs"
   },
