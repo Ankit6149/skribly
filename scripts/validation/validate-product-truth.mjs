@@ -22,6 +22,7 @@ const windowsTargetCapture = await read(
   'apps/desktop/src-tauri/src/platform/windows_target_capture.rs'
 );
 const windowsSingleInstance = await read('apps/desktop/src-tauri/src/windows_single_instance.rs');
+const tray = await read('apps/desktop/src-tauri/src/desktop/tray.rs');
 const overlayHost = await read('apps/desktop/src/features/overlay/OverlayHost.tsx');
 const captureErrorSurface = await read(
   'apps/desktop/src/features/overlay/TargetCaptureErrorSurface.tsx'
@@ -29,12 +30,27 @@ const captureErrorSurface = await read(
 const captureErrorModel = await read(
   'apps/desktop/src/features/overlay/targetCaptureError.ts'
 );
+const onboardingState = await read(
+  'apps/desktop/src/features/onboarding/onboardingState.ts'
+);
+const onboardingSurface = await read(
+  'apps/desktop/src/features/onboarding/OnboardingSurface.tsx'
+);
+const startupFailureSurface = await read(
+  'apps/desktop/src/features/onboarding/StartupFailureSurface.tsx'
+);
+const guidanceSurface = await read(
+  'apps/desktop/src/features/onboarding/guidanceSurface.ts'
+);
 const placementAcceptance = await read('docs/04-operations/WINDOW_PLACEMENT_ACCEPTANCE.md');
 const singleInstanceAcceptance = await read('docs/04-operations/SINGLE_INSTANCE_ACCEPTANCE.md');
 const winEventAcceptance = await read('docs/04-operations/WIN_EVENT_ACCEPTANCE.md');
 const targetCaptureAcceptance = await read('docs/04-operations/TARGET_CAPTURE_ACCEPTANCE.md');
+const firstRunAcceptance = await read('docs/04-operations/FIRST_RUN_ACCEPTANCE.md');
 
 const requiredReadmeClaims = [
+  'On the first successful launch, a compact three-step guide visibly confirms that Skribli is ready',
+  'The guide creates no sample note and can be reopened later from **Quick guide** in the tray.',
   'Skribli hides only after the latest non-empty draft is durably saved.',
   'A compact note editor opens inside that target monitor’s usable work area.',
   'Skribli captures the foreground target once, clears any previous runtime target, and revalidates the exact HWND and process identity before using it.',
@@ -53,6 +69,7 @@ for (const claim of requiredReadmeClaims) {
 }
 
 const retiredReadmeClaims = [
+  '**Status — active production development**',
   'Close it into a small attached note tab.',
   'The transparent overlay must remain click-through everywhere except the exact note or editor bounds.',
   'empty overlay space does not capture mouse input',
@@ -246,6 +263,95 @@ if (!captureErrorModel.includes('processIdentityChanged')) {
 
 if (!targetCaptureAcceptance.includes('Parent issue 18 remains open')) {
   failures.push('Target-capture acceptance must keep the durable context parent open.');
+}
+
+const requiredOnboardingState = [
+  'ONBOARDING_VERSION = 1',
+  "export type OnboardingStatus = 'unseen' | 'shown' | 'completed'",
+  'markOnboardingShown',
+  'completeOnboarding',
+  "return status === 'unseen'",
+];
+for (const claim of requiredOnboardingState) {
+  if (!onboardingState.includes(claim)) {
+    failures.push(`First-run state is missing required versioned behavior: ${claim}`);
+  }
+}
+
+const requiredOnboardingGuidance = [
+  'Your first note takes one shortcut.',
+  'Focus the application',
+  'Press the shortcut',
+  'Type, then choose Done',
+  'Private by default',
+  'not screen recording',
+  'Quit Skribli',
+  'Start using Skribli',
+  'Maybe later',
+];
+for (const claim of requiredOnboardingGuidance) {
+  if (!onboardingSurface.includes(claim)) {
+    failures.push(`First-run guidance is missing required user education: ${claim}`);
+  }
+}
+
+const requiredStartupFailureUi = [
+  'The shortcut is not ready yet.',
+  'Your existing local notes remain protected.',
+  'Retry setup',
+  'Hide',
+  'role="alert"',
+];
+for (const claim of requiredStartupFailureUi) {
+  if (!startupFailureSurface.includes(claim)) {
+    failures.push(`Startup failure guidance is missing required behavior: ${claim}`);
+  }
+}
+
+const requiredSurfacePriority = [
+  "if (input.storageSurface === 'composer') return 'composer'",
+  "if (input.storageSurface === 'recovery') return 'recovery'",
+  "if (input.initStatus.type === 'Failed') return 'startupFailure'",
+  "if (input.hasCaptureError) return 'captureError'",
+  "if (input.onboardingVisible) return 'onboarding'",
+];
+for (const claim of requiredSurfacePriority) {
+  if (!guidanceSurface.includes(claim)) {
+    failures.push(`Compact-window decision hierarchy is missing: ${claim}`);
+  }
+}
+
+const requiredOnboardingRuntime = [
+  "listen('skribly://show-onboarding'",
+  'readOnboardingStatus(window.localStorage)',
+  'markOnboardingShown(window.localStorage)',
+  'completeOnboarding(window.localStorage)',
+  'showCurrentWindow()',
+  'selectPrimaryWindowSurface',
+];
+for (const claim of requiredOnboardingRuntime) {
+  if (!overlayHost.includes(claim)) {
+    failures.push(`The first-run runtime is missing required visible behavior: ${claim}`);
+  }
+}
+
+const requiredTrayGuide = [
+  'QUICK_GUIDE_ID',
+  '"Quick guide"',
+  'skribly://show-onboarding',
+  'window.center()',
+  'window.show()',
+  'window.set_focus()',
+  '"Quit Skribli"',
+];
+for (const claim of requiredTrayGuide) {
+  if (!tray.includes(claim)) {
+    failures.push(`The tray is missing required onboarding re-entry behavior: ${claim}`);
+  }
+}
+
+if (!firstRunAcceptance.includes('Parent issue 51 remains open')) {
+  failures.push('First-run acceptance documentation must keep the broader onboarding parent open.');
 }
 
 if (failures.length > 0) {
