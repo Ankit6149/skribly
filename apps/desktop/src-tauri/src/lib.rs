@@ -1,5 +1,6 @@
 mod core;
 mod desktop;
+mod note_lifecycle;
 mod platform;
 
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -14,6 +15,7 @@ use core::models::{
     TargetWindowInfo,
 };
 use core::storage;
+use note_lifecycle::{created_open_request, reopened_open_request};
 
 #[cfg(target_os = "windows")]
 use platform::windows::{
@@ -720,13 +722,17 @@ pub fn run() {
                         clear_target_capture_error(&app_handle_hk);
                         set_runtime_active_target(&state_hk, Some(target.clone()));
                         let existing_notes = coordinator_hk.get_skribs_for_target(&target);
-                        if existing_notes.is_empty() {
+                        let open_request = if let Some(request) = reopened_open_request(existing_notes)
+                        {
+                            request
+                        } else {
                             let timestamp = std::time::SystemTime::now()
                                 .duration_since(std::time::UNIX_EPOCH)
                                 .unwrap_or_default()
                                 .as_millis();
+                            let note_id = format!("skrib-hotkey-{timestamp}");
                             let new_note = SkribNote {
-                                id: format!("skrib-hotkey-{timestamp}"),
+                                id: note_id.clone(),
                                 target_process_name: target.process_name.clone(),
                                 target_title: target.title.clone(),
                                 rel_x: 0.0,
@@ -753,12 +759,14 @@ pub fn run() {
                                 let _ = app_handle_hk.emit("skribly://storage-error", message);
                                 continue;
                             }
-                        }
+                            created_open_request(note_id)
+                        };
 
                         let _ = window.show();
                         let _ = window.set_focus();
                         let payload = build_overlay_payload(&app_handle_hk, &state_hk, false);
                         let _ = app_handle_hk.emit("skribly://global-shortcut", payload);
+                        let _ = app_handle_hk.emit("skribly://open-note-request", open_request);
                     }
                 }
             });
