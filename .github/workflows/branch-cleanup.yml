@@ -1,0 +1,95 @@
+name: Clean merged branches
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: branch-cleanup-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    name: Delete merged branch refs
+    if: github.repository == 'Ankit6149/skribly'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Delete only verified stale branches
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git fetch origin '+refs/heads/*:refs/remotes/origin/*' --prune
+
+          readonly default_branch='main'
+          readonly -a force_delete=(
+            'temp/onboarding-handoff'
+            'test/33-unrelated-branch-survival'
+          )
+
+          should_force_delete() {
+            local candidate="$1"
+            local stale
+            for stale in "${force_delete[@]}"; do
+              if [[ "$candidate" == "$stale" ]]; then
+                return 0
+              fi
+            done
+            return 1
+          }
+
+          delete_remote_branch() {
+            local candidate="$1"
+            git push origin ":refs/heads/$candidate"
+          }
+
+          mapfile -t remote_branches < <(
+            git for-each-ref \
+              --format='%(refname:strip=3)' \
+              refs/remotes/origin \
+              | sort -u
+          )
+
+          deleted=0
+          preserved=0
+
+          for branch in "${remote_branches[@]}"; do
+            [[ -z "$branch" || "$branch" == 'HEAD' ]] && continue
+
+            if [[ "$branch" == "$default_branch" || "$branch" == release/* || "$branch" == hotfix/* ]]; then
+              echo "Preserving protected branch: $branch"
+              preserved=$((preserved + 1))
+              continue
+            fi
+
+            if should_force_delete "$branch"; then
+              echo "Deleting audited disposable branch: $branch"
+              delete_remote_branch "$branch"
+              deleted=$((deleted + 1))
+              continue
+            fi
+
+            if git merge-base --is-ancestor "origin/$branch" "origin/$default_branch"; then
+              echo "Deleting branch fully merged into $default_branch: $branch"
+              delete_remote_branch "$branch"
+              deleted=$((deleted + 1))
+            else
+              echo "Preserving unmerged branch: $branch"
+              preserved=$((preserved + 1))
+            fi
+          done
+
+          echo "Deleted branches: $deleted"
+          echo "Preserved branches: $preserved"
