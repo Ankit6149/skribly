@@ -31,16 +31,18 @@
 
     element.addEventListener('click', (event) => {
       event.preventDefault();
-      showToast('Skribli is still in production. Downloads reopen after the Windows build passes final desktop validation.');
+      showToast(
+        'Public downloads are disabled while the exact Windows release candidate completes lifecycle, installer, recovery, accessibility, and physical desktop validation.'
+      );
     });
   };
 
   document.querySelectorAll('[data-download-link]').forEach((link) => {
-    disableAction(link, 'Skribli is in production');
+    disableAction(link, 'Downloads unavailable');
   });
 
   document.querySelectorAll('[data-version-label]').forEach((element) => {
-    element.textContent = 'Downloads paused';
+    element.textContent = 'Windows validation active';
   });
 
   document.querySelectorAll('[data-release-notes-link]').forEach((link) => {
@@ -53,31 +55,12 @@
       const payload = JSON.parse(schema.textContent || '{}');
       delete payload.downloadUrl;
       delete payload.offers;
-      payload.softwareVersion = 'In production';
-      payload.description = 'Skribli is a local-first contextual notes app that attaches notes to the application where they belong.';
+      payload.softwareVersion = 'Pre-release validation';
+      payload.description =
+        'Skribli is a local-first Windows contextual note editor. Public downloads are disabled while the release candidate is validated.';
       schema.textContent = JSON.stringify(payload);
     } catch {
-      // The static page already contains the same product information.
+      // Static structured data already contains the same product status.
     }
   }
-
-  document.querySelectorAll('[data-demo-dot]').forEach((dot) => {
-    dot.addEventListener('click', () => {
-      const id = dot.getAttribute('data-demo-dot');
-      const note = document.querySelector(`[data-demo-note="${id}"]`);
-      if (!note) return;
-
-      document.querySelectorAll('[data-demo-note]').forEach((item) => {
-        if (item !== note) item.classList.remove('is-open');
-      });
-      note.classList.toggle('is-open');
-    });
-  });
-
-  document.querySelectorAll('[data-close-demo]').forEach((button) => {
-    button.addEventListener('click', () => {
-      const id = button.getAttribute('data-close-demo');
-      document.querySelector(`[data-demo-note="${id}"]`)?.classList.remove('is-open');
-    });
-  });
 })();

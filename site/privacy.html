@@ -3,11 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Skribli privacy policy covering local note storage, Windows context information, website hosting, and the current production rebuild." />
+    <meta name="description" content="Skribli privacy policy covering local note storage, limited Windows context information, website hosting, and pre-release limitations." />
     <meta name="robots" content="index,follow" />
     <link rel="canonical" href="https://skribly-desktop.vercel.app/privacy" />
     <meta property="og:title" content="Skribli Privacy Policy" />
-    <meta property="og:description" content="How Skribli handles local notes, application context information, and website requests." />
+    <meta property="og:description" content="How Skribli handles local notes, limited application context information, and website requests." />
     <meta property="og:url" content="https://skribly-desktop.vercel.app/privacy" />
     <title>Privacy Policy — Skribli</title>
     <link rel="icon" href="./assets/skribly-icon.svg" type="image/svg+xml" />
@@ -17,59 +17,64 @@
   <body>
     <header class="site-header is-scrolled">
       <a class="brand" href="/"><img src="./assets/skribly-icon.svg" alt="" /><span>Skribli</span></a>
-      <nav class="desktop-nav" aria-label="Policy navigation"><a href="/">Product</a><a href="/release-notes">Production notes</a><a href="/answers">FAQ</a></nav>
-      <a class="button button-dark button-small" aria-disabled="true">App in production</a>
+      <nav class="desktop-nav" aria-label="Policy navigation"><a href="/">Product</a><a href="/release-notes">Development notes</a><a href="/answers">FAQ</a></nav>
+      <a class="button button-dark button-small" aria-disabled="true">Downloads unavailable</a>
     </header>
 
     <main class="legal-page">
       <article class="legal-shell">
-        <p class="overline">Effective 26 July 2026</p>
+        <p class="overline">Effective 4 August 2026</p>
         <h1>Privacy policy</h1>
-        <p class="legal-intro">Skribli is designed as a local-first Windows application. This policy describes what the application stores and what the public website processes during active production development.</p>
+        <p class="legal-intro">Skribli is designed as a local-first Windows application. This policy describes the current pre-release application and public website without claiming deferred cloud, collaboration, or commercial services.</p>
 
         <section>
           <h2>1. Application data</h2>
-          <p>Skribli stores note text, note metadata, positions, and context information on your computer. Normal note use is designed not to require a Skribli account or cloud service.</p>
+          <p>Skribli stores note text, note identifiers, timestamps, editor geometry, and contextual matching fields on your computer. Core note use is designed not to require a Skribli account or cloud service.</p>
         </section>
 
         <section>
-          <h2>2. Context information</h2>
-          <p>To attach notes to applications, Skribli reads limited information about open windows, such as the process name, window title, window class, position, size, and temporary native window handle. This information is used locally to match and position notes.</p>
+          <h2>2. Limited context information</h2>
+          <p>When you press the shortcut, Skribli reads limited local Windows information needed to validate the foreground target and place the compact editor. This may include process name, window title, window class, position, size, process identifier, and a temporary native window handle. The current shortcut path does not record your screen.</p>
         </section>
 
         <section>
-          <h2>3. Website data</h2>
-          <p>The public website is hosted by Vercel. As part of delivering the site, the hosting provider may process standard request information such as IP address, browser details, requested path, timestamps, and security logs. Skribli currently does not add behavioural advertising, tracking pixels, or analytics cookies.</p>
+          <h2>3. Local storage and recovery</h2>
+          <p>Current note data is written to versioned local storage with recovery generations and metadata-only diagnostics. Diagnostics are designed not to contain note text or target window titles. Recovery, export/import, trash retention, and data-lifecycle behavior must be finalized and documented before public release.</p>
         </section>
 
         <section>
-          <h2>4. Downloads</h2>
-          <p>Public downloads are currently disabled. The website does not resolve or deliver an installer while the Windows application is being rebuilt and validated.</p>
+          <h2>4. Website data</h2>
+          <p>The public website is hosted by Vercel. The hosting provider may process standard request information such as IP address, browser details, requested path, timestamps, and security logs to deliver and protect the site. Skribli currently adds no behavioural advertising, tracking pixel, or analytics cookie.</p>
         </section>
 
         <section>
-          <h2>5. Retention and deletion</h2>
-          <p>Deleting a note removes its saved note record. A dedicated export and deletion flow will be documented before a stable public release.</p>
+          <h2>5. Downloads</h2>
+          <p>Public downloads are disabled. The website does not resolve or deliver an installer while the exact Windows release candidate remains under lifecycle, installer, accessibility, recovery, and physical desktop validation.</p>
         </section>
 
         <section>
-          <h2>6. Security and production limitations</h2>
-          <p>Skribli uses local storage and Windows-native integration, but unfinished software cannot guarantee absolute security. Do not store passwords, private keys, or highly sensitive regulated information in development builds.</p>
+          <h2>6. Retention and deletion</h2>
+          <p>The current compact editor can permanently delete a note only after explicit confirmation. Reversible trash, retention, restore, complete export/import, and attachment cleanup remain open release gates and are not advertised as available today.</p>
         </section>
 
         <section>
-          <h2>7. Children</h2>
+          <h2>7. Security and pre-release limitations</h2>
+          <p>Skribli uses local storage and Windows-native integration, but unfinished software cannot guarantee absolute security. Do not store passwords, private keys, or highly sensitive regulated information in a development or release-candidate build.</p>
+        </section>
+
+        <section>
+          <h2>8. Children</h2>
           <p>Skribli is a general productivity utility and is not directed to children under 13. The current website does not knowingly collect account information from children.</p>
         </section>
 
         <section>
-          <h2>8. Changes</h2>
-          <p>This policy may change as the product, optional diagnostics, or cloud features evolve. Material changes will be reflected by an updated effective date and production notes.</p>
+          <h2>9. Changes</h2>
+          <p>This policy may change as tested capabilities and data flows change. Material updates will use a new effective date and will be reflected in the development notes before public access is enabled.</p>
         </section>
 
         <nav class="legal-nav" aria-label="Legal page links">
           <a class="button button-dark" href="/">Back to Skribli</a>
-          <a class="button button-light" href="/release-notes">Production notes</a>
+          <a class="button button-light" href="/release-notes">Development notes</a>
         </nav>
       </article>
     </main>

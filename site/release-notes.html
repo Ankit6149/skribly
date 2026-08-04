@@ -3,13 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Skribli production notes: what is being rebuilt, what has been withdrawn, and what must pass before the next Windows release." />
+    <meta name="description" content="Skribli development notes: implemented Windows foundations, open release gates, and the exact current compact-editor workflow." />
     <meta name="robots" content="index,follow" />
     <link rel="canonical" href="https://skribly-desktop.vercel.app/release-notes" />
-    <meta property="og:title" content="Skribli Production Notes" />
-    <meta property="og:description" content="The previous Windows beta is withdrawn while native interaction and installer behaviour are rebuilt." />
+    <meta property="og:title" content="Skribli Development Notes" />
+    <meta property="og:description" content="What is implemented, what is still being validated, and why public Windows downloads remain disabled." />
     <meta property="og:url" content="https://skribly-desktop.vercel.app/release-notes" />
-    <title>Production Notes — Skribli</title>
+    <title>Development Notes — Skribli</title>
     <link rel="icon" href="./assets/skribly-icon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="./styles.css" />
     <link rel="stylesheet" href="./ux-polish.css" />
@@ -17,45 +17,59 @@
   <body>
     <header class="site-header is-scrolled">
       <a class="brand" href="/"><img src="./assets/skribly-icon.svg" alt="" /><span>Skribli</span></a>
-      <nav class="desktop-nav" aria-label="Production navigation"><a href="/">Product</a><a href="/privacy">Privacy</a><a href="/answers">FAQ</a></nav>
-      <a class="button button-dark button-small" aria-disabled="true">App in production</a>
+      <nav class="desktop-nav" aria-label="Development navigation"><a href="/">Product</a><a href="/privacy">Privacy</a><a href="/answers">FAQ</a></nav>
+      <a class="button button-dark button-small" aria-disabled="true">Downloads unavailable</a>
     </header>
 
     <main class="legal-page">
       <article class="legal-shell">
-        <p class="overline">Active production development</p>
-        <h1>Production notes</h1>
-        <p class="legal-intro">The previous Windows beta has been withdrawn. Public downloads are paused while the native application is simplified and verified against real Windows behaviour.</p>
+        <p class="overline">Pre-release Windows validation</p>
+        <h1>Development notes</h1>
+        <p class="legal-intro">Public downloads are disabled. These notes separate implemented foundations from open release gates and deferred capabilities.</p>
 
         <section>
-          <h2>What is being removed</h2>
+          <h2>Implemented foundations</h2>
           <ul>
-            <li>The permanent floating toolbar.</li>
-            <li>The first-run onboarding tour.</li>
-            <li>The manual target-selection workflow during normal shortcut use.</li>
-            <li>The saved-notes widget floating over other applications.</li>
-            <li>Any public installer that opens a terminal or blocks unrelated screen interaction.</li>
+            <li>A compact typed-note editor opened with Ctrl + Shift + Space.</li>
+            <li>Fail-closed foreground target capture and process/window revalidation.</li>
+            <li>Deterministic native create-versus-reopen requests.</li>
+            <li>Ordered local saves with dirty, saving, saved, failed, and retry states.</li>
+            <li>Crash-safe versioned local storage and recovery foundations.</li>
+            <li>Target-monitor work-area placement, bounded Windows event delivery, and single-instance routing.</li>
+            <li>A visible first-run guide and reopenable Quick guide in the tray.</li>
           </ul>
         </section>
 
         <section>
-          <h2>What the next build must do</h2>
+          <h2>The exact current workflow</h2>
+          <ol>
+            <li>Focus a supported Windows application.</li>
+            <li>Press Ctrl + Shift + Space.</li>
+            <li>Skribli creates or reopens the deterministic contextual note.</li>
+            <li>Write in the compact editor.</li>
+            <li>Choose Done, Escape, Ctrl+Enter, or close.</li>
+            <li>Skribli waits for the latest non-empty draft to save, then fully hides the editor.</li>
+          </ol>
+          <p>The current MVP leaves no floating dot, attached tab, checklist, permanent toolbar, saved-notes widget, or full-screen interactive overlay.</p>
+        </section>
+
+        <section>
+          <h2>Open release gates</h2>
           <ul>
-            <li>Start quietly in the system tray without a console window.</li>
-            <li>Create one note for the foreground application with Ctrl + Shift + Space.</li>
-            <li>Keep empty overlay space click-through.</li>
-            <li>Provide clear save, close, hide, delete, and quit controls.</li>
-            <li>Use a natural paper-note typography treatment.</li>
-            <li>Regenerate every installer icon from the approved Skribli branding asset.</li>
+            <li>Complete the canonical note lifecycle and non-floating All Skribs recovery/library experience.</li>
+            <li>Add reversible trash, restore, portable export/import, and reliable read-only access.</li>
+            <li>Finish installer build, install, upgrade, repair, uninstall, and rollback validation.</li>
+            <li>Run the physical Windows matrix across display scaling, lifecycle interruptions, suspend/resume, Remote Desktop, and long sessions.</li>
+            <li>Reconcile privacy, support, compatibility, checksums, and download delivery with the exact signed candidate.</li>
           </ul>
         </section>
 
         <section>
-          <h2>Why downloads are paused</h2>
-          <p>A release should not be public merely because it compiles. The next installer will be published only after native Windows runtime checks confirm that it behaves safely across real application windows and display configurations.</p>
+          <h2>Why downloads remain disabled</h2>
+          <p>A build is not ready for customers merely because it compiles. Installer access will reopen only after the exact Windows candidate has reproducible packaging, complete automated gates, physical runtime evidence, a known-limitations record, and customer-facing copy that matches the binary.</p>
         </section>
 
-        <nav class="legal-nav" aria-label="Production page links">
+        <nav class="legal-nav" aria-label="Development page links">
           <a class="button button-dark" href="/">Back to product</a>
           <a class="button button-light" href="/answers">Read the FAQ</a>
         </nav>

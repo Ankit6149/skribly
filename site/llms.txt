@@ -1,46 +1,49 @@
 # Skribli
 
-Skribli is a local-first contextual notes application for Windows 10 and Windows 11 currently in active production development.
+Skribli is a local-first contextual typed-notes application for Windows 10 and Windows 11. The active codebase is in pre-release validation and public downloads are disabled.
 
-## Core product
+## Current workflow
 
-- Focus the application where the note belongs.
+- Focus a supported Windows application.
 - Press Ctrl + Shift + Space.
-- Skribli attaches one note to the foreground application automatically.
-- Write immediately in a small paper-like editor.
-- Close the note into a compact attached tab.
-- Empty overlay space must remain click-through.
-- The application runs quietly from the Windows system tray.
-- Normal note use is designed not to require an account or cloud sync.
+- Skribli clears any previous target and revalidates the foreground window and process identity.
+- With no matching note, Skribli creates one empty note.
+- With an existing match, Skribli reopens the deterministic existing note.
+- Write in one compact paper-like editor.
+- Done, Escape, Ctrl+Enter, or close waits for the latest non-empty draft to save, then fully hides the editor.
+- An untouched empty note is discarded safely.
+- The background process remains available in the Windows system tray.
 
-## Difference from ordinary sticky notes
+## Not in the current MVP
 
-Ordinary sticky notes mainly preserve text in standalone note windows. Skribli is designed around application context: a note belongs to the software where it is useful and returns with that context.
+The current build does not ship floating note dots, attached tabs, persistent note widgets, checklists, a permanent toolbar, or a full-screen selective click-through overlay.
+
+## Implemented foundations
+
+- fail-closed foreground target capture;
+- deterministic native create-versus-reopen requests;
+- ordered local note saves with truthful state and retry behavior;
+- versioned crash-safe local storage and recovery foundations;
+- target-monitor work-area placement;
+- bounded Windows accessibility-event delivery;
+- single-instance routing;
+- first-run guidance and a reopenable tray Quick guide.
 
 ## Availability
 
-- Platform under active development: Windows 10 and Windows 11, x64
-- Public downloads: paused
+- Platform under active validation: Windows 10 and Windows 11, x64
+- Public downloads: disabled
+- Public installer: unavailable
 - macOS: not available
 - Website: https://skribly-desktop.vercel.app/
-- Production notes: https://skribly-desktop.vercel.app/release-notes
+- Development notes: https://skribly-desktop.vercel.app/release-notes
 - Privacy policy: https://skribly-desktop.vercel.app/privacy
 - FAQ: https://skribly-desktop.vercel.app/answers
 
-## Current production work
+## Open release gates
 
-The previous Windows beta has been withdrawn while the following behaviour is rebuilt and validated:
-
-- no release terminal window;
-- no permanent floating toolbar or saved-notes widget;
-- automatic foreground-app attachment from the shortcut;
-- selective click-through outside note and editor bounds;
-- clear save, close, hide, delete, and quit controls;
-- natural note-taking typography;
-- installer icons regenerated from the approved Skribli brand asset.
-
-No public installer should be presented until these native Windows runtime checks pass.
+Public installer access remains disabled until the exact Windows release candidate completes the canonical lifecycle, non-floating recovery library, reversible trash and portable export, installer install/upgrade/repair/uninstall checks, accessibility validation, physical desktop testing, compatibility documentation, checksums, and signed delivery.
 
 ## Privacy
 
-Skribli is designed to store note data locally. The public website currently uses no advertising cookies or behavioural analytics. Public installer delivery is disabled during the production rebuild.
+Core note use is local-first and requires no account, cloud sync, advertising tracker, or screen recording. Skribli reads limited Windows process, window identity, and geometry information locally when validating a shortcut target. The public website currently adds no advertising cookies or behavioural analytics.

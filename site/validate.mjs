@@ -15,6 +15,7 @@ const requiredFiles = [
   'ux-polish.css',
   'landing-typography.css',
   'site-refresh.css',
+  'product-truth.css',
   'app.js',
   'commerce-config.js',
   'vercel.json',
@@ -89,7 +90,8 @@ const customerFacingTextFiles = [
   'llms.txt',
   'README.md',
 ];
-const forbiddenPatterns = [
+
+const forbiddenCommercialPatterns = [
   /founder/i,
   /\balpha\b/i,
   /\bpricing\b/i,
@@ -97,26 +99,48 @@ const forbiddenPatterns = [
   /₹/,
   /\bcheckout\b/i,
   /\bpurchase\b/i,
-  /\bpaid\b/i,
   /\blicen[cs]e\b/i,
   /\btrial\b/i,
 ];
 
+const retiredProductPatterns = [
+  /Skribli is in production/i,
+  /App in production/i,
+  /Windows app\s*·\s*in production/i,
+  /Active production development/i,
+  /Production notes/i,
+  /Production rebuild/i,
+  /Selective click-through transparent overlay/i,
+  /Close it into context/i,
+  /close into a compact attached tab/i,
+  /editor becomes a compact attached note/i,
+  /empty overlay space (?:must )?remain click-through/i,
+  /Everything outside the note remains available to click and use/i,
+  /Leaves unrelated screen space interactive/i,
+  /Open checklist note/i,
+  /WORKFLOW NOTE/i,
+];
+
 for (const file of customerFacingTextFiles) {
   const content = await readFile(join(root, file), 'utf8');
-  for (const pattern of forbiddenPatterns) {
+  for (const pattern of forbiddenCommercialPatterns) {
     if (pattern.test(content)) {
       failures.push(`${file} contains commercial or legacy language matched by ${pattern}.`);
+    }
+  }
+  for (const pattern of retiredProductPatterns) {
+    if (pattern.test(content)) {
+      failures.push(`${file} contains retired public product behavior matched by ${pattern}.`);
     }
   }
 }
 
 const config = await readFile(join(root, 'commerce-config.js'), 'utf8');
-if (!config.includes("status: 'production_rebuild'")) {
-  failures.push('Site config must identify the production rebuild.');
+if (!config.includes("status: 'release_candidate_validation'")) {
+  failures.push('Site config must identify release-candidate validation.');
 }
-if (!config.includes("mode: 'production_hold'")) {
-  failures.push('Site config must keep downloads in production_hold mode.');
+if (!config.includes("mode: 'pre_release_hold'")) {
+  failures.push('Site config must keep downloads in pre_release_hold mode.');
 }
 if (!config.includes('enabled: false')) {
   failures.push('Site config must disable installer access.');
@@ -131,61 +155,123 @@ for (const requiredSection of ['how-it-works', 'principles', 'features', 'audien
     failures.push(`Landing page is missing required section #${requiredSection}.`);
   }
 }
-for (const requiredText of [
-  'Skribli is in production',
-  'Downloads paused',
-  'No permanent toolbar',
-  'WHO IT HELPS',
-  'Ordinary notes remember the text',
-  'site-refresh.css',
+
+const requiredLandingTruth = [
+  'release candidate in validation',
+  'Downloads unavailable',
+  'No floating remainder',
+  'NEW NOTE FOR',
+  'Saved locally',
+  'Editor fully hides',
+  'leaves no dot, tab, checklist, or floating widget after it closes.',
+  'Floating dots, attached tabs, checklists',
+  'Pre-release validation',
+  'product-truth.css',
   'data-skribly-schema',
   'href="/release-notes"',
   'href="/privacy"',
   'href="/answers"',
-]) {
+];
+for (const requiredText of requiredLandingTruth) {
   if (!landing.includes(requiredText)) {
-    failures.push(`Landing page is missing product marker: ${requiredText}`);
+    failures.push(`Landing page is missing truthful product marker: ${requiredText}`);
   }
 }
+
+const retiredLandingMarkers = [
+  'data-demo-dot',
+  'data-demo-note',
+  'demo-dot dot-yellow',
+  'demo-dot dot-mint',
+  'compact-note',
+  'Selective click-through',
+];
+for (const marker of retiredLandingMarkers) {
+  if (landing.includes(marker)) {
+    failures.push(`Landing page still renders retired product marker: ${marker}`);
+  }
+}
+
 if (/href="\/api\/download"/i.test(landing)) {
   failures.push('Landing page must not contain an active installer link.');
 }
 
-const refreshStyles = await readFile(join(root, 'site-refresh.css'), 'utf8');
-if (!refreshStyles.includes("family=Kalam")) {
-  failures.push('Landing refresh must load the handwritten note typeface.');
-}
-for (const selector of ['.demo-note p', '.handwritten-line', '.hero-scribble']) {
-  if (!refreshStyles.includes(selector)) {
-    failures.push(`Landing refresh is missing handwritten treatment for ${selector}.`);
+const productStyles = await readFile(join(root, 'product-truth.css'), 'utf8');
+for (const selector of ['.compact-editor-demo', '.demo-flow', '.demo-done', '.hidden-chip']) {
+  if (!productStyles.includes(selector)) {
+    failures.push(`Truthful landing demonstration is missing style: ${selector}.`);
   }
+}
+if (!productStyles.includes('@media (prefers-reduced-motion: reduce)')) {
+  failures.push('Truthful landing demonstration must respect reduced-motion preferences.');
 }
 
 const app = await readFile(join(root, 'app.js'), 'utf8');
-if (!app.includes('Skribli is in production') || !app.includes('Downloads paused')) {
-  failures.push('Landing script must keep installer access visibly disabled.');
+for (const requiredScriptText of [
+  'Downloads unavailable',
+  'Windows validation active',
+  "payload.softwareVersion = 'Pre-release validation'",
+]) {
+  if (!app.includes(requiredScriptText)) {
+    failures.push(`Landing script is missing truthful disabled-state behavior: ${requiredScriptText}`);
+  }
+}
+for (const retiredScriptMarker of ['data-demo-dot', 'data-close-demo', 'data-demo-note']) {
+  if (app.includes(retiredScriptMarker)) {
+    failures.push(`Landing script still controls retired floating-note demo: ${retiredScriptMarker}`);
+  }
 }
 if (/\/api\/(download|checkout)/i.test(app)) {
   failures.push('Landing script must not wire active installer or commercial routes.');
 }
 
-const downloadApi = await readFile(join(root, 'api/download.js'), 'utf8');
-if (!downloadApi.includes("X-Skribli-Download-Status', 'production-hold'")) {
-  failures.push('Download route must expose the production-hold status header.');
+const answers = await readFile(join(root, 'answers.html'), 'utf8');
+for (const fact of [
+  'creates one empty note',
+  'reopens that note',
+  'Nothing from Skribli remains floating',
+  'full-screen interactive overlay',
+  'Public downloads are disabled',
+]) {
+  if (!answers.includes(fact)) failures.push(`FAQ is missing current behavior: ${fact}.`);
 }
-if (!downloadApi.includes('/download-unavailable?reason=production')) {
-  failures.push('Download route must redirect to the production status page.');
+
+const developmentNotes = await readFile(join(root, 'release-notes.html'), 'utf8');
+for (const fact of [
+  'Development notes',
+  'Implemented foundations',
+  'The exact current workflow',
+  'Open release gates',
+  'Public downloads are disabled',
+]) {
+  if (!developmentNotes.includes(fact)) {
+    failures.push(`Development notes are missing required section or fact: ${fact}.`);
+  }
+}
+
+const privacy = await readFile(join(root, 'privacy.html'), 'utf8');
+for (const fact of [
+  'The current shortcut path does not record your screen.',
+  'Public downloads are disabled.',
+  'Reversible trash, retention, restore, complete export/import',
+]) {
+  if (!privacy.includes(fact)) failures.push(`Privacy page is missing current limitation: ${fact}.`);
+}
+
+const downloadApi = await readFile(join(root, 'api/download.js'), 'utf8');
+if (!downloadApi.includes("X-Skribli-Download-Status', 'pre-release-hold'")) {
+  failures.push('Download route must expose the pre-release-hold status header.');
+}
+if (!downloadApi.includes('/download-unavailable?reason=validation')) {
+  failures.push('Download route must redirect to the validation status page.');
 }
 if (/browser_download_url|api\.github\.com\/repos\/Ankit6149\/skribly\/releases/i.test(downloadApi)) {
-  failures.push('Download route must not resolve a release asset during the production hold.');
+  failures.push('Download route must not resolve a release asset during the pre-release hold.');
 }
 
 const releaseWorkflow = await readFile(join(repoRoot, '.github/workflows/release.yml'), 'utf8');
-if (!releaseWorkflow.includes('Production Hold')) {
-  failures.push('Release workflow must be visibly marked as a production hold.');
-}
 if (/softprops\/action-gh-release|tauri -- build|branches:\s*\n\s*- main/i.test(releaseWorkflow)) {
-  failures.push('Release workflow must not automatically build or publish installers during the hold.');
+  failures.push('Release workflow must not automatically build or publish installers while downloads are disabled.');
 }
 
 const robots = await readFile(join(root, 'robots.txt'), 'utf8');
@@ -199,9 +285,15 @@ for (const route of ['/', '/answers', '/privacy', '/release-notes']) {
 }
 
 const llms = await readFile(join(root, 'llms.txt'), 'utf8');
-for (const fact of ['contextual notes', 'Windows', 'public downloads: paused', 'local-first']) {
+for (const fact of [
+  'contextual typed-notes',
+  'Windows',
+  'Public downloads: disabled',
+  'local-first',
+  'does not ship floating note dots',
+]) {
   if (!llms.toLowerCase().includes(fact.toLowerCase())) {
-    failures.push(`llms.txt is missing a core production fact: ${fact}.`);
+    failures.push(`llms.txt is missing current product fact: ${fact}.`);
   }
 }
 

@@ -4,21 +4,22 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="application-name" content="Skribli" />
-    <meta name="description" content="Skribli is a local-first contextual notes app for Windows. Press one shortcut, write naturally, and keep each note attached to the application where it belongs." />
+    <meta name="description" content="Skribli is a local-first contextual notes app for Windows. Focus an app, press Ctrl+Shift+Space, write in a compact editor, and choose Done to save locally and hide it." />
     <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1" />
     <meta name="theme-color" content="#fffdf7" />
     <link rel="canonical" href="https://skribly-desktop.vercel.app/" />
-    <meta property="og:title" content="Skribli — Notes that remember the place" />
-    <meta property="og:description" content="A local-first Windows notes layer. Press one shortcut, write a note, and keep it with the application where the thought belongs." />
+    <meta property="og:title" content="Skribli — A note exactly where you need it" />
+    <meta property="og:description" content="A local-first Windows note editor opened with one shortcut. The current build is in release-candidate validation and public downloads are disabled." />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://skribly-desktop.vercel.app/" />
     <meta property="og:image" content="https://skribly-desktop.vercel.app/assets/skribly-social-card.svg" />
     <meta name="twitter:card" content="summary_large_image" />
-    <title>Skribli — Notes that remember the place</title>
+    <title>Skribli — A note exactly where you need it</title>
     <link rel="icon" href="./assets/skribly-icon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="./styles.css" />
     <link rel="stylesheet" href="./ux-polish.css" />
     <link rel="stylesheet" href="./site-refresh.css" />
+    <link rel="stylesheet" href="./product-truth.css" />
     <script type="application/ld+json" data-skribly-schema>
       {
         "@context": "https://schema.org",
@@ -26,14 +27,14 @@
         "name": "Skribli",
         "applicationCategory": "ProductivityApplication",
         "operatingSystem": "Windows 10, Windows 11",
-        "description": "A local-first contextual notes app that attaches notes to the application where they belong.",
+        "description": "A local-first Windows contextual note editor opened with Ctrl+Shift+Space. Public downloads are disabled while the release candidate is validated.",
         "url": "https://skribly-desktop.vercel.app/",
-        "softwareVersion": "In production",
+        "softwareVersion": "Pre-release validation",
         "featureList": [
-          "Shortcut-created notes attached to the foreground application",
-          "Selective click-through transparent overlay",
-          "Quiet system-tray operation",
-          "Local-first note storage"
+          "Compact editor opened with Ctrl+Shift+Space",
+          "Foreground application context captured and revalidated before opening",
+          "Local-first note storage with recovery foundations",
+          "Save-then-hide workflow with quiet system-tray operation"
         ]
       }
     </script>
@@ -49,39 +50,38 @@
         </a>
         <nav class="desktop-nav" aria-label="Primary navigation">
           <a href="#how-it-works">How it works</a>
-          <a href="#features">Features</a>
+          <a href="#features">What works now</a>
           <a href="#audience">For you</a>
           <a href="#status">Status</a>
           <a href="/privacy">Privacy</a>
         </nav>
-        <a class="button button-small button-dark" data-download-link aria-disabled="true">Skribli is in production</a>
+        <a class="button button-small button-dark" data-download-link aria-disabled="true">Downloads unavailable</a>
       </header>
 
       <main id="top">
         <section class="hero section-pad">
           <div class="hero-copy">
-            <div class="eyebrow-pill"><span class="pulse-dot"></span> Windows app · in production</div>
-            <h1>Leave a note <em>where the thought belongs.</em></h1>
+            <div class="eyebrow-pill"><span class="pulse-dot"></span> Windows app · release candidate in validation</div>
+            <h1>Write the thought <em>before it disappears.</em></h1>
             <p class="hero-lede">
-              Skribli adds a quiet note layer to the software you already use. Press one shortcut, write immediately,
-              and keep the note connected to the application where it will be useful later.
+              Focus the application you are using, press one shortcut, and write in a compact note editor. Skribli saves the note locally and fully hides the editor when you choose Done.
             </p>
             <div class="hero-actions">
               <a class="button button-primary" data-download-link aria-disabled="true">
-                <span>Skribli is in production</span>
-                <small data-version-label>Downloads paused</small>
+                <span>Downloads unavailable</span>
+                <small data-version-label>Windows validation active</small>
               </a>
-              <a class="button button-ghost" href="#how-it-works">See how it feels</a>
+              <a class="button button-ghost" href="#how-it-works">See the real workflow</a>
             </div>
-            <div class="note-script">one shortcut, then just write ↗</div>
+            <div class="note-script">focus app → shortcut → write → Done ↗</div>
             <div class="hero-meta">
               <span>Local-first</span>
-              <span>No permanent toolbar</span>
+              <span>No floating remainder</span>
               <span>Windows 10/11</span>
             </div>
           </div>
 
-          <div class="hero-product" id="demo" aria-label="Skribli contextual note preview">
+          <div class="hero-product truthful-demo" id="demo" aria-label="Current Skribli compact editor workflow">
             <div class="app-window">
               <div class="app-titlebar">
                 <div class="traffic-lights"><span></span><span></span><span></span></div>
@@ -95,69 +95,66 @@
                 <div class="fake-copy wide faint"></div>
                 <div class="fake-copy medium faint"></div>
 
-                <button class="demo-dot dot-yellow" type="button" data-demo-dot="one" aria-label="Open attached note">
-                  <span>✎</span>
-                </button>
-                <button class="demo-dot dot-mint" type="button" data-demo-dot="two" aria-label="Open checklist note">
-                  <span>✓</span>
-                </button>
-
-                <article class="demo-note note-yellow is-open" data-demo-note="one">
+                <article class="compact-editor-demo" aria-label="Compact Skribli editor example">
                   <header>
-                    <div><span>ATTACHED TO NOTEPAD</span><strong>Project brief</strong></div>
-                    <button type="button" data-close-demo="one" aria-label="Close preview note">●</button>
+                    <div>
+                      <span>NEW NOTE FOR</span>
+                      <strong>Project brief — Notepad</strong>
+                    </div>
+                    <span class="demo-close" aria-hidden="true">×</span>
                   </header>
                   <p>Confirm the final wording before sending this document.</p>
-                  <footer><span>saved with this app</span><button type="button">Edit</button></footer>
-                </article>
-
-                <article class="demo-note note-mint compact-note" data-demo-note="two">
-                  <header>
-                    <div><span>WORKFLOW NOTE</span><strong>Before sending</strong></div>
-                    <button type="button" data-close-demo="two" aria-label="Close checklist note">●</button>
-                  </header>
-                  <p>✓ Check links<br />✓ Export file<br />○ Send update</p>
+                  <footer>
+                    <div><strong>Saved locally</strong><small>Latest text is safe</small></div>
+                    <span class="demo-delete">Delete</span>
+                    <span class="demo-done">Done</span>
+                  </footer>
                 </article>
               </div>
             </div>
-            <div class="hero-scribble">the note remembers<br />the place for you</div>
+            <ol class="demo-flow" aria-label="Skribli workflow">
+              <li><span>1</span>Focus an app</li>
+              <li><span>2</span>Press Ctrl+Shift+Space</li>
+              <li><span>3</span>Write, then choose Done</li>
+              <li><span>4</span>Editor fully hides</li>
+            </ol>
+            <div class="hero-scribble">nothing stays floating<br />after Done</div>
           </div>
         </section>
 
         <section class="proof-strip" id="principles" aria-label="Skribli product principles">
-          <div><strong>Attached</strong><span>Notes stay with the app that needs them.</span></div>
-          <div><strong>Automatic</strong><span>The shortcut uses the foreground app.</span></div>
-          <div><strong>Quiet</strong><span>Only the note captures interaction.</span></div>
-          <div><strong>Local-first</strong><span>Your notes stay on your computer.</span></div>
+          <div><strong>Contextual</strong><span>The shortcut captures the application already in front of you.</span></div>
+          <div><strong>Explicit</strong><span>Skribli tells you whether a note is new or reopened.</span></div>
+          <div><strong>Quiet</strong><span>Done saves and fully hides the compact editor.</span></div>
+          <div><strong>Local-first</strong><span>Core note data stays on your computer.</span></div>
         </section>
 
         <section class="section-pad story-section" id="how-it-works">
           <div class="section-heading">
-            <span class="section-kicker">A DIFFERENT KIND OF STICKY NOTE</span>
-            <h2>Not another notes window.<br /><span class="handwritten-line">A small layer over your work.</span></h2>
+            <span class="section-kicker">THE CURRENT WINDOWS WORKFLOW</span>
+            <h2>One compact editor.<br /><span class="handwritten-line">No permanent overlay.</span></h2>
             <p>
-              Traditional sticky notes live beside your work. Skribli is designed to appear exactly when you ask for it,
-              remember the application, and disappear without blocking the rest of your screen.
+              The current build is intentionally focused. It opens only when requested, keeps the active draft visible when saving fails, and leaves no dot, tab, checklist, or floating widget after it closes.
             </p>
           </div>
           <div class="steps-grid">
             <article class="step-card step-yellow">
               <span class="step-number">01</span>
               <div class="step-visual write-visual"><kbd>Ctrl</kbd><span>+</span><kbd>Shift</kbd><span>+</span><kbd>Space</kbd></div>
-              <h3>Press one shortcut</h3>
-              <p>Skribli captures the application already in front of you. There is no picker or setup screen in the normal flow.</p>
+              <h3>Focus and press</h3>
+              <p>Skribli captures and revalidates the foreground Windows application before it creates or reopens a note.</p>
             </article>
             <article class="step-card step-peach">
               <span class="step-number">02</span>
               <div class="step-visual"><div class="return-note">write it while it is fresh</div></div>
-              <h3>Write naturally</h3>
-              <p>A focused paper-like editor opens with a natural handwritten note style and only the controls you need.</p>
+              <h3>Write in one small editor</h3>
+              <p>The editor shows whether this is a new note or an existing note and reports its real local save state.</p>
             </article>
             <article class="step-card step-mint">
               <span class="step-number">03</span>
-              <div class="step-visual return-visual"><div class="return-note">note</div><span>→</span><div class="return-dot">✎</div><span>→</span><div class="return-app">app</div></div>
-              <h3>Close it into context</h3>
-              <p>The editor becomes a compact attached note. Everything outside the note remains available to click and use.</p>
+              <div class="step-visual hide-visual"><div class="return-note">Saved locally</div><span>→</span><div class="done-chip">Done</div><span>→</span><div class="hidden-chip">hidden</div></div>
+              <h3>Save, then fully hide</h3>
+              <p>Done, Escape, Ctrl+Enter, or close waits for the latest non-empty draft to save. An untouched empty note is discarded.</p>
             </article>
           </div>
         </section>
@@ -165,41 +162,37 @@
         <section class="section-pad feature-section" id="features">
           <div class="section-heading split-heading">
             <div>
-              <span class="section-kicker">BUILT AROUND THE MOMENT OF WORK</span>
-              <h2>Remember what matters,<br />where it matters.</h2>
+              <span class="section-kicker">IMPLEMENTED FOUNDATIONS</span>
+              <h2>Small on the surface.<br />Careful underneath.</h2>
             </div>
-            <p>Skribli is meant for the small instructions, decisions, and reminders that only make sense inside a particular application.</p>
+            <p>These are implemented foundations in the current repository. They are not a claim that the installer is ready for public use.</p>
           </div>
 
           <div class="feature-bento">
             <article class="feature-card feature-large feature-context">
-              <span class="feature-label">CONTEXT ANCHORING</span>
-              <h3>The note belongs to the application—not the desktop.</h3>
-              <p>Return to your work without searching through a separate notes app or trying to remember why the note existed.</p>
-              <div class="context-visual">
-                <div class="context-window"><span>Working application</span></div>
-                <div class="context-line"></div>
-                <div class="context-dot">✎</div>
-              </div>
+              <span class="feature-label">SAFE CONTEXT CAPTURE</span>
+              <h3>The previous target is cleared before every shortcut.</h3>
+              <p>Skribli revalidates the exact Windows handle, process identity, visibility, bounds, and foreground ownership before opening a note.</p>
+              <div class="context-visual"><div class="context-window"><span>Focused application</span></div><div class="context-line"></div><div class="context-dot">✓</div></div>
             </article>
 
             <article class="feature-card feature-rich">
-              <span class="feature-label">NOTE-LIKE BY DESIGN</span>
-              <h3>Warm, quick, and intentionally small.</h3>
-              <p>The interface feels closer to a real note than another productivity dashboard.</p>
-              <div class="feature-note-tabs"><span>remember this</span><span>check later</span></div>
+              <span class="feature-label">LOSS-RESISTANT EDITING</span>
+              <h3>Dirty, saving, saved, and failed are real states.</h3>
+              <p>Skribli keeps the editor open when the latest text is not safely stored and provides recovery information instead of pretending success.</p>
+              <div class="feature-note-tabs"><span>saving…</span><span>saved locally</span></div>
             </article>
 
             <article class="feature-card feature-shortcut">
               <span class="feature-label">GLOBAL SHORTCUT</span>
-              <h3>Open Skribli without leaving your flow.</h3>
+              <h3>Open the compact editor without changing tools.</h3>
               <kbd>Ctrl</kbd><span>+</span><kbd>Shift</kbd><span>+</span><kbd>Space</kbd>
             </article>
 
             <article class="feature-card feature-private" id="privacy">
               <span class="feature-label">LOCAL-FIRST</span>
-              <h3>Your working memory stays yours.</h3>
-              <p>The core Windows experience is designed without a mandatory account, cloud sync, or screen recording.</p>
+              <h3>Your note content stays on the device.</h3>
+              <p>Core use requires no account, cloud sync, advertising tracker, or screen recording.</p>
               <div class="privacy-lock">⌁<span>LOCAL</span></div>
             </article>
           </div>
@@ -207,51 +200,49 @@
 
         <section class="section-pad audience-section" id="audience">
           <div class="section-heading centered-heading">
-            <span class="section-kicker">WHO IT HELPS</span>
-            <h2>Your computer has context.<br /><span class="handwritten-line">Your notes should too.</span></h2>
+            <span class="section-kicker">WHO IT IS FOR</span>
+            <h2>For thoughts that belong<br /><span class="handwritten-line">inside a moment of work.</span></h2>
           </div>
           <div class="audience-grid">
-            <article><span>01</span><h3>Developers</h3><p>Keep test steps, environment details, and temporary decisions beside the tool where they matter.</p></article>
-            <article><span>02</span><h3>Designers</h3><p>Leave export reminders, visual decisions, and client details inside the application being used.</p></article>
-            <article><span>03</span><h3>Students</h3><p>Attach explanations and reminders to study tools, simulators, documents, and coursework.</p></article>
-            <article><span>04</span><h3>Busy operators</h3><p>Make unfamiliar or recurring software workflows easier to repeat without a separate manual.</p></article>
+            <article><span>01</span><h3>Developers</h3><p>Keep a test step or temporary decision beside the application where you need it.</p></article>
+            <article><span>02</span><h3>Designers</h3><p>Capture an export reminder or review note without opening a separate workspace.</p></article>
+            <article><span>03</span><h3>Students</h3><p>Save an explanation beside a document, simulator, or study application.</p></article>
+            <article><span>04</span><h3>Busy operators</h3><p>Remember a small recurring instruction without building a full manual.</p></article>
           </div>
         </section>
 
         <section class="section-pad comparison-section">
           <div class="comparison-copy">
-            <span class="section-kicker">WHY NOT ORDINARY STICKY NOTES?</span>
-            <h2>Ordinary notes remember the text.<br />Skribli remembers the place.</h2>
+            <span class="section-kicker">CURRENT SCOPE, CLEARLY</span>
+            <h2>What exists now—and what does not.</h2>
           </div>
-          <div class="comparison-table" role="table" aria-label="Skribli comparison">
-            <div class="comparison-row comparison-head" role="row">
-              <span role="columnheader">Capability</span><span role="columnheader">Ordinary notes</span><span role="columnheader">Skribli</span>
-            </div>
-            <div class="comparison-row" role="row"><span>Attached to the active application</span><span>Usually separate</span><strong>Designed for it</strong></div>
-            <div class="comparison-row" role="row"><span>Appears from one global shortcut</span><span>Varies</span><strong>Yes</strong></div>
-            <div class="comparison-row" role="row"><span>Leaves unrelated screen space interactive</span><span>Limited</span><strong>Yes</strong></div>
-            <div class="comparison-row" role="row"><span>Local-first core experience</span><span>Varies</span><strong>Yes</strong></div>
+          <div class="comparison-table" role="table" aria-label="Current Skribli capability status">
+            <div class="comparison-row comparison-head" role="row"><span role="columnheader">Capability</span><span role="columnheader">Current status</span><span role="columnheader">Public claim</span></div>
+            <div class="comparison-row" role="row"><span>Compact typed-note editor</span><span>Implemented</span><strong>Shown here</strong></div>
+            <div class="comparison-row" role="row"><span>Local storage and recovery foundations</span><span>Implemented</span><strong>Shown here</strong></div>
+            <div class="comparison-row" role="row"><span>Floating dots, attached tabs, checklists</span><span>Not in current MVP</span><strong>Not advertised</strong></div>
+            <div class="comparison-row" role="row"><span>Public installer and paid access</span><span>Disabled pending gates</span><strong>Unavailable</strong></div>
           </div>
         </section>
 
         <section class="download-section status-section section-pad" id="status">
           <img src="./assets/skribly-icon.svg" alt="" />
           <span class="section-kicker">CURRENT STATUS</span>
-          <h2>The Windows app is being finished carefully.</h2>
-          <p data-download-status>Downloads remain paused while the exact installer is checked on real Windows desktops for shortcut targeting, click-through behaviour, closing, tray controls, and quiet startup.</p>
+          <h2>The Windows release candidate is still being validated.</h2>
+          <p data-download-status>Public downloads remain disabled while the exact Windows build completes lifecycle, installer, recovery, accessibility, and physical desktop validation.</p>
           <div class="download-actions">
-            <a class="button button-primary button-large" data-download-link aria-disabled="true">Skribli is in production</a>
-            <a class="button button-ghost" data-release-notes-link href="/release-notes">Read production notes</a>
+            <a class="button button-primary button-large" data-download-link aria-disabled="true">Downloads unavailable</a>
+            <a class="button button-ghost" data-release-notes-link href="/release-notes">Read development notes</a>
           </div>
-          <div class="system-note"><span>Windows 10/11</span><span>Downloads paused</span><span>Local-first</span></div>
+          <div class="system-note"><span>Windows 10/11</span><span>Pre-release validation</span><span>Local-first</span></div>
         </section>
       </main>
 
       <footer class="site-footer">
         <a class="brand footer-brand" href="#top"><img src="./assets/skribly-icon.svg" alt="" /><span>Skribli</span></a>
-        <p>Contextual notes for the software you already use.</p>
-        <div><a href="/release-notes">Production notes</a><a href="/privacy">Privacy</a><a href="/answers">FAQ</a></div>
-        <small>© 2026 Ankit Bhardwaj. Active production development.</small>
+        <p>Contextual typed notes for Windows, currently in release-candidate validation.</p>
+        <div><a href="/release-notes">Development notes</a><a href="/privacy">Privacy</a><a href="/answers">FAQ</a></div>
+        <small>© 2026 Ankit Bhardwaj. Public downloads are disabled.</small>
       </footer>
     </div>
     <div class="toast" role="status" aria-live="polite" data-toast></div>
