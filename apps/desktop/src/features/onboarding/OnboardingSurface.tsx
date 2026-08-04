@@ -6,7 +6,14 @@ interface OnboardingSurfaceProps {
   onDismiss: () => void;
 }
 
-const STEPS = [
+interface OnboardingStep {
+  number: string;
+  title: string;
+  description: string;
+  shortcut?: boolean;
+}
+
+const STEPS: readonly OnboardingStep[] = [
   {
     number: '01',
     title: 'Focus the application',
@@ -23,7 +30,7 @@ const STEPS = [
     title: 'Type, then choose Done',
     description: 'The note saves locally, the editor hides, and Skribli stays in the tray.',
   },
-] as const;
+];
 
 export const OnboardingSurface: React.FC<OnboardingSurfaceProps> = ({
   onComplete,
