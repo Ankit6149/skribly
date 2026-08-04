@@ -34,15 +34,39 @@ jobs:
           git fetch origin '+refs/heads/*:refs/remotes/origin/*' --prune
 
           readonly default_branch='main'
-          readonly -a force_delete=(
+
+          # These branch heads were individually audited against their merged PRs.
+          # Squash merges do not make the old branch head an ancestor of main, so
+          # ancestry alone cannot identify them as redundant.
+          readonly -a audited_delete=(
+            'chore/cleanup-merged-branches'
+            'chore/cleanup-squash-merged-branches'
+            'docs/expanded-product-roadmap'
+            'feat/110-first-note-onboarding'
+            'fix/14-crash-safe-storage'
+            'fix/19-monitor-work-area-placement'
+            'fix/20-canonical-note-lifecycle'
+            'fix/33-repository-governance'
+            'fix/86-node-runtime-contract'
+            'fix/86-package-lock-runtime-metadata'
+            'fix/89-vercel-node-runtime'
+            'fix/91-92-ordered-note-saving'
+            'fix/97-safe-delete-confirmation'
+            'fix/99-product-truth-readme'
+            'fix/101-rust-note-validation'
+            'fix/105-single-instance-routing'
+            'fix/107-bounded-winevent-pipeline'
+            'fix/109-fail-closed-target-capture'
+            'fix/111-vercel-ignored-builds'
+            'fix/114-public-site-product-truth'
             'temp/onboarding-handoff'
             'test/33-unrelated-branch-survival'
           )
 
-          should_force_delete() {
+          is_audited_for_deletion() {
             local candidate="$1"
             local stale
-            for stale in "${force_delete[@]}"; do
+            for stale in "${audited_delete[@]}"; do
               if [[ "$candidate" == "$stale" ]]; then
                 return 0
               fi
@@ -74,8 +98,8 @@ jobs:
               continue
             fi
 
-            if should_force_delete "$branch"; then
-              echo "Deleting audited disposable branch: $branch"
+            if is_audited_for_deletion "$branch"; then
+              echo "Deleting audited merged or disposable branch: $branch"
               delete_remote_branch "$branch"
               deleted=$((deleted + 1))
               continue
