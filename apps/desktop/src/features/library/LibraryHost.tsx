@@ -23,12 +23,25 @@ type ExportMessage =
   | { type: 'error'; message: string }
   | null;
 
+const EXPORT_RESPONSE_TIMEOUT_MS = 15_000;
+
+function dateFromTimestamp(timestampSeconds: number): Date | null {
+  if (!Number.isFinite(timestampSeconds) || timestampSeconds <= 0) return null;
+  const date = new Date(timestampSeconds * 1000);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 function formatUpdatedTime(timestampSeconds: number): string {
-  if (!Number.isFinite(timestampSeconds) || timestampSeconds <= 0) return 'Unknown time';
+  const date = dateFromTimestamp(timestampSeconds);
+  if (!date) return 'Unknown time';
   return new Intl.DateTimeFormat(undefined, {
     dateStyle: 'medium',
     timeStyle: 'short',
-  }).format(new Date(timestampSeconds * 1000));
+  }).format(date);
+}
+
+function timestampDateTime(timestampSeconds: number): string | undefined {
+  return dateFromTimestamp(timestampSeconds)?.toISOString();
 }
 
 export const LibraryHost: React.FC = () => {
@@ -40,7 +53,15 @@ export const LibraryHost: React.FC = () => {
   const [isExporting, setIsExporting] = useState(false);
   const [exportMessage, setExportMessage] = useState<ExportMessage>(null);
   const pendingExportRequest = useRef<string | null>(null);
+  const pendingExportTimeout = useRef<number | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const clearExportTimeout = useCallback(() => {
+    if (pendingExportTimeout.current !== null) {
+      window.clearTimeout(pendingExportTimeout.current);
+      pendingExportTimeout.current = null;
+    }
+  }, []);
 
   const refreshNotes = useCallback(async () => {
     setIsLoading(true);
@@ -92,6 +113,7 @@ export const LibraryHost: React.FC = () => {
       if (disposed || !isLibraryExportResult(event.payload)) return;
       if (event.payload.requestId !== pendingExportRequest.current) return;
 
+      clearExportTimeout();
       pendingExportRequest.current = null;
       setIsExporting(false);
       if (event.payload.path) {
@@ -109,9 +131,10 @@ export const LibraryHost: React.FC = () => {
 
     return () => {
       disposed = true;
+      clearExportTimeout();
       unlisten?.();
     };
-  }, []);
+  }, [clearExportTimeout]);
 
   const filteredNotes = useMemo(() => filterLibraryNotes(notes, query), [notes, query]);
   const selectedNote = useMemo(
@@ -160,11 +183,23 @@ export const LibraryHost: React.FC = () => {
 
     try {
       const request = createLibraryExportRequest(noteIds);
+      clearExportTimeout();
       pendingExportRequest.current = request.requestId;
       setIsExporting(true);
       setExportMessage(null);
+      pendingExportTimeout.current = window.setTimeout(() => {
+        if (pendingExportRequest.current !== request.requestId) return;
+        pendingExportRequest.current = null;
+        pendingExportTimeout.current = null;
+        setIsExporting(false);
+        setExportMessage({
+          type: 'error',
+          message: 'Skribli did not receive an export result. Try again or restart the app.',
+        });
+      }, EXPORT_RESPONSE_TIMEOUT_MS);
       await emit(LIBRARY_EXPORT_REQUEST_EVENT, request);
     } catch (error) {
+      clearExportTimeout();
       pendingExportRequest.current = null;
       setIsExporting(false);
       setExportMessage({
@@ -301,7 +336,7 @@ export const LibraryHost: React.FC = () => {
                     <span className="library-note-row-title">{noteDisplayTitle(note)}</span>
                     <span className="library-note-row-context">{noteContextLabel(note)}</span>
                     <span className="library-note-row-preview">{notePreview(note)}</span>
-                    <time dateTime={new Date(note.updated_at * 1000).toISOString()}>
+                    <time dateTime={timestampDateTime(note.updated_at)}>
                       {formatUpdatedTime(note.updated_at)}
                     </time>
                   </button>
