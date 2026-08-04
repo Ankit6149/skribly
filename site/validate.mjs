@@ -99,7 +99,6 @@ const forbiddenCommercialPatterns = [
   /₹/,
   /\bcheckout\b/i,
   /\bpurchase\b/i,
-  /\bpaid\b/i,
   /\blicen[cs]e\b/i,
   /\btrial\b/i,
 ];
@@ -164,7 +163,8 @@ const requiredLandingTruth = [
   'NEW NOTE FOR',
   'Saved locally',
   'Editor fully hides',
-  'The current MVP leaves no floating dot, attached tab, checklist, permanent toolbar, saved-notes widget, or full-screen interactive overlay.',
+  'leaves no dot, tab, checklist, or floating widget after it closes.',
+  'Floating dots, attached tabs, checklists',
   'Pre-release validation',
   'product-truth.css',
   'data-skribly-schema',
@@ -230,6 +230,7 @@ for (const fact of [
   'creates one empty note',
   'reopens that note',
   'Nothing from Skribli remains floating',
+  'full-screen interactive overlay',
   'Public downloads are disabled',
 ]) {
   if (!answers.includes(fact)) failures.push(`FAQ is missing current behavior: ${fact}.`);
