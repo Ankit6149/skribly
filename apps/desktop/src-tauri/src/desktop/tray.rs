@@ -71,8 +71,14 @@ mod tests {
 
     #[test]
     fn tray_actions_are_classified_without_side_effects() {
-        assert_eq!(classify_tray_action(ALL_SKRIBS_ID), TrayAction::OpenAllSkribs);
-        assert_eq!(classify_tray_action(QUICK_GUIDE_ID), TrayAction::ShowQuickGuide);
+        assert_eq!(
+            classify_tray_action(ALL_SKRIBS_ID),
+            TrayAction::OpenAllSkribs
+        );
+        assert_eq!(
+            classify_tray_action(QUICK_GUIDE_ID),
+            TrayAction::ShowQuickGuide
+        );
         assert_eq!(classify_tray_action(QUIT_ID), TrayAction::Quit);
         assert_eq!(classify_tray_action("unknown"), TrayAction::Ignore);
     }
