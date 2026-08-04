@@ -50,6 +50,11 @@ jobs:
             return 1
           }
 
+          delete_remote_branch() {
+            local candidate="$1"
+            git push origin ":refs/heads/$candidate"
+          }
+
           mapfile -t remote_branches < <(
             git for-each-ref \
               --format='%(refname:strip=3)' \
@@ -71,14 +76,14 @@ jobs:
 
             if should_force_delete "$branch"; then
               echo "Deleting audited disposable branch: $branch"
-              git push origin --delete "$branch"
+              delete_remote_branch "$branch"
               deleted=$((deleted + 1))
               continue
             fi
 
             if git merge-base --is-ancestor "origin/$branch" "origin/$default_branch"; then
               echo "Deleting branch fully merged into $default_branch: $branch"
-              git push origin --delete "$branch"
+              delete_remote_branch "$branch"
               deleted=$((deleted + 1))
             else
               echo "Preserving unmerged branch: $branch"
