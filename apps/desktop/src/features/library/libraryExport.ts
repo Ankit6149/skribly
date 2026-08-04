@@ -14,6 +14,13 @@ export interface LibraryExportResult {
 
 const RESULT_KEYS = new Set(['requestId', 'path', 'error']);
 
+function defaultRandomId(): string {
+  if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+
+  const values = crypto.getRandomValues(new Uint32Array(4));
+  return `export-${Array.from(values, (value) => value.toString(16).padStart(8, '0')).join('')}`;
+}
+
 export function isLibraryExportResult(value: unknown): value is LibraryExportResult {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
 
@@ -32,7 +39,7 @@ export function isLibraryExportResult(value: unknown): value is LibraryExportRes
 
 export function createLibraryExportRequest(
   noteIds: string[] | null,
-  randomId: () => string = () => crypto.randomUUID()
+  randomId: () => string = defaultRandomId
 ): LibraryExportRequest {
   const requestId = randomId();
   if (!requestId || requestId.length > 128) {
