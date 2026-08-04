@@ -67,11 +67,7 @@ pub fn install_library_bridge<R: Runtime>(app: &App<R>) -> tauri::Result<()> {
                 error: Some("Skribli rejected an invalid export request.".into()),
             },
         };
-        let _ = app_handle.emit_to(
-            LIBRARY_WINDOW_LABEL,
-            LIBRARY_EXPORT_RESULT_EVENT,
-            result,
-        );
+        let _ = app_handle.emit_to(LIBRARY_WINDOW_LABEL, LIBRARY_EXPORT_RESULT_EVENT, result);
     });
 
     Ok(())
@@ -99,12 +95,7 @@ fn perform_export<R: Runtime>(
             .app_data_dir()
             .map_err(|error| format!("Failed to locate the Skribli data folder: {error}"))?
             .join("exports");
-        let output = write_library_export(
-            &export_directory,
-            scope,
-            notes,
-            current_time_millis(),
-        )?;
+        let output = write_library_export(&export_directory, scope, notes, current_time_millis())?;
         Ok::<String, String>(output.to_string_lossy().into_owned())
     })();
 
@@ -265,7 +256,9 @@ pub fn write_library_export(
             .map_err(|error| format!("Failed to finalize the Skribli export: {error}"))?;
         if let Err(error) = file.sync_all() {
             let _ = fs::remove_file(&output_path);
-            return Err(format!("Failed to make the Skribli export durable: {error}"));
+            return Err(format!(
+                "Failed to make the Skribli export durable: {error}"
+            ));
         }
 
         return Ok(output_path);
@@ -334,11 +327,9 @@ mod tests {
     #[test]
     fn selected_export_deduplicates_ids_and_rejects_missing_notes() {
         let all = vec![note("a", 1, 1), note("b", 2, 2)];
-        let (_, selected) = select_notes_for_export(
-            all.clone(),
-            Some(vec!["b".into(), "b".into(), "a".into()]),
-        )
-        .expect("known selected notes should export");
+        let (_, selected) =
+            select_notes_for_export(all.clone(), Some(vec!["b".into(), "b".into(), "a".into()]))
+                .expect("known selected notes should export");
         assert_eq!(selected.len(), 2);
         assert_eq!(selected[0].id, "b");
 
