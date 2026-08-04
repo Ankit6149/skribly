@@ -8,16 +8,20 @@ export interface OpenNoteRequest {
   matchingNoteCount: number;
 }
 
-export function isOpenNoteRequest(value: unknown): value is OpenNoteRequest {
-  if (!value || typeof value !== 'object') return false;
+const OPEN_NOTE_REQUEST_KEYS = new Set(['action', 'noteId', 'matchingNoteCount']);
 
-  const candidate = value as Partial<OpenNoteRequest>;
+export function isOpenNoteRequest(value: unknown): value is OpenNoteRequest {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+
+  const record = value as Record<string, unknown>;
+  if (Object.keys(record).some((key) => !OPEN_NOTE_REQUEST_KEYS.has(key))) return false;
+
   return (
-    (candidate.action === 'created' || candidate.action === 'reopened') &&
-    typeof candidate.noteId === 'string' &&
-    candidate.noteId.length > 0 &&
-    Number.isInteger(candidate.matchingNoteCount) &&
-    (candidate.matchingNoteCount ?? -1) >= 0
+    (record.action === 'created' || record.action === 'reopened') &&
+    typeof record.noteId === 'string' &&
+    record.noteId.length > 0 &&
+    Number.isInteger(record.matchingNoteCount) &&
+    (record.matchingNoteCount as number) >= 0
   );
 }
 
