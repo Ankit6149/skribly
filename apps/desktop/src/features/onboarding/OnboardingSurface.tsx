@@ -85,8 +85,8 @@ export const OnboardingSurface: React.FC<OnboardingSurfaceProps> = ({
           <div>
             <h2>Private by default</h2>
             <p>
-              Notes stay on this device. Skribli uses limited window identity and geometry—not
-              screen recording—to return the right note.
+              Notes stay on this device. Skribli uses limited window identity and geometry, not
+              screen recording, to return the right note.
             </p>
           </div>
         </aside>
