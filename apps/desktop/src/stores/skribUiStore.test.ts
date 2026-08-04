@@ -4,35 +4,23 @@ import { useSkribUiStore } from './skribUiStore';
 describe('skribUiStore', () => {
   beforeEach(() => {
     useSkribUiStore.setState({
-      previewNoteId: null,
       composerNoteId: null,
       composerMode: 'type',
-      isNotesWidgetOpen: false,
-      widgetNoteId: null,
     });
   });
 
-  it('moves from dot to preview without opening the composer', () => {
-    useSkribUiStore.getState().openPreview('note-a');
-    expect(useSkribUiStore.getState().previewNoteId).toBe('note-a');
-    expect(useSkribUiStore.getState().composerNoteId).toBeNull();
-  });
-
-  it('opens the focused composer and closes the preview', () => {
-    useSkribUiStore.getState().openPreview('note-a');
+  it('opens the exact focused composer note', () => {
     useSkribUiStore.getState().openComposer('note-a', 'write');
 
-    expect(useSkribUiStore.getState().previewNoteId).toBeNull();
     expect(useSkribUiStore.getState().composerNoteId).toBe('note-a');
     expect(useSkribUiStore.getState().composerMode).toBe('write');
   });
 
-  it('tracks widget visibility and selected note', () => {
-    useSkribUiStore.getState().openNotesWidget('note-b');
-    expect(useSkribUiStore.getState().isNotesWidgetOpen).toBe(true);
-    expect(useSkribUiStore.getState().widgetNoteId).toBe('note-b');
+  it('closes the composer without retaining a retired preview or widget state', () => {
+    useSkribUiStore.getState().openComposer('note-a');
+    useSkribUiStore.getState().closeComposer();
 
-    useSkribUiStore.getState().closeNotesWidget();
-    expect(useSkribUiStore.getState().isNotesWidgetOpen).toBe(false);
+    expect(useSkribUiStore.getState().composerNoteId).toBeNull();
+    expect(useSkribUiStore.getState().composerMode).toBe('type');
   });
 });

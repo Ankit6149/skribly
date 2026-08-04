@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Minimal capability set for the initial Skribli scaffold",
-  "windows": ["main"],
+  "description": "Minimal capabilities for the compact editor and normal All Skribs window",
+  "windows": ["main", "library"],
   "permissions": ["core:default"]
 }
