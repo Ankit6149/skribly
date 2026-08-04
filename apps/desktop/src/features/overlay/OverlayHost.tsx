@@ -1,6 +1,6 @@
 import { listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import '../../styles/storage-recovery.css';
 import { useSkribStore } from '../../stores/skribStore';
 import { useSkribUiStore } from '../../stores/skribUiStore';
@@ -13,6 +13,12 @@ import {
 } from '../onboarding/onboardingState';
 import { OnboardingSurface } from '../onboarding/OnboardingSurface';
 import { StartupFailureSurface } from '../onboarding/StartupFailureSurface';
+import {
+  isOpenNoteRequest,
+  selectRequestedNote,
+  type OpenNoteAction,
+  type OpenNoteRequest,
+} from '../skribs/noteLifecycle';
 import { SkribComposer } from '../skribs/SkribComposer';
 import { selectStorageSurface } from './storageSurface';
 import type { TargetCaptureErrorPayload } from './targetCaptureError';
@@ -47,10 +53,9 @@ export const OverlayHost: React.FC = () => {
   const [diagnosticsPath, setDiagnosticsPath] = useState<string | null>(null);
   const [captureError, setCaptureError] = useState<TargetCaptureErrorPayload | null>(null);
   const [onboardingVisible, setOnboardingVisible] = useState(false);
-
-  const initialSnapshotTakenRef = useRef(false);
-  const knownNoteIdsRef = useRef<Set<string>>(new Set());
-  const onboardingDecisionTakenRef = useRef(false);
+  const [openNoteRequest, setOpenNoteRequest] = useState<OpenNoteRequest | null>(null);
+  const [composerOpenAction, setComposerOpenAction] = useState<OpenNoteAction>('reopened');
+  const [onboardingDecisionTaken, setOnboardingDecisionTaken] = useState(false);
 
   const composerNote = composerNoteId
     ? skribs.find((note) => note.id === composerNoteId) ?? null
@@ -80,10 +85,18 @@ export const OverlayHost: React.FC = () => {
 
     void Promise.all([
       listen<TargetCaptureErrorPayload>('skribly://target-capture-error', (event) => {
-        if (!disposed) setCaptureError(event.payload);
+        if (!disposed) {
+          setOpenNoteRequest(null);
+          setCaptureError(event.payload);
+        }
       }),
       listen('skribly://target-capture-clear', () => {
         if (!disposed) setCaptureError(null);
+      }),
+      listen<unknown>('skribly://open-note-request', (event) => {
+        if (!disposed && isOpenNoteRequest(event.payload)) {
+          setOpenNoteRequest(event.payload);
+        }
       }),
       listen('skribly://show-onboarding', () => {
         if (!disposed) {
@@ -106,20 +119,13 @@ export const OverlayHost: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (initStatus.type === 'Initializing') return;
+    const requestedNote = selectRequestedNote(openNoteRequest, skribs);
+    if (!requestedNote || !openNoteRequest) return;
 
-    if (!initialSnapshotTakenRef.current) {
-      knownNoteIdsRef.current = new Set(skribs.map((note) => note.id));
-      initialSnapshotTakenRef.current = true;
-      return;
-    }
-
-    const created = skribs.find((note) => !knownNoteIdsRef.current.has(note.id));
-    knownNoteIdsRef.current = new Set(skribs.map((note) => note.id));
-
-    const noteToOpen = created ?? [...skribs].sort((a, b) => b.updated_at - a.updated_at)[0];
-    if (noteToOpen) openComposer(noteToOpen.id, 'type');
-  }, [initStatus.type, openComposer, skribs]);
+    setComposerOpenAction(openNoteRequest.action);
+    openComposer(requestedNote.id, 'type');
+    setOpenNoteRequest(null);
+  }, [openComposer, openNoteRequest, skribs]);
 
   useEffect(() => {
     if (composerNote) setOnboardingVisible(false);
@@ -132,11 +138,11 @@ export const OverlayHost: React.FC = () => {
   }, [initStatus.type, storageSurface]);
 
   useEffect(() => {
-    if (onboardingDecisionTakenRef.current) return;
+    if (onboardingDecisionTaken) return;
     if (initStatus.type !== 'Ready' || storageSurface !== 'empty' || captureError) return;
     if (typeof window === 'undefined') return;
 
-    onboardingDecisionTakenRef.current = true;
+    setOnboardingDecisionTaken(true);
     const status = readOnboardingStatus(window.localStorage);
     if (!shouldAutoShowOnboarding(status)) return;
 
@@ -146,10 +152,10 @@ export const OverlayHost: React.FC = () => {
         markOnboardingShown(window.localStorage);
       })
       .catch(() => {
-        onboardingDecisionTakenRef.current = false;
+        setOnboardingDecisionTaken(false);
         setOnboardingVisible(false);
       });
-  }, [captureError, initStatus.type, storageSurface]);
+  }, [captureError, initStatus.type, onboardingDecisionTaken, storageSurface]);
 
   const completeFirstRun = async () => {
     if (typeof window !== 'undefined') completeOnboarding(window.localStorage);
@@ -172,7 +178,13 @@ export const OverlayHost: React.FC = () => {
   };
 
   if (primarySurface === 'composer' && composerNote) {
-    return <SkribComposer note={composerNote} target={activeTarget} />;
+    return (
+      <SkribComposer
+        note={composerNote}
+        target={activeTarget}
+        openAction={composerOpenAction}
+      />
+    );
   }
 
   if (primarySurface === 'recovery') {
