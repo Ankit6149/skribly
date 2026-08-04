@@ -2,10 +2,12 @@
 
 **Leave a note where the thought belongs.**
 
-> **Status — active production development**  
+> **Status — active product development**  
 > Public downloads remain disabled while the Windows desktop build completes its data-safety, lifecycle, context, recovery, accessibility, physical-runtime, and release-validation gates.
 
 Skribli is a local-first contextual typed-note utility for Windows. The current product direction is deliberately small: capture a thought in a compact editor, save it safely on the user’s computer, then return to the original application.
+
+On the first successful launch, a compact three-step guide visibly confirms that Skribli is ready, explains the shortcut and local-first behavior, and distinguishes hiding the editor from quitting the background process. The guide creates no sample note and can be reopened later from **Quick guide** in the tray.
 
 ## Current Windows build contract
 
@@ -33,6 +35,10 @@ The final create/reopen lifecycle, durable versioned context identity, reversibl
 
 - Tauri 2 desktop shell with React, TypeScript, Vite, and Rust.
 - Compact fully interactive note window rather than a screen-blocking overlay.
+- Versioned first-run state with explicit **unseen**, **shown**, and **completed** behavior.
+- Visible three-step first-note guide with local-first privacy and Close/Hide-versus-Quit education.
+- Tested compact-window decision hierarchy: draft, storage recovery, startup failure, capture recovery, onboarding, then hidden empty state.
+- Reopenable **Quick guide** tray action and visible retry surface when native shortcut setup fails.
 - Fail-closed one-shot foreground capture with HWND and process-identity revalidation before placement or note access.
 - Visible privacy-safe recovery guidance when target capture fails, without creating or reopening a note.
 - Target-monitor work-area placement using fresh HWND geometry and per-monitor DPI.
@@ -61,7 +67,8 @@ The canonical execution tracker is [issue #34](https://github.com/Ankit6149/skri
 - [#20](https://github.com/Ankit6149/skribly/issues/20) final note lifecycle contract;
 - [#21](https://github.com/Ankit6149/skribly/issues/21) non-floating library, search, export, archive, and reversible trash;
 - [#24](https://github.com/Ankit6149/skribly/issues/24) release-blocking Windows runtime evidence;
-- [#25](https://github.com/Ankit6149/skribly/issues/25) signed reproducible installer and rollback pipeline.
+- [#25](https://github.com/Ankit6149/skribly/issues/25) signed reproducible installer and rollback pipeline;
+- [#51](https://github.com/Ankit6149/skribly/issues/51) remaining shortcut-conflict detection, migrations, settings integration, permissions education, usability studies, and release-candidate onboarding evidence after the first-note guide.
 
 An issue must remain open when only part of its acceptance criteria has been implemented. Progress belongs in a detailed issue comment with exact commits, checks, missing runtime evidence, and remaining work.
 
@@ -136,6 +143,7 @@ These commands prove static, frontend, and Rust test gates only. Windows accepta
 - [Production-readiness execution plan](docs/06-planning/FULL_PRODUCT_AUDIT_AND_EXECUTION_PLAN.md)
 - [Product backlog and contribution map](docs/06-planning/PRODUCT_BACKLOG_AND_CONTRIBUTION_MAP.md)
 - [Current and future product requirements](docs/00-product/PRD.md)
+- [First-run and quick-guide acceptance](docs/04-operations/FIRST_RUN_ACCEPTANCE.md)
 - [Target-capture acceptance](docs/04-operations/TARGET_CAPTURE_ACCEPTANCE.md)
 - [Compact editor placement acceptance](docs/04-operations/WINDOW_PLACEMENT_ACCEPTANCE.md)
 - [Single-instance and lifecycle acceptance](docs/04-operations/SINGLE_INSTANCE_ACCEPTANCE.md)
