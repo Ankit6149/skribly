@@ -1,0 +1,37 @@
+name: Format portable import module
+
+on:
+  push:
+    branches:
+      - feat/133-portable-import
+
+permissions:
+  contents: write
+
+concurrency:
+  group: portable-import-format
+  cancel-in-progress: false
+
+jobs:
+  format:
+    if: github.repository == 'Ankit6149/skribly' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: feat/133-portable-import
+          fetch-depth: 0
+
+      - name: Format Rust and remove this workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo fmt --manifest-path apps/desktop/src-tauri/Cargo.toml
+          git rm .github/workflows/temp-import-format.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add apps/desktop/src-tauri/src
+          git diff --cached --check
+          git commit -m 'style(import): format the native import engine'
+          git push origin HEAD:feat/133-portable-import
