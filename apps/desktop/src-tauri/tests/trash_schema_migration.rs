@@ -151,7 +151,10 @@ fn authentic_schema_v2_database_migrates_to_active_schema_v3_records() {
     assert_eq!(loaded.revision, 17);
     assert_eq!(loaded.skribs.len(), 2);
     assert_eq!(loaded.skribs[0].id, legacy_notes[0].id);
-    assert_eq!(loaded.skribs[0].target_process_name, legacy_notes[0].target_process_name);
+    assert_eq!(
+        loaded.skribs[0].target_process_name,
+        legacy_notes[0].target_process_name
+    );
     assert_eq!(loaded.skribs[0].target_title, legacy_notes[0].target_title);
     assert_eq!(loaded.skribs[0].rel_x, legacy_notes[0].rel_x);
     assert_eq!(loaded.skribs[0].rel_y, legacy_notes[0].rel_y);
@@ -166,12 +169,16 @@ fn authentic_schema_v2_database_migrates_to_active_schema_v3_records() {
     assert_eq!(loaded.skribs[1].id, legacy_notes[1].id);
     assert_eq!(loaded.skribs[1].deleted_at, None);
     assert_eq!(
-        loaded.notice.as_ref().and_then(|notice| notice.migrated_from_schema),
+        loaded
+            .notice
+            .as_ref()
+            .and_then(|notice| notice.migrated_from_schema),
         Some(2)
     );
 
-    let upgraded: Value = serde_json::from_slice(&fs::read(&primary).expect("read upgraded primary"))
-        .expect("decode upgraded primary");
+    let upgraded: Value =
+        serde_json::from_slice(&fs::read(&primary).expect("read upgraded primary"))
+            .expect("decode upgraded primary");
     assert_eq!(
         upgraded.get("schema_version").and_then(Value::as_u64),
         Some(3)
