@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - feat/131-reversible-trash
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: write
@@ -14,7 +17,7 @@ concurrency:
 
 jobs:
   patch:
-    if: github.repository == 'Ankit6149/skribly' && github.actor != 'github-actions[bot]'
+    if: github.repository == 'Ankit6149/skribly' && github.actor != 'github-actions[bot]' && (github.ref_name == 'feat/131-reversible-trash' || github.head_ref == 'feat/131-reversible-trash')
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
