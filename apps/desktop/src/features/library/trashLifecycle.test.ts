@@ -9,7 +9,7 @@ import {
 } from './trashLifecycle';
 
 function note(id: string, deletedAt: number | null | undefined): SkribNote {
-  return {
+  const activeNote: SkribNote = {
     id,
     target_process_name: 'notepad.exe',
     target_title: 'Project — Notepad',
@@ -22,8 +22,11 @@ function note(id: string, deletedAt: number | null | undefined): SkribNote {
     collapsed: false,
     created_at: 1,
     updated_at: 2,
-    deleted_at: deletedAt,
   };
+
+  return deletedAt === undefined
+    ? activeNote
+    : { ...activeNote, deleted_at: deletedAt };
 }
 
 describe('trash lifecycle filtering', () => {
