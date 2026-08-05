@@ -200,10 +200,7 @@ impl Coordinator {
                 .values()
                 .filter(|note| {
                     note.deleted_at.is_none()
-                        && target.matches_context(
-                            &note.target_process_name,
-                            &note.target_title,
-                        )
+                        && target.matches_context(&note.target_process_name, &note.target_title)
                 })
                 .cloned()
                 .collect()
@@ -509,7 +506,9 @@ mod tests {
             .expect("active note should move to trash");
         assert_eq!(trashed.id, note.id);
         assert_eq!(trashed.deleted_at, Some(500));
-        assert!(coordinator.get_skribs_for_target(&sample_target_a()).is_empty());
+        assert!(coordinator
+            .get_skribs_for_target(&sample_target_a())
+            .is_empty());
         assert!(matches!(
             coordinator.find_best_context_match(&[sample_target_a()]),
             MatchResult::None
