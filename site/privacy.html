@@ -3,11 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Skribli privacy policy covering local note storage, limited Windows context information, website hosting, and pre-release limitations." />
+    <meta name="description" content="Skribli privacy policy covering local note storage, reversible Trash, limited Windows context information, website hosting, and pre-release limitations." />
     <meta name="robots" content="index,follow" />
     <link rel="canonical" href="https://skribly-desktop.vercel.app/privacy" />
     <meta property="og:title" content="Skribli Privacy Policy" />
-    <meta property="og:description" content="How Skribli handles local notes, limited application context information, and website requests." />
+    <meta property="og:description" content="How Skribli handles local notes, reversible Trash, limited application context information, and website requests." />
     <meta property="og:url" content="https://skribly-desktop.vercel.app/privacy" />
     <title>Privacy Policy — Skribli</title>
     <link rel="icon" href="./assets/skribly-icon.svg" type="image/svg+xml" />
@@ -23,13 +23,13 @@
 
     <main class="legal-page">
       <article class="legal-shell">
-        <p class="overline">Effective 4 August 2026</p>
+        <p class="overline">Effective 6 August 2026</p>
         <h1>Privacy policy</h1>
         <p class="legal-intro">Skribli is designed as a local-first Windows application. This policy describes the current pre-release application and public website without claiming deferred cloud, collaboration, or commercial services.</p>
 
         <section>
           <h2>1. Application data</h2>
-          <p>Skribli stores note text, note identifiers, timestamps, editor geometry, and contextual matching fields on your computer. Core note use is designed not to require a Skribli account or cloud service.</p>
+          <p>Skribli stores note text, note identifiers, timestamps, lifecycle state, editor geometry, and contextual matching fields on your computer. Core note use is designed not to require a Skribli account or cloud service.</p>
         </section>
 
         <section>
@@ -39,7 +39,7 @@
 
         <section>
           <h2>3. Local storage and recovery</h2>
-          <p>Current note data is written to versioned local storage with recovery generations and metadata-only diagnostics. Diagnostics are designed not to contain note text or target window titles. Recovery, export/import, trash retention, and data-lifecycle behavior must be finalized and documented before public release.</p>
+          <p>Current note data is written to versioned local storage with recovery generations and metadata-only diagnostics. Diagnostics are designed not to contain note text or target window titles. The current All Skribs window can read, search, and export active and trashed records. Import, attachment portability, and final physical recovery evidence remain open release gates.</p>
         </section>
 
         <section>
@@ -54,7 +54,7 @@
 
         <section>
           <h2>6. Retention and deletion</h2>
-          <p>The current compact editor can permanently delete a note only after explicit confirmation. Reversible trash, retention, restore, complete export/import, and attachment cleanup remain open release gates and are not advertised as available today.</p>
+          <p>Ordinary Delete moves a saved note into local Trash instead of removing it immediately. Skribli presents a 30-day recovery period, supports restoring the same note record, and requires a separate note-specific confirmation before permanent deletion. This release does not silently purge expired Trash; expired or invalid lifecycle records remain visible for review. User-configurable retention, automatic purge, import, and attachment cleanup remain open release gates.</p>
         </section>
 
         <section>
