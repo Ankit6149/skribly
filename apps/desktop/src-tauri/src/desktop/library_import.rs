@@ -7,10 +7,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use tauri::{App, AppHandle, Emitter, Listener, Manager, Runtime};
 
-pub const LIBRARY_IMPORT_PREVIEW_REQUEST_EVENT: &str =
-    "skribly://library-import-preview-request";
-pub const LIBRARY_IMPORT_PREVIEW_RESULT_EVENT: &str =
-    "skribly://library-import-preview-result";
+pub const LIBRARY_IMPORT_PREVIEW_REQUEST_EVENT: &str = "skribly://library-import-preview-request";
+pub const LIBRARY_IMPORT_PREVIEW_RESULT_EVENT: &str = "skribly://library-import-preview-result";
 pub const LIBRARY_IMPORT_APPLY_REQUEST_EVENT: &str = "skribly://library-import-apply-request";
 pub const LIBRARY_IMPORT_APPLY_RESULT_EVENT: &str = "skribly://library-import-apply-result";
 
@@ -237,7 +235,12 @@ pub fn install_library_import_bridge<R: Runtime>(app: &App<R>) -> tauri::Result<
 fn request_id_from_payload(payload: &str) -> String {
     serde_json::from_str::<serde_json::Value>(payload)
         .ok()
-        .and_then(|value| value.get("requestId").and_then(serde_json::Value::as_str).map(str::to_owned))
+        .and_then(|value| {
+            value
+                .get("requestId")
+                .and_then(serde_json::Value::as_str)
+                .map(str::to_owned)
+        })
         .unwrap_or_default()
 }
 
@@ -255,7 +258,12 @@ fn perform_preview<R: Runtime>(
         .map_err(|_| "Local storage service is unavailable".to_string())?
         .current_revision();
     let plan = build_import_plan(&current_notes, &parsed.notes);
-    Ok(build_preview(request.request_id, parsed, plan, current_revision))
+    Ok(build_preview(
+        request.request_id,
+        parsed,
+        plan,
+        current_revision,
+    ))
 }
 
 fn perform_apply<R: Runtime>(
@@ -507,8 +515,10 @@ fn validate_portable_note(note: &PortableSkribNote) -> Result<(), String> {
 }
 
 fn build_import_plan(current: &[SkribNote], imported: &[SkribNote]) -> ImportPlan {
-    let current_by_id: HashMap<&str, &SkribNote> =
-        current.iter().map(|note| (note.id.as_str(), note)).collect();
+    let current_by_id: HashMap<&str, &SkribNote> = current
+        .iter()
+        .map(|note| (note.id.as_str(), note))
+        .collect();
     let mut new_notes = Vec::new();
     let mut identical_count = 0;
     let mut conflicts = Vec::new();
@@ -581,7 +591,10 @@ fn build_preview(
 }
 
 fn lifecycle_counts(notes: &[SkribNote]) -> (usize, usize) {
-    let trash_count = notes.iter().filter(|note| note.deleted_at.is_some()).count();
+    let trash_count = notes
+        .iter()
+        .filter(|note| note.deleted_at.is_some())
+        .count();
     (notes.len().saturating_sub(trash_count), trash_count)
 }
 
@@ -648,7 +661,9 @@ mod tests {
     #[test]
     fn rejects_future_schema_duplicate_ids_and_unknown_fields() {
         let future = r#"{"schemaVersion":2,"exportedAtMs":1,"scope":"completeBackup","noteCount":0,"notes":[]}"#;
-        assert!(parse_import(future).expect_err("future schema must fail").contains("Unsupported"));
+        assert!(parse_import(future)
+            .expect_err("future schema must fail")
+            .contains("Unsupported"));
 
         let duplicate = export_json(vec![note("same", "A", None), note("same", "A", None)]);
         assert!(parse_import(&duplicate)
@@ -712,10 +727,17 @@ mod tests {
         let preview = build_preview(
             "request".into(),
             parsed,
-            build_import_plan(&current, &current
-                .iter()
-                .map(|note| SkribNote { text: "imported".into(), deleted_at: Some(300), ..note.clone() })
-                .collect::<Vec<_>>()),
+            build_import_plan(
+                &current,
+                &current
+                    .iter()
+                    .map(|note| SkribNote {
+                        text: "imported".into(),
+                        deleted_at: Some(300),
+                        ..note.clone()
+                    })
+                    .collect::<Vec<_>>(),
+            ),
             4,
         );
         assert_eq!(preview.conflict_count, 60);
