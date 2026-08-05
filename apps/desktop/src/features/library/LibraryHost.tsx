@@ -3,6 +3,8 @@ import { emit, listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { SkribNote } from '../../lib/geometry';
+import { useLicenseStore } from '../../stores/licenseStore';
+import type { StorageHealthPayload } from '../../stores/skribStore';
 import '../../styles/library.css';
 import {
   createLibraryExportRequest,
@@ -17,6 +19,13 @@ import {
   notePreview,
   sortLibraryNotes,
 } from './libraryModel';
+import {
+  filterNotesForLifecycle,
+  isTrashedNote,
+  type LibraryLifecycleView,
+  trashRetentionInfo,
+  trashRetentionLabel,
+} from './trashLifecycle';
 
 type ExportMessage =
   | { type: 'success'; path: string }
@@ -46,15 +55,23 @@ function timestampDateTime(timestampSeconds: number): string | undefined {
 
 export const LibraryHost: React.FC = () => {
   const [notes, setNotes] = useState<SkribNote[]>([]);
+  const [lifecycleView, setLifecycleView] = useState<LibraryLifecycleView>('notes');
   const [query, setQuery] = useState('');
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [storageWritable, setStorageWritable] = useState(true);
+  const [lifecycleError, setLifecycleError] = useState<string | null>(null);
+  const [mutatingNoteId, setMutatingNoteId] = useState<string | null>(null);
+  const [permanentDeleteNoteId, setPermanentDeleteNoteId] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [exportMessage, setExportMessage] = useState<ExportMessage>(null);
   const pendingExportRequest = useRef<string | null>(null);
   const pendingExportTimeout = useRef<number | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const licenseStatus = useLicenseStore((state) => state.status);
+  const licenceAllowsWrite = !licenseStatus.enforcementEnabled || licenseStatus.canWrite;
+  const canMutate = storageWritable && licenceAllowsWrite;
 
   const clearExportTimeout = useCallback(() => {
     if (pendingExportTimeout.current !== null) {
@@ -66,13 +83,12 @@ export const LibraryHost: React.FC = () => {
   const refreshNotes = useCallback(async () => {
     setIsLoading(true);
     try {
-      const loaded = await invoke<SkribNote[]>('get_all_skribs');
-      const ordered = sortLibraryNotes(loaded);
-      setNotes(ordered);
-      setSelectedNoteId((current) => {
-        if (current && ordered.some((note) => note.id === current)) return current;
-        return ordered[0]?.id ?? null;
-      });
+      const [loaded, storageHealth] = await Promise.all([
+        invoke<SkribNote[]>('get_all_skribs'),
+        invoke<StorageHealthPayload>('get_storage_health'),
+      ]);
+      setNotes(sortLibraryNotes(loaded));
+      setStorageWritable(storageHealth.writable);
       setLoadError(null);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -136,13 +152,21 @@ export const LibraryHost: React.FC = () => {
     };
   }, [clearExportTimeout]);
 
-  const filteredNotes = useMemo(() => filterLibraryNotes(notes, query), [notes, query]);
+  const activeNotes = useMemo(() => filterNotesForLifecycle(notes, 'notes'), [notes]);
+  const trashNotes = useMemo(() => filterNotesForLifecycle(notes, 'trash'), [notes]);
+  const notesInView = lifecycleView === 'trash' ? trashNotes : activeNotes;
+  const filteredNotes = useMemo(
+    () => filterLibraryNotes(notesInView, query),
+    [notesInView, query]
+  );
   const selectedNote = useMemo(
-    () => notes.find((note) => note.id === selectedNoteId) ?? null,
-    [notes, selectedNoteId]
+    () => filteredNotes.find((note) => note.id === selectedNoteId) ?? null,
+    [filteredNotes, selectedNoteId]
   );
 
   useEffect(() => {
+    setPermanentDeleteNoteId(null);
+    setLifecycleError(null);
     if (filteredNotes.length === 0) {
       if (selectedNoteId !== null) setSelectedNoteId(null);
       return;
@@ -150,7 +174,7 @@ export const LibraryHost: React.FC = () => {
     if (!selectedNoteId || !filteredNotes.some((note) => note.id === selectedNoteId)) {
       setSelectedNoteId(filteredNotes[0]!.id);
     }
-  }, [filteredNotes, selectedNoteId]);
+  }, [filteredNotes, lifecycleView, selectedNoteId]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -167,6 +191,11 @@ export const LibraryHost: React.FC = () => {
       }
 
       if (event.key !== 'Escape') return;
+      if (permanentDeleteNoteId) {
+        event.preventDefault();
+        setPermanentDeleteNoteId(null);
+        return;
+      }
       if (query) {
         event.preventDefault();
         setQuery('');
@@ -176,7 +205,7 @@ export const LibraryHost: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [query]);
+  }, [permanentDeleteNoteId, query]);
 
   const requestExport = async (noteIds: string[] | null) => {
     if (isExporting) return;
@@ -209,6 +238,47 @@ export const LibraryHost: React.FC = () => {
     }
   };
 
+  const runLifecycleMutation = async (
+    command: 'restore_skrib_note' | 'permanently_delete_skrib_note',
+    note: SkribNote
+  ) => {
+    if (!canMutate || mutatingNoteId) return false;
+    setMutatingNoteId(note.id);
+    setLifecycleError(null);
+    try {
+      await invoke(command, { id: note.id });
+      await refreshNotes();
+      return true;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setLifecycleError(
+        command === 'restore_skrib_note'
+          ? `Skribli could not restore this note: ${message}`
+          : `Skribli could not permanently delete this note: ${message}`
+      );
+      return false;
+    } finally {
+      setMutatingNoteId(null);
+    }
+  };
+
+  const restoreSelectedNote = async (note: SkribNote) => {
+    if (await runLifecycleMutation('restore_skrib_note', note)) {
+      setLifecycleView('notes');
+      setSelectedNoteId(note.id);
+    }
+  };
+
+  const permanentlyDeleteSelectedNote = async (note: SkribNote) => {
+    if (permanentDeleteNoteId !== note.id) {
+      setPermanentDeleteNoteId(note.id);
+      return;
+    }
+    if (await runLifecycleMutation('permanently_delete_skrib_note', note)) {
+      setPermanentDeleteNoteId(null);
+    }
+  };
+
   const hideLibrary = async () => {
     try {
       await getCurrentWindow().hide();
@@ -217,13 +287,17 @@ export const LibraryHost: React.FC = () => {
     }
   };
 
+  const selectedTrashInfo = selectedNote && isTrashedNote(selectedNote)
+    ? trashRetentionInfo(selectedNote.deleted_at)
+    : null;
+
   return (
     <main className="library-shell" aria-labelledby="library-title">
       <header className="library-topbar">
         <div>
           <span className="library-kicker">LOCAL NOTE LIBRARY</span>
           <h1 id="library-title">All Skribs</h1>
-          <p>Find and export every saved note without reopening its original application.</p>
+          <p>Find, restore, and export saved notes without reopening their original applications.</p>
         </div>
         <div className="library-topbar-actions">
           <button
@@ -252,30 +326,62 @@ export const LibraryHost: React.FC = () => {
         </div>
       </header>
 
+      <nav className="library-lifecycle-tabs" aria-label="All Skribs lifecycle views">
+        <button
+          type="button"
+          aria-current={lifecycleView === 'notes' ? 'page' : undefined}
+          className={lifecycleView === 'notes' ? 'active' : ''}
+          onClick={() => setLifecycleView('notes')}
+        >
+          Notes <span>{activeNotes.length.toLocaleString()}</span>
+        </button>
+        <button
+          type="button"
+          aria-current={lifecycleView === 'trash' ? 'page' : undefined}
+          className={lifecycleView === 'trash' ? 'active' : ''}
+          onClick={() => setLifecycleView('trash')}
+        >
+          Trash <span>{trashNotes.length.toLocaleString()}</span>
+        </button>
+        {!canMutate && (
+          <span className="library-readonly-status" role="status">
+            Read-only: notes and exports remain available
+          </span>
+        )}
+      </nav>
+
       <section className="library-toolbar" aria-label="Library search and status">
         <label className="library-search">
-          <span className="sr-only">Search saved notes</span>
+          <span className="sr-only">
+            Search {lifecycleView === 'trash' ? 'trashed' : 'active'} notes
+          </span>
           <input
             ref={searchInputRef}
             type="search"
             value={query}
             autoFocus
-            placeholder="Search note text, application, or context…"
+            placeholder={`Search ${lifecycleView === 'trash' ? 'Trash' : 'notes'}, application, or context…`}
             onChange={(event) => setQuery(event.target.value)}
           />
           <kbd>/</kbd>
         </label>
         <span className="library-result-count" aria-live="polite">
-          {filteredNotes.length.toLocaleString()} of {notes.length.toLocaleString()} notes
+          {filteredNotes.length.toLocaleString()} of {notesInView.length.toLocaleString()}{' '}
+          {lifecycleView === 'trash' ? 'trashed' : 'active'} notes
         </span>
       </section>
 
-      {exportMessage && (
+      {(exportMessage || lifecycleError) && (
         <div
-          className={`library-export-message ${exportMessage.type}`}
-          role={exportMessage.type === 'error' ? 'alert' : 'status'}
+          className={`library-export-message ${exportMessage?.type === 'error' || lifecycleError ? 'error' : 'success'}`}
+          role={exportMessage?.type === 'error' || lifecycleError ? 'alert' : 'status'}
         >
-          {exportMessage.type === 'success' ? (
+          {lifecycleError ? (
+            <>
+              <strong>Lifecycle action failed</strong>
+              <span>{lifecycleError}</span>
+            </>
+          ) : exportMessage?.type === 'success' ? (
             <>
               <strong>Export saved</strong>
               <code>{exportMessage.path}</code>
@@ -283,17 +389,24 @@ export const LibraryHost: React.FC = () => {
           ) : (
             <>
               <strong>Export failed</strong>
-              <span>{exportMessage.message}</span>
+              <span>{exportMessage?.message}</span>
             </>
           )}
-          <button type="button" onClick={() => setExportMessage(null)} aria-label="Dismiss export message">
+          <button
+            type="button"
+            onClick={() => {
+              setExportMessage(null);
+              setLifecycleError(null);
+            }}
+            aria-label="Dismiss library message"
+          >
             Dismiss
           </button>
         </div>
       )}
 
       <div className="library-workspace">
-        <section className="library-sidebar" aria-label="Saved note results">
+        <section className="library-sidebar" aria-label={`${lifecycleView} note results`}>
           {isLoading && notes.length === 0 ? (
             <div className="library-state" role="status">
               <strong>Reading local notes…</strong>
@@ -307,10 +420,14 @@ export const LibraryHost: React.FC = () => {
                 Retry
               </button>
             </div>
-          ) : notes.length === 0 ? (
+          ) : notesInView.length === 0 ? (
             <div className="library-state">
-              <strong>No saved notes yet</strong>
-              <span>Focus an application and press Ctrl+Shift+Space to create the first Skrib.</span>
+              <strong>{lifecycleView === 'trash' ? 'Trash is empty' : 'No saved notes yet'}</strong>
+              <span>
+                {lifecycleView === 'trash'
+                  ? 'Notes moved to Trash remain recoverable here for 30 days.'
+                  : 'Focus an application and press Ctrl+Shift+Space to create the first Skrib.'}
+              </span>
             </div>
           ) : filteredNotes.length === 0 ? (
             <div className="library-state">
@@ -324,6 +441,9 @@ export const LibraryHost: React.FC = () => {
             <div className="library-results" role="listbox" aria-label="Matching saved notes">
               {filteredNotes.map((note) => {
                 const selected = note.id === selectedNoteId;
+                const retention = isTrashedNote(note)
+                  ? trashRetentionInfo(note.deleted_at)
+                  : null;
                 return (
                   <button
                     type="button"
@@ -336,9 +456,15 @@ export const LibraryHost: React.FC = () => {
                     <span className="library-note-row-title">{noteDisplayTitle(note)}</span>
                     <span className="library-note-row-context">{noteContextLabel(note)}</span>
                     <span className="library-note-row-preview">{notePreview(note)}</span>
-                    <time dateTime={timestampDateTime(note.updated_at)}>
-                      {formatUpdatedTime(note.updated_at)}
-                    </time>
+                    {retention ? (
+                      <span className={`library-retention-label ${retention.state}`}>
+                        {trashRetentionLabel(retention)}
+                      </span>
+                    ) : (
+                      <time dateTime={timestampDateTime(note.updated_at)}>
+                        {formatUpdatedTime(note.updated_at)}
+                      </time>
+                    )}
                   </button>
                 );
               })}
@@ -351,19 +477,42 @@ export const LibraryHost: React.FC = () => {
             <>
               <header className="library-detail-header">
                 <div>
-                  <span className="library-kicker">READ-ONLY LIBRARY VIEW</span>
+                  <span className="library-kicker">
+                    {isTrashedNote(selectedNote) ? 'TRASHED NOTE — READ ONLY' : 'READ-ONLY LIBRARY VIEW'}
+                  </span>
                   <h2>{noteDisplayTitle(selectedNote)}</h2>
                   <p>{noteContextLabel(selectedNote)}</p>
                 </div>
-                <button
-                  type="button"
-                  className="library-button primary"
-                  onClick={() => void requestExport([selectedNote.id])}
-                  disabled={isExporting}
-                >
-                  Export this note
-                </button>
+                <div className="library-detail-actions">
+                  <button
+                    type="button"
+                    className="library-button primary"
+                    onClick={() => void requestExport([selectedNote.id])}
+                    disabled={isExporting}
+                  >
+                    Export this note
+                  </button>
+                  {isTrashedNote(selectedNote) && (
+                    <button
+                      type="button"
+                      className="library-button secondary"
+                      onClick={() => void restoreSelectedNote(selectedNote)}
+                      disabled={!canMutate || mutatingNoteId !== null}
+                    >
+                      {mutatingNoteId === selectedNote.id ? 'Restoring…' : 'Restore'}
+                    </button>
+                  )}
+                </div>
               </header>
+
+              {selectedTrashInfo && (
+                <div className={`library-trash-status ${selectedTrashInfo.state}`} role="status">
+                  <strong>{trashRetentionLabel(selectedTrashInfo)}</strong>
+                  <span>
+                    Skribli does not purge expired Trash automatically in this release. Review it before permanent deletion.
+                  </span>
+                </div>
+              )}
 
               <article className={`library-note-paper skrib-color-${selectedNote.color}`}>
                 <p>{selectedNote.text || 'This note has no saved text.'}</p>
@@ -379,13 +528,60 @@ export const LibraryHost: React.FC = () => {
                   <dd>{selectedNote.target_title || 'Unavailable'}</dd>
                 </div>
                 <div>
-                  <dt>Last updated</dt>
-                  <dd>{formatUpdatedTime(selectedNote.updated_at)}</dd>
+                  <dt>{isTrashedNote(selectedNote) ? 'Moved to Trash' : 'Last updated'}</dt>
+                  <dd>
+                    {formatUpdatedTime(
+                      isTrashedNote(selectedNote)
+                        ? selectedNote.deleted_at ?? 0
+                        : selectedNote.updated_at
+                    )}
+                  </dd>
                 </div>
               </dl>
 
+              {isTrashedNote(selectedNote) && (
+                <div className="library-permanent-delete">
+                  {permanentDeleteNoteId === selectedNote.id ? (
+                    <div role="alert" className="library-permanent-confirmation">
+                      <div>
+                        <strong>Permanently delete “{noteDisplayTitle(selectedNote)}”?</strong>
+                        <span>This removes the local record and cannot be undone.</span>
+                      </div>
+                      <div>
+                        <button
+                          type="button"
+                          className="library-button secondary"
+                          autoFocus
+                          onClick={() => setPermanentDeleteNoteId(null)}
+                          disabled={mutatingNoteId !== null}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          className="library-button danger"
+                          onClick={() => void permanentlyDeleteSelectedNote(selectedNote)}
+                          disabled={!canMutate || mutatingNoteId !== null}
+                        >
+                          {mutatingNoteId === selectedNote.id ? 'Deleting…' : 'Delete permanently'}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      className="library-button danger-outline"
+                      onClick={() => void permanentlyDeleteSelectedNote(selectedNote)}
+                      disabled={!canMutate || mutatingNoteId !== null}
+                    >
+                      Delete permanently
+                    </button>
+                  )}
+                </div>
+              )}
+
               <p className="library-safety-note">
-                All Skribs never launches or guesses the original application. Context reopening and re-anchoring remain separate safety-reviewed workflows.
+                All Skribs never launches or guesses the original application. Restoring changes only the local lifecycle record; context reopening and re-anchoring remain separate safety-reviewed workflows.
               </p>
             </>
           ) : (

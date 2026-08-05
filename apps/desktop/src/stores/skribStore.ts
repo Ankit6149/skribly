@@ -112,7 +112,8 @@ interface SkribStoreState {
   updateSkribText: (id: string, text: string) => Promise<boolean>;
   updateSkribColor: (id: string, color: SkribNote['color']) => Promise<void>;
   toggleSkribCollapse: (id: string) => Promise<void>;
-  deleteSkrib: (id: string) => Promise<boolean>;
+  trashSkrib: (id: string) => Promise<boolean>;
+  discardEmptySkrib: (id: string) => Promise<boolean>;
   updateHitTestRects: (
     rects: Array<{ x: number; y: number; width: number; height: number }>
   ) => Promise<void>;
@@ -273,6 +274,7 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
       collapsed: false,
       created_at: now,
       updated_at: now,
+      deleted_at: null,
     };
 
     set({ skribs: [...previousSkribs, newNote] });
@@ -426,7 +428,7 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
     }
   },
 
-  deleteSkrib: async (id) => {
+  trashSkrib: async (id) => {
     const blocked = writeBlockMessage();
     if (blocked) {
       set({ errorMessage: blocked });
@@ -434,11 +436,11 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
     }
 
     const previousSkribs = get().skribs;
-    set({ skribs: previousSkribs.filter((n) => n.id !== id) });
+    set({ skribs: previousSkribs.filter((note) => note.id !== id) });
 
     if (!get().isTauriAvailable) return true;
     try {
-      const payload = await invoke<OverlayStatePayload>('delete_skrib_note', { id });
+      const payload = await invoke<OverlayStatePayload>('trash_skrib_note', { id });
       set({
         skribs: payload.skribs,
         overlayMetrics: payload.overlay_metrics || get().overlayMetrics,
@@ -447,12 +449,45 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
         storageErrorMessage: null,
       });
       return true;
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       set({
         skribs: previousSkribs,
-        errorMessage: `Failed to delete Skrib: ${msg}`,
-        storageErrorMessage: `Failed to delete Skrib: ${msg}`,
+        errorMessage: `Failed to move Skrib to Trash: ${message}`,
+        storageErrorMessage: `Failed to move Skrib to Trash: ${message}`,
+      });
+      await get().refreshStorageHealth();
+      return false;
+    }
+  },
+
+  discardEmptySkrib: async (id) => {
+    const blocked = writeBlockMessage();
+    if (blocked) {
+      set({ errorMessage: blocked });
+      return false;
+    }
+
+    const previousSkribs = get().skribs;
+    set({ skribs: previousSkribs.filter((note) => note.id !== id) });
+
+    if (!get().isTauriAvailable) return true;
+    try {
+      const payload = await invoke<OverlayStatePayload>('discard_empty_skrib_note', { id });
+      set({
+        skribs: payload.skribs,
+        overlayMetrics: payload.overlay_metrics || get().overlayMetrics,
+        initStatus: payload.init_status || get().initStatus,
+        errorMessage: null,
+        storageErrorMessage: null,
+      });
+      return true;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      set({
+        skribs: previousSkribs,
+        errorMessage: `Failed to discard the empty Skrib: ${message}`,
+        storageErrorMessage: `Failed to discard the empty Skrib: ${message}`,
       });
       await get().refreshStorageHealth();
       return false;

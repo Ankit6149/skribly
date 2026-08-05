@@ -497,17 +497,72 @@ fn toggle_skrib_collapse(
     Ok(build_mutation_payload(&app_handle, &state, false))
 }
 
+fn lifecycle_timestamp_seconds() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs()
+        .max(1)
+}
+
 #[tauri::command]
-fn delete_skrib_note(
+fn trash_skrib_note(
+    app_handle: AppHandle,
+    state: State<'_, AppState>,
+    id: String,
+) -> Result<OverlayStatePayload, String> {
+    let deleted_at = lifecycle_timestamp_seconds();
+    run_persisted_mutation(&state, |coordinator| {
+        coordinator
+            .trash_skrib(&id, deleted_at)
+            .map(|_| ())
+            .ok_or_else(|| "Only an active writable note can be moved to Trash".to_string())
+    })?;
+    Ok(build_mutation_payload(&app_handle, &state, false))
+}
+
+#[tauri::command]
+fn discard_empty_skrib_note(
     app_handle: AppHandle,
     state: State<'_, AppState>,
     id: String,
 ) -> Result<OverlayStatePayload, String> {
     run_persisted_mutation(&state, |coordinator| {
         coordinator
-            .remove_skrib(&id)
+            .discard_empty_skrib(&id)
             .map(|_| ())
-            .ok_or_else(|| "Skrib note was not found or is not writable".to_string())
+            .ok_or_else(|| "Only an active empty note can be discarded".to_string())
+    })?;
+    Ok(build_mutation_payload(&app_handle, &state, false))
+}
+
+#[tauri::command]
+fn restore_skrib_note(
+    app_handle: AppHandle,
+    state: State<'_, AppState>,
+    id: String,
+) -> Result<OverlayStatePayload, String> {
+    let restored_at = lifecycle_timestamp_seconds();
+    run_persisted_mutation(&state, |coordinator| {
+        coordinator
+            .restore_skrib(&id, restored_at)
+            .map(|_| ())
+            .ok_or_else(|| "Only a trashed writable note can be restored".to_string())
+    })?;
+    Ok(build_mutation_payload(&app_handle, &state, false))
+}
+
+#[tauri::command]
+fn permanently_delete_skrib_note(
+    app_handle: AppHandle,
+    state: State<'_, AppState>,
+    id: String,
+) -> Result<OverlayStatePayload, String> {
+    run_persisted_mutation(&state, |coordinator| {
+        coordinator
+            .permanently_delete_skrib(&id)
+            .map(|_| ())
+            .ok_or_else(|| "Only a trashed writable note can be permanently deleted".to_string())
     })?;
     Ok(build_mutation_payload(&app_handle, &state, false))
 }
@@ -515,7 +570,13 @@ fn delete_skrib_note(
 #[tauri::command]
 fn get_all_skribs(state: State<'_, AppState>) -> Vec<SkribNote> {
     let mut skribs = state.coordinator.get_all_skribs();
-    skribs.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
+    skribs.sort_by(|left, right| {
+        right
+            .updated_at
+            .cmp(&left.updated_at)
+            .then_with(|| right.created_at.cmp(&left.created_at))
+            .then_with(|| left.id.cmp(&right.id))
+    });
     skribs
 }
 
@@ -612,7 +673,10 @@ pub fn run() {
             update_skrib_text,
             update_skrib_color,
             toggle_skrib_collapse,
-            delete_skrib_note,
+            trash_skrib_note,
+            discard_empty_skrib_note,
+            restore_skrib_note,
+            permanently_delete_skrib_note,
             get_all_skribs,
             focus_target_window,
             set_hit_test_rects,
@@ -744,6 +808,7 @@ pub fn run() {
                                 collapsed: false,
                                 created_at: (timestamp / 1000) as u64,
                                 updated_at: (timestamp / 1000) as u64,
+                                deleted_at: None,
                             };
                             if let Err(message) =
                                 run_persisted_mutation(&state_hk, |coordinator| {
@@ -1089,6 +1154,7 @@ mod tests {
             collapsed: false,
             created_at: 1,
             updated_at: 1,
+            deleted_at: None,
         });
 
         assert!(visible_skribs(&coordinator, None).is_empty());
@@ -1126,6 +1192,7 @@ mod tests {
             collapsed: false,
             created_at: 1,
             updated_at: 1,
+            deleted_at: None,
         };
         coordinator.upsert_skrib(original.clone());
         #[cfg(target_os = "windows")]

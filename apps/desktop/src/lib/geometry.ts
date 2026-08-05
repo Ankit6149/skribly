@@ -44,6 +44,7 @@ export interface SkribNote {
   collapsed: boolean;
   created_at: number;
   updated_at: number;
+  deleted_at?: number | null;
 }
 
 /**
@@ -118,4 +119,3 @@ export function matchesContext(
   const t2 = noteTitle.toLowerCase().trim();
   return t1.includes(t2) || t2.includes(t1);
 }
-

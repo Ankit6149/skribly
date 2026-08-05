@@ -64,6 +64,10 @@ fn is_valid_note(note: &SkribNote) -> bool {
         && is_valid_note_geometry(note.rel_x, note.rel_y, note.width, note.height)
 }
 
+fn can_mutate_note(note: &SkribNote) -> bool {
+    note.deleted_at.is_none()
+}
+
 impl Coordinator {
     pub fn new() -> Self {
         Self {
@@ -111,7 +115,10 @@ impl Coordinator {
     }
 
     pub fn upsert_skrib(&self, note: SkribNote) -> bool {
-        if license::require_global_write_access().is_err() || !is_valid_note(&note) {
+        if license::require_global_write_access().is_err()
+            || !is_valid_note(&note)
+            || note.deleted_at.is_some()
+        {
             return false;
         }
         if let Ok(mut state) = self.state.lock() {
@@ -131,15 +138,59 @@ impl Coordinator {
         }
     }
 
-    pub fn remove_skrib(&self, id: &str) -> Option<SkribNote> {
+    pub fn trash_skrib(&self, id: &str, deleted_at: u64) -> Option<SkribNote> {
+        if license::require_global_write_access().is_err()
+            || !is_valid_note_id(id)
+            || deleted_at == 0
+        {
+            return None;
+        }
+        let mut state = self.state.lock().ok()?;
+        let note = state.skribs.get_mut(id)?;
+        if note.deleted_at.is_some() {
+            return None;
+        }
+        note.deleted_at = Some(deleted_at);
+        note.updated_at = deleted_at;
+        Some(note.clone())
+    }
+
+    pub fn restore_skrib(&self, id: &str, restored_at: u64) -> Option<SkribNote> {
+        if license::require_global_write_access().is_err()
+            || !is_valid_note_id(id)
+            || restored_at == 0
+        {
+            return None;
+        }
+        let mut state = self.state.lock().ok()?;
+        let note = state.skribs.get_mut(id)?;
+        note.deleted_at?;
+        note.deleted_at = None;
+        note.updated_at = restored_at;
+        Some(note.clone())
+    }
+
+    pub fn permanently_delete_skrib(&self, id: &str) -> Option<SkribNote> {
         if license::require_global_write_access().is_err() || !is_valid_note_id(id) {
             return None;
         }
-        if let Ok(mut state) = self.state.lock() {
-            state.skribs.remove(id)
-        } else {
-            None
+        let mut state = self.state.lock().ok()?;
+        if state.skribs.get(id)?.deleted_at.is_none() {
+            return None;
         }
+        state.skribs.remove(id)
+    }
+
+    pub fn discard_empty_skrib(&self, id: &str) -> Option<SkribNote> {
+        if license::require_global_write_access().is_err() || !is_valid_note_id(id) {
+            return None;
+        }
+        let mut state = self.state.lock().ok()?;
+        let note = state.skribs.get(id)?;
+        if note.deleted_at.is_some() || !note.text.trim().is_empty() {
+            return None;
+        }
+        state.skribs.remove(id)
     }
 
     pub fn get_skribs_for_target(&self, target: &TargetWindowInfo) -> Vec<SkribNote> {
@@ -148,7 +199,8 @@ impl Coordinator {
                 .skribs
                 .values()
                 .filter(|note| {
-                    target.matches_context(&note.target_process_name, &note.target_title)
+                    note.deleted_at.is_none()
+                        && target.matches_context(&note.target_process_name, &note.target_title)
                 })
                 .cloned()
                 .collect()
@@ -165,9 +217,35 @@ impl Coordinator {
         }
     }
 
+    pub fn get_active_skribs(&self) -> Vec<SkribNote> {
+        if let Ok(state) = self.state.lock() {
+            state
+                .skribs
+                .values()
+                .filter(|note| note.deleted_at.is_none())
+                .cloned()
+                .collect()
+        } else {
+            Vec::new()
+        }
+    }
+
+    pub fn get_trashed_skribs(&self) -> Vec<SkribNote> {
+        if let Ok(state) = self.state.lock() {
+            state
+                .skribs
+                .values()
+                .filter(|note| note.deleted_at.is_some())
+                .cloned()
+                .collect()
+        } else {
+            Vec::new()
+        }
+    }
+
     pub fn find_best_context_match(&self, candidates: &[TargetWindowInfo]) -> MatchResult {
         if let Ok(state) = self.state.lock() {
-            if state.skribs.is_empty() {
+            if !state.skribs.values().any(|note| note.deleted_at.is_none()) {
                 return MatchResult::None;
             }
 
@@ -176,6 +254,7 @@ impl Coordinator {
                 let max_score = state
                     .skribs
                     .values()
+                    .filter(|note| note.deleted_at.is_none())
                     .map(|note| {
                         candidate.match_score(&note.target_process_name, &note.target_title)
                     })
@@ -226,6 +305,9 @@ impl Coordinator {
         }
         if let Ok(mut state) = self.state.lock() {
             if let Some(note) = state.skribs.get_mut(id) {
+                if !can_mutate_note(note) {
+                    return false;
+                }
                 note.rel_x = rel_x;
                 note.rel_y = rel_y;
                 note.width = width;
@@ -252,6 +334,9 @@ impl Coordinator {
         }
         if let Ok(mut state) = self.state.lock() {
             if let Some(note) = state.skribs.get_mut(id) {
+                if !can_mutate_note(note) {
+                    return false;
+                }
                 note.text = text;
                 note.updated_at = std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
@@ -275,6 +360,9 @@ impl Coordinator {
         }
         if let Ok(mut state) = self.state.lock() {
             if let Some(note) = state.skribs.get_mut(id) {
+                if !can_mutate_note(note) {
+                    return false;
+                }
                 note.color = color;
                 note.updated_at = std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
@@ -295,6 +383,9 @@ impl Coordinator {
         }
         if let Ok(mut state) = self.state.lock() {
             if let Some(note) = state.skribs.get_mut(id) {
+                if !can_mutate_note(note) {
+                    return None;
+                }
                 note.collapsed = !note.collapsed;
                 note.updated_at = std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
@@ -367,6 +458,7 @@ mod tests {
             collapsed: false,
             created_at: 100,
             updated_at: 100,
+            deleted_at: None,
         }
     }
 
@@ -391,6 +483,107 @@ mod tests {
 
         assert!(!coordinator.upsert_skrib(note));
         assert!(coordinator.get_all_skribs().is_empty());
+    }
+
+    #[test]
+    fn rejects_upserting_pretrashed_frontend_notes() {
+        let coordinator = Coordinator::new();
+        let mut note = sample_note();
+        note.deleted_at = Some(200);
+
+        assert!(!coordinator.upsert_skrib(note));
+        assert!(coordinator.get_all_skribs().is_empty());
+    }
+
+    #[test]
+    fn trash_hides_note_from_context_and_restore_preserves_identity() {
+        let coordinator = Coordinator::new();
+        let note = sample_note();
+        assert!(coordinator.upsert_skrib(note.clone()));
+
+        let trashed = coordinator
+            .trash_skrib(&note.id, 500)
+            .expect("active note should move to trash");
+        assert_eq!(trashed.id, note.id);
+        assert_eq!(trashed.deleted_at, Some(500));
+        assert!(coordinator
+            .get_skribs_for_target(&sample_target_a())
+            .is_empty());
+        assert!(matches!(
+            coordinator.find_best_context_match(&[sample_target_a()]),
+            MatchResult::None
+        ));
+        assert_eq!(coordinator.get_active_skribs().len(), 0);
+        assert_eq!(coordinator.get_trashed_skribs().len(), 1);
+
+        let restored = coordinator
+            .restore_skrib(&note.id, 600)
+            .expect("trashed note should restore");
+        assert_eq!(restored.id, note.id);
+        assert_eq!(restored.text, note.text);
+        assert_eq!(restored.deleted_at, None);
+        assert_eq!(restored.updated_at, 600);
+        assert_eq!(coordinator.get_active_skribs().len(), 1);
+        assert_eq!(coordinator.get_trashed_skribs().len(), 0);
+    }
+
+    #[test]
+    fn lifecycle_operations_fail_closed_for_the_wrong_state() {
+        let coordinator = Coordinator::new();
+        let note = sample_note();
+        assert!(coordinator.upsert_skrib(note.clone()));
+
+        assert!(coordinator.restore_skrib(&note.id, 200).is_none());
+        assert!(coordinator.permanently_delete_skrib(&note.id).is_none());
+        assert!(coordinator.trash_skrib(&note.id, 0).is_none());
+
+        coordinator
+            .trash_skrib(&note.id, 300)
+            .expect("trash should succeed once");
+        assert!(coordinator.trash_skrib(&note.id, 301).is_none());
+        assert!(!coordinator.update_skrib_text(&note.id, "Changed".into()));
+        assert!(!coordinator.update_skrib_color(&note.id, "mint".into()));
+        assert!(coordinator.toggle_skrib_collapse(&note.id).is_none());
+    }
+
+    #[test]
+    fn permanent_delete_is_available_only_after_trash() {
+        let coordinator = Coordinator::new();
+        let note = sample_note();
+        assert!(coordinator.upsert_skrib(note.clone()));
+        assert!(coordinator.permanently_delete_skrib(&note.id).is_none());
+
+        coordinator
+            .trash_skrib(&note.id, 300)
+            .expect("trash should succeed");
+        let deleted = coordinator
+            .permanently_delete_skrib(&note.id)
+            .expect("trashed note should delete permanently");
+        assert_eq!(deleted.id, note.id);
+        assert!(coordinator.get_all_skribs().is_empty());
+    }
+
+    #[test]
+    fn empty_discard_never_removes_nonempty_or_trashed_notes() {
+        let coordinator = Coordinator::new();
+        let note = sample_note();
+        assert!(coordinator.upsert_skrib(note.clone()));
+        assert!(coordinator.discard_empty_skrib(&note.id).is_none());
+
+        assert!(coordinator.update_skrib_text(&note.id, "   ".into()));
+        let discarded = coordinator
+            .discard_empty_skrib(&note.id)
+            .expect("whitespace-only active note should discard");
+        assert_eq!(discarded.id, note.id);
+
+        let mut trashed_empty = sample_note();
+        trashed_empty.id = "trashed-empty".into();
+        trashed_empty.text.clear();
+        assert!(coordinator.upsert_skrib(trashed_empty.clone()));
+        coordinator
+            .trash_skrib(&trashed_empty.id, 400)
+            .expect("empty note can be explicitly trashed");
+        assert!(coordinator.discard_empty_skrib(&trashed_empty.id).is_none());
     }
 
     #[test]

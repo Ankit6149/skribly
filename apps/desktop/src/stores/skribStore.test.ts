@@ -67,7 +67,7 @@ describe('skribStore', () => {
     expect(useSkribStore.getState().activeTarget).toEqual(sampleTarget);
   });
 
-  it('adds a new skrib note', async () => {
+  it('adds a new active skrib note with explicit lifecycle metadata', async () => {
     await useSkribStore.getState().bindTarget(sampleTarget);
     await useSkribStore.getState().addSkrib('Note test content', 'peach');
 
@@ -75,6 +75,7 @@ describe('skribStore', () => {
     expect(skribs).toHaveLength(1);
     expect(skribs[0]!.text).toBe('Note test content');
     expect(skribs[0]!.color).toBe('peach');
+    expect(skribs[0]!.deleted_at).toBeNull();
   });
 
   it('updates position, text, color, and collapse state', async () => {
@@ -97,11 +98,21 @@ describe('skribStore', () => {
     expect(useSkribStore.getState().skribs[0]!.height).toBe(240);
   });
 
-  it('deletes a skrib note', async () => {
-    await useSkribStore.getState().addSkrib('To be deleted');
+  it('removes a note from the active compact-editor collection when moving it to Trash', async () => {
+    await useSkribStore.getState().addSkrib('Move me to Trash');
     const noteId = useSkribStore.getState().skribs[0]!.id;
 
-    await useSkribStore.getState().deleteSkrib(noteId);
+    const moved = await useSkribStore.getState().trashSkrib(noteId);
+    expect(moved).toBe(true);
+    expect(useSkribStore.getState().skribs).toHaveLength(0);
+  });
+
+  it('discards a newly created empty note through its separate constrained path', async () => {
+    await useSkribStore.getState().addSkrib();
+    const noteId = useSkribStore.getState().skribs[0]!.id;
+
+    const discarded = await useSkribStore.getState().discardEmptySkrib(noteId);
+    expect(discarded).toBe(true);
     expect(useSkribStore.getState().skribs).toHaveLength(0);
   });
 
@@ -121,7 +132,8 @@ describe('skribStore', () => {
     });
 
     await useSkribStore.getState().updateSkribText(note.id, 'Should not appear');
-    await useSkribStore.getState().deleteSkrib(note.id);
+    await useSkribStore.getState().trashSkrib(note.id);
+    await useSkribStore.getState().discardEmptySkrib(note.id);
     await useSkribStore.getState().addSkrib('Should not be created');
 
     expect(useSkribStore.getState().skribs).toEqual([note]);
@@ -137,10 +149,12 @@ describe('skribStore', () => {
     });
 
     const updated = await useSkribStore.getState().updateSkribText(note.id, 'Should not appear');
-    const deleted = await useSkribStore.getState().deleteSkrib(note.id);
+    const moved = await useSkribStore.getState().trashSkrib(note.id);
+    const discarded = await useSkribStore.getState().discardEmptySkrib(note.id);
 
     expect(updated).toBe(false);
-    expect(deleted).toBe(false);
+    expect(moved).toBe(false);
+    expect(discarded).toBe(false);
     expect(useSkribStore.getState().skribs).toEqual([note]);
     expect(useSkribStore.getState().errorMessage).toBe('Local note data needs recovery.');
   });

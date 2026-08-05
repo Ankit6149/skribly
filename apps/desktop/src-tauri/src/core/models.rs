@@ -91,6 +91,8 @@ pub struct SkribNote {
     pub collapsed: bool,
     pub created_at: u64,
     pub updated_at: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deleted_at: Option<u64>,
 }
 
 impl SkribNote {
@@ -157,6 +159,24 @@ pub struct OverlayStatePayload {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn sample_note(deleted_at: Option<u64>) -> SkribNote {
+        SkribNote {
+            id: "skrib_1".into(),
+            target_process_name: "test.exe".into(),
+            target_title: "Test".into(),
+            rel_x: 50.0,
+            rel_y: 40.0,
+            width: 250.0,
+            height: 180.0,
+            text: "Hello".into(),
+            color: "yellow".into(),
+            collapsed: false,
+            created_at: 1000,
+            updated_at: 1000,
+            deleted_at,
+        }
+    }
 
     #[test]
     fn test_window_rect_contains_point() {
@@ -236,12 +256,11 @@ mod tests {
             scale_factor: 1.0,
         };
 
-        // Note bound specifically to Document-A
         let score1 = notepad1.match_score("notepad.exe", "Document-A.txt");
         let score2 = notepad2.match_score("notepad.exe", "Document-A.txt");
 
         assert_eq!(score1, 75);
-        assert_eq!(score2, 0); // Rejects incorrect Notepad window!
+        assert_eq!(score2, 0);
     }
 
     #[test]
@@ -263,23 +282,38 @@ mod tests {
             scale_factor: 1.0,
         };
 
-        let note = SkribNote {
-            id: "skrib_1".into(),
-            target_process_name: "test.exe".into(),
-            target_title: "Test".into(),
-            rel_x: 50.0,
-            rel_y: 40.0,
-            width: 250.0,
-            height: 180.0,
-            text: "Hello".into(),
-            color: "yellow".into(),
-            collapsed: false,
-            created_at: 1000,
-            updated_at: 1000,
-        };
-
+        let note = sample_note(None);
         let abs_bounds = note.calculate_absolute_bounds(&win);
         assert_eq!(abs_bounds.x, 250);
         assert_eq!(abs_bounds.y, 190);
+    }
+
+    #[test]
+    fn active_note_serialization_preserves_the_schema_v2_integrity_shape() {
+        let json = serde_json::to_string(&sample_note(None)).expect("serialize active note");
+        assert_eq!(
+            json,
+            r#"{"id":"skrib_1","target_process_name":"test.exe","target_title":"Test","rel_x":50.0,"rel_y":40.0,"width":250.0,"height":180.0,"text":"Hello","color":"yellow","collapsed":false,"created_at":1000,"updated_at":1000}"#
+        );
+        assert!(!json.contains("deleted_at"));
+    }
+
+    #[test]
+    fn trashed_note_serialization_includes_schema_v3_lifecycle_metadata() {
+        let json = serde_json::to_string(&sample_note(Some(2000))).expect("serialize trashed note");
+        let value: serde_json::Value = serde_json::from_str(&json).expect("parse trashed note");
+        assert_eq!(
+            value.get("deleted_at").and_then(serde_json::Value::as_u64),
+            Some(2000)
+        );
+        let decoded: SkribNote = serde_json::from_str(&json).expect("deserialize trashed note");
+        assert_eq!(decoded.deleted_at, Some(2000));
+    }
+
+    #[test]
+    fn legacy_note_without_lifecycle_metadata_deserializes_as_active() {
+        let json = r#"{"id":"legacy","target_process_name":"notepad.exe","target_title":"Legacy","rel_x":0.0,"rel_y":0.0,"width":400.0,"height":340.0,"text":"Old","color":"yellow","collapsed":false,"created_at":1,"updated_at":2}"#;
+        let decoded: SkribNote = serde_json::from_str(json).expect("deserialize legacy note");
+        assert_eq!(decoded.deleted_at, None);
     }
 }
