@@ -302,7 +302,10 @@ mod tests {
     fn trashed_note_serialization_includes_schema_v3_lifecycle_metadata() {
         let json = serde_json::to_string(&sample_note(Some(2000))).expect("serialize trashed note");
         let value: serde_json::Value = serde_json::from_str(&json).expect("parse trashed note");
-        assert_eq!(value.get("deleted_at").and_then(serde_json::Value::as_u64), Some(2000));
+        assert_eq!(
+            value.get("deleted_at").and_then(serde_json::Value::as_u64),
+            Some(2000)
+        );
         let decoded: SkribNote = serde_json::from_str(&json).expect("deserialize trashed note");
         assert_eq!(decoded.deleted_at, Some(2000));
     }
