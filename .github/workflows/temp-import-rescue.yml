@@ -1,0 +1,305 @@
+name: Portable import exact-head rescue
+
+on:
+  push:
+    branches:
+      - feat/133-portable-import
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: portable-import-release-gate
+  cancel-in-progress: true
+
+jobs:
+  finalize-test-and-merge:
+    if: github.repository == 'Ankit6149/skribly' && github.actor != 'github-actions[bot]'
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPOSITORY: Ankit6149/skribly
+      PR_NUMBER: '134'
+      CHILD_ISSUE: '133'
+      PARENT_ISSUE: '21'
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: feat/133-portable-import
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - name: Ensure final import safety and truth wiring
+        shell: python
+        run: |
+          from pathlib import Path
+
+          def replace_once(text: str, old: str, new: str, label: str) -> str:
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected one pattern, found {count}')
+              return text.replace(old, new)
+
+          native_path = Path('apps/desktop/src-tauri/src/desktop/library_import.rs')
+          native = native_path.read_text(encoding='utf-8')
+          if 'verify_rollback_backup(' not in native:
+              native = replace_once(
+                  native,
+                  '''use crate::desktop::library::{
+    current_time_millis, sort_notes_for_library, write_library_export, LibraryExportScope,
+    LIBRARY_WINDOW_LABEL,
+};''',
+                  '''use crate::desktop::library::{
+    current_time_millis, sort_notes_for_library, write_library_export, LibraryExportEnvelope,
+    LibraryExportScope, LIBRARY_WINDOW_LABEL,
+};''',
+                  'native import list',
+              )
+              native = replace_once(
+                  native,
+                  'use std::collections::{HashMap, HashSet};\n',
+                  'use std::collections::{HashMap, HashSet};\nuse std::fs;\nuse std::path::Path;\n',
+                  'native fs import',
+              )
+              native = replace_once(
+                  native,
+                  '''    let previous_notes = state.coordinator.get_all_skribs();
+    let plan = build_import_plan(&previous_notes, &parsed.notes);''',
+                  '''    let mut previous_notes = state.coordinator.get_all_skribs();
+    sort_notes_for_library(&mut previous_notes);
+    let plan = build_import_plan(&previous_notes, &parsed.notes);''',
+                  'sorted snapshot',
+              )
+              native = replace_once(
+                  native,
+                  '''    let rollback_path = write_library_export(
+        &backup_directory,
+        LibraryExportScope::CompleteBackup,
+        previous_notes.clone(),
+        current_time_millis(),
+    )?;
+
+    let merged_notes =''',
+                  '''    let rollback_path = write_library_export(
+        &backup_directory,
+        LibraryExportScope::CompleteBackup,
+        previous_notes.clone(),
+        current_time_millis(),
+    )?;
+    verify_rollback_backup(&rollback_path, &previous_notes)?;
+
+    let merged_notes =''',
+                  'verify backup call',
+              )
+              marker = 'fn validate_expected_revision(current_revision: u64, expected_revision: u64) -> Result<(), String> {'
+              helper = '''fn verify_rollback_backup(path: &Path, expected_notes: &[SkribNote]) -> Result<(), String> {
+    let bytes = fs::read(path)
+        .map_err(|error| format!("Failed to read the pre-import rollback backup: {error}"))?;
+    let envelope: LibraryExportEnvelope = serde_json::from_slice(&bytes)
+        .map_err(|error| format!("The pre-import rollback backup did not verify: {error}"))?;
+    if envelope.schema_version != 1
+        || envelope.scope != LibraryExportScope::CompleteBackup
+        || envelope.note_count != expected_notes.len()
+        || envelope.notes != expected_notes
+    {
+        return Err(
+            "The pre-import rollback backup did not match the authoritative local collection."
+                .into(),
+        );
+    }
+    Ok(())
+}
+
+'''
+              native = replace_once(native, marker, helper + marker, 'backup verification helper')
+              test_marker = '''    #[test]
+    fn skip_mode_adds_new_records_and_preserves_existing_conflicts() {'''
+              test = r'''    #[test]
+    fn rollback_backup_is_read_back_and_rejects_tampering() {
+        let directory = std::env::temp_dir().join(format!(
+            "skribli-import-backup-verify-{}-{}",
+            std::process::id(),
+            current_time_millis()
+        ));
+        let mut expected = vec![note("active", "safe", None), note("trash", "recover", Some(500))];
+        sort_notes_for_library(&mut expected);
+        let path = write_library_export(
+            &directory,
+            LibraryExportScope::CompleteBackup,
+            expected.clone(),
+            1234,
+        )
+        .expect("write rollback fixture");
+        verify_rollback_backup(&path, &expected).expect("valid backup should verify");
+        std::fs::write(&path, b"{}\n").expect("tamper rollback fixture");
+        assert!(verify_rollback_backup(&path, &expected)
+            .expect_err("tampered backup must fail")
+            .contains("did not verify"));
+        let _ = std::fs::remove_dir_all(directory);
+    }
+
+'''
+              native = replace_once(native, test_marker, test + test_marker, 'backup verification test')
+          native_path.write_text(native, encoding='utf-8')
+
+          validator_path = Path('scripts/validation/validate-portable-import.mjs')
+          validator = validator_path.read_text(encoding='utf-8')
+          if "  'verify_rollback_backup('," not in validator:
+              validator = replace_once(
+                  validator,
+                  "  'write_library_export(',\n",
+                  "  'write_library_export(',\n  'verify_rollback_backup(',\n",
+                  'validator backup helper',
+              )
+          if "  'rollback_backup_is_read_back_and_rejects_tampering'," not in validator:
+              validator = replace_once(
+                  validator,
+                  "  'persisted_import_saves_the_complete_merged_collection',\n",
+                  "  'persisted_import_saves_the_complete_merged_collection',\n  'rollback_backup_is_read_back_and_rejects_tampering',\n",
+                  'validator backup test',
+              )
+          validator_path.write_text(validator, encoding='utf-8')
+
+          package_path = Path('package.json')
+          package = package_path.read_text(encoding='utf-8')
+          if 'validate-portable-import.mjs' not in package:
+              package = replace_once(
+                  package,
+                  'node scripts/validation/validate-trash-migration-fixture.mjs"',
+                  'node scripts/validation/validate-trash-migration-fixture.mjs && node scripts/validation/validate-portable-import.mjs"',
+                  'package validation chain',
+              )
+          package_path.write_text(package, encoding='utf-8')
+
+          cleanup_path = Path('.github/workflows/branch-cleanup.yml')
+          cleanup = cleanup_path.read_text(encoding='utf-8')
+          if "'feat/133-portable-import'" not in cleanup:
+              cleanup = replace_once(
+                  cleanup,
+                  "            'feat/131-reversible-trash'\n",
+                  "            'feat/131-reversible-trash'\n            'feat/133-portable-import'\n",
+                  'cleanup allowlist',
+              )
+          cleanup_path.write_text(cleanup, encoding='utf-8')
+
+          if not Path('site/llms.txt').read_text(encoding='utf-8').find('mandatory native preview') >= 0:
+              raise SystemExit('site/llms.txt is missing final portable import truth')
+
+      - name: Remove rescue workflow and commit exact head
+        shell: pwsh
+        run: |
+          cargo fmt --manifest-path apps/desktop/src-tauri/Cargo.toml
+          git rm .github/workflows/temp-import-rescue.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add apps/desktop/src-tauri/src/desktop/library_import.rs scripts/validation/validate-portable-import.mjs package.json .github/workflows/branch-cleanup.yml
+          git diff --cached --check
+          if (-not (git diff --cached --quiet)) {
+            git commit -m 'test(import): finalize exact-head restore safety'
+          } else {
+            git commit --allow-empty -m 'test(import): finalize exact-head restore safety'
+          }
+          git push origin HEAD:feat/133-portable-import
+          "FINAL_HEAD=$(git rev-parse HEAD)" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Frontend, site, governance, and truth gates
+        shell: pwsh
+        run: |
+          npm run typecheck
+          npm run test
+          npm run build
+          npm run site:validate
+          npm run governance:validate
+          npm run product-truth:validate
+
+      - name: Native gates
+        shell: pwsh
+        run: |
+          cargo fmt --manifest-path apps/desktop/src-tauri/Cargo.toml -- --check
+          cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml
+          cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml
+
+      - name: Restricted configuration
+        shell: pwsh
+        run: |
+          @'
+          from pathlib import Path
+          import json, re
+          lines = Path('.github/workflows/ci.yml').read_text(encoding='utf-8').splitlines()
+          target = 'name: Check restricted configuration compiles'
+          index = next((i for i, line in enumerate(lines) if target in line), None)
+          if index is None:
+              raise SystemExit('restricted-build step not found')
+          step_indent = len(lines[index]) - len(lines[index].lstrip())
+          shell = 'pwsh'
+          command = None
+          for i in range(index + 1, len(lines)):
+              line = lines[i]
+              if line.strip() and len(line) - len(line.lstrip()) <= step_indent:
+                  break
+              stripped = line.strip()
+              if stripped.startswith('shell:'):
+                  shell = stripped.split(':', 1)[1].strip()
+              match = re.match(r'^(\s*)run:\s*(.*)$', line)
+              if not match:
+                  continue
+              indent = len(match.group(1)); inline = match.group(2).strip()
+              if inline and inline != '|':
+                  command = inline
+              else:
+                  body = []
+                  for body_line in lines[i + 1:]:
+                      if body_line.strip() and len(body_line) - len(body_line.lstrip()) <= indent:
+                          break
+                      body.append(body_line[indent + 2:] if len(body_line) >= indent + 2 else '')
+                  command = '\n'.join(body).rstrip() + '\n'
+              break
+          if not command:
+              raise SystemExit('restricted-build command not found')
+          Path('restricted-step.json').write_text(json.dumps({'shell': shell, 'command': command}), encoding='utf-8')
+          '@ | python
+          $step = Get-Content restricted-step.json | ConvertFrom-Json
+          if ($step.shell -like 'bash*') {
+            Set-Content restricted-step.sh $step.command -NoNewline; bash restricted-step.sh
+          } else {
+            Set-Content restricted-step.ps1 $step.command -NoNewline; pwsh -NoProfile -File restricted-step.ps1
+          }
+
+      - name: Storage acceptance
+        run: cargo run --release --manifest-path apps/desktop/src-tauri/Cargo.toml --bin storage_acceptance
+
+      - name: Mark ready, comment evidence, and merge exact head
+        shell: pwsh
+        run: |
+          $head = $env:FINAL_HEAD
+          gh pr ready $env:PR_NUMBER --repo $env:REPOSITORY
+          gh issue comment $env:CHILD_ISSUE --repo $env:REPOSITORY --body "Implemented in PR #134 at exact verified head ``$head``. Frontend type-check/tests/build, site, governance, complete product truth, Rust formatting/check/tests, skip/replace planning, revision locking, real AppState persistence success/rollback, rollback-backup read-back/tamper rejection, restricted compile, and release-mode storage acceptance passed. Parent #21 remains open for attachments, archive, scheduled/user-selected backups, future variants, context-safe reopen/re-anchor, and exact physical release evidence."
+          gh issue comment $env:PARENT_ISSUE --repo $env:REPOSITORY --body "## Portable import slice completed`n`nPR #134 completes child #133 on exact verified head ``$head`` with local-only mandatory preview, duplicate/conflict planning, revision-locked apply, durably verified rollback backup, atomic persistence rollback, active/Trash portability, read-only preview, and complete exact-head validation.`n`n#21 remains open for attachments, archive, scheduled/user-selected backups, future variants, context-safe reopen/re-anchor, scalability, and exact physical release evidence."
+          gh pr edit $env:PR_NUMBER --repo $env:REPOSITORY --title 'feat(import): add portable JSON preview and atomic restore' --body 'Portable JSON import now provides strict local-only schema validation, mandatory native preview, exact duplicate and stable-ID conflict planning, safe Skip and explicit Replace modes, exact-file fingerprint and storage-revision locking, a durably verified pre-import rollback backup, atomic crash-safe persistence rollback, active/Trash lifecycle preservation, read-only preview, accessible All Skribs UI, ADR-0004, physical acceptance documentation, public truth alignment, and permanent CI guards.`n`nCloses #133.`n`nParent #21 remains open for attachments, archive, scheduled/user-selected backups, future annotation variants, context-safe reopen/re-anchor, scalability, and exact physical release evidence.'
+          $payload = @{commit_title='feat(import): add portable JSON preview and atomic restore (#134)';commit_message="Add strict local preview, conflict planning, revision-locked apply, verified rollback backup, atomic rollback, accessible All Skribs UI, and exact-head validation.`n`nCloses #133. Parent #21 remains open.";merge_method='squash';sha=$head} | ConvertTo-Json
+          $payload | gh api --method PUT "repos/$env:REPOSITORY/pulls/$env:PR_NUMBER/merge" --input -
+
+      - name: Delete branch and verify hygiene
+        shell: pwsh
+        run: |
+          git push origin --delete feat/133-portable-import
+          if ((gh issue view $env:CHILD_ISSUE --repo $env:REPOSITORY --json state --jq .state) -ne 'CLOSED') { throw 'Child issue did not close' }
+          if ((gh issue view $env:PARENT_ISSUE --repo $env:REPOSITORY --json state --jq .state) -ne 'OPEN') { throw 'Parent issue must remain open' }
+          if ((gh pr list --repo $env:REPOSITORY --state open --json number --jq length) -ne '0') { throw 'Open PRs remain' }
+          $branches = gh api "repos/$env:REPOSITORY/branches?per_page=100" --jq '.[].name'
+          if (($branches | Measure-Object).Count -ne 1 -or $branches -ne 'main') { throw "Unexpected branches: $branches" }
