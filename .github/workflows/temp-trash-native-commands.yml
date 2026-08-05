@@ -1,0 +1,65 @@
+name: Apply trash native commands
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+concurrency:
+  group: trash-native-commands
+  cancel-in-progress: false
+
+jobs:
+  patch:
+    if: github.repository == 'Ankit6149/skribly' && github.head_ref == 'feat/131-reversible-trash' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: feat/131-reversible-trash
+          fetch-depth: 0
+
+      - name: Apply asserted command transformation
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('apps/desktop/src-tauri/src/lib.rs')
+          text = path.read_text(encoding='utf-8')
+
+          old_commands = '''#[tauri::command]\nfn delete_skrib_note(\n    app_handle: AppHandle,\n    state: State<'_, AppState>,\n    id: String,\n) -> Result<OverlayStatePayload, String> {\n    run_persisted_mutation(&state, |coordinator| {\n        coordinator\n            .remove_skrib(&id)\n            .map(|_| ())\n            .ok_or_else(|| "Skrib note was not found or is not writable".to_string())\n    })?;\n    Ok(build_mutation_payload(&app_handle, &state, false))\n}\n\n#[tauri::command]\nfn get_all_skribs(state: State<'_, AppState>) -> Vec<SkribNote> {\n    let mut skribs = state.coordinator.get_all_skribs();\n    skribs.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));\n    skribs\n}'''
+
+          new_commands = '''fn lifecycle_timestamp_seconds() -> u64 {\n    std::time::SystemTime::now()\n        .duration_since(std::time::UNIX_EPOCH)\n        .unwrap_or_default()\n        .as_secs()\n        .max(1)\n}\n\n#[tauri::command]\nfn trash_skrib_note(\n    app_handle: AppHandle,\n    state: State<'_, AppState>,\n    id: String,\n) -> Result<OverlayStatePayload, String> {\n    let deleted_at = lifecycle_timestamp_seconds();\n    run_persisted_mutation(&state, |coordinator| {\n        coordinator\n            .trash_skrib(&id, deleted_at)\n            .map(|_| ())\n            .ok_or_else(|| "Only an active writable note can be moved to Trash".to_string())\n    })?;\n    Ok(build_mutation_payload(&app_handle, &state, false))\n}\n\n#[tauri::command]\nfn discard_empty_skrib_note(\n    app_handle: AppHandle,\n    state: State<'_, AppState>,\n    id: String,\n) -> Result<OverlayStatePayload, String> {\n    run_persisted_mutation(&state, |coordinator| {\n        coordinator\n            .discard_empty_skrib(&id)\n            .map(|_| ())\n            .ok_or_else(|| "Only an active empty note can be discarded".to_string())\n    })?;\n    Ok(build_mutation_payload(&app_handle, &state, false))\n}\n\n#[tauri::command]\nfn restore_skrib_note(\n    app_handle: AppHandle,\n    state: State<'_, AppState>,\n    id: String,\n) -> Result<OverlayStatePayload, String> {\n    let restored_at = lifecycle_timestamp_seconds();\n    run_persisted_mutation(&state, |coordinator| {\n        coordinator\n            .restore_skrib(&id, restored_at)\n            .map(|_| ())\n            .ok_or_else(|| "Only a trashed writable note can be restored".to_string())\n    })?;\n    Ok(build_mutation_payload(&app_handle, &state, false))\n}\n\n#[tauri::command]\nfn permanently_delete_skrib_note(\n    app_handle: AppHandle,\n    state: State<'_, AppState>,\n    id: String,\n) -> Result<OverlayStatePayload, String> {\n    run_persisted_mutation(&state, |coordinator| {\n        coordinator\n            .permanently_delete_skrib(&id)\n            .map(|_| ())\n            .ok_or_else(|| "Only a trashed writable note can be permanently deleted".to_string())\n    })?;\n    Ok(build_mutation_payload(&app_handle, &state, false))\n}\n\n#[tauri::command]\nfn get_all_skribs(state: State<'_, AppState>) -> Vec<SkribNote> {\n    let mut skribs = state.coordinator.get_all_skribs();\n    skribs.sort_by(|left, right| {\n        right\n            .updated_at\n            .cmp(&left.updated_at)\n            .then_with(|| right.created_at.cmp(&left.created_at))\n            .then_with(|| left.id.cmp(&right.id))\n    });\n    skribs\n}'''
+
+          if text.count(old_commands) != 1:
+              raise SystemExit(f'expected one delete command block, found {text.count(old_commands)}')
+          text = text.replace(old_commands, new_commands)
+
+          old_handler = '''            toggle_skrib_collapse,\n            delete_skrib_note,\n            get_all_skribs,'''
+          new_handler = '''            toggle_skrib_collapse,\n            trash_skrib_note,\n            discard_empty_skrib_note,\n            restore_skrib_note,\n            permanently_delete_skrib_note,\n            get_all_skribs,'''
+          if text.count(old_handler) != 1:
+              raise SystemExit(f'expected one invoke handler marker, found {text.count(old_handler)}')
+          text = text.replace(old_handler, new_handler)
+
+          if 'delete_skrib_note' in text or '.remove_skrib(&id)' in text:
+              raise SystemExit('retired permanent-delete command remains')
+
+          path.write_text(text, encoding='utf-8')
+
+      - name: Remove one-run workflow, format, and commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm .github/workflows/temp-trash-native-commands.yml
+          cargo fmt --manifest-path apps/desktop/src-tauri/Cargo.toml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add apps/desktop/src-tauri/src
+          git diff --cached --check
+          git commit -m 'feat(trash): expose durable lifecycle commands'
+          git push origin HEAD:feat/131-reversible-trash
