@@ -46,8 +46,8 @@ jobs:
               raise SystemExit(f'expected one invoke handler marker, found {text.count(old_handler)}')
           text = text.replace(old_handler, new_handler)
 
-          if 'delete_skrib_note' in text or '.remove_skrib(&id)' in text:
-              raise SystemExit('retired permanent-delete command remains')
+          if 'fn delete_skrib_note(' in text or '.remove_skrib(&id)' in text:
+              raise SystemExit('retired standalone delete command remains')
 
           path.write_text(text, encoding='utf-8')
 
