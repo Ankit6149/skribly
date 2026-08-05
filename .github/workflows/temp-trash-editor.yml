@@ -31,18 +31,8 @@ jobs:
 
           store_path = Path('apps/desktop/src/stores/skribStore.ts')
           store = store_path.read_text(encoding='utf-8')
-          store = replace_once(
-              store,
-              '  deleteSkrib: (id: string) => Promise<boolean>;\n',
-              '  trashSkrib: (id: string) => Promise<boolean>;\n  discardEmptySkrib: (id: string) => Promise<boolean>;\n',
-              'store interface',
-          )
-          store = replace_once(
-              store,
-              '      created_at: now,\n      updated_at: now,\n',
-              '      created_at: now,\n      updated_at: now,\n      deleted_at: null,\n',
-              'new note lifecycle field',
-          )
+          store = replace_once(store, '  deleteSkrib: (id: string) => Promise<boolean>;\n', '  trashSkrib: (id: string) => Promise<boolean>;\n  discardEmptySkrib: (id: string) => Promise<boolean>;\n', 'store interface')
+          store = replace_once(store, '      created_at: now,\n      updated_at: now,\n', '      created_at: now,\n      updated_at: now,\n      deleted_at: null,\n', 'new note lifecycle field')
           old_delete = '''  deleteSkrib: async (id) => {\n    const blocked = writeBlockMessage();\n    if (blocked) {\n      set({ errorMessage: blocked });\n      return false;\n    }\n\n    const previousSkribs = get().skribs;\n    set({ skribs: previousSkribs.filter((n) => n.id !== id) });\n\n    if (!get().isTauriAvailable) return true;\n    try {\n      const payload = await invoke<OverlayStatePayload>('delete_skrib_note', { id });\n      set({\n        skribs: payload.skribs,\n        overlayMetrics: payload.overlay_metrics || get().overlayMetrics,\n        initStatus: payload.init_status || get().initStatus,\n        errorMessage: null,\n        storageErrorMessage: null,\n      });\n      return true;\n    } catch (e) {\n      const msg = e instanceof Error ? e.message : String(e);\n      set({\n        skribs: previousSkribs,\n        errorMessage: `Failed to delete Skrib: ${msg}`,\n        storageErrorMessage: `Failed to delete Skrib: ${msg}`,\n      });\n      await get().refreshStorageHealth();\n      return false;\n    }\n  },'''
           new_delete = '''  trashSkrib: async (id) => {\n    const blocked = writeBlockMessage();\n    if (blocked) {\n      set({ errorMessage: blocked });\n      return false;\n    }\n\n    const previousSkribs = get().skribs;\n    set({ skribs: previousSkribs.filter((note) => note.id !== id) });\n\n    if (!get().isTauriAvailable) return true;\n    try {\n      const payload = await invoke<OverlayStatePayload>('trash_skrib_note', { id });\n      set({\n        skribs: payload.skribs,\n        overlayMetrics: payload.overlay_metrics || get().overlayMetrics,\n        initStatus: payload.init_status || get().initStatus,\n        errorMessage: null,\n        storageErrorMessage: null,\n      });\n      return true;\n    } catch (error) {\n      const message = error instanceof Error ? error.message : String(error);\n      set({\n        skribs: previousSkribs,\n        errorMessage: `Failed to move Skrib to Trash: ${message}`,\n        storageErrorMessage: `Failed to move Skrib to Trash: ${message}`,\n      });\n      await get().refreshStorageHealth();\n      return false;\n    }\n  },\n\n  discardEmptySkrib: async (id) => {\n    const blocked = writeBlockMessage();\n    if (blocked) {\n      set({ errorMessage: blocked });\n      return false;\n    }\n\n    const previousSkribs = get().skribs;\n    set({ skribs: previousSkribs.filter((note) => note.id !== id) });\n\n    if (!get().isTauriAvailable) return true;\n    try {\n      const payload = await invoke<OverlayStatePayload>('discard_empty_skrib_note', { id });\n      set({\n        skribs: payload.skribs,\n        overlayMetrics: payload.overlay_metrics || get().overlayMetrics,\n        initStatus: payload.init_status || get().initStatus,\n        errorMessage: null,\n        storageErrorMessage: null,\n      });\n      return true;\n    } catch (error) {\n      const message = error instanceof Error ? error.message : String(error);\n      set({\n        skribs: previousSkribs,\n        errorMessage: `Failed to discard the empty Skrib: ${message}`,\n        storageErrorMessage: `Failed to discard the empty Skrib: ${message}`,\n      });\n      await get().refreshStorageHealth();\n      return false;\n    }\n  },'''
           store = replace_once(store, old_delete, new_delete, 'store delete implementation')
@@ -52,8 +42,11 @@ jobs:
 
           composer_path = Path('apps/desktop/src/features/skribs/SkribComposer.tsx')
           composer = composer_path.read_text(encoding='utf-8')
+          action_marker = '    deleteSkrib,\n'
+          if composer.count(action_marker) != 2:
+              raise SystemExit(f'composer actions: expected two markers, found {composer.count(action_marker)}')
+          composer = composer.replace(action_marker, '    trashSkrib,\n    discardEmptySkrib,\n', 1)
           replacements = [
-              ('    deleteSkrib,\n', '    trashSkrib,\n    discardEmptySkrib,\n', 'composer store actions'),
               ('        const deleted = await deleteSkrib(note.id);\n        if (deleted) {', '        const discarded = await discardEmptySkrib(note.id);\n        if (discarded) {', 'empty discard call'),
               ('    deleteSkrib,\n    hideWindow,', '    discardEmptySkrib,\n    hideWindow,', 'empty discard dependency'),
               ('      const deleted = await deleteSkrib(note.id);\n      if (deleted) {', '      const movedToTrash = await trashSkrib(note.id);\n      if (movedToTrash) {', 'trash call'),
