@@ -91,6 +91,8 @@ pub struct SkribNote {
     pub collapsed: bool,
     pub created_at: u64,
     pub updated_at: u64,
+    #[serde(default)]
+    pub deleted_at: Option<u64>,
 }
 
 impl SkribNote {
@@ -276,6 +278,7 @@ mod tests {
             collapsed: false,
             created_at: 1000,
             updated_at: 1000,
+            deleted_at: None,
         };
 
         let abs_bounds = note.calculate_absolute_bounds(&win);

@@ -367,6 +367,7 @@ mod tests {
             collapsed: false,
             created_at: 100,
             updated_at: 100,
+            deleted_at: None,
         }
     }
 

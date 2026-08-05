@@ -9,7 +9,8 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use thiserror::Error;
 
-const CURRENT_SCHEMA_VERSION: u32 = 2;
+const CURRENT_SCHEMA_VERSION: u32 = 3;
+const PREVIOUS_SCHEMA_VERSION: u32 = 2;
 const LEGACY_SCHEMA_VERSION: u32 = 1;
 
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
@@ -639,8 +640,17 @@ fn calculate_integrity(
     written_at_ms: u64,
     skribs: &[SkribNote],
 ) -> Result<String, StorageError> {
+    calculate_integrity_for_schema(CURRENT_SCHEMA_VERSION, revision, written_at_ms, skribs)
+}
+
+fn calculate_integrity_for_schema(
+    schema_version: u32,
+    revision: u64,
+    written_at_ms: u64,
+    skribs: &[SkribNote],
+) -> Result<String, StorageError> {
     let bytes = serde_json::to_vec(&IntegrityPayload {
-        schema_version: CURRENT_SCHEMA_VERSION,
+        schema_version,
         revision,
         written_at_ms,
         skribs,
@@ -683,7 +693,9 @@ fn decode_candidate(path: &Path, source: StorageSource) -> Result<DecodedCandida
                 path: file_name_for_display(path),
                 reason: "schema_version must be an unsigned integer".to_string(),
             })?;
-        if schema_version != u64::from(CURRENT_SCHEMA_VERSION) {
+        if schema_version != u64::from(CURRENT_SCHEMA_VERSION)
+            && schema_version != u64::from(PREVIOUS_SCHEMA_VERSION)
+        {
             return Err(StorageError::UnsupportedSchema {
                 path: file_name_for_display(path),
                 version: schema_version,
@@ -693,9 +705,14 @@ fn decode_candidate(path: &Path, source: StorageSource) -> Result<DecodedCandida
         let stored: StoredSkribsV2 =
             serde_json::from_value(value).map_err(|error| StorageError::InvalidData {
                 path: file_name_for_display(path),
-                reason: format!("invalid schema-v2 envelope: {error}"),
+                reason: format!("invalid schema-v{} envelope: {error}", schema_version),
             })?;
-        let expected = calculate_integrity(stored.revision, stored.written_at_ms, &stored.skribs)?;
+        let expected = calculate_integrity_for_schema(
+            stored.schema_version,
+            stored.revision,
+            stored.written_at_ms,
+            &stored.skribs,
+        )?;
         if stored.integrity != expected {
             return Err(StorageError::InvalidData {
                 path: file_name_for_display(path),
@@ -709,7 +726,8 @@ fn decode_candidate(path: &Path, source: StorageSource) -> Result<DecodedCandida
             revision: stored.revision,
             written_at_ms: stored.written_at_ms,
             skribs: stored.skribs,
-            migrated_from_schema: None,
+            migrated_from_schema: (stored.schema_version != CURRENT_SCHEMA_VERSION)
+                .then_some(stored.schema_version),
         });
     }
 
@@ -1001,6 +1019,7 @@ mod tests {
             collapsed: false,
             created_at: 1,
             updated_at: 2,
+            deleted_at: None,
         }
     }
 

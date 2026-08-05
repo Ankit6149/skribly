@@ -744,6 +744,7 @@ pub fn run() {
                                 collapsed: false,
                                 created_at: (timestamp / 1000) as u64,
                                 updated_at: (timestamp / 1000) as u64,
+                                deleted_at: None,
                             };
                             if let Err(message) =
                                 run_persisted_mutation(&state_hk, |coordinator| {
@@ -1089,6 +1090,7 @@ mod tests {
             collapsed: false,
             created_at: 1,
             updated_at: 1,
+            deleted_at: None,
         });
 
         assert!(visible_skribs(&coordinator, None).is_empty());
@@ -1126,6 +1128,7 @@ mod tests {
             collapsed: false,
             created_at: 1,
             updated_at: 1,
+            deleted_at: None,
         };
         coordinator.upsert_skrib(original.clone());
         #[cfg(target_os = "windows")]
