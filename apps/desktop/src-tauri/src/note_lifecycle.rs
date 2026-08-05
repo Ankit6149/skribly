@@ -45,7 +45,6 @@ mod tests {
     use super::*;
 
     fn note(id: &str, created_at: u64, updated_at: u64) -> SkribNote {
-    deleted_at: None,
         SkribNote {
             id: id.into(),
             target_process_name: "notepad.exe".into(),
@@ -59,6 +58,7 @@ mod tests {
             collapsed: false,
             created_at,
             updated_at,
+            deleted_at: None,
         }
     }
 
