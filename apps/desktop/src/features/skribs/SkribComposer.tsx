@@ -40,7 +40,8 @@ function saveStatusLabel(snapshot: DraftSaveSnapshot): string {
 
 export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, openAction }) => {
   const {
-    deleteSkrib,
+    trashSkrib,
+    discardEmptySkrib,
     storageErrorMessage,
     storageNotice,
     storageWritable,
@@ -132,8 +133,8 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
       const currentDraft = saveController.getSnapshot().draft;
       if (currentDraft.trim().length === 0) {
         await saveController.prepareForDelete();
-        const deleted = await deleteSkrib(note.id);
-        if (deleted) {
+        const discarded = await discardEmptySkrib(note.id);
+        if (discarded) {
           discardSkribDraft(note.id);
           await hideWindow();
         } else {
@@ -154,7 +155,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
       }
     });
   }, [
-    deleteSkrib,
+    discardEmptySkrib,
     hideWindow,
     licenceAllowsWrite,
     note.id,
@@ -262,12 +263,12 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
       }
 
       await saveController.prepareForDelete();
-      const deleted = await deleteSkrib(note.id);
-      if (deleted) {
+      const movedToTrash = await trashSkrib(note.id);
+      if (movedToTrash) {
         discardSkribDraft(note.id);
         await hideWindow();
       } else {
-        const message = 'The note could not be deleted safely. It remains available.';
+        const message = 'The note could not be moved to Trash safely. It remains available.';
         saveController.resumeAfterDeleteFailure(message);
         setDeleteConfirmation((state) => reduceDeleteConfirmation(state, 'delete-failed'));
         setComposerError(message);
@@ -393,9 +394,9 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
           {deleteConfirmation === 'confirming' ? (
             <div className="composer-delete-confirmation" role="alert" aria-live="assertive">
               <div className="composer-delete-copy">
-                <strong>Delete this note permanently?</strong>
+                <strong>Move this note to Trash?</strong>
                 <small id="composer-delete-warning">
-                  Trash is not available in this build. This action cannot be undone.
+                  You can restore it from All Skribs for 30 days. Nothing is deleted permanently here.
                 </small>
               </div>
               <div className="composer-footer-actions">
@@ -414,7 +415,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
                   disabled={isFinishing}
                   onClick={() => void handleDelete()}
                 >
-                  {isFinishing ? 'Deleting…' : 'Delete permanently'}
+                  {isFinishing ? 'Moving…' : 'Move to Trash'}
                 </button>
               </div>
             </div>
