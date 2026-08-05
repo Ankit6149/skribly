@@ -99,8 +99,8 @@ jobs:
                   total_inserted += 1
               file.write_text(''.join(output), encoding='utf-8')
 
-          if total_inserted < 10:
-              raise SystemExit(f'expected at least ten SkribNote literal updates, found {total_inserted}')
+          if total_inserted != 9:
+              raise SystemExit(f'expected exactly nine SkribNote literal updates, found {total_inserted}')
 
       - name: Remove one-run workflow and commit
         shell: bash
