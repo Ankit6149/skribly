@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Skribli development notes: implemented Windows foundations, open release gates, and the exact current compact-editor workflow." />
+    <meta name="description" content="Skribli development notes: implemented Windows foundations, reversible Trash, open release gates, and the exact current compact-editor workflow." />
     <meta name="robots" content="index,follow" />
     <link rel="canonical" href="https://skribly-desktop.vercel.app/release-notes" />
     <meta property="og:title" content="Skribli Development Notes" />
@@ -34,7 +34,9 @@
             <li>Fail-closed foreground target capture and process/window revalidation.</li>
             <li>Deterministic native create-versus-reopen requests.</li>
             <li>Ordered local saves with dirty, saving, saved, failed, and retry states.</li>
-            <li>Crash-safe versioned local storage and recovery foundations.</li>
+            <li>Crash-safe schema-v3 local storage with schema-v1/v2 migration and recovery generations.</li>
+            <li>A normal non-floating All Skribs window for active-note and Trash search, reading, and versioned JSON export.</li>
+            <li>Reversible 30-day local Trash, same-record restore, and separately confirmed permanent deletion.</li>
             <li>Target-monitor work-area placement, bounded Windows event delivery, and single-instance routing.</li>
             <li>A visible first-run guide and reopenable Quick guide in the tray.</li>
           </ul>
@@ -49,18 +51,32 @@
             <li>Write in the compact editor.</li>
             <li>Choose Done, Escape, Ctrl+Enter, or close.</li>
             <li>Skribli waits for the latest non-empty draft to save, then fully hides the editor.</li>
+            <li>Choose Delete only when needed; the note moves to local Trash and can be restored from All Skribs.</li>
           </ol>
           <p>The current MVP leaves no floating dot, attached tab, checklist, permanent toolbar, saved-notes widget, or full-screen interactive overlay.</p>
         </section>
 
         <section>
+          <h2>Trash behavior in this release candidate</h2>
+          <ul>
+            <li>Active notes and Trash are separate searchable views.</li>
+            <li>Trashed notes cannot reopen through the shortcut or be edited in place.</li>
+            <li>Restore preserves the original note ID, content, and stored context.</li>
+            <li>Permanent deletion is available only inside Trash after note-specific confirmation.</li>
+            <li>Expired or invalid Trash records remain visible for review; this release does not silently purge them.</li>
+            <li>Read-only users retain read and export access to active and trashed records.</li>
+          </ul>
+        </section>
+
+        <section>
           <h2>Open release gates</h2>
           <ul>
-            <li>Complete the canonical note lifecycle and non-floating All Skribs recovery/library experience.</li>
-            <li>Add reversible trash, restore, portable export/import, and reliable read-only access.</li>
+            <li>Add portable import with preview, duplicate handling, migration, and rollback.</li>
+            <li>Define and validate automatic purge, configurable retention, archive, and attachment cleanup.</li>
+            <li>Complete context-safe open-in-application and re-anchor decisions without guessing targets.</li>
             <li>Finish installer build, install, upgrade, repair, uninstall, and rollback validation.</li>
             <li>Run the physical Windows matrix across display scaling, lifecycle interruptions, suspend/resume, Remote Desktop, and long sessions.</li>
-            <li>Reconcile privacy, support, compatibility, checksums, and download delivery with the exact signed candidate.</li>
+            <li>Reconcile support, compatibility, checksums, signing, and download delivery with the exact candidate.</li>
           </ul>
         </section>
 
