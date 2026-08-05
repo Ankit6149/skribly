@@ -1,0 +1,51 @@
+name: Run exact schema-v2 trash migration
+
+on:
+  push:
+    branches:
+      - feat/131-reversible-trash
+
+permissions:
+  contents: write
+
+concurrency:
+  group: schema-v2-trash-migration
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    if: github.repository == 'Ankit6149/skribly' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: feat/131-reversible-trash
+          fetch-depth: 0
+
+      - name: Extract and run the asserted migration
+        shell: python
+        run: |
+          from pathlib import Path
+          source = Path('.github/workflows/temp-v2-trash-migration.yml').read_text(encoding='utf-8')
+          start = source.index('          from pathlib import Path\n')
+          end = source.index('      - name: Remove one-run workflow, format, and commit\n')
+          lines = source[start:end].splitlines()
+          script = '\n'.join(line[10:] if line.startswith('          ') else line for line in lines) + '\n'
+          Path('/tmp/apply-v2-trash.py').write_text(script, encoding='utf-8')
+          compile(script, '/tmp/apply-v2-trash.py', 'exec')
+          exec(compile(script, '/tmp/apply-v2-trash.py', 'exec'), {'__name__': '__main__'})
+
+      - name: Format, remove temporary migration files, and commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo fmt --manifest-path apps/desktop/src-tauri/Cargo.toml
+          git rm .github/workflows/temp-v2-trash-migration.yml
+          git rm .github/workflows/temp-v2-trigger.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add apps/desktop/src-tauri/src
+          git diff --cached --check
+          git commit -m 'fix(storage): migrate authentic schema-v2 note databases'
+          git push origin HEAD:feat/131-reversible-trash
