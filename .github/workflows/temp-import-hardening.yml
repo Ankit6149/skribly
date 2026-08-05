@@ -1,0 +1,344 @@
+name: Harden portable import transaction
+
+on:
+  push:
+    branches:
+      - feat/133-portable-import
+
+permissions:
+  contents: write
+
+concurrency:
+  group: portable-import-hardening
+  cancel-in-progress: false
+
+jobs:
+  patch:
+    if: github.repository == 'Ankit6149/skribly' && github.actor != 'github-actions[bot]'
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: feat/133-portable-import
+          fetch-depth: 0
+
+      - name: Apply asserted transaction refactor
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('apps/desktop/src-tauri/src/desktop/library_import.rs')
+          text = path.read_text(encoding='utf-8')
+
+          old_revision = '''    let current_revision = state
+        .storage
+        .lock()
+        .map_err(|_| "Local storage service is unavailable".to_string())?
+        .current_revision();
+    if current_revision != request.expected_revision {
+        return Err(
+            "Local notes changed after preview. Refresh All Skribs and preview the file again."
+                .into(),
+        );
+    }
+'''
+          new_revision = '''    crate::core::license::require_global_write_access()
+        .map_err(|reason| format!("Import apply is unavailable: {reason}"))?;
+    let (current_revision, storage_writable, blocked_reason) = {
+        let storage = state
+            .storage
+            .lock()
+            .map_err(|_| "Local storage service is unavailable".to_string())?;
+        (
+            storage.current_revision(),
+            storage.is_writable(),
+            storage.blocked_reason().map(ToString::to_string),
+        )
+    };
+    if !storage_writable {
+        return Err(blocked_reason
+            .unwrap_or_else(|| "Local note storage is read-only.".to_string()));
+    }
+    validate_expected_revision(current_revision, request.expected_revision)?;
+'''
+          if text.count(old_revision) != 1:
+              raise SystemExit(f'expected one revision block, found {text.count(old_revision)}')
+          text = text.replace(old_revision, new_revision)
+
+          old_merge = '''    let mut merged_by_id: HashMap<String, SkribNote> = previous_notes
+        .iter()
+        .cloned()
+        .map(|note| (note.id.clone(), note))
+        .collect();
+    for note in &plan.new_notes {
+        merged_by_id.insert(note.id.clone(), note.clone());
+    }
+    if request.conflict_mode == ImportConflictMode::Replace {
+        for (_, imported) in &plan.conflicts {
+            merged_by_id.insert(imported.id.clone(), imported.clone());
+        }
+    }
+
+    let mut merged_notes: Vec<SkribNote> = merged_by_id.into_values().collect();
+    sort_notes_for_library(&mut merged_notes);
+    state.coordinator.replace_all_skribs(merged_notes.clone());
+
+    let save_result = state
+        .storage
+        .lock()
+        .map_err(|_| "Local storage service is unavailable".to_string())?
+        .save(&merged_notes);
+    let save_outcome = match save_result {
+        Ok(outcome) => outcome,
+        Err(error) => {
+            state.coordinator.replace_all_skribs(previous_notes);
+            let message = error.to_string();
+            if let Ok(mut storage_error) = state.storage_error.lock() {
+                *storage_error = Some(message.clone());
+            }
+            return Err(format!(
+                "Skribli could not apply the import. Local notes were restored: {message}"
+            ));
+        }
+    };
+
+    if let Ok(mut storage_error) = state.storage_error.lock() {
+        *storage_error = None;
+    }
+    let (active_count, trash_count) = lifecycle_counts(&merged_notes);
+'''
+          new_merge = '''    let merged_notes = merge_import_plan(&previous_notes, &plan, request.conflict_mode);
+    let revision = persist_import_collection(&state, previous_notes, merged_notes.clone())?;
+    let (active_count, trash_count) = lifecycle_counts(&merged_notes);
+'''
+          if text.count(old_merge) != 1:
+              raise SystemExit(f'expected one merge/persist block, found {text.count(old_merge)}')
+          text = text.replace(old_merge, new_merge)
+          text = text.replace('        revision: save_outcome.revision,', '        revision,')
+
+          insert_before = '''fn validate_request_id(request_id: &str) -> Result<(), String> {'''
+          helpers = '''fn validate_expected_revision(current_revision: u64, expected_revision: u64) -> Result<(), String> {
+    if current_revision != expected_revision {
+        return Err(
+            "Local notes changed after preview. Refresh All Skribs and preview the file again."
+                .into(),
+        );
+    }
+    Ok(())
+}
+
+fn merge_import_plan(
+    current: &[SkribNote],
+    plan: &ImportPlan,
+    conflict_mode: ImportConflictMode,
+) -> Vec<SkribNote> {
+    let mut merged_by_id: HashMap<String, SkribNote> = current
+        .iter()
+        .cloned()
+        .map(|note| (note.id.clone(), note))
+        .collect();
+    for note in &plan.new_notes {
+        merged_by_id.insert(note.id.clone(), note.clone());
+    }
+    if conflict_mode == ImportConflictMode::Replace {
+        for (_, imported) in &plan.conflicts {
+            merged_by_id.insert(imported.id.clone(), imported.clone());
+        }
+    }
+
+    let mut merged_notes: Vec<SkribNote> = merged_by_id.into_values().collect();
+    sort_notes_for_library(&mut merged_notes);
+    merged_notes
+}
+
+fn persist_import_collection(
+    state: &crate::AppState,
+    previous_notes: Vec<SkribNote>,
+    merged_notes: Vec<SkribNote>,
+) -> Result<u64, String> {
+    state.coordinator.replace_all_skribs(merged_notes.clone());
+    let save_result = match state.storage.lock() {
+        Ok(mut storage) => storage.save(&merged_notes),
+        Err(_) => {
+            state.coordinator.replace_all_skribs(previous_notes);
+            return Err("Local storage service is unavailable".to_string());
+        }
+    };
+
+    match save_result {
+        Ok(outcome) => {
+            if let Ok(mut storage_error) = state.storage_error.lock() {
+                *storage_error = None;
+            }
+            Ok(outcome.revision)
+        }
+        Err(error) => {
+            state.coordinator.replace_all_skribs(previous_notes);
+            let message = error.to_string();
+            if let Ok(mut storage_error) = state.storage_error.lock() {
+                *storage_error = Some(message.clone());
+            }
+            Err(format!(
+                "Skribli could not apply the import. Local notes were restored: {message}"
+            ))
+        }
+    }
+}
+
+'''
+          if text.count(insert_before) != 1:
+              raise SystemExit(f'expected one helper insertion marker, found {text.count(insert_before)}')
+          text = text.replace(insert_before, helpers + insert_before)
+
+          tests_marker = '''    #[test]
+    fn preview_is_deterministic_and_bounds_conflict_details() {'''
+          new_tests = r'''    #[test]
+    fn skip_mode_adds_new_records_and_preserves_existing_conflicts() {
+        let current = vec![note("conflict", "local", None), note("unrelated", "keep", None)];
+        let imported = vec![note("conflict", "incoming", Some(400)), note("new", "add", None)];
+        let plan = build_import_plan(&current, &imported);
+        let merged = merge_import_plan(&current, &plan, ImportConflictMode::Skip);
+        let by_id: HashMap<_, _> = merged.iter().map(|note| (note.id.as_str(), note)).collect();
+        assert_eq!(by_id["conflict"].text, "local");
+        assert_eq!(by_id["conflict"].deleted_at, None);
+        assert_eq!(by_id["new"].text, "add");
+        assert_eq!(by_id["unrelated"].text, "keep");
+    }
+
+    #[test]
+    fn replace_mode_changes_only_the_same_conflicting_ids() {
+        let current = vec![note("conflict", "local", None), note("unrelated", "keep", None)];
+        let imported = vec![note("conflict", "incoming", Some(400)), note("new", "add", None)];
+        let plan = build_import_plan(&current, &imported);
+        let merged = merge_import_plan(&current, &plan, ImportConflictMode::Replace);
+        let by_id: HashMap<_, _> = merged.iter().map(|note| (note.id.as_str(), note)).collect();
+        assert_eq!(by_id["conflict"].text, "incoming");
+        assert_eq!(by_id["conflict"].deleted_at, Some(400));
+        assert_eq!(by_id["new"].text, "add");
+        assert_eq!(by_id["unrelated"].text, "keep");
+    }
+
+    #[test]
+    fn revision_changes_require_a_new_preview() {
+        assert!(validate_expected_revision(7, 7).is_ok());
+        assert!(validate_expected_revision(8, 7)
+            .expect_err("changed revision must fail")
+            .contains("changed after preview"));
+    }
+
+    #[test]
+    fn persisted_import_restores_the_complete_coordinator_on_save_failure() {
+        use crate::core::coordinator::Coordinator;
+        use crate::core::models::OverlayInitializationStatus;
+        use crate::core::storage::StorageService;
+        use std::sync::atomic::AtomicBool;
+        use std::sync::{Arc, Mutex};
+
+        let directory = std::env::temp_dir().join(format!(
+            "skribli-import-rollback-{}-{}",
+            std::process::id(),
+            current_time_millis()
+        ));
+        std::fs::create_dir_all(&directory).expect("create rollback fixture directory");
+        let blocked_parent = directory.join("blocked-parent");
+        std::fs::write(&blocked_parent, b"not a directory").expect("create blocked parent file");
+
+        let coordinator = Coordinator::new();
+        let previous = vec![note("local", "safe", None)];
+        coordinator.replace_all_skribs(previous.clone());
+        #[cfg(target_os = "windows")]
+        let (win_event_pipeline, _event_receiver) =
+            crate::platform::windows_events::WinEventPipeline::new(
+                crate::platform::windows_events::WIN_EVENT_QUEUE_CAPACITY,
+            );
+        let state = crate::AppState {
+            coordinator: coordinator.clone(),
+            running: Arc::new(AtomicBool::new(true)),
+            init_status: Mutex::new(OverlayInitializationStatus::Initializing),
+            mutation_lock: Mutex::new(()),
+            storage: Mutex::new(StorageService::new(blocked_parent.join("skribs.json"))),
+            storage_notice: Mutex::new(None),
+            storage_error: Mutex::new(None),
+            #[cfg(target_os = "windows")]
+            win_event_pipeline,
+        };
+        let merged = vec![note("local", "changed", None), note("new", "incoming", None)];
+
+        let error = persist_import_collection(&state, previous.clone(), merged)
+            .expect_err("blocked storage must fail");
+        assert!(error.contains("Local notes were restored"));
+        assert_eq!(coordinator.get_all_skribs(), previous);
+        assert!(state
+            .storage_error
+            .lock()
+            .expect("storage error lock")
+            .is_some());
+
+        let _ = std::fs::remove_dir_all(directory);
+    }
+
+    #[test]
+    fn persisted_import_saves_the_complete_merged_collection() {
+        use crate::core::coordinator::Coordinator;
+        use crate::core::models::OverlayInitializationStatus;
+        use crate::core::storage::StorageService;
+        use std::sync::atomic::AtomicBool;
+        use std::sync::{Arc, Mutex};
+
+        let directory = std::env::temp_dir().join(format!(
+            "skribli-import-success-{}-{}",
+            std::process::id(),
+            current_time_millis()
+        ));
+        let primary = directory.join("skribs.json");
+        let coordinator = Coordinator::new();
+        let previous = vec![note("local", "safe", None)];
+        coordinator.replace_all_skribs(previous.clone());
+        #[cfg(target_os = "windows")]
+        let (win_event_pipeline, _event_receiver) =
+            crate::platform::windows_events::WinEventPipeline::new(
+                crate::platform::windows_events::WIN_EVENT_QUEUE_CAPACITY,
+            );
+        let state = crate::AppState {
+            coordinator: coordinator.clone(),
+            running: Arc::new(AtomicBool::new(true)),
+            init_status: Mutex::new(OverlayInitializationStatus::Initializing),
+            mutation_lock: Mutex::new(()),
+            storage: Mutex::new(StorageService::new(primary.clone())),
+            storage_notice: Mutex::new(None),
+            storage_error: Mutex::new(None),
+            #[cfg(target_os = "windows")]
+            win_event_pipeline,
+        };
+        let mut merged = vec![note("local", "safe", None), note("trash", "incoming", Some(500))];
+        sort_notes_for_library(&mut merged);
+
+        let revision = persist_import_collection(&state, previous, merged.clone())
+            .expect("import persistence should succeed");
+        assert_eq!(revision, 1);
+        assert_eq!(coordinator.get_all_skribs().len(), 2);
+        let mut reopened = StorageService::new(primary);
+        assert_eq!(reopened.load().expect("reload imported collection").skribs, merged);
+
+        let _ = std::fs::remove_dir_all(directory);
+    }
+
+'''
+          if text.count(tests_marker) != 1:
+              raise SystemExit(f'expected one test insertion marker, found {text.count(tests_marker)}')
+          text = text.replace(tests_marker, new_tests + tests_marker)
+          path.write_text(text, encoding='utf-8')
+
+      - name: Format, remove workflow, and commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo fmt --manifest-path apps/desktop/src-tauri/Cargo.toml
+          git rm .github/workflows/temp-import-hardening.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add apps/desktop/src-tauri/src
+          git diff --cached --check
+          git commit -m 'test(import): harden revision locking and persistence rollback'
+          git push origin HEAD:feat/133-portable-import
