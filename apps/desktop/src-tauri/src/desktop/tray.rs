@@ -30,6 +30,7 @@ fn classify_tray_action(id: &str) -> TrayAction {
 pub fn install_tray<R: Runtime>(app: &App<R>) -> tauri::Result<()> {
     crate::desktop::license_bridge::install_license_bridge(app)?;
     crate::desktop::library::install_library_bridge(app)?;
+    crate::desktop::library_import::install_library_import_bridge(app)?;
 
     let all_skribs = MenuItem::with_id(app, ALL_SKRIBS_ID, "All Skribs", true, None::<&str>)?;
     let quick_guide = MenuItem::with_id(app, QUICK_GUIDE_ID, "Quick guide", true, None::<&str>)?;
