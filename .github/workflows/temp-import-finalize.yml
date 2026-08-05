@@ -1,0 +1,59 @@
+name: Finalize portable import validation
+
+on:
+  push:
+    branches:
+      - feat/133-portable-import
+
+permissions:
+  contents: write
+
+concurrency:
+  group: portable-import-finalize
+  cancel-in-progress: false
+
+jobs:
+  finalize:
+    if: github.repository == 'Ankit6149/skribly' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: feat/133-portable-import
+          fetch-depth: 0
+
+      - name: Wire permanent validation and branch cleanup
+        shell: python
+        run: |
+          from pathlib import Path
+
+          package_path = Path('package.json')
+          package = package_path.read_text(encoding='utf-8')
+          old_chain = 'node scripts/validation/validate-trash-migration-fixture.mjs"'
+          new_chain = 'node scripts/validation/validate-trash-migration-fixture.mjs && node scripts/validation/validate-portable-import.mjs"'
+          if package.count(old_chain) != 1:
+              raise SystemExit(f'package.json: expected one validation-chain marker, found {package.count(old_chain)}')
+          package_path.write_text(package.replace(old_chain, new_chain), encoding='utf-8')
+
+          cleanup_path = Path('.github/workflows/branch-cleanup.yml')
+          cleanup = cleanup_path.read_text(encoding='utf-8')
+          marker = "            'feat/131-reversible-trash'\n"
+          replacement = marker + "            'feat/133-portable-import'\n"
+          if cleanup.count(marker) != 1:
+              raise SystemExit(f'branch cleanup: expected one import insertion marker, found {cleanup.count(marker)}')
+          if "'feat/133-portable-import'" in cleanup:
+              raise SystemExit('branch cleanup already contains portable import branch')
+          cleanup_path.write_text(cleanup.replace(marker, replacement), encoding='utf-8')
+
+      - name: Remove one-run workflow and commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm .github/workflows/temp-import-finalize.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add package.json .github/workflows/branch-cleanup.yml
+          git diff --cached --check
+          git commit -m 'ci(import): enforce portable restore and post-merge cleanup'
+          git push origin HEAD:feat/133-portable-import
