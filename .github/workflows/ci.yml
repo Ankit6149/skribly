@@ -31,6 +31,9 @@ jobs:
       - name: Validate Vercel ignored build policy
         run: node --test scripts/validation/vercel-ignore.test.mjs
 
+      - name: Validate private test-artifact boundary
+        run: node scripts/validation/validate-private-test-artifact-workflow.mjs
+
   landing-site:
     name: Landing site validation
     runs-on: ubuntu-latest

@@ -117,6 +117,11 @@ Product-truth validation rejects:
 
 ## Physical Windows matrix
 
+For a private Founder Alpha candidate, download the GitHub Actions artifact produced by
+`Private Windows Test Artifact`, confirm its `manifest.json` `commit_sha` and SHA-256 before
+installation, and record that artifact identity with every result below. This is private test
+delivery only; it is not a signed public release.
+
 Record exact commit, binary SHA-256, Windows version/build, scaling, screen-reader state, keyboard-only state, and outcome.
 
 ### Fresh profile
