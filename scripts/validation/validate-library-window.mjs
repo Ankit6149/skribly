@@ -136,7 +136,7 @@ for (const marker of forbiddenNativeExport) {
 const requiredLibraryHost = [
   "invoke<SkribNote[]>('get_all_skribs')",
   '.onFocusChanged',
-  'filterLibraryNotes(notes, query)',
+  'filterLibraryNotes(notesInView, query)',
   'role="listbox"',
   'aria-selected={selected}',
   'READ-ONLY LIBRARY VIEW',
