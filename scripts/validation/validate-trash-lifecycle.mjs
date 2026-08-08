@@ -160,7 +160,7 @@ for (const marker of [
   "'permanently_delete_skrib_note'",
   'Permanently delete “{noteDisplayTitle(selectedNote)}”?',
   'This removes the local record and cannot be undone.',
-  'this release does not silently purge them',
+  'does not purge expired Trash automatically in this release',
   'Export complete backup',
 ]) {
   if (!library.includes(marker)) failures.push(`All Skribs lifecycle behavior is missing: ${marker}`);
@@ -189,7 +189,7 @@ for (const marker of [
 }
 
 for (const marker of [
-  'Authentic schema-v2 integrity',
+  'authentic schema-v2 integrity',
   'does **not** run an automatic background purge',
   'Restore clears `deleted_at`',
   'persisted-mutation transaction',
