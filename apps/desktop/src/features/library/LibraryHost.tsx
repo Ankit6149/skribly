@@ -12,6 +12,7 @@ import {
   LIBRARY_EXPORT_REQUEST_EVENT,
   LIBRARY_EXPORT_RESULT_EVENT,
 } from './libraryExport';
+import { LibraryImportPanel } from './LibraryImportPanel';
 import {
   filterLibraryNotes,
   noteContextLabel,
@@ -97,6 +98,12 @@ export const LibraryHost: React.FC = () => {
       setIsLoading(false);
     }
   }, []);
+
+  const handleImportApplied = useCallback(async () => {
+    setQuery('');
+    setSelectedNoteId(null);
+    await refreshNotes();
+  }, [refreshNotes]);
 
   useEffect(() => {
     void refreshNotes();
@@ -297,7 +304,7 @@ export const LibraryHost: React.FC = () => {
         <div>
           <span className="library-kicker">LOCAL NOTE LIBRARY</span>
           <h1 id="library-title">All Skribs</h1>
-          <p>Find, restore, and export saved notes without reopening their original applications.</p>
+          <p>Find, restore, import, and export notes without reopening their original applications.</p>
         </div>
         <div className="library-topbar-actions">
           <button
@@ -315,6 +322,7 @@ export const LibraryHost: React.FC = () => {
           >
             Hide library
           </button>
+          <LibraryImportPanel canApply={canMutate} onApplied={handleImportApplied} />
           <button
             type="button"
             className="library-button primary"
@@ -345,7 +353,7 @@ export const LibraryHost: React.FC = () => {
         </button>
         {!canMutate && (
           <span className="library-readonly-status" role="status">
-            Read-only: notes and exports remain available
+            Read-only: notes, previews, and exports remain available
           </span>
         )}
       </nav>
@@ -581,7 +589,7 @@ export const LibraryHost: React.FC = () => {
               )}
 
               <p className="library-safety-note">
-                All Skribs never launches or guesses the original application. Restoring changes only the local lifecycle record; context reopening and re-anchoring remain separate safety-reviewed workflows.
+                All Skribs never launches or guesses the original application. Restoring and importing change only local records; context reopening and re-anchoring remain separate safety-reviewed workflows.
               </p>
             </>
           ) : (

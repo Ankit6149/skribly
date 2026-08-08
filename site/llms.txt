@@ -7,27 +7,43 @@ Skribli is a local-first contextual typed-notes application for Windows 10 and W
 - Focus a supported Windows application.
 - Press Ctrl + Shift + Space.
 - Skribli clears any previous target and revalidates the foreground window and process identity.
-- With no matching note, Skribli creates one empty note.
-- With an existing match, Skribli reopens the deterministic existing note.
+- With no matching active note, Skribli creates one empty note.
+- With an existing active match, Skribli reopens the deterministic existing note.
 - Write in one compact paper-like editor.
 - Done, Escape, Ctrl+Enter, or close waits for the latest non-empty draft to save, then fully hides the editor.
-- An untouched empty note is discarded safely.
+- Ordinary Delete moves a saved note to local Trash. An untouched empty note uses a separate constrained discard path.
 - The background process remains available in the Windows system tray.
 
-## Not in the current MVP
+## All Skribs
 
-The current build does not ship floating note dots, attached tabs, persistent note widgets, checklists, a permanent toolbar, or a full-screen selective click-through overlay.
+All Skribs is a normal, non-floating, taskbar-visible library opened from the tray. It provides:
+
+- separate searchable Notes and Trash views;
+- same-record restore and separately confirmed permanent deletion;
+- selected-note and complete schema-version-1 JSON export;
+- local-only portable JSON import with mandatory native preview;
+- exact duplicate detection and stable-ID conflict handling;
+- revision-locked apply and a durably verified pre-import rollback backup;
+- read and export access when writes are blocked.
+
+Imported files are not uploaded and never cause Skribli to launch, focus, guess, or re-anchor an external application.
 
 ## Implemented foundations
 
 - fail-closed foreground target capture;
 - deterministic native create-versus-reopen requests;
 - ordered local note saves with truthful state and retry behavior;
-- versioned crash-safe local storage and recovery foundations;
+- schema-v3 crash-safe local storage with schema-v1/v2 migration and recovery generations;
+- reversible 30-day Trash without silent automatic purge;
+- lifecycle-complete local export and portable JSON import with preview and rollback backup;
 - target-monitor work-area placement;
 - bounded Windows accessibility-event delivery;
 - single-instance routing;
 - first-run guidance and a reopenable tray Quick guide.
+
+## Not in the current MVP
+
+The current build does not ship floating note dots, attached tabs, persistent note widgets, checklists, a permanent toolbar, or a full-screen selective click-through overlay.
 
 ## Availability
 
@@ -42,8 +58,8 @@ The current build does not ship floating note dots, attached tabs, persistent no
 
 ## Open release gates
 
-Public installer access remains disabled until the exact Windows release candidate completes the canonical lifecycle, non-floating recovery library, reversible trash and portable export, installer install/upgrade/repair/uninstall checks, accessibility validation, physical desktop testing, compatibility documentation, checksums, and signed delivery.
+Public installer access remains disabled until the exact Windows release candidate completes attachment and future-annotation portability decisions, optional scheduled/user-selected backups, automatic/configurable retention decisions, context-safe reopen/re-anchor behavior, installer install/upgrade/repair/uninstall checks, accessibility and long-session physical testing, compatibility documentation, checksums, signing, support readiness, and final delivery reconciliation.
 
 ## Privacy
 
-Core note use is local-first and requires no account, cloud sync, advertising tracker, or screen recording. Skribli reads limited Windows process, window identity, and geometry information locally when validating a shortcut target. The public website currently adds no advertising cookies or behavioural analytics.
+Core note use is local-first and requires no account, cloud sync, advertising tracker, or screen recording. Skribli reads limited Windows process, window identity, and geometry information locally when validating a shortcut target. Export and import operate on user-selected local JSON files. The public website currently adds no advertising cookies or behavioural analytics.

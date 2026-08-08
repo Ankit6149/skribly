@@ -154,7 +154,7 @@ for (const marker of [
   "filterNotesForLifecycle(notes, 'trash')",
   'Notes <span>',
   'Trash <span>',
-  'Read-only: notes and exports remain available',
+  'Read-only: notes, previews, and exports remain available',
   "invoke(command, { id: note.id })",
   "'restore_skrib_note'",
   "'permanently_delete_skrib_note'",
