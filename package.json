@@ -16,7 +16,7 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "site:validate": "node site/validate.mjs",
     "governance:validate": "node scripts/governance/validate-repository.mjs",
-    "product-truth:validate": "node scripts/validation/validate-product-truth.mjs && node scripts/validation/validate-note-lifecycle.mjs && node scripts/validation/validate-library-window.mjs && node scripts/validation/validate-trash-lifecycle.mjs && node scripts/validation/validate-trash-migration-fixture.mjs",
+    "product-truth:validate": "node scripts/validation/validate-product-truth.mjs && node scripts/validation/validate-note-lifecycle.mjs && node scripts/validation/validate-library-window.mjs && node scripts/validation/validate-trash-lifecycle.mjs && node scripts/validation/validate-trash-migration-fixture.mjs && node scripts/validation/validate-portable-import.mjs",
     "private-test-artifact:validate": "node scripts/validation/validate-private-test-artifact-workflow.mjs",
     "license:keypair": "node scripts/license/generate-keypair.mjs",
     "license:issue": "node scripts/license/issue-license.mjs"

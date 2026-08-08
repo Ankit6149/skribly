@@ -253,7 +253,7 @@ const privacy = await readFile(join(root, 'privacy.html'), 'utf8');
 for (const fact of [
   'The current shortcut path does not record your screen.',
   'Public downloads are disabled.',
-  'Reversible trash, retention, restore, complete export/import',
+  'portable JSON import with mandatory preview and rollback backup',
 ]) {
   if (!privacy.includes(fact)) failures.push(`Privacy page is missing current limitation: ${fact}.`);
 }

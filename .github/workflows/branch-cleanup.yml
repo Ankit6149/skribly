@@ -45,6 +45,7 @@ jobs:
             'feat/110-first-note-onboarding'
             'feat/126-all-skribs-window'
             'feat/131-reversible-trash'
+            'feat/133-portable-import'
             'fix/14-crash-safe-storage'
             'fix/19-monitor-work-area-placement'
             'fix/20-canonical-note-lifecycle'
