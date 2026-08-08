@@ -777,7 +777,10 @@ mod tests {
             std::process::id(),
             current_time_millis()
         ));
-        let mut expected = vec![note("active", "safe", None), note("trash", "recover", Some(500))];
+        let mut expected = vec![
+            note("active", "safe", None),
+            note("trash", "recover", Some(500)),
+        ];
         sort_notes_for_library(&mut expected);
         let path = write_library_export(
             &directory,
@@ -798,8 +801,14 @@ mod tests {
 
     #[test]
     fn skip_mode_adds_new_records_and_preserves_existing_conflicts() {
-        let current = vec![note("conflict", "local", None), note("unrelated", "keep", None)];
-        let imported = vec![note("conflict", "incoming", Some(400)), note("new", "add", None)];
+        let current = vec![
+            note("conflict", "local", None),
+            note("unrelated", "keep", None),
+        ];
+        let imported = vec![
+            note("conflict", "incoming", Some(400)),
+            note("new", "add", None),
+        ];
         let plan = build_import_plan(&current, &imported);
         let merged = merge_import_plan(&current, &plan, ImportConflictMode::Skip);
         let by_id: HashMap<_, _> = merged.iter().map(|note| (note.id.as_str(), note)).collect();
@@ -811,8 +820,14 @@ mod tests {
 
     #[test]
     fn replace_mode_changes_only_the_same_conflicting_ids() {
-        let current = vec![note("conflict", "local", None), note("unrelated", "keep", None)];
-        let imported = vec![note("conflict", "incoming", Some(400)), note("new", "add", None)];
+        let current = vec![
+            note("conflict", "local", None),
+            note("unrelated", "keep", None),
+        ];
+        let imported = vec![
+            note("conflict", "incoming", Some(400)),
+            note("new", "add", None),
+        ];
         let plan = build_import_plan(&current, &imported);
         let merged = merge_import_plan(&current, &plan, ImportConflictMode::Replace);
         let by_id: HashMap<_, _> = merged.iter().map(|note| (note.id.as_str(), note)).collect();
@@ -866,7 +881,10 @@ mod tests {
             #[cfg(target_os = "windows")]
             win_event_pipeline,
         };
-        let merged = vec![note("local", "changed", None), note("new", "incoming", None)];
+        let merged = vec![
+            note("local", "changed", None),
+            note("new", "incoming", None),
+        ];
 
         let error = persist_import_collection(&state, previous.clone(), merged)
             .expect_err("blocked storage must fail");
@@ -914,7 +932,10 @@ mod tests {
             #[cfg(target_os = "windows")]
             win_event_pipeline,
         };
-        let mut merged = vec![note("local", "safe", None), note("trash", "incoming", Some(500))];
+        let mut merged = vec![
+            note("local", "safe", None),
+            note("trash", "incoming", Some(500)),
+        ];
         sort_notes_for_library(&mut merged);
 
         let revision = persist_import_collection(&state, previous, merged.clone())
@@ -922,7 +943,10 @@ mod tests {
         assert_eq!(revision, 1);
         assert_eq!(coordinator.get_all_skribs().len(), 2);
         let mut reopened = StorageService::new(primary);
-        assert_eq!(reopened.load().expect("reload imported collection").skribs, merged);
+        assert_eq!(
+            reopened.load().expect("reload imported collection").skribs,
+            merged
+        );
 
         let _ = std::fs::remove_dir_all(directory);
     }
