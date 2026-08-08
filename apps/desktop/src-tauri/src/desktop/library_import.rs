@@ -52,7 +52,9 @@ struct ImportApplyRequest {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+// Schema 1 deliberately preserves SkribNote's established snake_case field names inside the
+// camelCase export envelope. Import must mirror the files produced by write_library_export.
+#[serde(deny_unknown_fields)]
 struct PortableSkribNote {
     id: String,
     target_process_name: String,

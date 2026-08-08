@@ -53,6 +53,8 @@ for (const marker of [
   'const MAX_IMPORT_NOTES: usize = 50_000;',
   '#[serde(rename_all = "camelCase", deny_unknown_fields)]',
   'struct PortableSkribNote',
+  'Schema 1 deliberately preserves SkribNote',
+  '#[serde(deny_unknown_fields)]',
   'struct PortableImportEnvelope',
   'enum ImportConflictMode',
   'Skip',
