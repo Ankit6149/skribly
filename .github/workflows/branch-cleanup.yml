@@ -52,6 +52,7 @@ jobs:
             'fix/20-canonical-note-lifecycle'
             'fix/33-repository-governance'
             'fix/launch-readiness-pass'
+            'fix/136-private-artifact-branding'
             'fix/86-node-runtime-contract'
             'fix/86-package-lock-runtime-metadata'
             'fix/89-vercel-node-runtime'

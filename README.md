@@ -147,6 +147,7 @@ These commands prove static, frontend, and Rust test gates only. Windows accepta
 - [Target-capture acceptance](docs/04-operations/TARGET_CAPTURE_ACCEPTANCE.md)
 - [Compact editor placement acceptance](docs/04-operations/WINDOW_PLACEMENT_ACCEPTANCE.md)
 - [Single-instance and lifecycle acceptance](docs/04-operations/SINGLE_INSTANCE_ACCEPTANCE.md)
+- [Private Windows installer and branding acceptance](docs/04-operations/PRIVATE_WINDOWS_TEST_ACCEPTANCE.md)
 - [Windows event-pipeline acceptance](docs/04-operations/WIN_EVENT_ACCEPTANCE.md)
 - [Vercel deployment scope](docs/04-operations/VERCEL_DEPLOYMENT.md)
 - [Repository governance](docs/06-planning/REPOSITORY_GOVERNANCE.md)
