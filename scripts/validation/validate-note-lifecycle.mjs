@@ -19,6 +19,10 @@ const frontendLifecycle = await read('apps/desktop/src/features/skribs/noteLifec
 const lifecycleTests = await read('apps/desktop/src/features/skribs/noteLifecycle.test.ts');
 const adr = await read('docs/02-engineering/ADR-0002-canonical-note-open-lifecycle.md');
 
+// Rustfmt may wrap method chains across lines. These structural checks should
+// validate the ordering rule, not fail merely because its formatting changed.
+const compactNativeLifecycle = nativeLifecycle.replace(/\s+/g, '');
+
 const requiredNativeContract = [
   'mod note_lifecycle;',
   'created_open_request',
@@ -46,7 +50,7 @@ const requiredSelectionRules = [
   'ties_are_stable_across_hash_map_iteration_order',
 ];
 for (const claim of requiredSelectionRules) {
-  if (!nativeLifecycle.includes(claim)) {
+  if (!compactNativeLifecycle.includes(claim.replace(/\s+/g, ''))) {
     failures.push(`Native lifecycle selection is missing: ${claim}`);
   }
 }
