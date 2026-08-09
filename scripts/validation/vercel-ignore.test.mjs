@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 import {
@@ -23,6 +24,8 @@ test('deploys for website, API, public, and deployment configuration inputs', ()
     'package.json',
     'package-lock.json',
     '.nvmrc',
+    'scripts/validation/vercel-ignore.mjs',
+    'site/vercel.json',
     'vercel.json',
   ];
 
@@ -30,6 +33,20 @@ test('deploys for website, API, public, and deployment configuration inputs', ()
     assert.equal(isDeployableWebPath(file), true, `${file} must continue the build`);
   }
   assert.equal(shouldDeploy(deployable), true);
+});
+
+test('configures the ignored build command at both supported Vercel project roots', async () => {
+  const repositoryConfig = JSON.parse(await readFile('vercel.json', 'utf8'));
+  const siteConfig = JSON.parse(await readFile('site/vercel.json', 'utf8'));
+
+  assert.equal(
+    repositoryConfig.ignoreCommand,
+    'node scripts/validation/vercel-ignore.mjs'
+  );
+  assert.equal(
+    siteConfig.ignoreCommand,
+    'node ../scripts/validation/vercel-ignore.mjs'
+  );
 });
 
 test('skips Rust, desktop, native acceptance, and unrelated documentation changes', () => {

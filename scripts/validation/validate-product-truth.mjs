@@ -47,6 +47,16 @@ const singleInstanceAcceptance = await read('docs/04-operations/SINGLE_INSTANCE_
 const winEventAcceptance = await read('docs/04-operations/WIN_EVENT_ACCEPTANCE.md');
 const targetCaptureAcceptance = await read('docs/04-operations/TARGET_CAPTURE_ACCEPTANCE.md');
 const firstRunAcceptance = await read('docs/04-operations/FIRST_RUN_ACCEPTANCE.md');
+const interactionSpec = await read('docs/01-design/INTERACTION_SPEC.md');
+const componentInventory = await read('docs/01-design/COMPONENT_INVENTORY.md');
+const designDirection = await read('docs/01-design/DESIGN_DIRECTION.md');
+const decisionLog = await read('docs/06-planning/DECISION_LOG.md');
+const historicalAudit = await read(
+  'docs/06-planning/FULL_PRODUCT_AUDIT_AND_EXECUTION_PLAN.md'
+);
+const historicalOverlayGate = await read(
+  'docs/07-validation/windows-overlay-verification.md'
+);
 
 const requiredReadmeClaims = [
   'On the first successful launch, a compact three-step guide visibly confirms that Skribli is ready',
@@ -58,6 +68,10 @@ const requiredReadmeClaims = [
   'Launching Skribli again in the same Windows user session signals the existing process',
   'Windows accessibility events use bounded, non-blocking delivery with callback-side filtering and duplicate coalescing.',
   'The current build does **not** leave a floating dot, attached tab, permanent toolbar, or full-screen interactive overlay',
+  'ordinary deletion is reversible through Trash',
+  'A normal non-floating **All Skribs** window',
+  'Reversible Trash with 30-day recovery guidance',
+  'Portable JSON import with strict validation',
   'macOS support;',
   'Skribli is **not currently available for download**.',
 ];
@@ -74,11 +88,55 @@ const retiredReadmeClaims = [
   'The transparent overlay must remain click-through everywhere except the exact note or editor bounds.',
   'empty overlay space does not capture mouse input',
   'Native `RegisterHotKey`, WinEvent hooks, per-monitor DPI handling, and selective `WM_NCHITTEST` click-through',
+  'Two-step explicit confirmation before the current irreversible delete operation.',
+  'reversible trash, complete All Skribs library, physical Windows acceptance',
 ];
 
 for (const claim of retiredReadmeClaims) {
   if (readme.includes(claim)) {
     failures.push(`README.md contains retired product behavior: ${claim}`);
+  }
+}
+
+const requiredCurrentDocumentation = [
+  [interactionSpec, 'canonical Founder Alpha interaction contract', 'interaction specification'],
+  [interactionSpec, 'Zero active matches creates one note', 'interaction specification'],
+  [interactionSpec, '**Move to Trash** is the ordinary delete action', 'interaction specification'],
+  [interactionSpec, 'Portable import', 'interaction specification'],
+  [interactionSpec, 'Explicitly deferred interactions', 'interaction specification'],
+  [componentInventory, 'Implemented foundations under #21', 'component inventory'],
+  [componentInventory, 'strict portable JSON preview', 'component inventory'],
+  [componentInventory, 'Remaining work under #21, #61, #79, and #82', 'component inventory'],
+  [designDirection, 'there is no interactive full-screen overlay', 'design direction'],
+  [designDirection, 'contains no letterform', 'design direction'],
+  [decisionLog, 'Founder Alpha is Windows-only', 'decision log'],
+  [decisionLog, 'Ordinary deletion moves saved notes to reversible Trash', 'decision log'],
+  [decisionLog, 'Portable JSON import requires non-mutating preview', 'decision log'],
+  [historicalAudit, 'Historical audit snapshot — not a description of the current code tree.', 'historical audit'],
+  [historicalAudit, 'Current reconciliation note — 9 August 2026', 'historical audit'],
+  [historicalOverlayGate, 'Superseded architecture — do not use this as the current release checklist.', 'historical overlay gate'],
+];
+
+for (const [document, claim, label] of requiredCurrentDocumentation) {
+  if (!document.includes(claim)) {
+    failures.push(`The ${label} is missing current-product truth: ${claim}`);
+  }
+}
+
+const forbiddenCurrentDocumentation = [
+  [interactionSpec, '- macOS: `Control + Shift + Space`', 'interaction specification'],
+  [interactionSpec, 'Tool palette appears near the pointer.', 'interaction specification'],
+  [interactionSpec, 'Default overlay state:', 'interaction specification'],
+  [componentInventory, '- trash pending;', 'component inventory'],
+  [componentInventory, '- import/migration pending;', 'component inventory'],
+  [designDirection, 'Empty overlay space must remain click-through.', 'design direction'],
+  [designDirection, 'Collapsed Skribs must be identifiable but unobtrusive.', 'design direction'],
+  [decisionLog, 'Windows and macOS are first-class targets | Current', 'decision log'],
+];
+
+for (const [document, claim, label] of forbiddenCurrentDocumentation) {
+  if (document.includes(claim)) {
+    failures.push(`The ${label} contains superseded current-product behavior: ${claim}`);
   }
 }
 

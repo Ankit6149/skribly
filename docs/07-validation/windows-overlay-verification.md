@@ -1,4 +1,7 @@
-# Windows Overlay Runtime Acceptance Gate
+# Historical Windows overlay runtime acceptance gate
+
+> **Superseded architecture — do not use this as the current release checklist.**
+> This page preserves evidence requirements for the retired full-screen overlay candidate `dfe8c14`. Skribli now uses a compact transient Windows editor and does not ship persistent overlay bounds, selective empty-space click-through, attached dots/tabs, or target-following notes. Use the [private Windows installer checklist](../04-operations/PRIVATE_WINDOWS_TEST_ACCEPTANCE.md), [target capture](../04-operations/TARGET_CAPTURE_ACCEPTANCE.md), [window placement](../04-operations/WINDOW_PLACEMENT_ACCEPTANCE.md), [single-instance](../04-operations/SINGLE_INSTANCE_ACCEPTANCE.md), and [WinEvent](../04-operations/WIN_EVENT_ACCEPTANCE.md) contracts for the current candidate.
 
 This document separates **code present in the repository** from **native Windows behaviour actually observed on hardware**.
 

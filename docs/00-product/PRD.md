@@ -48,30 +48,17 @@ This flow must not require a permanently interactive full-screen overlay or pers
 
 ## 5. Current editing and lifecycle behavior
 
-The final Windows MVP contract is owned by #20. It must define:
+The implemented Windows foundation creates one note for zero active context matches, reopens the deterministic existing match, serializes/coalesces draft writes, flushes before hide, discards untouched whitespace-empty notes, and moves saved notes into reversible Trash. Restore preserves the same record; permanent deletion exists only inside Trash after note-specific confirmation.
 
-- create versus reopen behavior;
-- one or multiple notes per context;
-- ordering and note switching;
-- final-save/close behavior;
-- empty-note behavior;
-- archive, reversible trash, restore, and permanent deletion;
-- supported fields and appearance choices;
-- tray, library, Settings, privacy-lock, and recovery entry points.
+Parent #20 remains open for archive, broader context/lifecycle consistency, supported-field and appearance decisions, Settings/privacy entry points, usability evidence, and exact release-candidate validation.
 
 Persistent note revision history and cross-session undo/redo are deferred to #83. The MVP must remain architecturally compatible with bounded future history but does not need to ship it.
 
 ## 6. All Skribs library and backups
 
-The library is a normal non-floating recovery and management surface owned by #21 and #79. It includes, as approved:
+The implemented library is one normal non-floating recovery surface opened from the tray. It provides deterministic ordering, Unicode-normalized search across current fields, read-only detail, Notes and Trash views, reversible restore, selected/all portable export, and strict import preview with duplicate/conflict handling, rollback backup, and atomic apply.
 
-- full-text search and filters;
-- context-safe open/re-anchor behavior;
-- archive and reversible trash;
-- versioned export/import;
-- read-only access where required;
-- accessible keyboard navigation;
-- scalable indexing and index recovery.
+Remaining #21/#61/#79 work includes context-safe open/re-anchor, archive, richer filters, scalable indexing/index recovery, attachment portability, and physical release-candidate evidence.
 
 Internal crash-recovery generations are owned by #14. Verified user-controlled backups, restore preview, retention, and clean-device disaster recovery are owned by #82. Portable export, internal recovery, and recurring backup must remain distinct concepts in product copy and implementation.
 

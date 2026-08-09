@@ -2,13 +2,15 @@
 
 ## Purpose
 
-The `skribly-desktop` Vercel project hosts the public website and any deployable web/API surface. It must not consume preview builds for Rust-only desktop work, native acceptance documentation, or unrelated repository maintenance.
+The `skribly-desktop` Vercel project hosts the public website and any deployable web/API surface. Its configured project root is `site/`. It must not consume preview builds for Rust-only desktop work, native acceptance documentation, or unrelated repository maintenance.
 
-Vercel evaluates the root `vercel.json` before a build. Its `ignoreCommand` runs:
+Vercel therefore evaluates `site/vercel.json` before a build. Its `ignoreCommand` runs:
 
 ```bash
-node scripts/validation/vercel-ignore.mjs
+node ../scripts/validation/vercel-ignore.mjs
 ```
+
+The repository-root `vercel.json` contains the equivalent root-relative command for a reviewed future project-root change. Deterministic tests require both configurations so moving the Vercel root cannot silently disable ignored-build evaluation again.
 
 Vercel skips a deployment when the command exits with status `0` and continues when it exits with status `1`.
 
@@ -22,6 +24,8 @@ A preview or production deployment continues when at least one changed path is:
 - root `package.json`;
 - root `package-lock.json`;
 - root `.nvmrc`;
+- `scripts/validation/vercel-ignore.mjs` because it controls the provider decision;
+- `site/vercel.json`;
 - root `vercel.json`.
 
 The allowlist is intentionally small and explicit. Add a path only when it is genuinely consumed by the deployed web output.
@@ -81,7 +85,7 @@ The first command exits `1` to continue a Vercel build. The second exits `0` to 
 
 Any change to the deployment allowlist must update together:
 
-1. `vercel.json` when invocation changes;
+1. both `vercel.json` and `site/vercel.json` when invocation or project-root behavior changes;
 2. `scripts/validation/vercel-ignore.mjs`;
 3. `scripts/validation/vercel-ignore.test.mjs`;
 4. this runbook;
