@@ -4,18 +4,18 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="application-name" content="Skribli" />
-    <meta name="description" content="Skribli is a local-first contextual notes app for Windows. Focus an app, press Ctrl+Shift+Space, write in a compact editor, and choose Done to save locally and hide it." />
+    <meta name="description" content="Skribli is a local-first contextual annotation app for Windows. The current build starts with typed Skribs and is designed to grow into handwriting, highlights, arrows, images, reminders, and richer context." />
     <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1" />
     <meta name="theme-color" content="#fffdf7" />
     <link rel="canonical" href="https://skribly-desktop.vercel.app/" />
-    <meta property="og:title" content="Skribli — A note exactly where you need it" />
-    <meta property="og:description" content="A local-first Windows note editor opened with one shortcut. The current build is in release-candidate validation and public downloads are disabled." />
+    <meta property="og:title" content="Skribli — Put a Skrib where the thought belongs" />
+    <meta property="og:description" content="A local-first contextual annotation layer for Windows. The current typed-Skrib build is in release-candidate validation." />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://skribly-desktop.vercel.app/" />
-    <meta property="og:image" content="https://skribly-desktop.vercel.app/assets/skribly-social-card.svg" />
+    <meta property="og:image" content="https://skribly-desktop.vercel.app/assets/skribly-social-card-v2.svg" />
     <meta name="twitter:card" content="summary_large_image" />
-    <title>Skribli — A note exactly where you need it</title>
-    <link rel="icon" href="./assets/skribly-icon.svg" type="image/svg+xml" />
+    <title>Skribli — Contextual annotations for Windows</title>
+    <link rel="icon" href="./assets/skribly-note-mark-v2.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="./styles.css" />
     <link rel="stylesheet" href="./ux-polish.css" />
     <link rel="stylesheet" href="./site-refresh.css" />
@@ -27,11 +27,12 @@
         "name": "Skribli",
         "applicationCategory": "ProductivityApplication",
         "operatingSystem": "Windows 10, Windows 11",
-        "description": "A local-first Windows contextual note editor opened with Ctrl+Shift+Space. Public downloads are disabled while the release candidate is validated.",
+        "description": "A local-first Windows contextual annotation application. The current release starts with typed Skribs opened by Ctrl+Shift+Space.",
         "url": "https://skribly-desktop.vercel.app/",
         "softwareVersion": "Pre-release validation",
         "featureList": [
-          "Compact editor opened with Ctrl+Shift+Space",
+          "Visible account-first setup and Home window",
+          "Compact typed-Skrib editor opened with Ctrl+Shift+Space",
           "Foreground application context captured and revalidated before opening",
           "Local-first note storage with recovery foundations",
           "Save-then-hide workflow with quiet system-tray operation"
@@ -45,7 +46,7 @@
     <div class="site-shell">
       <header class="site-header" data-nav>
         <a class="brand" href="#top" aria-label="Skribli home">
-          <img src="./assets/skribly-icon.svg" alt="" />
+          <img src="./assets/skribly-note-mark-v2.svg" alt="" />
           <span>Skribli</span>
         </a>
         <nav class="desktop-nav" aria-label="Primary navigation">
@@ -62,9 +63,9 @@
         <section class="hero section-pad">
           <div class="hero-copy">
             <div class="eyebrow-pill"><span class="pulse-dot"></span> Windows app · release candidate in validation</div>
-            <h1>Write the thought <em>before it disappears.</em></h1>
+            <h1>Put the thought <em>where it belongs.</em></h1>
             <p class="hero-lede">
-              Focus the application you are using, press one shortcut, and write in a compact note editor. Skribli saves the note locally and fully hides the editor when you choose Done.
+              Skribli is a contextual annotation layer for Windows. The current release begins with typed Skribs: focus an application, press one shortcut, write, and return later with the same work.
             </p>
             <div class="hero-actions">
               <a class="button button-primary" data-download-link aria-disabled="true">
@@ -75,7 +76,7 @@
             </div>
             <div class="note-script">focus app → shortcut → write → Done ↗</div>
             <div class="hero-meta">
-              <span>Local-first</span>
+              <span>Account-connected, content local</span>
               <span>No floating remainder</span>
               <span>Windows 10/11</span>
             </div>
@@ -98,7 +99,7 @@
                 <article class="compact-editor-demo" aria-label="Compact Skribli editor example">
                   <header>
                     <div>
-                      <span>NEW NOTE FOR</span>
+                      <span>NEW SKRIB FOR</span>
                       <strong>Project brief — Notepad</strong>
                     </div>
                     <span class="demo-close" aria-hidden="true">×</span>
@@ -124,9 +125,9 @@
 
         <section class="proof-strip" id="principles" aria-label="Skribli product principles">
           <div><strong>Contextual</strong><span>The shortcut captures the application already in front of you.</span></div>
-          <div><strong>Explicit</strong><span>Skribli tells you whether a note is new or reopened.</span></div>
+          <div><strong>Explicit</strong><span>Skribli tells you whether a Skrib is new or reopened.</span></div>
           <div><strong>Quiet</strong><span>Done saves and fully hides the compact editor.</span></div>
-          <div><strong>Local-first</strong><span>Core note data stays on your computer.</span></div>
+          <div><strong>Local-first</strong><span>Your Skrib content stays on your computer.</span></div>
         </section>
 
         <section class="section-pad story-section" id="how-it-works">
@@ -172,7 +173,7 @@
             <article class="feature-card feature-large feature-context">
               <span class="feature-label">SAFE CONTEXT CAPTURE</span>
               <h3>The previous target is cleared before every shortcut.</h3>
-              <p>Skribli revalidates the exact Windows handle, process identity, visibility, bounds, and foreground ownership before opening a note.</p>
+              <p>Skribli revalidates the exact Windows handle, process identity, visibility, bounds, and foreground ownership before opening a Skrib.</p>
               <div class="context-visual"><div class="context-window"><span>Focused application</span></div><div class="context-line"></div><div class="context-dot">✓</div></div>
             </article>
 
@@ -191,8 +192,8 @@
 
             <article class="feature-card feature-private" id="privacy">
               <span class="feature-label">LOCAL-FIRST</span>
-              <h3>Your note content stays on the device.</h3>
-              <p>Core use requires no account, cloud sync, advertising tracker, or screen recording.</p>
+              <h3>Your Skrib content stays on the device.</h3>
+              <p>A verified account tracks trial access and optional updates. Skrib content is not uploaded, and the shortcut does not record your screen.</p>
               <div class="privacy-lock">⌁<span>LOCAL</span></div>
             </article>
           </div>
@@ -218,15 +219,16 @@
           </div>
           <div class="comparison-table" role="table" aria-label="Current Skribli capability status">
             <div class="comparison-row comparison-head" role="row"><span role="columnheader">Capability</span><span role="columnheader">Current status</span><span role="columnheader">Public claim</span></div>
-            <div class="comparison-row" role="row"><span>Compact typed-note editor</span><span>Implemented</span><strong>Shown here</strong></div>
+            <div class="comparison-row" role="row"><span>Account-first setup and compact typed Skribs</span><span>Implemented</span><strong>Shown here</strong></div>
             <div class="comparison-row" role="row"><span>Local storage and recovery foundations</span><span>Implemented</span><strong>Shown here</strong></div>
+            <div class="comparison-row" role="row"><span>Handwriting, highlights, arrows, images, reminders</span><span>Product roadmap</span><strong>Not claimed as shipped</strong></div>
             <div class="comparison-row" role="row"><span>Floating dots, attached tabs, checklists</span><span>Not in current MVP</span><strong>Not advertised</strong></div>
             <div class="comparison-row" role="row"><span>Public installer and paid access</span><span>Disabled pending gates</span><strong>Unavailable</strong></div>
           </div>
         </section>
 
         <section class="download-section status-section section-pad" id="status">
-          <img src="./assets/skribly-icon.svg" alt="" />
+          <img src="./assets/skribly-note-mark-v2.svg" alt="" />
           <span class="section-kicker">CURRENT STATUS</span>
           <h2>The Windows release candidate is still being validated.</h2>
           <p data-download-status>Public downloads remain disabled while the exact Windows build completes lifecycle, installer, recovery, accessibility, and physical desktop validation.</p>
@@ -239,8 +241,8 @@
       </main>
 
       <footer class="site-footer">
-        <a class="brand footer-brand" href="#top"><img src="./assets/skribly-icon.svg" alt="" /><span>Skribli</span></a>
-        <p>Contextual typed notes for Windows, currently in release-candidate validation.</p>
+        <a class="brand footer-brand" href="#top"><img src="./assets/skribly-note-mark-v2.svg" alt="" /><span>Skribli</span></a>
+        <p>A contextual annotation layer for Windows, beginning with typed Skribs.</p>
         <div><a href="/release-notes">Development notes</a><a href="/privacy">Privacy</a><a href="/answers">FAQ</a></div>
         <small>© 2026 Ankit Bhardwaj. Public downloads are disabled.</small>
       </footer>

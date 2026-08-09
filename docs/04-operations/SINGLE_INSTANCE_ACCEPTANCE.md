@@ -4,7 +4,7 @@
 
 ## Purpose
 
-This runbook verifies that Skribli creates one process, one tray icon, one global hotkey registration, one WinEvent hook set, and one storage writer per Windows user session. It also verifies that launching Skribli again signals the existing process through the normal shortcut path instead of creating partially initialized duplicate state.
+This runbook verifies that Skribli creates one process, one tray icon, one global hotkey registration, one WinEvent hook set, and one storage writer per Windows user session. It also verifies that launching Skribli again restores the existing visible Home window instead of creating a surprise Skrib or partially initialized duplicate state.
 
 Compilation and unit tests cannot prove process count, tray behavior, installer replacement, session transitions, pending-write shutdown behavior, or long-running native-handle stability.
 
@@ -29,8 +29,8 @@ Do not reuse evidence after changes to startup, storage, tray, native hooks, hot
 The source and Windows test suite must prove:
 
 - the mutex name is explicitly scoped to the local Windows session;
-- process matching accepts only current and legacy Skribli executable names;
-- the second launch uses the same `WM_HOTKEY` identifier as the registered global shortcut;
+- the visible Home window has the unique exact title **Skribli** while the compact editor uses a different title;
+- the second launch locates, restores, and foregrounds the existing **Skribli** Home window;
 - signal discovery has a bounded retry window and cannot wait forever;
 - the guard is acquired in `main` before `skribly_lib::run()` starts Tauri;
 - the primary process keeps the mutex handle alive for the full runtime;
@@ -44,8 +44,8 @@ Run every applicable row on supported Windows 10 and Windows 11 candidates.
 | Scenario | Required variations | Pass condition |
 | --- | --- | --- |
 | Normal first launch | Standard user, clean session | Exactly one process and one tray icon appear; shortcut and notes work. |
-| Second launch while hidden | Start menu, shortcut, executable | Existing process receives the launch, opens through the normal note flow, and no second resident process or tray icon remains. |
-| Second launch while editor visible | Same target and a different target | Existing editor responds deterministically without duplicate windows, hooks, or storage writers. |
+| Second launch while Home hidden | Start menu, shortcut, executable | Existing process restores Home, creates no Skrib, and no second resident process or tray icon remains. |
+| Second launch while editor visible | Same target and a different target | Home is restored without replacing the editor or creating duplicate windows, hooks, or storage writers. |
 | Rapid repeated launch | 2, 5, 10, and 20 near-simultaneous starts | One process survives; all secondary processes exit; one tray icon and one hotkey remain. |
 | Startup race | Launch again immediately after the first executable starts | Secondary waits only within the bounded discovery window and signals the first process once its HWND exists. |
 | Signal failure | Simulated inaccessible/stuck first process | Secondary shows an actionable native error and does not continue into app initialization. |
@@ -63,9 +63,9 @@ Run every applicable row on supported Windows 10 and Windows 11 candidates.
 
 1. Start the exact candidate build and wait for the tray icon.
 2. Record Skribli process, top-level window, handle, and thread counts.
-3. Focus a supported target application.
+3. Hide the Home window and leave any compact editor state unchanged.
 4. Launch Skribli again using the selected matrix method.
-5. Confirm the original process opens or repositions the compact editor through the same target-capture path as **Ctrl + Shift + Space**.
+5. Confirm the original process restores and focuses Home without creating or repositioning a Skrib.
 6. Confirm the secondary process exits and no second tray icon, hotkey registration, hook set, or storage writer remains.
 7. Repeat rapidly and while the editor is already visible.
 8. Quit through the tray and confirm all process-owned resources disappear.
@@ -88,7 +88,7 @@ A release-blocking failure includes:
 - more than one resident Skribli process per user session;
 - more than one tray icon, hotkey registration, or WinEvent hook set;
 - a secondary process loading or writing storage before exiting;
-- a second launch opening a parallel UI path instead of the normal shortcut flow;
+- a second launch creating a Skrib, opening a duplicate Home, or failing to restore the existing Home;
 - a secondary launch silently failing or remaining resident;
 - Quit leaving the mutex, process, tray icon, hotkey, hook, or worker threads alive;
 - restart being blocked by stale process state;

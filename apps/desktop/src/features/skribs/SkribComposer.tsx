@@ -303,13 +303,13 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
         <header className="composer-header" data-tauri-drag-region>
           <div className="composer-context" data-tauri-drag-region>
             <span className="composer-kicker" data-tauri-drag-region>
-              {isNewNote ? 'NEW NOTE FOR' : 'REOPENED NOTE FOR'}
+              {isNewNote ? 'NEW SKRIB FOR' : 'REOPENED SKRIB FOR'}
             </span>
             <strong data-tauri-drag-region>{contextLabel}</strong>
             <span id="composer-open-state" className="sr-only">
               {isNewNote
-                ? 'Skribli created a new empty note for this application context.'
-                : 'Skribli reopened the existing note for this application context.'}
+                ? 'Skribli created a new empty Skrib for this application context.'
+                : 'Skribli reopened the existing Skrib for this application context.'}
             </span>
           </div>
           <div className="composer-header-actions">

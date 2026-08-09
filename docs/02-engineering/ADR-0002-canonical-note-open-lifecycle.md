@@ -69,8 +69,8 @@ The many-match path is compatibility behavior, not approval for creating multipl
 
 ## User-visible behavior
 
-- The editor says **NEW NOTE FOR** when native code created the note.
-- The editor says **REOPENED NOTE FOR** when an existing note was selected.
+- The editor says **NEW SKRIB FOR** when native code created the current typed Skrib record.
+- The editor says **REOPENED SKRIB FOR** when an existing typed Skrib record was selected.
 - No floating dot, attached tab, or permanent overlay remains after the editor hides.
 - Failed capture, placement, validation, or persistence emits no open request.
 - The frontend never opens a note merely because an array changed.

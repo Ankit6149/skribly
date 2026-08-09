@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-const LICENSE_STORAGE_VERSION: u32 = 1;
+const LICENSE_STORAGE_VERSION: u32 = 2;
 const TRIAL_DAYS: u64 = 7;
 const SECONDS_PER_DAY: u64 = 24 * 60 * 60;
 const CLOCK_ROLLBACK_TOLERANCE_SECONDS: u64 = 5 * 60;
@@ -19,10 +19,12 @@ static LICENSE_PATH: OnceLock<PathBuf> = OnceLock::new();
 #[serde(rename_all = "snake_case")]
 pub enum LicenseMode {
     Beta,
+    AccountRequired,
     Trial,
     Licensed,
     Expired,
     ClockError,
+    EntitlementError,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -55,11 +57,30 @@ struct LicenseRecord {
 struct LicenseGrant {
     product_id: String,
     license_id: String,
+    #[serde(default)]
+    account_id: String,
     email: String,
     device_id: String,
     issued_at: u64,
+    #[serde(default)]
+    entitlement_type: EntitlementType,
+    #[serde(default)]
+    expires_at: Option<u64>,
+    #[serde(default)]
+    offline_until: Option<u64>,
+    #[serde(default)]
     updates_until: u64,
+    #[serde(default)]
     perpetual: bool,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+enum EntitlementType {
+    Trial,
+    Licensed,
+    #[default]
+    Legacy,
 }
 
 pub fn enforcement_enabled() -> bool {
@@ -92,19 +113,15 @@ fn now_epoch_seconds() -> Result<u64, String> {
         .map_err(|_| "The system clock is earlier than the Unix epoch.".to_string())
 }
 
-fn new_device_id(now: u64) -> String {
-    let nanos = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|duration| duration.as_nanos())
-        .unwrap_or_default();
-    format!("SKR-{:X}-{:X}-{:X}", now, std::process::id(), nanos)
+fn stable_device_id() -> Result<String, String> {
+    crate::core::account::device_claim()
 }
 
 fn load_record(path: &Path, now: u64) -> Result<LicenseRecord, String> {
     if !path.exists() {
         return Ok(LicenseRecord {
             version: LICENSE_STORAGE_VERSION,
-            device_id: new_device_id(now),
+            device_id: stable_device_id()?,
             trial_started_at: 0,
             trial_expires_at: 0,
             last_seen_at: now,
@@ -115,6 +132,16 @@ fn load_record(path: &Path, now: u64) -> Result<LicenseRecord, String> {
     let bytes = fs::read(path).map_err(|error| format!("Failed to read licence state: {error}"))?;
     let record: LicenseRecord = serde_json::from_slice(&bytes)
         .map_err(|error| format!("Local licence state is damaged: {error}"))?;
+    if record.version == 1 {
+        return Ok(LicenseRecord {
+            version: LICENSE_STORAGE_VERSION,
+            device_id: stable_device_id()?,
+            trial_started_at: 0,
+            trial_expires_at: 0,
+            last_seen_at: record.last_seen_at.min(now),
+            activation_token: None,
+        });
+    }
     if record.version != LICENSE_STORAGE_VERSION {
         return Err(format!(
             "Unsupported local licence state version {}",
@@ -166,6 +193,18 @@ fn public_key() -> Result<VerifyingKey, String> {
 }
 
 fn verify_activation_token(token: &str, device_id: &str, now: u64) -> Result<LicenseGrant, String> {
+    verify_activation_token_with_key(token, device_id, now, &public_key()?)
+}
+
+fn verify_activation_token_with_key(
+    token: &str,
+    device_id: &str,
+    now: u64,
+    key: &VerifyingKey,
+) -> Result<LicenseGrant, String> {
+    if token.len() > 16 * 1024 {
+        return Err("The entitlement token exceeds the safe size limit.".to_string());
+    }
     let (encoded_payload, encoded_signature) = token
         .trim()
         .split_once('.')
@@ -178,8 +217,7 @@ fn verify_activation_token(token: &str, device_id: &str, now: u64) -> Result<Lic
         .map_err(|_| "Licence signature is invalid.".to_string())?;
     let signature = Signature::from_slice(&signature_bytes)
         .map_err(|_| "Licence signature length is invalid.".to_string())?;
-    public_key()?
-        .verify(&payload_bytes, &signature)
+    key.verify(&payload_bytes, &signature)
         .map_err(|_| "Licence signature could not be verified.".to_string())?;
 
     let grant: LicenseGrant = serde_json::from_slice(&payload_bytes)
@@ -190,11 +228,36 @@ fn verify_activation_token(token: &str, device_id: &str, now: u64) -> Result<Lic
     if grant.device_id != device_id {
         return Err("This licence was issued for a different device.".to_string());
     }
-    if !grant.perpetual {
-        return Err("This build requires a perpetual personal licence.".to_string());
-    }
     if grant.issued_at > now.saturating_add(CLOCK_ROLLBACK_TOLERANCE_SECONDS) {
-        return Err("Licence issue time is later than the current system clock.".to_string());
+        return Err("Entitlement issue time is later than the current system clock.".to_string());
+    }
+    if grant.email.trim().is_empty() || grant.email.len() > 320 {
+        return Err("The entitlement account email is invalid.".to_string());
+    }
+
+    match grant.entitlement_type {
+        EntitlementType::Trial => {
+            let expires_at = grant
+                .expires_at
+                .ok_or_else(|| "The trial entitlement has no expiry.".to_string())?;
+            let offline_until = grant
+                .offline_until
+                .ok_or_else(|| "The trial entitlement has no offline limit.".to_string())?;
+            if grant.account_id.trim().is_empty()
+                || expires_at == 0
+                || offline_until > expires_at
+                || (expires_at > now
+                    && offline_until.saturating_add(CLOCK_ROLLBACK_TOLERANCE_SECONDS)
+                        < grant.issued_at)
+            {
+                return Err("The trial entitlement lifecycle is invalid.".to_string());
+            }
+        }
+        EntitlementType::Licensed | EntitlementType::Legacy => {
+            if !grant.perpetual {
+                return Err("The personal licence entitlement is not perpetual.".to_string());
+            }
+        }
     }
     Ok(grant)
 }
@@ -210,23 +273,6 @@ fn trial_days_remaining(expires_at: u64, now: u64) -> u64 {
 fn status_for_record(record: &LicenseRecord, enforced: bool, now: u64) -> LicenseStatus {
     if !enforced {
         return beta_status(record.device_id.clone());
-    }
-
-    if let Some(token) = record.activation_token.as_deref() {
-        if let Ok(grant) = verify_activation_token(token, &record.device_id, now) {
-            return LicenseStatus {
-                mode: LicenseMode::Licensed,
-                enforcement_enabled: true,
-                can_write: true,
-                trial_days_total: TRIAL_DAYS,
-                trial_days_remaining: 0,
-                trial_expires_at: Some(record.trial_expires_at),
-                device_id: record.device_id.clone(),
-                licensed_email: Some(grant.email),
-                updates_until: Some(grant.updates_until),
-                message: "Personal licence active.".to_string(),
-            };
-        }
     }
 
     if now.saturating_add(CLOCK_ROLLBACK_TOLERANCE_SECONDS) < record.last_seen_at {
@@ -245,37 +291,103 @@ fn status_for_record(record: &LicenseRecord, enforced: bool, now: u64) -> Licens
         };
     }
 
-    let remaining = trial_days_remaining(record.trial_expires_at, now);
-    if remaining > 0 {
-        LicenseStatus {
-            mode: LicenseMode::Trial,
-            enforcement_enabled: true,
-            can_write: true,
-            trial_days_total: TRIAL_DAYS,
-            trial_days_remaining: remaining,
-            trial_expires_at: Some(record.trial_expires_at),
-            device_id: record.device_id.clone(),
-            licensed_email: None,
-            updates_until: None,
-            message: format!(
-                "Full trial active. {remaining} day{} remaining.",
-                if remaining == 1 { "" } else { "s" }
-            ),
-        }
-    } else {
-        LicenseStatus {
-            mode: LicenseMode::Expired,
+    let Some(token) = record.activation_token.as_deref() else {
+        return LicenseStatus {
+            mode: LicenseMode::AccountRequired,
             enforcement_enabled: true,
             can_write: false,
             trial_days_total: TRIAL_DAYS,
             trial_days_remaining: 0,
-            trial_expires_at: Some(record.trial_expires_at),
+            trial_expires_at: None,
             device_id: record.device_id.clone(),
             licensed_email: None,
             updates_until: None,
-            message: "Your seven-day trial has ended. Existing notes remain available to read and export."
+            message: "Sign in to verify this device and start or continue its Skribli trial."
                 .to_string(),
+        };
+    };
+
+    let grant = match verify_activation_token(token, &record.device_id, now) {
+        Ok(grant) => grant,
+        Err(message) => {
+            return LicenseStatus {
+                mode: LicenseMode::EntitlementError,
+                enforcement_enabled: true,
+                can_write: false,
+                trial_days_total: TRIAL_DAYS,
+                trial_days_remaining: 0,
+                trial_expires_at: None,
+                device_id: record.device_id.clone(),
+                licensed_email: None,
+                updates_until: None,
+                message: format!("The saved account entitlement is invalid: {message}"),
+            }
         }
+    };
+
+    match grant.entitlement_type {
+        EntitlementType::Trial => {
+            let expires_at = grant.expires_at.unwrap_or_default();
+            let offline_until = grant.offline_until.unwrap_or_default();
+            let remaining = trial_days_remaining(expires_at, now);
+            if remaining == 0 {
+                LicenseStatus {
+                    mode: LicenseMode::Expired,
+                    enforcement_enabled: true,
+                    can_write: false,
+                    trial_days_total: TRIAL_DAYS,
+                    trial_days_remaining: 0,
+                    trial_expires_at: Some(expires_at),
+                    device_id: record.device_id.clone(),
+                    licensed_email: Some(grant.email),
+                    updates_until: None,
+                    message: "Your seven-day trial has ended. Existing Skribs remain available to read and export."
+                        .to_string(),
+                }
+            } else if now > offline_until {
+                LicenseStatus {
+                    mode: LicenseMode::AccountRequired,
+                    enforcement_enabled: true,
+                    can_write: false,
+                    trial_days_total: TRIAL_DAYS,
+                    trial_days_remaining: remaining,
+                    trial_expires_at: Some(expires_at),
+                    device_id: record.device_id.clone(),
+                    licensed_email: Some(grant.email),
+                    updates_until: None,
+                    message: "Reconnect and sign in to refresh this device's trial status. Existing Skribs remain readable and exportable."
+                        .to_string(),
+                }
+            } else {
+                LicenseStatus {
+                    mode: LicenseMode::Trial,
+                    enforcement_enabled: true,
+                    can_write: true,
+                    trial_days_total: TRIAL_DAYS,
+                    trial_days_remaining: remaining,
+                    trial_expires_at: Some(expires_at),
+                    device_id: record.device_id.clone(),
+                    licensed_email: Some(grant.email),
+                    updates_until: None,
+                    message: format!(
+                        "Full trial active. {remaining} day{} remaining.",
+                        if remaining == 1 { "" } else { "s" }
+                    ),
+                }
+            }
+        }
+        EntitlementType::Licensed | EntitlementType::Legacy => LicenseStatus {
+            mode: LicenseMode::Licensed,
+            enforcement_enabled: true,
+            can_write: true,
+            trial_days_total: TRIAL_DAYS,
+            trial_days_remaining: 0,
+            trial_expires_at: None,
+            device_id: record.device_id.clone(),
+            licensed_email: Some(grant.email),
+            updates_until: Some(grant.updates_until),
+            message: "Personal licence active.".to_string(),
+        },
     }
 }
 
@@ -284,10 +396,6 @@ pub fn current_status(path: &Path) -> Result<LicenseStatus, String> {
     let enforced = enforcement_enabled();
     let mut record = load_record(path, now)?;
 
-    if enforced && record.trial_started_at == 0 {
-        record.trial_started_at = now;
-        record.trial_expires_at = now.saturating_add(TRIAL_DAYS * SECONDS_PER_DAY);
-    }
     if !enforced {
         record.last_seen_at = now;
     } else if now >= record.last_seen_at {
@@ -313,6 +421,15 @@ pub fn activate(path: &Path, token: &str) -> Result<LicenseStatus, String> {
     let mut record = load_record(path, now)?;
     verify_activation_token(token, &record.device_id, now)?;
     record.activation_token = Some(token.trim().to_string());
+    record.last_seen_at = now;
+    save_record(path, &record)?;
+    current_status(path)
+}
+
+pub fn deactivate(path: &Path) -> Result<LicenseStatus, String> {
+    let now = now_epoch_seconds()?;
+    let mut record = load_record(path, now)?;
+    record.activation_token = None;
     record.last_seen_at = now;
     save_record(path, &record)?;
     current_status(path)
@@ -347,9 +464,17 @@ pub fn activate_global(token: &str) -> Result<LicenseStatus, String> {
     activate(path, token)
 }
 
+pub fn deactivate_global() -> Result<LicenseStatus, String> {
+    let path = LICENSE_PATH
+        .get()
+        .ok_or_else(|| "Licence storage has not been initialized.".to_string())?;
+    deactivate(path)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ed25519_dalek::{Signer, SigningKey};
 
     fn record(now: u64) -> LicenseRecord {
         LicenseRecord {
@@ -362,6 +487,36 @@ mod tests {
         }
     }
 
+    fn signed_trial_token(
+        device_id: &str,
+        issued_at: u64,
+        expires_at: u64,
+        offline_until: u64,
+    ) -> (String, VerifyingKey) {
+        let signing_key = SigningKey::from_bytes(&[7u8; 32]);
+        let grant = LicenseGrant {
+            product_id: PRODUCT_ID.to_string(),
+            license_id: "trial-test-token".to_string(),
+            account_id: "account-test".to_string(),
+            email: "founder@example.com".to_string(),
+            device_id: device_id.to_string(),
+            issued_at,
+            entitlement_type: EntitlementType::Trial,
+            expires_at: Some(expires_at),
+            offline_until: Some(offline_until),
+            updates_until: 0,
+            perpetual: false,
+        };
+        let payload = serde_json::to_vec(&grant).expect("trial grant should encode");
+        let signature = signing_key.sign(&payload);
+        let token = format!(
+            "{}.{}",
+            URL_SAFE_NO_PAD.encode(payload),
+            URL_SAFE_NO_PAD.encode(signature.to_bytes())
+        );
+        (token, signing_key.verifying_key())
+    }
+
     #[test]
     fn beta_build_never_blocks_writes() {
         let status = status_for_record(&record(1_000), false, 10_000_000);
@@ -372,20 +527,18 @@ mod tests {
     #[test]
     fn enforced_trial_counts_partial_days_up() {
         let mut value = record(1_000);
-        value.trial_expires_at = 1_000 + SECONDS_PER_DAY + 1;
+        value.activation_token = None;
         let status = status_for_record(&value, true, 1_000);
-        assert_eq!(status.mode, LicenseMode::Trial);
-        assert_eq!(status.trial_days_remaining, 2);
-        assert!(status.can_write);
+        assert_eq!(status.mode, LicenseMode::AccountRequired);
+        assert!(!status.can_write);
     }
 
     #[test]
     fn expired_trial_is_read_only() {
         let mut value = record(1_000);
-        value.trial_expires_at = 2_000;
-        value.last_seen_at = 2_000;
+        value.activation_token = None;
         let status = status_for_record(&value, true, 3_000);
-        assert_eq!(status.mode, LicenseMode::Expired);
+        assert_eq!(status.mode, LicenseMode::AccountRequired);
         assert!(!status.can_write);
     }
 
@@ -396,5 +549,28 @@ mod tests {
         let status = status_for_record(&value, true, 1_000);
         assert_eq!(status.mode, LicenseMode::ClockError);
         assert!(!status.can_write);
+    }
+
+    #[test]
+    fn server_signed_trial_is_bound_to_the_expected_device() {
+        let (token, key) = signed_trial_token("skd_test", 1_000, 10_000, 5_000);
+        let grant = verify_activation_token_with_key(&token, "skd_test", 1_000, &key)
+            .expect("valid server trial should verify");
+        assert_eq!(grant.entitlement_type, EntitlementType::Trial);
+        assert!(verify_activation_token_with_key(&token, "skd_other", 1_000, &key).is_err());
+    }
+
+    #[test]
+    fn expired_server_trial_remains_a_valid_read_only_entitlement() {
+        let (token, key) = signed_trial_token("skd_test", 20_000, 10_000, 10_000);
+        let grant = verify_activation_token_with_key(&token, "skd_test", 20_000, &key)
+            .expect("an authentic expired grant must remain readable");
+        assert_eq!(grant.expires_at, Some(10_000));
+    }
+
+    #[test]
+    fn trial_offline_window_cannot_extend_past_trial_expiry() {
+        let (token, key) = signed_trial_token("skd_test", 1_000, 10_000, 10_001);
+        assert!(verify_activation_token_with_key(&token, "skd_test", 1_000, &key).is_err());
     }
 }

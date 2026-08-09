@@ -417,7 +417,7 @@ export const LibraryHost: React.FC = () => {
         <section className="library-sidebar" aria-label={`${lifecycleView} note results`}>
           {isLoading && notes.length === 0 ? (
             <div className="library-state" role="status">
-              <strong>Reading local notes…</strong>
+              <strong>Reading local Skribs…</strong>
               <span>Skribli is loading the storage-backed library.</span>
             </div>
           ) : loadError ? (

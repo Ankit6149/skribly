@@ -15,6 +15,7 @@ use core::models::{
     TargetWindowInfo,
 };
 use core::storage;
+use core::{account, license};
 use note_lifecycle::{created_open_request, reopened_open_request};
 
 #[cfg(target_os = "windows")]
@@ -598,6 +599,50 @@ fn set_hit_test_rects(state: State<'_, AppState>, rects: Vec<HitTestRect>) {
     state.coordinator.set_hit_test_rects(rects);
 }
 
+fn account_data_directory(app_handle: &AppHandle) -> Result<std::path::PathBuf, String> {
+    app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|error| format!("Skribli could not locate its account data directory: {error}"))
+}
+
+#[tauri::command]
+fn account_session_get(app_handle: AppHandle, key: String) -> Result<Option<String>, String> {
+    let directory = account_data_directory(&app_handle)?;
+    account::get_session_value(&directory, key.trim())
+}
+
+#[tauri::command]
+fn account_session_set(app_handle: AppHandle, key: String, value: String) -> Result<(), String> {
+    let directory = account_data_directory(&app_handle)?;
+    account::set_session_value(&directory, key.trim(), &value)
+}
+
+#[tauri::command]
+fn account_session_remove(app_handle: AppHandle, key: String) -> Result<(), String> {
+    let directory = account_data_directory(&app_handle)?;
+    account::remove_session_value(&directory, key.trim())
+}
+
+#[tauri::command]
+fn get_account_device_claim() -> Result<String, String> {
+    account::device_claim()
+}
+
+#[tauri::command]
+fn apply_account_entitlement(token: String) -> Result<license::LicenseStatus, String> {
+    let trimmed = token.trim();
+    if trimmed.is_empty() || trimmed.len() > 16 * 1024 {
+        return Err("The account entitlement is empty or exceeds the safe size limit.".to_string());
+    }
+    license::activate_global(trimmed)
+}
+
+#[tauri::command]
+fn clear_account_entitlement() -> Result<license::LicenseStatus, String> {
+    license::deactivate_global()
+}
+
 #[tauri::command]
 fn refresh_target_state(app_handle: AppHandle, state: State<'_, AppState>) -> OverlayStatePayload {
     let mut is_ambiguous = false;
@@ -681,6 +726,12 @@ pub fn run() {
             focus_target_window,
             set_hit_test_rects,
             refresh_target_state,
+            account_session_get,
+            account_session_set,
+            account_session_remove,
+            get_account_device_claim,
+            apply_account_entitlement,
+            clear_account_entitlement,
         ])
         .setup(move |app| {
             let app_handle = app.handle().clone();
@@ -1038,9 +1089,9 @@ pub fn run() {
             label,
             event: tauri::WindowEvent::CloseRequested { api, .. },
             ..
-        } if label == "main" => {
+        } if label == "main" || label == "home" || label == "library" => {
             api.prevent_close();
-            if let Some(window) = app_handle.get_webview_window("main") {
+            if let Some(window) = app_handle.get_webview_window(label.as_str()) {
                 let _ = window.hide();
             }
         }

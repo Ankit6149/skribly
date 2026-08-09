@@ -305,7 +305,7 @@ fn perform_apply<R: Runtime>(
     };
     if !storage_writable {
         return Err(
-            blocked_reason.unwrap_or_else(|| "Local note storage is read-only.".to_string())
+            blocked_reason.unwrap_or_else(|| "Local Skrib storage is read-only.".to_string())
         );
     }
     validate_expected_revision(current_revision, request.expected_revision)?;

@@ -61,7 +61,7 @@ function disposeTauriListeners() {
 function writeBlockMessage(): string | null {
   const storage = useSkribStore.getState();
   if (!storage.storageWritable) {
-    return storage.storageErrorMessage || 'Local note storage is currently read-only to protect existing data.';
+    return storage.storageErrorMessage || 'Local Skrib storage is currently read-only to protect existing data.';
   }
 
   const status = useLicenseStore.getState().status;
@@ -160,7 +160,7 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
         storageRevision: storageHealth.revision,
         storageBackupDirectory: storageHealth.backupDirectory,
         storageErrorMessage: storageHealth.error
-          ? `Local note storage needs attention: ${storageHealth.error}`
+          ? `Local Skrib storage needs attention: ${storageHealth.error}`
           : null,
       });
     } catch (error) {

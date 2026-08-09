@@ -115,10 +115,10 @@ for (const claim of requiredFrontendTests) {
 
 const requiredUserClarity = [
   "openAction === 'created'",
-  'NEW NOTE FOR',
-  'REOPENED NOTE FOR',
-  'created a new empty note for this application context',
-  'reopened the existing note for this application context',
+  'NEW SKRIB FOR',
+  'REOPENED SKRIB FOR',
+  'created a new empty Skrib for this application context',
+  'reopened the existing Skrib for this application context',
 ];
 for (const claim of requiredUserClarity) {
   if (!composer.includes(claim)) {

@@ -143,7 +143,7 @@ for (const marker of [
   'Safest default. Existing local records remain unchanged.',
   'Replace the same IDs',
   'Apply verified import',
-  'A complete rollback backup is written before local notes change.',
+  'A complete rollback backup is written before local Skribs change.',
   'Preview only',
   'Import applied safely',
   'No local records changed, so no rollback backup was required.',

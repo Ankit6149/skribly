@@ -23,8 +23,8 @@ const requiredFiles = [
   'sitemap.xml',
   'llms.txt',
   'api/download.js',
-  'assets/skribly-icon.svg',
-  'assets/skribly-social-card.svg',
+  'assets/skribly-note-mark-v2.svg',
+  'assets/skribly-social-card-v2.svg',
 ];
 
 const failures = [];
@@ -51,7 +51,7 @@ for (const htmlFile of htmlFiles) {
   if (!html.includes('<meta name="viewport"')) {
     failures.push(`${htmlFile} is missing a viewport meta tag.`);
   }
-  if (!html.includes('skribly-icon.svg')) {
+  if (!html.includes('skribly-note-mark-v2.svg')) {
     failures.push(`${htmlFile} does not reference the Skribli icon.`);
   }
   if (/github\.com\/Ankit6149\/skribly/i.test(html)) {
@@ -100,7 +100,6 @@ const forbiddenCommercialPatterns = [
   /\bcheckout\b/i,
   /\bpurchase\b/i,
   /\blicen[cs]e\b/i,
-  /\btrial\b/i,
 ];
 
 const retiredProductPatterns = [
@@ -160,12 +159,14 @@ const requiredLandingTruth = [
   'release candidate in validation',
   'Downloads unavailable',
   'No floating remainder',
-  'NEW NOTE FOR',
+  'NEW SKRIB FOR',
   'Saved locally',
   'Editor fully hides',
   'leaves no dot, tab, checklist, or floating widget after it closes.',
   'Floating dots, attached tabs, checklists',
   'Pre-release validation',
+  'contextual annotation layer for Windows',
+  'A verified account tracks trial access',
   'product-truth.css',
   'data-skribly-schema',
   'href="/release-notes"',
@@ -254,6 +255,8 @@ for (const fact of [
   'The current shortcut path does not record your screen.',
   'Public downloads are disabled.',
   'portable JSON import with mandatory preview and rollback backup',
+  'This Skrib content is not uploaded to the account service.',
+  'Changing account or reinstalling on the same device does not restart the device trial.',
 ]) {
   if (!privacy.includes(fact)) failures.push(`Privacy page is missing current limitation: ${fact}.`);
 }
@@ -286,7 +289,7 @@ for (const route of ['/', '/answers', '/privacy', '/release-notes']) {
 
 const llms = await readFile(join(root, 'llms.txt'), 'utf8');
 for (const fact of [
-  'contextual typed-notes',
+  'contextual annotation application',
   'Windows',
   'Public downloads: disabled',
   'local-first',
@@ -294,6 +297,19 @@ for (const fact of [
 ]) {
   if (!llms.toLowerCase().includes(fact.toLowerCase())) {
     failures.push(`llms.txt is missing current product fact: ${fact}.`);
+  }
+}
+
+const canonicalMark = await readFile(join(repoRoot, 'assets/branding/skribly-app-icon.svg'), 'utf8');
+const deployedMark = await readFile(join(root, 'assets/skribly-note-mark-v2.svg'), 'utf8');
+const normalizeSvg = (value) => value.replace(/\r\n?/g, '\n').trim();
+if (normalizeSvg(canonicalMark) !== normalizeSvg(deployedMark)) {
+  failures.push('The cache-busted landing mark must exactly match the canonical blank folded note.');
+}
+for (const htmlFile of htmlFiles) {
+  const html = await readFile(join(root, htmlFile), 'utf8');
+  if (html.includes('skribly-icon.svg')) {
+    failures.push(`${htmlFile} still references the stale pre-v2 icon URL.`);
   }
 }
 

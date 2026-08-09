@@ -22,13 +22,13 @@ const STEPS: readonly OnboardingStep[] = [
   {
     number: '02',
     title: 'Press the shortcut',
-    description: 'Skribli verifies that exact window before opening a note.',
+    description: 'Skribli verifies that exact window before opening a typed Skrib.',
     shortcut: true,
   },
   {
     number: '03',
     title: 'Type, then choose Done',
-    description: 'The note saves locally, the editor hides, and Skribli stays in the tray.',
+    description: 'The Skrib saves locally, the editor hides, and Skribli stays in the tray.',
   },
 ];
 
@@ -44,10 +44,10 @@ export const OnboardingSurface: React.FC<OnboardingSurfaceProps> = ({
     >
       <header className="onboarding-header" data-tauri-drag-region>
         <span className="onboarding-kicker" data-tauri-drag-region>
-          SKRIBLI IS READY
+          SETUP · 2 OF 3
         </span>
         <h1 id="onboarding-title" data-tauri-drag-region>
-          Your first note takes one shortcut.
+          Your first Skrib takes one shortcut.
         </h1>
         <p id="onboarding-summary" data-tauri-drag-region>
           Skribli stays quiet until a thought needs somewhere to return.
@@ -55,7 +55,7 @@ export const OnboardingSurface: React.FC<OnboardingSurfaceProps> = ({
       </header>
 
       <div className="onboarding-body">
-        <ol className="onboarding-steps" aria-label="Create your first contextual note">
+        <ol className="onboarding-steps" aria-label="Create your first contextual Skrib">
           {STEPS.map((step) => (
             <li key={step.number} className="onboarding-step">
               <span className="onboarding-step-number" aria-hidden="true">
@@ -84,7 +84,7 @@ export const OnboardingSurface: React.FC<OnboardingSurfaceProps> = ({
           </div>
           <div>
             <h2>Private by default</h2>
-            <p>Notes stay on this device. Skribli uses limited window identity and geometry, not screen recording, to return the right note.</p>
+            <p>Skrib content stays on this device. Skribli uses limited window identity and geometry, not screen recording, to return the right contextual Skrib.</p>
           </div>
         </aside>
 
@@ -96,10 +96,10 @@ export const OnboardingSurface: React.FC<OnboardingSurfaceProps> = ({
 
       <footer className="onboarding-footer">
         <button type="button" className="onboarding-secondary" onClick={onDismiss}>
-          Maybe later
+          Review later
         </button>
         <button type="button" className="onboarding-primary" onClick={onComplete} autoFocus>
-          Start using Skribli
+          Continue to Skribli home
         </button>
       </footer>
     </section>

@@ -326,7 +326,7 @@ impl StorageService {
                 "Skribli upgraded the local note database safely.".to_string()
             } else if selected.source != StorageSource::Primary {
                 format!(
-                    "Skribli recovered local notes from the {} and restored the primary database.",
+                    "Skribli recovered local Skribs from the {} and restored the primary database.",
                     selected.source
                 )
             } else {

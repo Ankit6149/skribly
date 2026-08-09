@@ -5,20 +5,20 @@
 > Future annotations, browser integration, macOS, revision history, and sync are tracked under [issue #46](https://github.com/Ankit6149/skribly/issues/46) and must not be treated as implemented or approved release scope.
 
 **Product:** Skribli  
-**Current release target:** local-first Windows contextual typed notes  
+**Current release target:** account-connected, local-content Windows contextual annotations; typed Skribs are the first tool
 **Future platforms/capabilities:** separate gated roadmaps  
 **Distribution:** direct installer after signed release and runtime acceptance  
-**Business model:** undecided until the product and commercial workflows are ready
+**Business model:** one server-owned seven-day free trial for each account/device; payments remain deferred
 
 ## 1. Core job
 
 When a user notices something worth remembering inside an application, webpage, file, folder, or screen context, Skribli should let them capture it quickly and restore it safely when the intended context returns.
 
-For the current Windows MVP, this job is limited to typed contextual notes through a compact transient editor and a non-floating recovery/library surface.
+For the current Windows MVP, the first implemented annotation tool is a typed contextual Skrib through a compact transient editor and a non-floating recovery/library surface. This implementation slice must not redefine the product as merely a notes app.
 
 ## 2. Current Windows MVP objects
 
-The initial supported persistent object is a typed contextual note.
+The initial supported persistent object is a typed contextual Skrib record. Future tools—handwriting, highlights, arrows, images, reminders, screenshot pins, and richer screen/application/page/file/folder contexts—extend the same annotation system after separate acceptance work.
 
 The exact fields, one-versus-many behavior, create/open semantics, close behavior, archive/trash rules, and context identity are decided and implemented through #20, #14, #18, #21, and #60 where applicable.
 
@@ -64,10 +64,13 @@ Internal crash-recovery generations are owned by #14. Verified user-controlled b
 
 ## 7. Privacy and trust baseline
 
-- local data remains usable without an account;
+- a verified account is mandatory for trial and write access;
+- existing local Skrib content remains readable and exportable after sign-out, temporary connectivity loss, or trial expiry;
+- changing accounts or reinstalling on the same Windows device does not restart its server-owned trial;
+- the account service stores only identity, entitlement/trial, a one-way device claim, app version, and explicit update preference—never Skrib content;
 - no screenshot capture, OCR, or keystroke-content collection in the Windows MVP;
 - context/window metadata is minimized and used only for approved matching behavior;
-- no undeclared network activity;
+- no undeclared network activity; account and entitlement traffic is declared and isolated behind a replaceable service adapter;
 - update, licence, extension, feedback, and future sync traffic must appear in the canonical network/capability registry;
 - diagnostics exclude note content and sensitive context data by default;
 - permissions and data locations are visible through #80;
@@ -111,4 +114,4 @@ They require #60–#67 and #83 and may not reuse the rejected global overlay arc
 
 Public downloads and payments remain disabled until the relevant #34 gates pass.
 
-A one-time purchase, paid updates, Merchant of Record, store distribution, self-managed checkout, and licence enforcement remain business decisions rather than current promises. Commerce and licensing are tracked by #27 and #28 and must not be implemented ahead of product readiness.
+A one-time purchase, paid updates, Merchant of Record, store distribution, and self-managed checkout remain business decisions rather than current promises. Account/device trial enforcement is current under #28; payment entitlement remains tracked by #27 and must not be implemented ahead of product readiness.

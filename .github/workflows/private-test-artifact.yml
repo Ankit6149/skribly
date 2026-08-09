@@ -21,7 +21,12 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 45
     env:
-      SKRIBLY_TRIAL_ENFORCED: "0"
+      SKRIBLY_TRIAL_ENFORCED: "1"
+      SKRIBLY_LICENSE_PUBLIC_KEY: "xWfFU3SGshX9gzKt7rJJ4Z8502MNe0DrOmk2nJZoNyk"
+      VITE_SKRIBLY_ACCOUNT_URL: "https://bccgutpkjxtogqbywsxr.supabase.co"
+      VITE_SKRIBLY_ACCOUNT_PUBLISHABLE_KEY: "sb_publishable_bjfNO80Oxx-gjuOAl8uXEA_YtdvCSHL"
+      VITE_SKRIBLY_ACCOUNT_FUNCTION: "account-session"
+      VITE_SKRIBLY_APP_VERSION: "0.1.5"
       CARGO_INCREMENTAL: "0"
     steps:
       - name: Confirm private-only build intent

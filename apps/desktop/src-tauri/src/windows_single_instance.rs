@@ -1,26 +1,17 @@
 //! Windows process exclusivity before the Tauri runtime starts.
 //!
 //! The primary process keeps a per-session named mutex handle alive for its full lifetime. A
-//! second process locates the existing Skribli top-level window, posts the same `WM_HOTKEY`
-//! message used by the registered global shortcut, and exits before storage, tray, hooks, or
-//! worker threads are initialized.
+//! second process locates the visible Skribli home window, restores it, and exits before storage,
+//! tray, hooks, or worker threads are initialized.
 
-use std::ffi::OsString;
-use std::os::windows::ffi::OsStringExt;
-use std::path::Path;
 use std::thread;
 use std::time::Duration;
 
-use windows::core::{w, BOOL, PCWSTR};
-use windows::Win32::Foundation::{
-    CloseHandle, GetLastError, ERROR_ALREADY_EXISTS, HANDLE, HWND, LPARAM, WPARAM,
-};
-use windows::Win32::System::ProcessStatus::K32GetModuleFileNameExW;
-use windows::Win32::System::Threading::{
-    CreateMutexW, OpenProcess, PROCESS_QUERY_INFORMATION, PROCESS_VM_READ,
-};
+use windows::core::{w, PCWSTR};
+use windows::Win32::Foundation::{CloseHandle, GetLastError, ERROR_ALREADY_EXISTS, HANDLE};
+use windows::Win32::System::Threading::CreateMutexW;
 use windows::Win32::UI::WindowsAndMessaging::{
-    EnumWindows, MessageBoxW, PostMessageW, MB_ICONERROR, MB_OK, WM_HOTKEY,
+    FindWindowW, MessageBoxW, SetForegroundWindow, ShowWindow, MB_ICONERROR, MB_OK, SW_RESTORE,
 };
 
 pub const GLOBAL_HOTKEY_ID: i32 = 0x534B;
@@ -50,93 +41,18 @@ impl Drop for SingleInstanceGuard {
     }
 }
 
-struct ProcessHandle(HANDLE);
-
-impl Drop for ProcessHandle {
-    fn drop(&mut self) {
-        if !self.0.is_invalid() && !self.0 .0.is_null() {
-            unsafe {
-                let _ = CloseHandle(self.0);
-            }
-        }
-    }
-}
-
-fn is_skribli_process_name(process_name: &str) -> bool {
-    process_name.eq_ignore_ascii_case("skribly.exe")
-        || process_name.eq_ignore_ascii_case("skribli.exe")
-}
-
-fn process_name_for_window(hwnd: HWND) -> String {
-    unsafe {
-        let mut process_id = 0u32;
-        let _ = windows::Win32::UI::WindowsAndMessaging::GetWindowThreadProcessId(
-            hwnd,
-            Some(&mut process_id),
-        );
-        if process_id == 0 {
-            return String::new();
-        }
-
-        let Ok(raw_handle) = OpenProcess(
-            PROCESS_QUERY_INFORMATION | PROCESS_VM_READ,
-            false,
-            process_id,
-        ) else {
-            return String::new();
-        };
-        let handle = ProcessHandle(raw_handle);
-        let mut buffer = [0u16; 1024];
-        let length = K32GetModuleFileNameExW(Some(handle.0), None, &mut buffer);
-        if length == 0 {
-            return String::new();
-        }
-
-        let full_path = OsString::from_wide(&buffer[..length as usize]);
-        Path::new(&full_path)
-            .file_name()
-            .map(|name| name.to_string_lossy().into_owned())
-            .unwrap_or_default()
-    }
-}
-
-fn find_existing_skribli_window() -> Option<HWND> {
-    let mut found = HWND::default();
-    let pointer = &mut found as *mut HWND as isize;
-
-    unsafe extern "system" fn enum_proc(hwnd: HWND, lparam: LPARAM) -> BOOL {
-        let found = unsafe { &mut *(lparam.0 as *mut HWND) };
-        if is_skribli_process_name(&process_name_for_window(hwnd)) {
-            *found = hwnd;
-            return BOOL(0);
-        }
-        BOOL(1)
-    }
-
-    unsafe {
-        let _ = EnumWindows(Some(enum_proc), LPARAM(pointer));
-    }
-
-    if found.0.is_null() {
-        None
-    } else {
-        Some(found)
-    }
-}
-
 fn signal_existing_instance() -> Result<(), String> {
     for _ in 0..SIGNAL_ATTEMPTS {
-        if let Some(hwnd) = find_existing_skribli_window() {
+        let home_window = unsafe { FindWindowW(None, w!("Skribli")) }.ok();
+        if let Some(hwnd) = home_window {
             unsafe {
-                PostMessageW(
-                    Some(hwnd),
-                    WM_HOTKEY,
-                    WPARAM(GLOBAL_HOTKEY_ID as usize),
-                    LPARAM(0),
-                )
-                .map_err(|error| {
-                    format!("Windows found Skribli but could not signal it: {error}")
-                })?;
+                let _ = ShowWindow(hwnd, SW_RESTORE);
+                if !SetForegroundWindow(hwnd).as_bool() {
+                    return Err(
+                        "Windows found Skribli but did not allow its Home window to come forward. Select Skribli from the taskbar and try again."
+                            .to_string(),
+                    );
+                }
             }
             return Ok(());
         }
@@ -193,15 +109,7 @@ mod tests {
     }
 
     #[test]
-    fn process_name_matching_accepts_current_and_legacy_binary_names_only() {
-        assert!(is_skribli_process_name("Skribly.exe"));
-        assert!(is_skribli_process_name("skribli.exe"));
-        assert!(!is_skribli_process_name("skribly-helper.exe"));
-        assert!(!is_skribli_process_name("explorer.exe"));
-    }
-
-    #[test]
-    fn second_launch_uses_the_same_hotkey_identifier_as_the_runtime() {
+    fn global_hotkey_identifier_remains_stable_for_the_primary_runtime() {
         assert_eq!(GLOBAL_HOTKEY_ID, 0x534B);
     }
 

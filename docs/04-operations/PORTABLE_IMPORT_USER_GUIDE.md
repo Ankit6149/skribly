@@ -36,7 +36,7 @@ Before a real mutation, Skribli writes a complete versioned rollback backup into
 Apply is rejected when:
 
 - the file changed after preview;
-- local notes changed after preview;
+- local Skribs changed after preview;
 - the file is malformed, unsupported, oversized, or contains invalid/duplicate records;
 - local storage or licence state is read-only;
 - the rollback backup or authoritative save cannot be completed safely.

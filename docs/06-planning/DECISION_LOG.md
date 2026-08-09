@@ -7,7 +7,7 @@
 | 2026-07-20 | Windows and macOS were initially considered first-class targets | Superseded |
 | 2026-07-20 | Direct installers; stores optional | Current |
 | 2026-07-20 | Visual direction is Soft Paper Play / Direction 1 | Accepted |
-| 2026-07-20 | Local-first, no account/cloud/AI in v1 | Accepted |
+| 2026-07-20 | Local-first, no account/cloud/AI in v1 | Superseded for identity/access; Skrib content remains local-first |
 | 2026-07-20 | Tauri + React + Rust is the Windows desktop stack | Accepted |
 | 2026-07-20 | One primary UI framework only | Accepted |
 | 2026-07-20 | One-time purchase is initial business model | Hypothesis |
@@ -18,3 +18,8 @@
 | 2026-08-05 | Ordinary deletion moves saved notes to reversible Trash; permanent deletion exists only inside Trash | Current |
 | 2026-08-08 | Portable JSON import requires non-mutating preview, verified rollback backup, and one atomic apply | Current |
 | 2026-08-08 | Payments, public downloads, signing, updater, and availability claims stay disabled during private Founder Alpha validation | Current |
+| 2026-08-09 | A normal launch always opens a visible Home/setup window; the hidden compact editor is never the first-run surface | Current |
+| 2026-08-09 | Verified sign-in is mandatory for trial/write access; existing local Skribs remain readable/exportable | Current |
+| 2026-08-09 | The seven-day trial is server-owned across both account and a one-way stable device claim, so account switching or reinstall does not restart it | Current |
+| 2026-08-09 | Temporary free managed auth/database may be replaced by the first-party server through a provider-neutral adapter; Skrib content is never uploaded | Current |
+| 2026-08-09 | Product language must describe Skribli as a contextual annotation system; typed Skribs are the first shipped tool, not the whole product | Current |

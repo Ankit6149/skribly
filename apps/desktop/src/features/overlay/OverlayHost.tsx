@@ -5,13 +5,6 @@ import '../../styles/storage-recovery.css';
 import { useSkribStore } from '../../stores/skribStore';
 import { useSkribUiStore } from '../../stores/skribUiStore';
 import { selectPrimaryWindowSurface } from '../onboarding/guidanceSurface';
-import {
-  completeOnboarding,
-  markOnboardingShown,
-  readOnboardingStatus,
-  shouldAutoShowOnboarding,
-} from '../onboarding/onboardingState';
-import { OnboardingSurface } from '../onboarding/OnboardingSurface';
 import { StartupFailureSurface } from '../onboarding/StartupFailureSurface';
 import {
   isOpenNoteRequest,
@@ -52,10 +45,8 @@ export const OverlayHost: React.FC = () => {
   const { composerNoteId, openComposer } = useSkribUiStore();
   const [diagnosticsPath, setDiagnosticsPath] = useState<string | null>(null);
   const [captureError, setCaptureError] = useState<TargetCaptureErrorPayload | null>(null);
-  const [onboardingVisible, setOnboardingVisible] = useState(false);
   const [openNoteRequest, setOpenNoteRequest] = useState<OpenNoteRequest | null>(null);
   const [composerOpenAction, setComposerOpenAction] = useState<OpenNoteAction>('reopened');
-  const [onboardingDecisionTaken, setOnboardingDecisionTaken] = useState(false);
 
   const composerNote = composerNoteId
     ? skribs.find((note) => note.id === composerNoteId) ?? null
@@ -72,7 +63,7 @@ export const OverlayHost: React.FC = () => {
     storageSurface,
     initStatus,
     hasCaptureError: captureError !== null,
-    onboardingVisible,
+    onboardingVisible: false,
   });
 
   useEffect(() => {
@@ -96,12 +87,6 @@ export const OverlayHost: React.FC = () => {
       listen<unknown>('skribly://open-note-request', (event) => {
         if (!disposed && isOpenNoteRequest(event.payload)) {
           setOpenNoteRequest(event.payload);
-        }
-      }),
-      listen('skribly://show-onboarding', () => {
-        if (!disposed) {
-          setOnboardingVisible(true);
-          void showCurrentWindow().catch(() => undefined);
         }
       }),
     ]).then((callbacks) => {
@@ -128,54 +113,10 @@ export const OverlayHost: React.FC = () => {
   }, [openComposer, openNoteRequest, skribs]);
 
   useEffect(() => {
-    if (composerNote) setOnboardingVisible(false);
-  }, [composerNote]);
-
-  useEffect(() => {
     if (initStatus.type === 'Failed' && storageSurface === 'empty') {
       void showCurrentWindow().catch(() => undefined);
     }
   }, [initStatus.type, storageSurface]);
-
-  useEffect(() => {
-    if (onboardingDecisionTaken) return;
-    if (initStatus.type !== 'Ready' || storageSurface !== 'empty' || captureError) return;
-    if (typeof window === 'undefined') return;
-
-    setOnboardingDecisionTaken(true);
-    const status = readOnboardingStatus(window.localStorage);
-    if (!shouldAutoShowOnboarding(status)) return;
-
-    setOnboardingVisible(true);
-    void showCurrentWindow()
-      .then(() => {
-        markOnboardingShown(window.localStorage);
-      })
-      .catch(() => {
-        setOnboardingDecisionTaken(false);
-        setOnboardingVisible(false);
-      });
-  }, [captureError, initStatus.type, onboardingDecisionTaken, storageSurface]);
-
-  const completeFirstRun = async () => {
-    if (typeof window !== 'undefined') completeOnboarding(window.localStorage);
-    setOnboardingVisible(false);
-    try {
-      await hideCurrentWindow();
-    } catch {
-      // The application may already be shutting down.
-    }
-  };
-
-  const dismissFirstRun = async () => {
-    if (typeof window !== 'undefined') markOnboardingShown(window.localStorage);
-    setOnboardingVisible(false);
-    try {
-      await hideCurrentWindow();
-    } catch {
-      // The application may already be shutting down.
-    }
-  };
 
   if (primarySurface === 'composer' && composerNote) {
     return (
@@ -192,7 +133,7 @@ export const OverlayHost: React.FC = () => {
     const message =
       storageErrorMessage ||
       storageNotice?.message ||
-      'Local note storage needs attention before Skribli can create another note.';
+      'Local Skrib storage needs attention before Skribli can create another Skrib.';
     const title =
       storageWritable && !storageErrorMessage
         ? 'Local notes recovered'
@@ -288,15 +229,6 @@ export const OverlayHost: React.FC = () => {
       <TargetCaptureErrorSurface
         error={captureError}
         onDismiss={() => setCaptureError(null)}
-      />
-    );
-  }
-
-  if (primarySurface === 'onboarding') {
-    return (
-      <OnboardingSurface
-        onComplete={() => void completeFirstRun()}
-        onDismiss={() => void dismissFirstRun()}
       />
     );
   }

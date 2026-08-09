@@ -32,7 +32,7 @@ export const StartupFailureSurface: React.FC<StartupFailureSurfaceProps> = ({
         <p id="startup-failure-message">{message}</p>
         <div className="startup-failure-safety" id="startup-failure-safety">
           <span aria-hidden="true">✓</span>
-          <p>Your existing local notes remain protected. Skribli will not open a note until setup succeeds.</p>
+          <p>Your existing local Skribs remain protected. Skribli will not open a Skrib until setup succeeds.</p>
         </div>
         <p className="startup-failure-next">
           Retry after closing another shortcut utility or resolving the Windows permission shown

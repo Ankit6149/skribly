@@ -15,7 +15,7 @@
 2. Press **Ctrl + Shift + Space**.
 3. Skribli captures the foreground window once, clears any previous runtime target, and revalidates the HWND and process identity before note access.
 4. Zero active matches creates one note; one match reopens it; legacy duplicate matches select the most recently updated note deterministically.
-5. The compact editor opens inside the target monitor's usable work area and identifies the flow as **NEW NOTE FOR** or **REOPENED NOTE FOR**.
+5. The compact editor opens inside the target monitor's usable work area and identifies the flow as **NEW SKRIB FOR** or **REOPENED SKRIB FOR**.
 
 If capture, identity, placement, native validation, or persistence fails, Skribli opens no note and presents one privacy-safe recovery message. It never falls back to a stale target.
 

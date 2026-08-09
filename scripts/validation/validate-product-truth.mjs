@@ -24,6 +24,12 @@ const windowsTargetCapture = await read(
 const windowsSingleInstance = await read('apps/desktop/src-tauri/src/windows_single_instance.rs');
 const tray = await read('apps/desktop/src-tauri/src/desktop/tray.rs');
 const overlayHost = await read('apps/desktop/src/features/overlay/OverlayHost.tsx');
+const homeHost = await read('apps/desktop/src/features/account/HomeHost.tsx');
+const accountClient = await read('apps/desktop/src/features/account/accountClient.ts');
+const accountStore = await read('apps/desktop/src/stores/accountStore.ts');
+const accountNative = await read('apps/desktop/src-tauri/src/core/account.rs');
+const licenseNative = await read('apps/desktop/src-tauri/src/core/license.rs');
+const tauriConfig = JSON.parse(await read('apps/desktop/src-tauri/tauri.conf.json'));
 const captureErrorSurface = await read(
   'apps/desktop/src/features/overlay/TargetCaptureErrorSurface.tsx'
 );
@@ -59,13 +65,15 @@ const historicalOverlayGate = await read(
 );
 
 const requiredReadmeClaims = [
-  'On the first successful launch, a compact three-step guide visibly confirms that Skribli is ready',
-  'The guide creates no sample note and can be reopened later from **Quick guide** in the tray.',
+  'A normal launch always opens the visible **Skribli Home** window.',
+  'The guide creates no sample Skrib and can be reopened later from **Quick guide** in the tray.',
+  'A verified account is mandatory for write access',
+  'Changing accounts or reinstalling on the same Windows device does not restart that device’s trial.',
   'Skribli hides only after the latest non-empty draft is durably saved.',
   'A compact note editor opens inside that target monitor’s usable work area.',
   'Skribli captures the foreground target once, clears any previous runtime target, and revalidates the exact HWND and process identity before using it.',
   'Skribli shows one actionable compact message, clears the previous target, and does not create, reopen, move, or focus a note.',
-  'Launching Skribli again in the same Windows user session signals the existing process',
+  'Launching Skribli again in the same Windows user session restores the existing Home window',
   'Windows accessibility events use bounded, non-blocking delivery with callback-side filtering and duplicate coalescing.',
   'The current build does **not** leave a floating dot, attached tab, permanent toolbar, or full-screen interactive overlay',
   'ordinary deletion is reversible through Trash',
@@ -140,7 +148,7 @@ for (const [document, claim, label] of forbiddenCurrentDocumentation) {
   }
 }
 
-const expectedCargoDescription = 'description = "Local-first contextual typed notes for Windows"';
+const expectedCargoDescription = 'description = "Local-first contextual annotations for Windows"';
 if (!cargoManifest.includes(expectedCargoDescription)) {
   failures.push(`Cargo package description must be: ${expectedCargoDescription}`);
 }
@@ -187,9 +195,9 @@ const requiredSingleInstanceImplementation = [
   'CreateMutexW',
   'ERROR_ALREADY_EXISTS',
   'Local\\\\app.skribly.desktop.single-instance.2026-08',
-  'EnumWindows',
-  'PostMessageW',
-  'WM_HOTKEY',
+  'FindWindowW',
+  'ShowWindow',
+  'SetForegroundWindow',
   'GLOBAL_HOTKEY_ID',
   'SingleInstanceOutcome::SecondarySignalled',
 ];
@@ -324,7 +332,7 @@ if (!targetCaptureAcceptance.includes('Parent issue 18 remains open')) {
 }
 
 const requiredOnboardingState = [
-  'ONBOARDING_VERSION = 1',
+  'ONBOARDING_VERSION = 2',
   "export type OnboardingStatus = 'unseen' | 'shown' | 'completed'",
   'markOnboardingShown',
   'completeOnboarding',
@@ -337,15 +345,15 @@ for (const claim of requiredOnboardingState) {
 }
 
 const requiredOnboardingGuidance = [
-  'Your first note takes one shortcut.',
+  'Your first Skrib takes one shortcut.',
   'Focus the application',
   'Press the shortcut',
   'Type, then choose Done',
   'Private by default',
   'not screen recording',
   'Quit Skribli',
-  'Start using Skribli',
-  'Maybe later',
+  'Continue to Skribli home',
+  'Review later',
 ];
 for (const claim of requiredOnboardingGuidance) {
   if (!onboardingSurface.includes(claim)) {
@@ -355,7 +363,7 @@ for (const claim of requiredOnboardingGuidance) {
 
 const requiredStartupFailureUi = [
   'The shortcut is not ready yet.',
-  'Your existing local notes remain protected.',
+  'Your existing local Skribs remain protected.',
   'Retry setup',
   'Hide',
   'role="alert"',
@@ -384,11 +392,11 @@ const requiredOnboardingRuntime = [
   'readOnboardingStatus(window.localStorage)',
   'markOnboardingShown(window.localStorage)',
   'completeOnboarding(window.localStorage)',
-  'showCurrentWindow()',
-  'selectPrimaryWindowSurface',
+  "phase !== 'ready'",
+  'setGuideVisible(true)',
 ];
 for (const claim of requiredOnboardingRuntime) {
-  if (!overlayHost.includes(claim)) {
+  if (!homeHost.includes(claim)) {
     failures.push(`The first-run runtime is missing required visible behavior: ${claim}`);
   }
 }
@@ -397,7 +405,7 @@ const requiredTrayGuide = [
   'QUICK_GUIDE_ID',
   '"Quick guide"',
   'skribly://show-onboarding',
-  'window.center()',
+  'get_webview_window("home")',
   'window.show()',
   'window.set_focus()',
   '"Quit Skribli"',
@@ -406,6 +414,20 @@ for (const claim of requiredTrayGuide) {
   if (!tray.includes(claim)) {
     failures.push(`The tray is missing required onboarding re-entry behavior: ${claim}`);
   }
+}
+
+const requiredAccountFirstRuntime = [
+  [tauriConfig.app?.windows?.some((window) => window.label === 'home' && window.visible === true), 'a visible Home window'],
+  [accountClient.includes('protectedSessionStorage'), 'protected session adapter'],
+  [accountNative.includes('CryptProtectData'), 'Windows user-scoped session protection'],
+  [accountNative.includes('MachineGuid'), 'stable privacy-minimized device claim'],
+  [licenseNative.includes('AccountRequired'), 'account-required native write gate'],
+  [licenseNative.includes('offline_until'), 'bounded offline entitlement'],
+  [accountStore.includes("phase: 'verificationPending'"), 'verified-email setup state'],
+  [homeHost.includes('Changing accounts on this device does not restart its trial.'), 'device trial explanation'],
+];
+for (const [present, label] of requiredAccountFirstRuntime) {
+  if (!present) failures.push(`The account-first launch is missing ${label}.`);
 }
 
 if (!firstRunAcceptance.includes('Parent issue 51 remains open')) {
