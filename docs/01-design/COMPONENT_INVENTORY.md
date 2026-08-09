@@ -32,24 +32,30 @@ The current editor does not imply a full-screen interactive overlay, persistent 
 
 ### 1.2 All Skribs library
 
-Owned by #21 and #79:
+Implemented foundations under #21:
 
-- normal non-floating application window;
-- search input and query status;
-- filters for approved fields such as app/context, date, archive, and trash;
-- deterministic sort and grouping controls;
-- list/grid presentation only if usability evidence supports both;
-- note preview with privacy-safe context information;
-- open/edit action;
-- context confidence and re-anchor entry point;
+- one normal non-floating application window opened from the tray;
+- one reused instance whose title-bar Close hides instead of quitting;
+- Unicode-normalized case-insensitive search across text and stored context fields;
+- deterministic updated/created/ID ordering;
+- privacy-safe read-only note detail;
+- Notes and Trash views with counts and lifecycle status;
+- reversible Trash, same-record restore, and note-specific permanent-delete confirmation;
+- selected-note and complete versioned JSON export;
+- strict portable JSON preview with new/duplicate/conflict counts;
+- explicit conflict mode, fingerprint/revision locking, verified rollback backup, and atomic import apply;
+- loading, error, empty, no-results, blocked, and read-only states;
+- keyboard, live-region, forced-colour, reduced-motion, large-text, and compact responsive behavior.
+
+Remaining work under #21, #61, #79, and #82:
+
+- context-safe open/edit and re-anchor entry points;
 - archive/restore;
-- trash/restore/permanent-delete confirmation;
-- export selected/all;
-- import preview, duplicate handling, migration, and rollback;
-- backup and storage-health status;
-- empty, loading, indexing, rebuilding, error, blocked, and read-only states;
-- pagination or virtualization at scale;
-- keyboard navigation and screen-reader result announcements.
+- richer filters and approved grouping controls;
+- scalable indexing, pagination/virtualization, and index rebuilding;
+- attachment portability;
+- scheduled/user-selected backups and clean-device disaster recovery;
+- exact physical Windows accessibility and release-candidate evidence.
 
 ### 1.3 Settings
 
@@ -147,10 +153,11 @@ Current typed notes and context UX may require:
 - context changed while editing;
 - re-anchor/move/detach recovery entry point;
 - app-level versus more precise approved scope;
-- archived;
-- trash pending;
+- archived (deferred; not currently implemented);
+- active note;
+- trashed note, retention review, restore, and confirmed permanent deletion;
 - read-only;
-- import/migration pending;
+- import preview, conflict review, applying, completed, rollback, and blocked states;
 - storage recovery required.
 
 The final state model belongs to #18, #20, #21, and #61. UI code must not invent matching rules.

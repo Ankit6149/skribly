@@ -29,7 +29,7 @@ Windows accessibility events use bounded, non-blocking delivery with callback-si
 
 The current build does **not** leave a floating dot, attached tab, permanent toolbar, or full-screen interactive overlay after the editor closes.
 
-The final create/reopen lifecycle, durable versioned context identity, reversible trash, complete All Skribs library, physical Windows acceptance, installer lifecycle, and signed release evidence remain tracked in the production-readiness backlog. Do not treat a successful compile or website deployment as proof that the Windows product is ready to distribute.
+The create/reopen decision is deterministic, All Skribs recovery is available, ordinary deletion is reversible through Trash, and portable JSON import requires a non-mutating preview before one atomic apply. Durable versioned context identity, archive/indexing/attachment work, physical Windows acceptance, installer lifecycle, and signed release evidence remain tracked in the production-readiness backlog. Do not treat a successful compile or website deployment as proof that the Windows product is ready to distribute.
 
 ## Implemented foundations
 
@@ -51,7 +51,9 @@ The final create/reopen lifecycle, durable versioned context identity, reversibl
 - Ordered/coalesced text persistence with truthful save and retry states.
 - Final-save flush before the compact editor hides.
 - Rust-side note mutation validation for IDs, Unicode length, colours, and geometry.
-- Two-step explicit confirmation before the current irreversible delete operation.
+- A normal non-floating **All Skribs** window with deterministic ordering, search, read-only detail, selected-note export, and complete portable backup export.
+- Reversible Trash with 30-day recovery guidance; permanent deletion exists only inside Trash after note-specific confirmation.
+- Portable JSON import with strict validation, non-mutating preview, duplicate/conflict reporting, revision/fingerprint locking, verified rollback backup, and atomic apply.
 - No console window in the Windows release build configuration.
 - Global **Ctrl + Shift + Space** shortcut and tray-based background process.
 - Public downloads and payment flows disabled while release gates are incomplete.
@@ -64,8 +66,8 @@ The canonical execution tracker is [issue #34](https://github.com/Ankit6149/skri
 - [#17](https://github.com/Ankit6149/skribly/issues/17) physical idle, event-storm, accessibility-heavy application, Remote Desktop, suspend/resume, and long-session evidence after bounded event delivery implementation;
 - [#18](https://github.com/Ankit6149/skribly/issues/18) durable versioned context identity, ambiguity/re-anchor policy, migration, and physical evidence after fail-closed shortcut capture;
 - [#19](https://github.com/Ankit6149/skribly/issues/19) physical mixed-DPI, topology-change, taskbar, and Remote Desktop evidence after monitor-safe placement implementation;
-- [#20](https://github.com/Ankit6149/skribly/issues/20) final note lifecycle contract;
-- [#21](https://github.com/Ankit6149/skribly/issues/21) non-floating library, search, export, archive, and reversible trash;
+- [#20](https://github.com/Ankit6149/skribly/issues/20) remaining archive, broader context/lifecycle consistency, usability evidence, and exact release-binary validation after deterministic create/reopen and reversible Trash delivery;
+- [#21](https://github.com/Ankit6149/skribly/issues/21) remaining archive, scalable indexing/filtering, attachment portability, broader backup/recovery, and exact physical evidence after All Skribs, export, Trash, and portable import delivery;
 - [#24](https://github.com/Ankit6149/skribly/issues/24) release-blocking Windows runtime evidence;
 - [#25](https://github.com/Ankit6149/skribly/issues/25) signed reproducible installer and rollback pipeline;
 - [#51](https://github.com/Ankit6149/skribly/issues/51) remaining shortcut-conflict detection, migrations, settings integration, permissions education, usability studies, and release-candidate onboarding evidence after the first-note guide.
@@ -140,10 +142,14 @@ These commands prove static, frontend, and Rust test gates only. Windows accepta
 
 ## Documentation sources of truth
 
-- [Production-readiness execution plan](docs/06-planning/FULL_PRODUCT_AUDIT_AND_EXECUTION_PLAN.md)
 - [Product backlog and contribution map](docs/06-planning/PRODUCT_BACKLOG_AND_CONTRIBUTION_MAP.md)
+- [Historical full-product audit and current execution gates](docs/06-planning/FULL_PRODUCT_AUDIT_AND_EXECUTION_PLAN.md)
 - [Current and future product requirements](docs/00-product/PRD.md)
+- [Canonical compact-editor interaction specification](docs/01-design/INTERACTION_SPEC.md)
 - [First-run and quick-guide acceptance](docs/04-operations/FIRST_RUN_ACCEPTANCE.md)
+- [All Skribs library acceptance](docs/04-operations/ALL_SKRIBS_ACCEPTANCE.md)
+- [Reversible Trash acceptance](docs/04-operations/TRASH_ACCEPTANCE.md)
+- [Portable import acceptance](docs/04-operations/PORTABLE_IMPORT_ACCEPTANCE.md)
 - [Target-capture acceptance](docs/04-operations/TARGET_CAPTURE_ACCEPTANCE.md)
 - [Compact editor placement acceptance](docs/04-operations/WINDOW_PLACEMENT_ACCEPTANCE.md)
 - [Single-instance and lifecycle acceptance](docs/04-operations/SINGLE_INSTANCE_ACCEPTANCE.md)

@@ -1,82 +1,81 @@
-# Interaction specification
+# Current Windows interaction specification
 
-## Global shortcut
+> **Status:** canonical Founder Alpha interaction contract. This document describes the compact Windows typed-note product that exists today. Full-screen overlays, persistent dots/tabs, drawing tools, browser DOM anchoring, and macOS behavior are deferred and are not release requirements.
 
-The final default shortcut must be checked for conflicts on both platforms. Working placeholder:
+## Application lifecycle
 
-- Windows: `Ctrl + Shift + Space`
-- macOS: `Control + Shift + Space`
+- Skribli runs as one background process, one tray icon, one global shortcut registration, and one Windows event-hook set per user session.
+- Launching Skribli again signals the existing process through the same note-opening path.
+- Closing the compact editor or All Skribs hides that window. **Quit Skribli** in the tray exits the process.
+- The first successful launch shows a three-step guide. **Quick guide** in the tray reopens it without creating a sample note.
 
-Do not use the Windows screenshot shortcut.
+## Open or create a contextual note
 
-## Create
+1. Focus a supported Windows application.
+2. Press **Ctrl + Shift + Space**.
+3. Skribli captures the foreground window once, clears any previous runtime target, and revalidates the HWND and process identity before note access.
+4. Zero active matches creates one note; one match reopens it; legacy duplicate matches select the most recently updated note deterministically.
+5. The compact editor opens inside the target monitor's usable work area and identifies the flow as **NEW NOTE FOR** or **REOPENED NOTE FOR**.
 
-1. Invoke shortcut.
-2. Tool palette appears near the pointer.
-3. Current target window receives a subtle border.
-4. Select a tool or use the default Note.
-5. Click/drag to place.
-6. The Skrib unfolds.
-7. Input begins immediately.
-8. Click outside to commit.
+If capture, identity, placement, native validation, or persistence fails, Skribli opens no note and presents one privacy-safe recovery message. It never falls back to a stale target.
 
-## Type
+## Type and save
 
-- Single click selects.
-- Double click or Enter edits.
-- `Ctrl/Cmd + Enter` commits while keeping selection.
-- Escape cancels current uncommitted edits or exits edit mode.
-- Saving is automatic and debounced.
+- Typing updates a local draft immediately.
+- Native writes are serialized per active note; rapid edits coalesce into the latest pending draft.
+- The editor reports **Unsaved**, **Saving**, **Saved**, or **Save failed** truthfully.
+- A failed save keeps the exact draft visible and provides **Retry saving**.
+- The current typed-note limit is 20,000 Unicode characters.
+- **Done**, **Escape**, **Ctrl + Enter**, Close, and editor blur flush the latest draft before the compact window hides.
+- The editor remains visible when the final save is not durable.
 
-## Scribble
+## Reposition
 
-- Pen/stylus down begins a stroke.
-- Mouse works as a fallback.
-- Pressure affects width only when hardware reports reliable pressure.
-- Highlighter uses translucent compositing.
-- Palm rejection relies first on pointer type; platform-specific improvement is optional.
-- Raw points are simplified after the stroke, never during input in a way that creates visible lag.
+- Skribli calculates placement from the target monitor's work area and DPI before every show.
+- The compact editor does not follow an application as a persistent overlay after it hides.
+- **Reposition** recalculates a safe placement when the user needs it.
+- Unsupported geometry fails closed instead of placing an unreachable window.
 
-## Drag
+## Delete and Trash
 
-- Dragging from the note header moves the Skrib.
-- Holding a modifier reveals cross-window snap targets.
-- Crossing into a new target previews reattachment.
-- Dropping commits the new context only after the target is accepted.
-- Escape returns the Skrib to its original context.
+- Closing an untouched whitespace-empty note discards that empty record.
+- **Move to Trash** is the ordinary delete action for a saved note and requires confirmation.
+- A trashed note keeps its ID, text, context, lifecycle metadata, and export representation.
+- Trashed notes do not reopen through the global shortcut and cannot be edited or re-anchored.
+- All Skribs can restore the same record from Trash.
+- Permanent deletion is available only inside Trash after note-specific confirmation and successful durable persistence.
+- The interface explains a 30-day recovery period; the current build does not silently auto-purge expired items.
 
-## Resize
+## All Skribs
 
-- Corners resize; edges may be enabled later.
-- Typed notes preserve readable minimum width.
-- Ink notes scale their viewport without destructively rewriting source points.
+- **All Skribs** in the tray opens one normal, non-floating library window.
+- Search is Unicode-normalized and case-insensitive across note text and stored context fields.
+- Results use deterministic updated/created/ID ordering.
+- Notes and Trash remain readable and exportable in read-only storage or licence states.
+- Export supports one selected note or one complete versioned JSON backup without overwriting an existing file.
+- Closing the window hides the same instance instead of quitting Skribli.
 
-## Collapse
+## Portable import
 
-- Collapse folds the note into a small colored edge marker.
-- Hover previews content.
-- Click expands.
-- Multiple collapsed markers on one edge stack without overlap.
+1. Choose **Import JSON** in All Skribs.
+2. Skribli strictly validates the current portable schema without mutating local data.
+3. Preview reports active/Trash counts, new records, exact duplicates, stable-ID conflicts, and bounded details.
+4. **Skip conflicts** is the safe default; replacing the same IDs is explicit.
+5. Apply is rejected if the selected file fingerprint or local storage revision changed after preview.
+6. Before mutation, Skribli writes and verifies a complete rollback backup.
+7. Import applies through one coordinator/storage transaction and restores the prior in-memory state if persistence fails.
 
-## Delete
+Import never opens an external application, guesses a new context, uploads data, or claims to restore unsupported attachments/future annotation types.
 
-- Delete has a physical peel/slide animation lasting less than 250 ms.
-- The item moves to Trash, allowing restoration.
-- Permanent deletion happens only from Trash or purge settings.
+## Keyboard and accessibility contract
 
-## Context return
+- Every primary action is keyboard reachable with a visible focus indicator.
+- Save, recovery, loading, error, and result-count changes use appropriate live/status semantics.
+- Compact-editor, onboarding, All Skribs, Trash, and import surfaces provide high-contrast, forced-colour, reduced-motion, large-text, and responsive states where implemented.
+- Physical Windows screen-reader, text-scaling, high-contrast, and full keyboard evidence remains release-blocking under #31 and #24.
 
-- When the matching app/window appears, Skribli restores relevant overlays without stealing focus.
-- A returning Skrib may use one subtle 150–250 ms unfold, then remain static.
-- When confidence is weak, show a collapsed warning state rather than overlaying the wrong control.
+## Explicitly deferred interactions
 
-## Click-through
+The following require separately approved architecture and acceptance work: customizable hotkeys, archive, context re-anchor/rules, persistent full-screen annotations, ink/highlighter, shapes/arrows/checklists, reminders, attachments, browser URL/DOM anchoring, macOS, cloud sync, collaboration, AI, and mobile clients.
 
-Default overlay state:
-
-- transparent background passes input through
-- visible Skrib surfaces receive input
-- drawing mode captures pointer input over the selected drawing region
-- pause mode makes the complete overlay input-transparent
-
-This is a release-blocking cross-platform behavior.
+No deferred interaction may restore a screen-blocking overlay or appear in current product claims merely because historical prototypes or planning documents mention it.

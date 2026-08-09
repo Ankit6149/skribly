@@ -20,20 +20,21 @@ Skribli should feel tactile, warm, immediate, and lightweight—like physical pa
 
 ## Motion
 
-Motion is brief and purposeful:
+Current product motion is brief, functional, and reduced or removed when Windows requests reduced motion:
 
-- peel/unfold on creation
-- subtle lift on hover
-- small snap response on anchor placement
-- fold on collapse
-- physical peel/slide toward trash on delete
-- no idle looping animations
+- compact surfaces appear without a long entrance sequence;
+- button, selection, confirmation, loading, and save-state feedback remains subtle;
+- All Skribs, Trash, onboarding, and import transitions do not imply that notes float over other applications;
+- no idle looping animations.
+
+Peel/unfold, collapse, persistent-note hover, anchor-placement, drawing, and gesture motion belong to deferred annotation research. They are not current interaction or release claims.
 
 ## Design constraints
 
 - Never cover underlying content unnecessarily.
-- Empty overlay space must remain click-through.
-- Collapsed Skribs must be identifiable but unobtrusive.
+- The transient compact editor uses only its visible window bounds; there is no interactive full-screen overlay.
+- Closing or completing the editor hides the complete editor instead of leaving a collapsed dot or tab.
+- The blank folded-note mark keeps the warm paper/yellow/ink palette, uses soft rounded corners, and contains no letterform.
 - Notes must remain readable at different DPI scales.
-- Touch mode uses larger targets without changing the brand language.
+- Keyboard focus, forced colours, reduced motion, and larger text must remain legible without changing the brand language.
 - Dark mode may be added later; the approved initial direction is light Soft Paper Play.

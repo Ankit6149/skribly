@@ -1,9 +1,28 @@
 # Skribli full product audit and execution plan
 
+> **Historical audit snapshot — not a description of the current code tree.**
+> This document preserves findings from 27 July 2026 so their reasoning and issue links remain auditable. Statements such as “the current implementation” below mean the repository state on that audit date. Use the root README, the [current interaction specification](../01-design/INTERACTION_SPEC.md), the [product backlog](PRODUCT_BACKLOG_AND_CONTRIBUTION_MAP.md), and the linked acceptance contracts for present behavior.
+
 **Audit date:** 27 July 2026  
 **Repository:** `Ankit6149/skribly`  
 **Audited branch:** `main`  
 **Canonical tracker:** [GitHub issue #34](https://github.com/Ankit6149/skribly/issues/34)
+
+## Current reconciliation note — 9 August 2026
+
+The following audit risks now have implemented foundations, although their parent launch gates may remain open for physical Windows or broader-scope evidence:
+
+- hardened versioned JSON persistence, recovery generations, rollback, and metadata-only diagnostics;
+- ordered/coalesced note saves with truthful save/retry state;
+- one-process routing, bounded/coalesced WinEvent delivery, fail-closed target capture, and monitor/DPI-safe compact placement;
+- deterministic create/reopen behavior in the compact transient editor;
+- a normal non-floating All Skribs window with search and portable export;
+- reversible Trash and note-specific permanent deletion inside Trash;
+- strict portable JSON preview plus verified rollback backup and atomic import apply;
+- truthful compact-editor website claims with public downloads disabled;
+- a private-only Windows installer workflow and canonical Skribli branding gates.
+
+The remaining release decision is still evidence-driven: physical Windows runtime/installer acceptance, context identity and lifecycle completion, accessibility, compatibility, security/privacy/legal readiness, signing/reproducibility, rollback, and supported public delivery must pass before distribution. Payments remain a separate later gate.
 
 ## 1. Executive verdict
 
