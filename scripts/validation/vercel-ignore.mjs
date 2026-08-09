@@ -9,6 +9,8 @@ export const DEPLOYABLE_FILES = Object.freeze(
     '.nvmrc',
     'package.json',
     'package-lock.json',
+    'scripts/validation/vercel-ignore.mjs',
+    'site/vercel.json',
     'vercel.json',
   ])
 );
