@@ -6,8 +6,11 @@ import { fileURLToPath } from 'node:url';
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const workflowPath = path.join(repositoryRoot, '.github/workflows/private-test-artifact.yml');
-const workflow = await readFile(workflowPath, 'utf8');
-const ciWorkflow = await readFile(path.join(repositoryRoot, '.github/workflows/ci.yml'), 'utf8');
+const workflow = (await readFile(workflowPath, 'utf8')).replace(/\r\n?/g, '\n');
+const ciWorkflow = (await readFile(path.join(repositoryRoot, '.github/workflows/ci.yml'), 'utf8')).replace(
+  /\r\n?/g,
+  '\n',
+);
 const tauriConfigPath = path.join(repositoryRoot, 'apps/desktop/src-tauri/tauri.conf.json');
 const tauriConfig = JSON.parse(await readFile(tauriConfigPath, 'utf8'));
 const rootPackage = JSON.parse(await readFile(path.join(repositoryRoot, 'package.json'), 'utf8'));
