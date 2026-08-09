@@ -5,6 +5,8 @@ import { fileURLToPath } from 'node:url';
 
 export const DEPLOYABLE_PREFIXES = Object.freeze(['site/', 'api/', 'public/']);
 export const DEFAULT_BASE_BRANCH = 'main';
+export const BASE_REPOSITORY_URL =
+  'https://github.com/Ankit6149/skribly.git';
 export const DEPLOYABLE_FILES = Object.freeze(
   new Set([
     '.nvmrc',
@@ -70,7 +72,7 @@ export function resolveDiffBase({
     );
   }
 
-  const remoteBaseRef = `refs/remotes/origin/${DEFAULT_BASE_BRANCH}`;
+  const remoteBaseRef = `refs/remotes/skribli-vercel/${DEFAULT_BASE_BRANCH}`;
   let baseSha;
 
   try {
@@ -80,7 +82,7 @@ export function resolveDiffBase({
       'fetch',
       '--no-tags',
       '--depth=1',
-      'origin',
+      BASE_REPOSITORY_URL,
       `refs/heads/${DEFAULT_BASE_BRANCH}:${remoteBaseRef}`,
     ]);
     baseSha = git(['rev-parse', '--verify', remoteBaseRef]).trim();
@@ -93,8 +95,8 @@ export function resolveDiffBase({
   return {
     baseSha,
     reason:
-      `previous deployment SHA unavailable; comparing preview branch to ` +
-      `origin/${DEFAULT_BASE_BRANCH}.`,
+      `previous deployment SHA unavailable; comparing preview branch to the ` +
+      `repository ${DEFAULT_BASE_BRANCH} tree.`,
   };
 }
 

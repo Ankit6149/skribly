@@ -47,10 +47,11 @@ These changes still run the applicable GitHub Actions checks.
 
 Vercel does not provide `VERCEL_GIT_PREVIOUS_SHA` until a branch has a successful
 deployment. For the first preview on a non-production branch, the command compares
-the candidate tree with `origin/main`. It fetches the `main` tip with depth one when
-the remote-tracking ref is not present in Vercel's clone. Comparing the two trees
-captures the branch's complete web difference even when several commits were pushed
-before the first preview.
+the candidate tree with the repository's `main` tree. Vercel's clone does not retain
+an `origin` remote, so the command fetches the `main` tip with depth one from the
+repository's read-only public GitHub URL when its dedicated remote-tracking ref is
+not present. Comparing the two trees captures the branch's complete web difference
+even when several commits were pushed before the first preview.
 
 This fallback is preview-only. It never substitutes the current `main` tree as its
 own production baseline.
@@ -62,7 +63,7 @@ The ignored-build command still continues the build when:
 - `VERCEL_GIT_PREVIOUS_SHA` is unavailable on `main` or in production;
 - the previous SHA is an all-zero sentinel and no safe preview baseline resolves;
 - the current branch name is unavailable;
-- `origin/main` cannot be resolved or fetched for a first preview;
+- the repository `main` tree cannot be resolved or fetched for a first preview;
 - `git diff` fails;
 - `SKRIBLY_FORCE_VERCEL_BUILD=1` is present.
 
@@ -118,7 +119,7 @@ evaluation:
 - the deployment is canceled by Vercel's Ignored Build Step rather than reaching
   READY or FAILED;
 - the log states that the previous deployment SHA was unavailable and that the
-  preview is being compared with `origin/main`;
+  preview is being compared with the repository `main` tree;
 - the log lists only the expected non-web paths;
 - the command prints `no deployable web input changed; skip Vercel build`;
 - GitHub reports the Vercel status as successful for the exact commit;

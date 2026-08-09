@@ -44,6 +44,7 @@ jobs:
             'chore/cleanup-squash-merged-branches'
             'docs/expanded-product-roadmap'
             'docs/111-first-preview-evidence'
+            'docs/111-first-preview-evidence-2'
             'feat/110-first-note-onboarding'
             'feat/126-all-skribs-window'
             'feat/131-reversible-trash'
