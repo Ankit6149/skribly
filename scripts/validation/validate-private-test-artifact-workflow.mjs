@@ -19,6 +19,10 @@ const tray = await readFile(
   path.join(repositoryRoot, 'apps/desktop/src-tauri/src/desktop/tray.rs'),
   'utf8',
 );
+const installerValidator = await readFile(
+  path.join(repositoryRoot, 'scripts/validation/verify-windows-installer-branding.ps1'),
+  'utf8',
+);
 const acceptance = await readFile(
   path.join(repositoryRoot, 'docs/04-operations/PRIVATE_WINDOWS_TEST_ACCEPTANCE.md'),
   'utf8',
@@ -65,7 +69,7 @@ for (const marker of [
   'name: Validate trial-enforced native configuration',
   'cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml',
   'npm run tauri -- build --bundles nsis,msi',
-  './scripts/validation/verify-windows-installer-branding.ps1',
+  './scripts/validation/verify-windows-installer-branding.ps1 -RunInstalledPayloadSmoke',
   'private_test_only = $true',
   'commit_sha = $env:RESOLVED_SHA',
   'canonical_icon_sha256',
@@ -95,6 +99,9 @@ for (const marker of [
 if (tauriConfig.productName !== 'Skribli') {
   failures.push('The Tauri product name must remain Skribli for installer and shell branding.');
 }
+if (tauriConfig.mainBinaryName !== 'skribly') {
+  failures.push("Tauri must explicitly bundle the 'skribly' application binary, never an auxiliary test binary.");
+}
 
 const cargoVersion = cargoToml.match(/^version = "([^"]+)"$/m)?.[1];
 if (!cargoVersion || cargoVersion !== tauriConfig.version) {
@@ -109,6 +116,18 @@ for (const requiredIcon of ['icons/32x32.png', 'icons/128x128.png', 'icons/128x1
 for (const property of ['installerIcon', 'uninstallerIcon']) {
   if (tauriConfig.bundle?.windows?.nsis?.[property] !== 'icons/icon.ico') {
     failures.push(`NSIS ${property} must explicitly use icons/icon.ico.`);
+  }
+}
+
+for (const marker of [
+  "mainBinaryName -ne 'skribly'",
+  'Test-InstalledNsisPayload',
+  'storage_acceptance.exe',
+  'The Start menu shortcut does not point to the installed',
+  'startup smoke test',
+]) {
+  if (!installerValidator.includes(marker)) {
+    failures.push(`Windows installer validation is missing the required payload guard: ${marker}`);
   }
 }
 

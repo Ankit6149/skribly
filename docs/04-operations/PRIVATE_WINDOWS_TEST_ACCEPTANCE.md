@@ -15,8 +15,11 @@ Add or Remove Programs entry. A generic, stale, blank, or Tauri icon is a failed
 The automated packaging gate compares the associated icon embedded in the release executable and
 NSIS installer to `apps/desktop/src-tauri/icons/icon.ico`. It also checks the product name, package
 name/version, explicit NSIS installer and uninstaller bindings, canonical icon hashes, and the
-required 16, 24, 32, 48, 64, and 256 pixel ICO layers. MSI and installed-shell surfaces still
-require the physical checks below.
+required 16, 24, 32, 48, 64, and 256 pixel ICO layers. It then silently installs the NSIS package
+into a clean temporary directory, requires `skribly.exe` (and rejects the `storage_acceptance.exe`
+test harness), verifies that the new Start menu shortcut targets that executable, and keeps the
+installed app alive for five seconds. MSI and broader installed-shell surfaces still require the
+physical checks below.
 
 ## Obtain and identify the candidate
 

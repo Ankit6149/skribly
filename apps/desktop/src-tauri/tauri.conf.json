@@ -1,8 +1,9 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Skribli",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "identifier": "app.skribly.desktop",
+  "mainBinaryName": "skribly",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
