@@ -128,3 +128,7 @@ evaluation:
 Record the branch, exact commit, Vercel deployment ID, workflow run ID, and relevant
 log lines on the tracking issue before closing it. A later commit on an established
 preview branch is not sufficient evidence for this specific fallback.
+
+The immutable provider-generated IDs belong on the tracking issue and probe pull
+request rather than in this file: Vercel assigns them only after the candidate commit
+exists, and adding them here would turn the evidence into a later branch evaluation.
