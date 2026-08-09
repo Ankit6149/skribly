@@ -88,9 +88,14 @@ jobs:
           npm run build
 
       - name: Validate native application contracts
+        env:
+          SKRIBLY_TRIAL_ENFORCED: "0"
         run: |
           cargo fmt --manifest-path apps/desktop/src-tauri/Cargo.toml --check
           cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -- --test-threads=1
+
+      - name: Validate trial-enforced native configuration
+        run: cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml
 
       - name: Build Windows installers
         run: npm run tauri -- build --bundles nsis,msi
