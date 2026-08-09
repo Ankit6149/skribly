@@ -92,7 +92,7 @@ test('explicit path fixtures use Vercel exit semantics', () => {
   );
 });
 
-test('first preview compares with origin/main when no deployment SHA exists', () => {
+test('first preview compares with repository main when no deployment SHA exists', () => {
   const calls = [];
   const result = resolveDiffBase({
     environment: {
@@ -110,17 +110,17 @@ test('first preview compares with origin/main when no deployment SHA exists', ()
   });
 
   assert.equal(result.baseSha, '1234567890abcdef1234567890abcdef12345678');
-  assert.match(result.reason, /comparing preview branch to origin\/main/u);
+  assert.match(result.reason, /comparing preview branch to the repository main tree/u);
   assert.deepEqual(calls, [
-    ['rev-parse', '--verify', 'refs/remotes/origin/main'],
+    ['rev-parse', '--verify', 'refs/remotes/skribli-vercel/main'],
     [
       'fetch',
       '--no-tags',
       '--depth=1',
-      'origin',
-      'refs/heads/main:refs/remotes/origin/main',
+      'https://github.com/Ankit6149/skribly.git',
+      'refs/heads/main:refs/remotes/skribli-vercel/main',
     ],
-    ['rev-parse', '--verify', 'refs/remotes/origin/main'],
+    ['rev-parse', '--verify', 'refs/remotes/skribli-vercel/main'],
   ]);
 });
 
