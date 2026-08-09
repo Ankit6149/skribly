@@ -104,3 +104,26 @@ Any change to the deployment allowlist must update together:
 3. `scripts/validation/vercel-ignore.test.mjs`;
 4. this runbook;
 5. issue or pull-request evidence explaining why the new path affects deployed output.
+
+## Fresh-branch acceptance protocol
+
+The first-preview fallback must be verified against Vercel after any change to its
+comparison logic. Create a new branch from the tested `main` commit, publish exactly
+one commit that changes only a path from the intentionally skipped list, and open a
+pull request without adding a deployable web change.
+
+Acceptance requires all of the following evidence from that first provider
+evaluation:
+
+- the deployment is canceled by Vercel's Ignored Build Step rather than reaching
+  READY or FAILED;
+- the log states that the previous deployment SHA was unavailable and that the
+  preview is being compared with `origin/main`;
+- the log lists only the expected non-web paths;
+- the command prints `no deployable web input changed; skip Vercel build`;
+- GitHub reports the Vercel status as successful for the exact commit;
+- the repository's normal GitHub Actions checks remain green.
+
+Record the branch, exact commit, Vercel deployment ID, workflow run ID, and relevant
+log lines on the tracking issue before closing it. A later commit on an established
+preview branch is not sufficient evidence for this specific fallback.
