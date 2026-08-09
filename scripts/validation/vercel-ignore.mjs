@@ -4,6 +4,7 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 export const DEPLOYABLE_PREFIXES = Object.freeze(['site/', 'api/', 'public/']);
+export const DEFAULT_BASE_BRANCH = 'main';
 export const DEPLOYABLE_FILES = Object.freeze(
   new Set([
     '.nvmrc',
@@ -33,19 +34,76 @@ export function shouldDeploy(changedPaths) {
   return changedPaths.some(isDeployableWebPath);
 }
 
-export function readChangedPaths(baseSha, headSha = 'HEAD') {
-  if (!baseSha || /^0+$/.test(baseSha)) {
-    throw new Error('A previous deployment SHA is not available.');
+function executeGit(args) {
+  return execFileSync('git', args, {
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+}
+
+function isUsableSha(value) {
+  return Boolean(value && !/^0+$/u.test(value));
+}
+
+export function resolveDiffBase({
+  environment = process.env,
+  git = executeGit,
+} = {}) {
+  const previousSha = environment.VERCEL_GIT_PREVIOUS_SHA;
+  if (isUsableSha(previousSha)) {
+    return { baseSha: previousSha, reason: '' };
   }
 
-  const output = execFileSync(
-    'git',
-    ['diff', '--name-only', baseSha, headSha, '--'],
-    {
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'pipe'],
-    }
-  );
+  const commitRef = String(environment.VERCEL_GIT_COMMIT_REF ?? '').trim();
+  if (!commitRef) {
+    throw new Error(
+      'A previous deployment SHA and current Git branch are not available.'
+    );
+  }
+
+  if (
+    commitRef === DEFAULT_BASE_BRANCH ||
+    environment.VERCEL_ENV === 'production'
+  ) {
+    throw new Error(
+      'A previous deployment SHA is not available for the production branch.'
+    );
+  }
+
+  const remoteBaseRef = `refs/remotes/origin/${DEFAULT_BASE_BRANCH}`;
+  let baseSha;
+
+  try {
+    baseSha = git(['rev-parse', '--verify', remoteBaseRef]).trim();
+  } catch {
+    git([
+      'fetch',
+      '--no-tags',
+      '--depth=1',
+      'origin',
+      `refs/heads/${DEFAULT_BASE_BRANCH}:${remoteBaseRef}`,
+    ]);
+    baseSha = git(['rev-parse', '--verify', remoteBaseRef]).trim();
+  }
+
+  if (!isUsableSha(baseSha)) {
+    throw new Error(`Could not resolve origin/${DEFAULT_BASE_BRANCH}.`);
+  }
+
+  return {
+    baseSha,
+    reason:
+      `previous deployment SHA unavailable; comparing preview branch to ` +
+      `origin/${DEFAULT_BASE_BRANCH}.`,
+  };
+}
+
+export function readChangedPaths(baseSha, headSha = 'HEAD') {
+  if (!isUsableSha(baseSha)) {
+    throw new Error('A comparison SHA is not available.');
+  }
+
+  const output = executeGit(['diff', '--name-only', baseSha, headSha, '--']);
 
   return output
     .split(/\r?\n/u)
@@ -72,6 +130,8 @@ function printDecision(deploy, changedPaths, reason) {
 export function runIgnoreCommand({
   environment = process.env,
   argv = process.argv.slice(2),
+  resolveBase = resolveDiffBase,
+  readPaths = readChangedPaths,
 } = {}) {
   if (environment.SKRIBLY_FORCE_VERCEL_BUILD === '1') {
     printDecision(true, [], 'SKRIBLY_FORCE_VERCEL_BUILD=1 was provided.');
@@ -86,11 +146,11 @@ export function runIgnoreCommand({
     return deploy ? 1 : 0;
   }
 
-  const previousSha = environment.VERCEL_GIT_PREVIOUS_SHA;
   try {
-    const changedPaths = readChangedPaths(previousSha);
+    const { baseSha, reason } = resolveBase({ environment });
+    const changedPaths = readPaths(baseSha);
     const deploy = shouldDeploy(changedPaths);
-    printDecision(deploy, changedPaths);
+    printDecision(deploy, changedPaths, reason);
     return deploy ? 1 : 0;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
