@@ -33,6 +33,10 @@ function sha256(value) {
   return createHash('sha256').update(value).digest('hex');
 }
 
+function normalizeTextAsset(buffer) {
+  return Buffer.from(buffer.toString('utf8').replace(/\r\n?/g, '\n'), 'utf8');
+}
+
 function readPngDimensions(buffer) {
   const signature = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
   if (!buffer.subarray(0, signature.length).equals(signature) || buffer.toString('ascii', 12, 16) !== 'IHDR') {
@@ -150,10 +154,15 @@ const canonicalVector = await readFile(
   path.join(repositoryRoot, 'assets/branding/skribly-app-icon.svg'),
 );
 const siteVector = await readFile(path.join(repositoryRoot, 'site/assets/skribly-icon.svg'));
-if (sha256(canonicalVector) !== '2bc8f2532e617189630b654834247eed72c4c028a0bb4e2a31bdbd74590cf425') {
+const normalizedCanonicalVector = normalizeTextAsset(canonicalVector);
+const normalizedSiteVector = normalizeTextAsset(siteVector);
+if (
+  sha256(normalizedCanonicalVector) !==
+  '2bc8f2532e617189630b654834247eed72c4c028a0bb4e2a31bdbd74590cf425'
+) {
   failures.push('The canonical blank folded-note SVG changed unexpectedly.');
 }
-if (!canonicalVector.equals(siteVector)) {
+if (!normalizedCanonicalVector.equals(normalizedSiteVector)) {
   failures.push('The application and website must use the same canonical Skribli SVG.');
 }
 
