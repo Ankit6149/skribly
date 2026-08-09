@@ -110,6 +110,12 @@ jobs:
       - name: Install workspace dependencies
         run: npm ci
 
+      - name: Parse Windows installer-branding gate
+        shell: pwsh
+        run: |
+          $script = Get-Content 'scripts/validation/verify-windows-installer-branding.ps1' -Raw
+          $null = [scriptblock]::Create($script)
+
       - name: Run Windows cargo check
         run: cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml
 

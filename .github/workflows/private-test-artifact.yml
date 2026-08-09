@@ -26,11 +26,17 @@ jobs:
     steps:
       - name: Confirm private-only build intent
         shell: pwsh
+        env:
+          ACKNOWLEDGEMENT: ${{ inputs.acknowledgement }}
+          CANDIDATE_REF: ${{ inputs.candidate_ref }}
         run: |
-          if ('${{ inputs.acknowledgement }}' -ne 'BUILD_PRIVATE_TEST_ARTIFACT') {
+          if ($env:ACKNOWLEDGEMENT -ne 'BUILD_PRIVATE_TEST_ARTIFACT') {
             throw 'Private artifact acknowledgement was not provided.'
           }
-          if ('${{ inputs.candidate_ref }}' -match '^refs/tags/' -or '${{ inputs.candidate_ref }}' -match '^v\d') {
+          if ([string]::IsNullOrWhiteSpace($env:CANDIDATE_REF)) {
+            throw 'An explicit candidate branch or commit SHA is required.'
+          }
+          if ($env:CANDIDATE_REF -match '^refs/tags/' -or $env:CANDIDATE_REF -match '^v\d') {
             throw 'Tags are not accepted by the private test-artifact workflow.'
           }
 
@@ -39,6 +45,16 @@ jobs:
         with:
           ref: ${{ inputs.candidate_ref }}
           fetch-depth: 1
+
+      - name: Resolve checked-out candidate identity
+        id: candidate
+        shell: pwsh
+        run: |
+          $resolvedSha = (git rev-parse HEAD).Trim().ToLowerInvariant()
+          if ($resolvedSha -notmatch '^[0-9a-f]{40}$') {
+            throw "Checked-out candidate did not resolve to a full commit SHA: $resolvedSha"
+          }
+          "sha=$resolvedSha" >> $env:GITHUB_OUTPUT
 
       - name: Set up Node.js
         uses: actions/setup-node@v7
@@ -74,25 +90,44 @@ jobs:
       - name: Build Windows installers
         run: npm run tauri -- build --bundles nsis,msi
 
+      - name: Verify Windows package identity and Skribli branding
+        shell: pwsh
+        run: ./scripts/validation/verify-windows-installer-branding.ps1
+
       - name: Create private-test manifest and checksums
         shell: pwsh
+        env:
+          CANDIDATE_REF: ${{ inputs.candidate_ref }}
+          RESOLVED_SHA: ${{ steps.candidate.outputs.sha }}
         run: |
           $artifactRoot = 'artifacts/private-test'
           $bundleRoot = 'apps/desktop/src-tauri/target/release/bundle'
           New-Item -ItemType Directory -Force -Path $artifactRoot | Out-Null
           $installers = Get-ChildItem -Path $bundleRoot -Recurse -File -Include *.exe,*.msi
           if ($installers.Count -eq 0) { throw 'Tauri did not produce an NSIS or MSI installer.' }
+          $tauriConfig = Get-Content 'apps/desktop/src-tauri/tauri.conf.json' -Raw | ConvertFrom-Json
+          $canonicalIcon = 'apps/desktop/src-tauri/icons/icon.ico'
+          $trayIcon = 'apps/desktop/src-tauri/icons/icon.png'
           $manifest = [ordered]@{
             schema_version = 1
             private_test_only = $true
             repository = '${{ github.repository }}'
-            commit_sha = '${{ github.sha }}'
-            candidate_ref = '${{ inputs.candidate_ref }}'
-            version = (Get-Content 'apps/desktop/src-tauri/tauri.conf.json' -Raw | ConvertFrom-Json).version
-            product_name = (Get-Content 'apps/desktop/src-tauri/tauri.conf.json' -Raw | ConvertFrom-Json).productName
+            commit_sha = $env:RESOLVED_SHA
+            candidate_ref = $env:CANDIDATE_REF
+            version = $tauriConfig.version
+            product_name = $tauriConfig.productName
             created_at_utc = (Get-Date).ToUniversalTime().ToString('o')
             retention_days = 14
             supported_test_scope = @('private founder testing only', 'not signed', 'not a public release')
+            branding = [ordered]@{
+              canonical_icon_path = $canonicalIcon
+              canonical_icon_sha256 = (Get-FileHash -Algorithm SHA256 -Path $canonicalIcon).Hash.ToLowerInvariant()
+              tray_icon_path = $trayIcon
+              tray_icon_sha256 = (Get-FileHash -Algorithm SHA256 -Path $trayIcon).Hash.ToLowerInvariant()
+              nsis_installer_icon = $tauriConfig.bundle.windows.nsis.installerIcon
+              nsis_uninstaller_icon = $tauriConfig.bundle.windows.nsis.uninstallerIcon
+              evidence_path = 'artifacts/private-test/branding-evidence.json'
+            }
             installers = @($installers | ForEach-Object {
               [ordered]@{
                 file_name = $_.Name
@@ -112,5 +147,6 @@ jobs:
             apps/desktop/src-tauri/target/release/bundle/nsis/*.exe
             apps/desktop/src-tauri/target/release/bundle/msi/*.msi
             artifacts/private-test/manifest.json
+            artifacts/private-test/branding-evidence.json
           if-no-files-found: error
           retention-days: 14
