@@ -205,10 +205,14 @@ pub fn remove_session_value(app_data_dir: &Path, key: &str) -> Result<(), String
 
 #[cfg(target_os = "windows")]
 fn machine_guid() -> Result<String, String> {
-    use winreg::enums::KEY_READ;
+    use winreg::enums::{HKEY_LOCAL_MACHINE, KEY_READ, KEY_WOW64_64KEY};
+    use winreg::RegKey;
 
-    let key = winreg::HKLM
-        .open_subkey_with_flags(r"SOFTWARE\Microsoft\Cryptography", KEY_READ)
+    let key = RegKey::predef(HKEY_LOCAL_MACHINE)
+        .open_subkey_with_flags(
+            r"SOFTWARE\Microsoft\Cryptography",
+            KEY_READ | KEY_WOW64_64KEY,
+        )
         .map_err(|error| format!("Windows device identity is unavailable: {error}"))?;
     let guid: String = key
         .get_value("MachineGuid")
