@@ -1,13 +1,15 @@
 # Skribli
 
-**Leave a note where the thought belongs.**
+**Put a Skrib where the thought belongs.**
 
 > **Status — active product development**  
 > Public downloads remain disabled while the Windows desktop build completes its data-safety, lifecycle, context, recovery, accessibility, physical-runtime, and release-validation gates.
 
-Skribli is a local-first contextual typed-note utility for Windows. The current product direction is deliberately small: capture a thought in a compact editor, save it safely on the user’s computer, then return to the original application.
+Skribli is a local-first contextual annotation application for Windows. Its product scope is broader than notes: handwriting, highlights, arrows, images, reminders, screenshot pins, and context attached to screens, applications, pages, files, and folders all belong to the long-term system. The current Founder Alpha implements the first honest slice—typed contextual **Skribs** in a compact editor—without pretending the richer tools are already shipped.
 
-On the first successful launch, a compact three-step guide visibly confirms that Skribli is ready, explains the shortcut and local-first behavior, and distinguishes hiding the editor from quitting the background process. The guide creates no sample note and can be reopened later from **Quick guide** in the tray.
+A normal launch always opens the visible **Skribli Home** window. Fresh users see account setup first, then a compact guide that explains the shortcut and local-first behavior, and finally a ready Home surface. The guide creates no sample Skrib and can be reopened later from **Quick guide** in the tray.
+
+A verified account is mandatory for write access in enforced builds. The account service stores only verified email, trial/entitlement state, a one-way device claim, app version, and the user’s optional product-update consent. Skrib content remains on the Windows device. Changing accounts or reinstalling on the same Windows device does not restart that device’s trial.
 
 ## Current Windows build contract
 
@@ -23,7 +25,7 @@ The active compact-note flow is:
 
 When Windows cannot provide or revalidate a safe target, Skribli shows one actionable compact message, clears the previous target, and does not create, reopen, move, or focus a note.
 
-Launching Skribli again in the same Windows user session signals the existing process through the same note-opening path instead of starting a second storage writer, tray process, hotkey registration, or WinEvent hook set.
+Launching Skribli again in the same Windows user session restores the existing Home window instead of creating a surprise Skrib or starting a second storage writer, tray process, hotkey registration, or WinEvent hook set.
 
 Windows accessibility events use bounded, non-blocking delivery with callback-side filtering and duplicate coalescing. Relevant foreground and active-target changes are processed by a separate consumer thread; unrelated child-object and non-target movement events are discarded before queue delivery.
 
@@ -35,16 +37,19 @@ The create/reopen decision is deterministic, All Skribs recovery is available, o
 
 - Tauri 2 desktop shell with React, TypeScript, Vite, and Rust.
 - Compact fully interactive note window rather than a screen-blocking overlay.
+- A visible, decorated Home window that opens on every normal launch and remains recoverable after setup failures.
+- Mandatory email/password account setup with verified-email state, secure Windows DPAPI session storage, and explicit optional product-update consent.
+- Server-owned seven-day trial records joined across verified account and privacy-minimized stable device claim.
+- Server-signed native entitlements, bounded offline grace, and native write blocking after sign-out, invalid entitlement, clock rollback, or trial expiry.
 - Versioned first-run state with explicit **unseen**, **shown**, and **completed** behavior.
-- Visible three-step first-note guide with local-first privacy and Close/Hide-versus-Quit education.
-- Tested compact-window decision hierarchy: draft, storage recovery, startup failure, capture recovery, onboarding, then hidden empty state.
-- Reopenable **Quick guide** tray action and visible retry surface when native shortcut setup fails.
+- Visible three-step first-Skrib guide with local-first privacy and Close/Hide-versus-Quit education.
+- Reopenable **Quick guide** and **Open Skribli** tray actions plus a visible retry surface when account or native setup fails.
 - Fail-closed one-shot foreground capture with HWND and process-identity revalidation before placement or note access.
 - Visible privacy-safe recovery guidance when target capture fails, without creating or reopening a note.
 - Target-monitor work-area placement using fresh HWND geometry and per-monitor DPI.
 - Final native placement validation, fail-closed errors, and a keyboard-accessible **Reposition** action.
 - Per-Windows-session named-mutex guard acquired before the Tauri runtime starts.
-- Second-launch routing through the existing global-shortcut note flow.
+- Second-launch routing to the existing visible Home window.
 - Bounded, non-blocking, filtered, and duplicate-coalesced Windows event delivery.
 - Privacy-safe event counters for filtering, delivery, saturation, disconnection, processing, and pending capacity.
 - Local versioned JSON persistence with crash-recovery generations and storage diagnostics.
@@ -55,6 +60,7 @@ The create/reopen decision is deterministic, All Skribs recovery is available, o
 - Reversible Trash with 30-day recovery guidance; permanent deletion exists only inside Trash after note-specific confirmation.
 - Portable JSON import with strict validation, non-mutating preview, duplicate/conflict reporting, revision/fingerprint locking, verified rollback backup, and atomic apply.
 - No console window in the Windows release build configuration.
+- Locally bundled Kalam handwriting typography for Skrib content; the editor never depends on a remote font request.
 - Global **Ctrl + Shift + Space** shortcut and tray-based background process.
 - Public downloads and payment flows disabled while release gates are incomplete.
 
@@ -70,6 +76,7 @@ The canonical execution tracker is [issue #34](https://github.com/Ankit6149/skri
 - [#21](https://github.com/Ankit6149/skribly/issues/21) remaining archive, scalable indexing/filtering, attachment portability, broader backup/recovery, and exact physical evidence after All Skribs, export, Trash, and portable import delivery;
 - [#24](https://github.com/Ankit6149/skribly/issues/24) release-blocking Windows runtime evidence;
 - [#25](https://github.com/Ankit6149/skribly/issues/25) signed reproducible installer and rollback pipeline;
+- [#28](https://github.com/Ankit6149/skribly/issues/28) final production ownership/migration of the temporary account service, update-email operations, and payment entitlement integration (payments remain deferred to #27);
 - [#51](https://github.com/Ankit6149/skribly/issues/51) remaining shortcut-conflict detection, migrations, settings integration, permissions education, usability studies, and release-candidate onboarding evidence after the first-note guide.
 
 An issue must remain open when only part of its acceptance criteria has been implemented. Progress belongs in a detailed issue comment with exact commits, checks, missing runtime evidence, and remaining work.
@@ -79,14 +86,14 @@ An issue must remain open when only part of its acceptance criteria has been imp
 ### Current release target
 
 - Windows desktop only.
-- Typed contextual notes through a compact transient editor.
-- Local-first use without a mandatory account.
+- Typed contextual Skribs through a compact transient editor as the first annotation tool.
+- Mandatory verified account for trial/write access; Skrib content itself remains local.
 
 ### Deferred and unavailable in the current build
 
 - macOS support;
 - browser URL or DOM-element anchoring;
-- ink, highlighters, arrows, shapes, pins, checklists, reminders, and attachments;
+- the not-yet-implemented ink, highlighter, arrow, shape, pin, reminder, screenshot, and attachment tools;
 - cloud sync, collaboration, mobile apps, AI, OCR, plugins, and a marketplace.
 
 Deferred capabilities are tracked under [issue #46](https://github.com/Ankit6149/skribly/issues/46). Their placeholder code or documentation must not be interpreted as released support.

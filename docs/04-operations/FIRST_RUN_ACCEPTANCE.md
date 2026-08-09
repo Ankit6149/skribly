@@ -2,13 +2,19 @@
 
 ## Purpose
 
-This runbook validates the first-note onboarding slice implemented for issue 110. It exists to prevent a successful installation from appearing to do nothing and to teach the real compact-note workflow without a wizard, account prompt, sample data, or dense feature tour.
+This runbook validates the account-first launch and first-Skrib guide. It exists to prevent a successful installation from appearing to do nothing, require a verified account before write access, and teach the real compact-Skrib workflow without sample data or a dense feature tour.
 
 Parent issue 51 remains open for interactive shortcut-conflict detection, unsupported-runtime education, upgrade/interrupted-state migrations, Settings integration, complete permissions education, usability studies, and exact release-candidate evidence.
 
 ## Implemented contract
 
-A fresh supported Windows profile must receive one compact visible guide after native initialization and local storage loading succeed.
+A fresh supported Windows profile must immediately receive the normal decorated **Skribli Home** window. Setup progresses through three visible stages:
+
+1. create or sign in to a verified account and claim the server-owned account/device trial;
+2. review the compact shortcut, privacy, and lifecycle guide;
+3. land on the ready Home surface with trial status, **All Skribs**, and **Quick guide**.
+
+No successful launch is allowed to depend on a hidden compact editor or tray discovery.
 
 The guide must explain, in three scannable steps:
 
@@ -18,70 +24,63 @@ The guide must explain, in three scannable steps:
 
 It must also state:
 
-- notes remain on the device;
+- Skrib content remains on the device;
+- account metadata is limited to identity, trial/entitlement, app version, and update preference;
+- changing account or reinstalling on the same device does not restart the device trial;
 - Skribli uses limited window identity and geometry, not screen recording, for current contextual return;
 - **Done** hides the editor while the background shortcut remains ready;
 - **Quit Skribli** in the tray stops the process.
 
-The guide never creates a sample note, enumerates target windows, mutates note storage, or persists application/document metadata.
+The guide never creates a sample Skrib, enumerates target windows, mutates Skrib storage, or persists application/document metadata.
 
 ## Versioned state model
 
 The frontend stores only one non-sensitive onboarding record under:
 
 ```text
-skribli.onboarding.v1
+skribli.onboarding.v2
 ```
 
 Valid states are:
 
 - `unseen` — no valid current-version record exists; auto-show once when no higher-priority surface is active;
 - `shown` — the guide was presented or dismissed; do not interrupt automatically again, but allow explicit tray reopening;
-- `completed` — the user chose **Start using Skribli**; never downgrade to `shown`.
+- `completed` — the user chose **Continue to Skribli home**; never downgrade to `shown`.
 
 Malformed, incomplete, or unknown-version records fail safely to `unseen`.
 
-## Compact-window decision hierarchy
+## Window separation
 
-Exactly one primary surface may occupy the main window. Automated tests pin this order:
-
-1. active composer/draft;
-2. storage recovery;
-3. native startup failure;
-4. target-capture recovery;
-5. onboarding;
-6. empty hidden window.
-
-Onboarding must never replace an active draft, hide a storage fault, or mask a native shortcut failure.
+The onboarding surface lives only in the normal Home window. The hidden compact editor remains reserved for a requested Skrib, storage recovery, native startup failure, or target-capture recovery. This prevents first-run education from competing with an active draft.
 
 ## First-run actions
 
-### Start using Skribli
+### Continue to Skribli home
 
 - write `completed` state;
-- hide the guide;
+- return to the ready Home surface;
 - do not create a note;
 - leave the tray process and shortcut ready.
 
-### Maybe later
+### Review later
 
 - retain `shown` rather than `completed` state;
-- hide the guide;
+- return to the ready Home surface;
 - keep **Quick guide** available in the tray.
 
 ### Quick guide tray action
 
 - emit the dedicated onboarding event;
-- center and show the compact window;
-- focus the guide when no higher-priority surface is active;
-- preserve a current draft or recovery surface instead of replacing it.
+- restore, show, and focus the Home window;
+- show the guide inside Home;
+- leave a current compact draft or recovery surface unchanged.
 
 ## Native initialization failure
 
-When required Windows hotkey, hook, or window initialization fails and no draft/recovery surface is active, Skribli must show a compact alert with:
+When account configuration, sign-in, entitlement claim, Windows hotkey, hook, or window initialization fails, Skribli must remain visible with an actionable recovery surface. Existing local Skribs remain protected and are never overwritten by setup recovery. Native shortcut failures still provide:
 
 - the exact safe native failure message;
-- a statement that existing local notes remain protected;
+- a statement that existing local Skribs remain protected;
 - one primary **Retry setup** action;
 - one secondary **Hide** action.
 
@@ -91,17 +90,17 @@ Onboarding must not appear until initialization becomes ready.
 
 Frontend tests cover:
 
-- fresh `unseen` state;
+- fresh `unseen` state after account readiness;
 - `shown` dismissal state;
 - irreversible `completed` state unless the version changes;
 - malformed and stale records;
 - explicit tray re-entry independence from auto-show policy;
-- composer, recovery, startup-failure, capture-error, onboarding, and empty surface priority.
+- account loading, signed-out, verification-pending, claiming, ready, and recoverable-error phases.
 
 Rust and frontend compilation cover:
 
 - tray event emission;
-- main-window center/show/focus behavior;
+- Home-window restore/show/focus behavior;
 - startup retry binding;
 - local state imports and Tauri window methods.
 
@@ -109,7 +108,7 @@ Product-truth validation rejects:
 
 - removal of the versioned onboarding state;
 - removal of the `unseen`/`shown`/`completed` model;
-- removal of the tested surface hierarchy;
+- removal of the visible Home/account-first launch;
 - removal of the tray quick guide;
 - missing shortcut, local-first, Done/hide, or Quit guidance;
 - a return to an invisible successful first launch;
@@ -130,13 +129,13 @@ Record exact commit, binary SHA-256, Windows version/build, scaling, screen-read
 - launch Skribli with writable empty note storage;
 - confirm the guide is visible without clicking the tray;
 - confirm no note or target metadata is created;
-- choose **Start using Skribli** and confirm the window hides;
+- choose **Continue to Skribli home** and confirm the ready Home surface appears;
 - restart and confirm it does not interrupt automatically.
 
 ### Dismiss and reopen
 
 - reset to `unseen`;
-- choose **Maybe later**;
+- choose **Review later**;
 - confirm state is `shown`, not `completed`;
 - reopen **Quick guide** from the tray;
 - repeat after process restart.

@@ -153,7 +153,7 @@ if (ico.readUInt16LE(0) !== 0 || ico.readUInt16LE(2) !== 1) {
 const canonicalVector = await readFile(
   path.join(repositoryRoot, 'assets/branding/skribly-app-icon.svg'),
 );
-const siteVector = await readFile(path.join(repositoryRoot, 'site/assets/skribly-icon.svg'));
+const siteVector = await readFile(path.join(repositoryRoot, 'site/assets/skribly-note-mark-v2.svg'));
 const normalizedCanonicalVector = normalizeTextAsset(canonicalVector);
 const normalizedSiteVector = normalizeTextAsset(siteVector);
 if (

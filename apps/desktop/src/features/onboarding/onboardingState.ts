@@ -1,4 +1,4 @@
-export const ONBOARDING_VERSION = 1;
+export const ONBOARDING_VERSION = 2;
 export const ONBOARDING_STORAGE_KEY = `skribli.onboarding.v${ONBOARDING_VERSION}`;
 
 export type OnboardingStatus = 'unseen' | 'shown' | 'completed';

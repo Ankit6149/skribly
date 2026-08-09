@@ -291,7 +291,7 @@ html[data-skribly-window='library'] #root {
 .library-note-row-preview {
   margin-top: 3px;
   color: rgba(36, 39, 32, 0.74);
-  font-family: "Segoe Print", "Ink Free", cursive;
+  font-family: "Kalam", "Segoe Print", "Ink Free", cursive;
   font-size: 11px;
 }
 
@@ -343,7 +343,7 @@ html[data-skribly-window='library'] #root {
 .library-note-paper p {
   margin: 0;
   color: var(--library-ink);
-  font-family: "Segoe Print", "Ink Free", cursive;
+  font-family: "Kalam", "Segoe Print", "Ink Free", cursive;
   font-size: 17px;
   line-height: 1.65;
   overflow-wrap: anywhere;

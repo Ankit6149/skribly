@@ -1,6 +1,6 @@
 # Skribli
 
-Skribli is a local-first contextual typed-notes application for Windows 10 and Windows 11. The active codebase is in pre-release validation and public downloads are disabled.
+Skribli is a local-first contextual annotation application for Windows 10 and Windows 11. The active codebase is in pre-release validation and public downloads are disabled. The current release begins with contextual typed Skribs; handwriting, highlights, arrows, images, reminders, screenshot pins, and richer screen/application/page/file/folder context are roadmap capabilities rather than shipped claims.
 
 ## Current workflow
 
@@ -62,4 +62,4 @@ Public installer access remains disabled until the exact Windows release candida
 
 ## Privacy
 
-Core note use is local-first and requires no account, cloud sync, advertising tracker, or screen recording. Skribli reads limited Windows process, window identity, and geometry information locally when validating a shortcut target. Export and import operate on user-selected local JSON files. The public website currently adds no advertising cookies or behavioural analytics.
+A verified account is required for trial and write access. The account service stores verified email, entitlement dates, a one-way device claim, app version, and optional product-update consent. Skrib content remains local and is not uploaded. Skribli reads limited Windows process, window identity, and geometry information locally when validating a shortcut target. Export and import operate on user-selected local JSON files. The public website currently adds no advertising cookies or behavioural analytics.

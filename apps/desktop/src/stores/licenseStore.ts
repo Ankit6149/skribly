@@ -1,7 +1,14 @@
 import { emit, listen } from '@tauri-apps/api/event';
 import { create } from 'zustand';
 
-export type LicenseMode = 'beta' | 'trial' | 'licensed' | 'expired' | 'clock_error';
+export type LicenseMode =
+  | 'beta'
+  | 'account_required'
+  | 'trial'
+  | 'licensed'
+  | 'expired'
+  | 'clock_error'
+  | 'entitlement_error';
 
 export interface LicenseStatus {
   mode: LicenseMode;

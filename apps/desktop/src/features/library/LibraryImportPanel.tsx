@@ -248,7 +248,7 @@ export const LibraryImportPanel: React.FC<LibraryImportPanelProps> = ({
               </strong>
               <span>
                 {phase === 'applying'
-                  ? 'A complete rollback backup is written before local notes change.'
+                  ? 'A complete rollback backup is written before local Skribs change.'
                   : 'Native code is checking schema, fields, IDs, lifecycle state, and conflicts.'}
               </span>
             </div>
@@ -324,13 +324,13 @@ export const LibraryImportPanel: React.FC<LibraryImportPanelProps> = ({
               {!canApply && (
                 <div className="library-import-message readonly" role="status">
                   <strong>Preview only</strong>
-                  <span>Local writes are blocked, but you can still inspect this file and export your existing notes.</span>
+                  <span>Local writes are blocked, but you can still inspect this file and export your existing Skribs.</span>
                 </div>
               )}
 
               <footer>
                 <span>
-                  Exact duplicates are always skipped. Apply is rejected if local notes change after this preview.
+                  Exact duplicates are always skipped. Apply is rejected if local Skribs change after this preview.
                 </span>
                 <button
                   type="button"

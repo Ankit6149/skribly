@@ -1,7 +1,7 @@
 /* Skribli uses one compact note window. Nothing remains floating after it closes. */
 :root {
   --skribli-ui-font: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
-  --skribli-note-font: "Segoe Print", "Ink Free", "Bradley Hand", cursive;
+  --skribli-note-font: "Kalam", "Segoe Print", "Ink Free", "Bradley Hand", cursive;
   --skribli-ink: #26271f;
   --skribli-muted: rgba(38, 39, 31, 0.55);
   --skribli-paper: #fff1a8;

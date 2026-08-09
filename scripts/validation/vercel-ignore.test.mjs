@@ -19,7 +19,7 @@ test('normalizes Windows and relative repository paths', () => {
 test('deploys for website, API, public, and deployment configuration inputs', () => {
   const deployable = [
     'site/index.html',
-    'site/assets/skribly-icon.svg',
+    'site/assets/skribly-note-mark-v2.svg',
     'api/verify-license.mjs',
     'public/robots.txt',
     'package.json',

@@ -5,6 +5,10 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 mod core {
+    pub mod account {
+        include!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/core/account.rs"));
+    }
+
     pub mod models {
         include!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/core/models.rs"));
     }

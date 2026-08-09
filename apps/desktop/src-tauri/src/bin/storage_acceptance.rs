@@ -6,6 +6,10 @@ use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 mod core {
+    pub mod account {
+        include!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/core/account.rs"));
+    }
+
     pub mod models {
         include!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/core/models.rs"));
     }

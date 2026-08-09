@@ -57,7 +57,7 @@
       delete payload.offers;
       payload.softwareVersion = 'Pre-release validation';
       payload.description =
-        'Skribli is a local-first Windows contextual note editor. Public downloads are disabled while the release candidate is validated.';
+        'Skribli is a local-first Windows contextual annotation app, beginning with typed Skribs. Public downloads are disabled while the release candidate is validated.';
       schema.textContent = JSON.stringify(payload);
     } catch {
       // Static structured data already contains the same product status.

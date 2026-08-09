@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" fill="none">
+  <rect width="1200" height="630" fill="#F6F2E8"/>
+  <rect x="56" y="48" width="1088" height="534" rx="38" fill="#FFFDF8" stroke="#171916" stroke-opacity="0.10"/>
+  <rect x="92" y="88" width="82" height="82" rx="26" fill="#FFFDF7"/>
+  <path d="M116 99H150C158 99 163 104 163 112V145L145 163H116C108 163 103 158 103 150V112C103 104 108 99 116 99Z" fill="#F7D969" stroke="#2B2D28" stroke-opacity=".12" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M145 163V154C145 149 149 145 154 145H163" fill="#E6C451" stroke="#2B2D28" stroke-opacity=".18" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="202" y="139" font-family="Arial, sans-serif" font-weight="700" font-size="30" letter-spacing="-1" fill="#171916">Skribli</text>
+  <text x="92" y="278" font-family="Arial, sans-serif" font-weight="700" font-size="66" letter-spacing="-3" fill="#171916">Put a Skrib where</text>
+  <text x="92" y="352" font-family="Georgia, serif" font-style="italic" font-size="76" fill="#8C6B1F">the thought belongs.</text>
+  <text x="92" y="422" font-family="Arial, sans-serif" font-size="24" fill="#5D605A">A local-first contextual annotation layer for Windows.</text>
+  <rect x="92" y="474" width="286" height="62" rx="15" fill="#171916"/>
+  <text x="235" y="513" text-anchor="middle" font-family="Arial, sans-serif" font-weight="700" font-size="18" fill="#FFFDF5">Founder build in validation</text>
+  <g>
+    <rect x="760" y="112" width="300" height="344" rx="28" fill="#F2F0EA" stroke="#171916" stroke-opacity="0.10"/>
+    <rect x="795" y="180" width="230" height="206" rx="24" fill="#F7D969" stroke="#171916" stroke-opacity="0.12"/>
+    <path d="M965 386V362C965 349 976 338 989 338H1025" fill="#E6C451" stroke="#171916" stroke-opacity=".16" stroke-width="2"/>
+    <text x="820" y="245" font-family="Arial, sans-serif" font-weight="700" font-size="13" fill="#171916">SKRIB FOR PROJECT BRIEF</text>
+    <text x="820" y="296" font-family="Georgia, serif" font-style="italic" font-size="20" fill="#45483F">Keep this thought with</text>
+    <text x="820" y="323" font-family="Georgia, serif" font-style="italic" font-size="20" fill="#45483F">the work that caused it.</text>
+  </g>
+</svg>
