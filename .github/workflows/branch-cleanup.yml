@@ -39,9 +39,11 @@ jobs:
           # Squash merges do not make the old branch head an ancestor of main, so
           # ancestry alone cannot identify them as redundant.
           readonly -a audited_delete=(
+            'chore/141-cleanup-product-truth-branch'
             'chore/cleanup-merged-branches'
             'chore/cleanup-squash-merged-branches'
             'docs/expanded-product-roadmap'
+            'docs/111-first-preview-evidence'
             'feat/110-first-note-onboarding'
             'feat/126-all-skribs-window'
             'feat/131-reversible-trash'
@@ -53,6 +55,7 @@ jobs:
             'fix/33-repository-governance'
             'fix/launch-readiness-pass'
             'fix/136-private-artifact-branding'
+            'fix/140-current-product-truth'
             'fix/86-node-runtime-contract'
             'fix/86-package-lock-runtime-metadata'
             'fix/89-vercel-node-runtime'

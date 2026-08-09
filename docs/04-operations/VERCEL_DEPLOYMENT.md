@@ -43,12 +43,26 @@ Examples that should not consume a Vercel preview:
 
 These changes still run the applicable GitHub Actions checks.
 
+## First preview on a branch
+
+Vercel does not provide `VERCEL_GIT_PREVIOUS_SHA` until a branch has a successful
+deployment. For the first preview on a non-production branch, the command compares
+the candidate tree with `origin/main`. It fetches the `main` tip with depth one when
+the remote-tracking ref is not present in Vercel's clone. Comparing the two trees
+captures the branch's complete web difference even when several commits were pushed
+before the first preview.
+
+This fallback is preview-only. It never substitutes the current `main` tree as its
+own production baseline.
+
 ## Fail-open safety
 
-The ignored-build command continues the build when:
+The ignored-build command still continues the build when:
 
-- `VERCEL_GIT_PREVIOUS_SHA` is unavailable;
-- the previous SHA is an all-zero sentinel;
+- `VERCEL_GIT_PREVIOUS_SHA` is unavailable on `main` or in production;
+- the previous SHA is an all-zero sentinel and no safe preview baseline resolves;
+- the current branch name is unavailable;
+- `origin/main` cannot be resolved or fetched for a first preview;
 - `git diff` fails;
 - `SKRIBLY_FORCE_VERCEL_BUILD=1` is present.
 
