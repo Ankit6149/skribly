@@ -9,7 +9,7 @@ const fixturePath = path.join(
   repositoryRoot,
   'apps/desktop/src-tauri/tests/trash_schema_migration.rs'
 );
-const fixture = await readFile(fixturePath, 'utf8');
+const fixture = (await readFile(fixturePath, 'utf8')).replace(/\r\n?/g, '\n');
 
 const failures = [];
 for (const marker of [

@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex,nofollow" />
+    <meta name="theme-color" content="#fffdf7" />
+    <title>Owner v0 access - Skribli</title>
+    <link rel="icon" href="./assets/skribly-note-mark-v2.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./ux-polish.css" />
+    <link rel="stylesheet" href="./landing-typography.css" />
+    <script src="./v0-download.js" defer></script>
+  </head>
+  <body>
+    <main class="legal-page">
+      <section class="legal-shell owner-download-shell" aria-labelledby="owner-download-title">
+        <img src="./assets/skribly-note-mark-v2.svg" alt="" width="72" height="72" />
+        <p class="overline">OWNER V0 ACCESS</p>
+        <h1 id="owner-download-title">Download the current Windows build.</h1>
+        <p class="legal-intro">
+          Sign in with the one verified Skribli account allowed for this v0 build. Your password is
+          sent directly to the account provider and is never stored by this website.
+        </p>
+
+        <form class="owner-download-form" data-owner-download-form novalidate>
+          <label>
+            <span>Email</span>
+            <input name="email" type="email" autocomplete="email" inputmode="email" required />
+          </label>
+          <label>
+            <span>Password</span>
+            <input name="password" type="password" autocomplete="current-password" minlength="12" required />
+          </label>
+          <button class="button button-dark" type="submit" data-owner-download-submit>
+            Verify and download v0
+          </button>
+          <p class="owner-download-status" data-owner-download-status role="status" aria-live="polite">
+            Your account is checked before the installer archive is delivered.
+          </p>
+        </form>
+
+        <section>
+          <h2>What this protects</h2>
+          <p>
+            The website does not publish the installer URL or an access secret. It verifies the
+            signed-in account on the server, checks the owner allowlist, then streams the current
+            Windows artifact with no-store headers.
+          </p>
+        </section>
+        <nav class="legal-nav" aria-label="Owner access links">
+          <a class="button button-light" href="/">Back to Skribli</a>
+          <a class="button button-light" href="/release-notes">Read development notes</a>
+        </nav>
+      </section>
+    </main>
+  </body>
+</html>

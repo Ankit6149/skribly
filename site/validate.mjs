@@ -11,18 +11,22 @@ const requiredFiles = [
   'release-notes.html',
   'download-unavailable.html',
   'download-success.html',
+  'v0-download.html',
   'styles.css',
   'ux-polish.css',
   'landing-typography.css',
   'site-refresh.css',
   'product-truth.css',
   'app.js',
+  'v0-download.js',
   'commerce-config.js',
+  '.env.example',
   'vercel.json',
   'robots.txt',
   'sitemap.xml',
   'llms.txt',
   'api/download.js',
+  'api/v0-download-config.js',
   'assets/skribly-note-mark-v2.svg',
   'assets/skribly-social-card-v2.svg',
 ];
@@ -44,6 +48,7 @@ const htmlFiles = [
   'release-notes.html',
   'download-unavailable.html',
   'download-success.html',
+  'v0-download.html',
 ];
 
 for (const htmlFile of htmlFiles) {
@@ -85,7 +90,9 @@ const customerFacingTextFiles = [
   'release-notes.html',
   'download-unavailable.html',
   'download-success.html',
+  'v0-download.html',
   'app.js',
+  'v0-download.js',
   'commerce-config.js',
   'llms.txt',
   'README.md',
@@ -135,17 +142,17 @@ for (const file of customerFacingTextFiles) {
 }
 
 const config = await readFile(join(root, 'commerce-config.js'), 'utf8');
-if (!config.includes("status: 'release_candidate_validation'")) {
-  failures.push('Site config must identify release-candidate validation.');
+if (!config.includes("status: 'v0_owner_testing'")) {
+  failures.push('Site config must identify owner-only v0 testing.');
 }
-if (!config.includes("mode: 'pre_release_hold'")) {
-  failures.push('Site config must keep downloads in pre_release_hold mode.');
+if (!config.includes("mode: 'owner_authenticated'")) {
+  failures.push('Site config must keep downloads behind verified owner access.');
 }
-if (!config.includes('enabled: false')) {
-  failures.push('Site config must disable installer access.');
+if (!config.includes('enabled: true')) {
+  failures.push('Site config must enable the owner-only installer journey.');
 }
-if (/endpoint:\s*['"]\/api\/(download|checkout)/i.test(config)) {
-  failures.push('Site config must not expose an active installer or commercial endpoint.');
+if (!config.includes("endpoint: '/v0-download'")) {
+  failures.push('Site config must route owner access to the v0 sign-in page.');
 }
 
 const landing = await readFile(join(root, 'index.html'), 'utf8');
@@ -156,15 +163,15 @@ for (const requiredSection of ['how-it-works', 'principles', 'features', 'audien
 }
 
 const requiredLandingTruth = [
-  'release candidate in validation',
-  'Downloads unavailable',
+  'v0 owner test',
+  'Owner v0 access',
   'No floating remainder',
   'NEW SKRIB FOR',
   'Saved locally',
   'Editor fully hides',
   'leaves no dot, tab, checklist, or floating widget after it closes.',
   'Floating dots, attached tabs, checklists',
-  'Pre-release validation',
+  'Owner v0 testing',
   'contextual annotation layer for Windows',
   'A verified account tracks trial access',
   'product-truth.css',
@@ -193,8 +200,8 @@ for (const marker of retiredLandingMarkers) {
   }
 }
 
-if (/href="\/api\/download"/i.test(landing)) {
-  failures.push('Landing page must not contain an active installer link.');
+if (!/href="\/v0-download"/i.test(landing)) {
+  failures.push('Landing page must offer the owner v0 sign-in journey.');
 }
 
 const productStyles = await readFile(join(root, 'product-truth.css'), 'utf8');
@@ -209,9 +216,8 @@ if (!productStyles.includes('@media (prefers-reduced-motion: reduce)')) {
 
 const app = await readFile(join(root, 'app.js'), 'utf8');
 for (const requiredScriptText of [
-  'Downloads unavailable',
-  'Windows validation active',
-  "payload.softwareVersion = 'Pre-release validation'",
+  'Owner v0 access',
+  "payload.softwareVersion = 'v0 owner test'",
 ]) {
   if (!app.includes(requiredScriptText)) {
     failures.push(`Landing script is missing truthful disabled-state behavior: ${requiredScriptText}`);
@@ -222,8 +228,8 @@ for (const retiredScriptMarker of ['data-demo-dot', 'data-close-demo', 'data-dem
     failures.push(`Landing script still controls retired floating-note demo: ${retiredScriptMarker}`);
   }
 }
-if (/\/api\/(download|checkout)/i.test(app)) {
-  failures.push('Landing script must not wire active installer or commercial routes.');
+if (/\/api\/download/i.test(app)) {
+  failures.push('Landing script must not bypass the owner v0 sign-in page.');
 }
 
 const answers = await readFile(join(root, 'answers.html'), 'utf8');
@@ -262,14 +268,44 @@ for (const fact of [
 }
 
 const downloadApi = await readFile(join(root, 'api/download.js'), 'utf8');
-if (!downloadApi.includes("X-Skribli-Download-Status', 'pre-release-hold'")) {
-  failures.push('Download route must expose the pre-release-hold status header.');
+for (const marker of [
+  "X-Skribli-Download-Status', 'owner-v0-authorized'",
+  "SKRIBLY_V0_OWNER_EMAIL",
+  "SKRIBLY_V0_ARTIFACT_ID",
+  '/auth/v1/user',
+  'actions/artifacts/',
+  "Content-Disposition', 'attachment; filename=\"Skribli_v0_Windows.zip\"'",
+]) {
+  if (!downloadApi.includes(marker)) failures.push(`Owner v0 download route is missing: ${marker}`);
 }
-if (!downloadApi.includes('/download-unavailable?reason=validation')) {
-  failures.push('Download route must redirect to the validation status page.');
+if (!downloadApi.includes("request.method !== 'POST'")) {
+  failures.push('Owner v0 download route must require a token-bearing POST request.');
 }
 if (/browser_download_url|api\.github\.com\/repos\/Ankit6149\/skribly\/releases/i.test(downloadApi)) {
-  failures.push('Download route must not resolve a release asset during the pre-release hold.');
+  failures.push('Owner v0 download route must not resolve a public release asset.');
+}
+
+const downloadConfigurationApi = await readFile(join(root, 'api/v0-download-config.js'), 'utf8');
+for (const marker of ['SKRIBLY_SUPABASE_URL', 'SKRIBLY_SUPABASE_PUBLISHABLE_KEY', "request.method !== 'GET'"]) {
+  if (!downloadConfigurationApi.includes(marker)) {
+    failures.push(`Owner download configuration route is missing: ${marker}`);
+  }
+}
+
+const ownerDownloadPage = await readFile(join(root, 'v0-download.html'), 'utf8');
+for (const marker of ['data-owner-download-form', 'data-owner-download-status', './v0-download.js']) {
+  if (!ownerDownloadPage.includes(marker)) failures.push(`Owner v0 page is missing: ${marker}`);
+}
+
+const ownerDownloadScript = await readFile(join(root, 'v0-download.js'), 'utf8');
+for (const marker of [
+  '/api/v0-download-config',
+  '/auth/v1/token?grant_type=password',
+  "method: 'POST'",
+  '/api/download',
+  'accessToken = \'\'',
+]) {
+  if (!ownerDownloadScript.includes(marker)) failures.push(`Owner v0 client flow is missing: ${marker}`);
 }
 
 const releaseWorkflow = await readFile(join(repoRoot, '.github/workflows/release.yml'), 'utf8');
