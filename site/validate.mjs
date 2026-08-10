@@ -20,13 +20,11 @@ const requiredFiles = [
   'app.js',
   'v0-download.js',
   'commerce-config.js',
-  '.env.example',
   'vercel.json',
   'robots.txt',
   'sitemap.xml',
   'llms.txt',
-  'api/download.js',
-  'api/v0-download-config.js',
+  'assets/skribli-v0-windows.enc',
   'assets/skribly-note-mark-v2.svg',
   'assets/skribly-social-card-v2.svg',
 ];
@@ -145,14 +143,14 @@ const config = await readFile(join(root, 'commerce-config.js'), 'utf8');
 if (!config.includes("status: 'v0_owner_testing'")) {
   failures.push('Site config must identify owner-only v0 testing.');
 }
-if (!config.includes("mode: 'owner_authenticated'")) {
-  failures.push('Site config must keep downloads behind verified owner access.');
+if (!config.includes("mode: 'encrypted_download_key'")) {
+  failures.push('Site config must keep downloads behind the encrypted owner key.');
 }
 if (!config.includes('enabled: true')) {
   failures.push('Site config must enable the owner-only installer journey.');
 }
 if (!config.includes("endpoint: '/v0-download'")) {
-  failures.push('Site config must route owner access to the v0 sign-in page.');
+  failures.push('Site config must route owner access to the v0 key page.');
 }
 
 const landing = await readFile(join(root, 'index.html'), 'utf8');
@@ -201,7 +199,7 @@ for (const marker of retiredLandingMarkers) {
 }
 
 if (!/href="\/v0-download"/i.test(landing)) {
-  failures.push('Landing page must offer the owner v0 sign-in journey.');
+  failures.push('Landing page must offer the owner v0 key journey.');
 }
 
 const productStyles = await readFile(join(root, 'product-truth.css'), 'utf8');
@@ -267,45 +265,31 @@ for (const fact of [
   if (!privacy.includes(fact)) failures.push(`Privacy page is missing current limitation: ${fact}.`);
 }
 
-const downloadApi = await readFile(join(root, 'api/download.js'), 'utf8');
-for (const marker of [
-  "X-Skribli-Download-Status', 'owner-v0-authorized'",
-  "SKRIBLY_V0_OWNER_EMAIL",
-  "SKRIBLY_V0_ARTIFACT_ID",
-  '/auth/v1/user',
-  'actions/artifacts/',
-  "Content-Disposition', 'attachment; filename=\"Skribli_v0_Windows.zip\"'",
-]) {
-  if (!downloadApi.includes(marker)) failures.push(`Owner v0 download route is missing: ${marker}`);
-}
-if (!downloadApi.includes("request.method !== 'POST'")) {
-  failures.push('Owner v0 download route must require a token-bearing POST request.');
-}
-if (/browser_download_url|api\.github\.com\/repos\/Ankit6149\/skribly\/releases/i.test(downloadApi)) {
-  failures.push('Owner v0 download route must not resolve a public release asset.');
-}
-
-const downloadConfigurationApi = await readFile(join(root, 'api/v0-download-config.js'), 'utf8');
-for (const marker of ['SKRIBLY_SUPABASE_URL', 'SKRIBLY_SUPABASE_PUBLISHABLE_KEY', "request.method !== 'GET'"]) {
-  if (!downloadConfigurationApi.includes(marker)) {
-    failures.push(`Owner download configuration route is missing: ${marker}`);
-  }
-}
-
 const ownerDownloadPage = await readFile(join(root, 'v0-download.html'), 'utf8');
-for (const marker of ['data-owner-download-form', 'data-owner-download-status', './v0-download.js']) {
+for (const marker of ['data-v0-key-form', 'data-v0-key-status', './v0-download.js']) {
   if (!ownerDownloadPage.includes(marker)) failures.push(`Owner v0 page is missing: ${marker}`);
+}
+if (/type="email"|current-password|Supabase/i.test(ownerDownloadPage)) {
+  failures.push('Owner v0 page must ask only for the download key.');
 }
 
 const ownerDownloadScript = await readFile(join(root, 'v0-download.js'), 'utf8');
 for (const marker of [
-  '/api/v0-download-config',
-  '/auth/v1/token?grant_type=password',
-  "method: 'POST'",
-  '/api/download',
-  'accessToken = \'\'',
+  '/assets/skribli-v0-windows.enc',
+  "'PBKDF2'",
+  "'AES-GCM'",
+  '210_000',
+  "link.download = 'Skribli_v0_Windows.zip'",
 ]) {
   if (!ownerDownloadScript.includes(marker)) failures.push(`Owner v0 client flow is missing: ${marker}`);
+}
+if (/supabase|\/api\/download|accessToken/i.test(ownerDownloadScript)) {
+  failures.push('Owner v0 client must use only local key decryption.');
+}
+
+const encryptedArtifact = await readFile(join(root, 'assets/skribli-v0-windows.enc'));
+if (encryptedArtifact.length < 100_000 || encryptedArtifact.subarray(0, 8).toString('ascii') !== 'SKRV0E01') {
+  failures.push('Encrypted v0 Windows artifact is missing or invalid.');
 }
 
 const releaseWorkflow = await readFile(join(repoRoot, '.github/workflows/release.yml'), 'utf8');

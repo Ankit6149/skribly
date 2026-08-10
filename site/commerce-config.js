@@ -7,14 +7,14 @@ window.SKRIBLY_COMMERCE = Object.freeze({
 
   download: {
     enabled: true,
-    mode: 'owner_authenticated',
+    mode: 'encrypted_download_key',
     endpoint: '/v0-download',
-    versionLabel: 'Verified owner account required',
+    versionLabel: 'Download key required',
   },
 
   access: {
     enabled: true,
-    mode: 'verified_owner_account',
+    mode: 'local_decryption_key',
   },
 
   links: {

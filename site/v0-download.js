@@ -1,7 +1,7 @@
 (() => {
-  const form = document.querySelector('[data-owner-download-form]');
-  const submit = document.querySelector('[data-owner-download-submit]');
-  const status = document.querySelector('[data-owner-download-status]');
+  const form = document.querySelector('[data-v0-key-form]');
+  const submit = document.querySelector('[data-v0-key-submit]');
+  const status = document.querySelector('[data-v0-key-status]');
   if (!(form instanceof HTMLFormElement) || !(submit instanceof HTMLButtonElement) || !status) return;
 
   const setStatus = (message, isError = false) => {
@@ -9,95 +9,61 @@
     status.classList.toggle('is-error', isError);
   };
 
-  const readError = async (response, fallback) => {
-    try {
-      const payload = await response.json();
-      return typeof payload?.error === 'string' ? payload.error : fallback;
-    } catch {
-      return fallback;
-    }
-  };
-
-  const downloadFilename = (header) => {
-    const match = /filename="?([^";]+)"?/i.exec(header || '');
-    return match?.[1] || 'Skribli_v0_Windows.zip';
-  };
+  const bytesEqual = (value, expected) =>
+    value.length === expected.length && value.every((byte, index) => byte === expected[index]);
 
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
     if (!form.reportValidity()) return;
 
-    const email = String(new FormData(form).get('email') || '').trim();
-    const password = String(new FormData(form).get('password') || '');
-    let accessToken = '';
+    const keyInput = form.elements.namedItem('downloadKey');
+    if (!(keyInput instanceof HTMLInputElement)) return;
+    const downloadKey = keyInput.value;
     submit.disabled = true;
-    setStatus('Verifying your owner account...');
+    setStatus('Checking key and decrypting the installer...');
 
     try {
-      const configurationResponse = await fetch('/api/v0-download-config', {
-        cache: 'no-store',
-        credentials: 'same-origin',
-      });
-      if (!configurationResponse.ok) {
-        throw new Error(await readError(configurationResponse, 'Owner download access is not configured yet.'));
-      }
-      const configuration = await configurationResponse.json();
-      if (
-        typeof configuration?.supabaseUrl !== 'string' ||
-        typeof configuration?.publishableKey !== 'string'
-      ) {
-        throw new Error('Owner download access is not configured correctly.');
+      const response = await fetch('/assets/skribli-v0-windows.enc', { cache: 'no-store' });
+      if (!response.ok) throw new Error('The current v0 installer is not ready yet.');
+      const encrypted = new Uint8Array(await response.arrayBuffer());
+      const magic = new TextEncoder().encode('SKRV0E01');
+      if (encrypted.length < 53 || !bytesEqual(encrypted.slice(0, 8), magic)) {
+        throw new Error('The installer package is invalid.');
       }
 
-      const signInResponse = await fetch(
-        `${configuration.supabaseUrl.replace(/\/$/, '')}/auth/v1/token?grant_type=password`,
-        {
-          method: 'POST',
-          headers: {
-            apikey: configuration.publishableKey,
-            Authorization: `Bearer ${configuration.publishableKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ email, password }),
-        }
+      const material = await crypto.subtle.importKey(
+        'raw',
+        new TextEncoder().encode(downloadKey),
+        'PBKDF2',
+        false,
+        ['deriveKey']
       );
-      if (!signInResponse.ok) {
-        throw new Error('Sign-in failed. Use the verified Skribli owner account.');
-      }
-      const session = await signInResponse.json();
-      if (typeof session?.access_token !== 'string' || session.access_token.length < 40) {
-        throw new Error('The account provider did not return a valid session.');
-      }
-      accessToken = session.access_token;
+      const aesKey = await crypto.subtle.deriveKey(
+        { name: 'PBKDF2', salt: encrypted.slice(8, 24), iterations: 210_000, hash: 'SHA-256' },
+        material,
+        { name: 'AES-GCM', length: 256 },
+        false,
+        ['decrypt']
+      );
+      const archive = await crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv: encrypted.slice(24, 36), tagLength: 128 },
+        aesKey,
+        encrypted.slice(36)
+      );
 
-      setStatus('Account verified. Preparing the Windows installer archive...');
-      const archiveResponse = await fetch('/api/download', {
-        method: 'POST',
-        cache: 'no-store',
-        credentials: 'same-origin',
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
-      if (!archiveResponse.ok) {
-        throw new Error(await readError(archiveResponse, 'The v0 artifact is not ready yet.'));
-      }
-
-      const archive = await archiveResponse.blob();
-      if (archive.size === 0) throw new Error('The installer archive was empty. Please try again.');
-      const objectUrl = URL.createObjectURL(archive);
+      const objectUrl = URL.createObjectURL(new Blob([archive], { type: 'application/zip' }));
       const link = document.createElement('a');
       link.href = objectUrl;
-      link.download = downloadFilename(archiveResponse.headers.get('content-disposition'));
+      link.download = 'Skribli_v0_Windows.zip';
       document.body.appendChild(link);
       link.click();
       link.remove();
       window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
-      setStatus('Download started. Extract the archive, then run the Skribli installer inside it.');
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : 'The v0 download could not be prepared.', true);
+      setStatus('Download started. Extract the ZIP, then run the Skribli installer.');
+    } catch {
+      setStatus('That key is incorrect, or the installer is not ready yet.', true);
     } finally {
-      accessToken = '';
-      const passwordInput = form.elements.namedItem('password');
-      if (passwordInput instanceof HTMLInputElement) passwordInput.value = '';
+      keyInput.value = '';
       submit.disabled = false;
     }
   });

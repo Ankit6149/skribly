@@ -18,7 +18,7 @@
     if (mainLabel) mainLabel.textContent = 'Owner v0 access';
     else if (!element.querySelector('small')) element.textContent = 'Owner v0 access';
     const versionLabel = element.querySelector('small');
-    if (versionLabel) versionLabel.textContent = 'Verified account required';
+    if (versionLabel) versionLabel.textContent = 'Download key required';
   };
 
   document.querySelectorAll('[data-download-link]').forEach((link) => {
@@ -26,7 +26,7 @@
   });
 
   document.querySelectorAll('[data-version-label]').forEach((element) => {
-    element.textContent = 'Verified owner account required';
+    element.textContent = 'Download key required';
   });
 
   document.querySelectorAll('[data-release-notes-link]').forEach((link) => {
@@ -39,7 +39,7 @@
       const payload = JSON.parse(schema.textContent || '{}');
       payload.softwareVersion = 'v0 owner test';
       payload.description =
-        'Skribli is a local-first Windows contextual annotation app, beginning with typed Skribs. The v0 installer is available only to the verified owner account.';
+        'Skribli is a local-first Windows contextual annotation app, beginning with typed Skribs. The encrypted v0 installer requires the owner download key.';
       schema.textContent = JSON.stringify(payload);
     } catch {
       // Static structured data already contains the same product status.
