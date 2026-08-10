@@ -98,7 +98,7 @@ function Test-InstalledNsisPayload {
     }
 
     $currentSessionId = [System.Diagnostics.Process]::GetCurrentProcess().SessionId
-    $hasInteractiveDesktop = [Environment]::UserInteractive -and @(
+    $hasInteractiveDesktop = $env:GITHUB_ACTIONS -ne 'true' -and [Environment]::UserInteractive -and @(
       Get-Process -Name explorer -ErrorAction SilentlyContinue |
         Where-Object { $_.SessionId -eq $currentSessionId }
     ).Count -gt 0
