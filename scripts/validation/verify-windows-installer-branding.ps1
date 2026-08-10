@@ -67,6 +67,8 @@ function Test-InstalledNsisPayload {
   $shortcutPaths = @()
   $preexistingShortcutPaths = @(Get-ChildItem -Path $startMenuDirectory -Filter 'Skribli*.lnk' -Recurse -File -ErrorAction SilentlyContinue | ForEach-Object FullName)
   $launchedProcess = $null
+  $startupSmokeSeconds = 0
+  $startupSmokeStatus = 'skipped-noninteractive-session'
 
   New-Item -ItemType Directory -Force -Path $testRoot | Out-Null
   try {
@@ -95,16 +97,26 @@ function Test-InstalledNsisPayload {
       throw "The Start menu shortcut does not point to the installed '$ExpectedExecutableName' payload."
     }
 
-    $launchedProcess = Start-Process -FilePath $installedApplication -PassThru
-    Start-Sleep -Seconds 5
-    $launchedProcess.Refresh()
-    if ($launchedProcess.HasExited) {
-      throw "The installed Skribli executable exited during the five-second startup smoke test with exit code $($launchedProcess.ExitCode)."
+    $currentSessionId = [System.Diagnostics.Process]::GetCurrentProcess().SessionId
+    $hasInteractiveDesktop = [Environment]::UserInteractive -and @(
+      Get-Process -Name explorer -ErrorAction SilentlyContinue |
+        Where-Object { $_.SessionId -eq $currentSessionId }
+    ).Count -gt 0
+    if ($hasInteractiveDesktop) {
+      $launchedProcess = Start-Process -FilePath $installedApplication -PassThru
+      Start-Sleep -Seconds 5
+      $launchedProcess.Refresh()
+      if ($launchedProcess.HasExited) {
+        throw "The installed Skribli executable exited during the five-second startup smoke test with exit code $($launchedProcess.ExitCode)."
+      }
+      $startupSmokeSeconds = 5
+      $startupSmokeStatus = 'passed-interactive-session'
     }
 
     [ordered]@{
       installed_executable = $ExpectedExecutableName
-      startup_smoke_seconds = 5
+      startup_smoke_seconds = $startupSmokeSeconds
+      startup_smoke_status = $startupSmokeStatus
       start_menu_target = $expectedTarget
     }
   } finally {
@@ -133,6 +145,7 @@ $installedPayloadEvidence = if ($RunInstalledPayloadSmoke) {
   [ordered]@{
     installed_executable = $null
     startup_smoke_seconds = 0
+    startup_smoke_status = 'not-requested'
     start_menu_target = $null
   }
 }
@@ -205,6 +218,7 @@ try {
     application_icon_pixel_sha256 = $applicationPixelHash
     installed_executable = $installedPayloadEvidence.installed_executable
     startup_smoke_seconds = $installedPayloadEvidence.startup_smoke_seconds
+    startup_smoke_status = $installedPayloadEvidence.startup_smoke_status
     start_menu_target = $installedPayloadEvidence.start_menu_target
     nsis_installer = $nsisInstallers[0].Name
     nsis_product_name = $nsisVersionInfo.ProductName

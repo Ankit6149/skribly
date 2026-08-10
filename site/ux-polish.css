@@ -238,6 +238,64 @@ button:focus-visible {
   text-underline-offset: 3px;
 }
 
+.owner-download-form {
+  display: grid;
+  gap: 16px;
+  margin-top: 30px;
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: rgba(255, 253, 247, 0.7);
+}
+
+.owner-download-form label {
+  display: grid;
+  gap: 8px;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.owner-download-form input {
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid rgba(38, 41, 35, 0.18);
+  border-radius: 12px;
+  padding: 0 14px;
+  background: #fffefa;
+  color: var(--ink);
+  font-size: 16px;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.owner-download-form input:focus-visible {
+  outline: 2px solid #5f795b;
+  outline-offset: 2px;
+}
+
+.owner-download-form .button {
+  justify-content: center;
+}
+
+.owner-download-form .button:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+.owner-download-status {
+  margin: 0;
+  color: rgba(38, 41, 35, 0.68);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.owner-download-status.is-error {
+  color: #9f342a;
+}
+
 .legal-nav {
   margin-top: 38px;
   padding-top: 30px;

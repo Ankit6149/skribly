@@ -124,6 +124,7 @@ for (const marker of [
   'Test-InstalledNsisPayload',
   'storage_acceptance.exe',
   'The Start menu shortcut does not point to the installed',
+  'skipped-noninteractive-session',
   'startup smoke test',
 ]) {
   if (!installerValidator.includes(marker)) {

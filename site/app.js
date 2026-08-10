@@ -6,43 +6,27 @@
     document.head.appendChild(typography);
   }
 
-  const toast = document.querySelector('[data-toast]');
-  let toastTimer = null;
-
-  const showToast = (message) => {
-    if (!toast) return;
-    toast.textContent = message;
-    toast.classList.add('is-visible');
-    if (toastTimer) window.clearTimeout(toastTimer);
-    toastTimer = window.setTimeout(() => toast.classList.remove('is-visible'), 4200);
-  };
-
-  const disableAction = (element, label) => {
+  const configureOwnerDownload = (element) => {
     if (!element) return;
-    element.removeAttribute('href');
-    element.removeAttribute('target');
-    element.removeAttribute('rel');
-    element.setAttribute('aria-disabled', 'true');
-    element.classList.add('is-disabled');
+    const endpoint = window.SKRIBLY_COMMERCE?.download?.endpoint;
+    if (typeof endpoint !== 'string' || !endpoint.startsWith('/')) return;
+    element.setAttribute('href', endpoint);
+    element.removeAttribute('aria-disabled');
+    element.classList.remove('is-disabled');
 
     const mainLabel = element.querySelector('span');
-    if (mainLabel) mainLabel.textContent = label;
-    else if (!element.querySelector('small')) element.textContent = label;
-
-    element.addEventListener('click', (event) => {
-      event.preventDefault();
-      showToast(
-        'Public downloads are disabled while the exact Windows release candidate completes lifecycle, installer, recovery, accessibility, and physical desktop validation.'
-      );
-    });
+    if (mainLabel) mainLabel.textContent = 'Owner v0 access';
+    else if (!element.querySelector('small')) element.textContent = 'Owner v0 access';
+    const versionLabel = element.querySelector('small');
+    if (versionLabel) versionLabel.textContent = 'Verified account required';
   };
 
   document.querySelectorAll('[data-download-link]').forEach((link) => {
-    disableAction(link, 'Downloads unavailable');
+    configureOwnerDownload(link);
   });
 
   document.querySelectorAll('[data-version-label]').forEach((element) => {
-    element.textContent = 'Windows validation active';
+    element.textContent = 'Verified owner account required';
   });
 
   document.querySelectorAll('[data-release-notes-link]').forEach((link) => {
@@ -53,11 +37,9 @@
   if (schema) {
     try {
       const payload = JSON.parse(schema.textContent || '{}');
-      delete payload.downloadUrl;
-      delete payload.offers;
-      payload.softwareVersion = 'Pre-release validation';
+      payload.softwareVersion = 'v0 owner test';
       payload.description =
-        'Skribli is a local-first Windows contextual annotation app, beginning with typed Skribs. Public downloads are disabled while the release candidate is validated.';
+        'Skribli is a local-first Windows contextual annotation app, beginning with typed Skribs. The v0 installer is available only to the verified owner account.';
       schema.textContent = JSON.stringify(payload);
     } catch {
       // Static structured data already contains the same product status.

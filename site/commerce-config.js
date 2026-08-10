@@ -2,18 +2,19 @@ window.SKRIBLY_COMMERCE = Object.freeze({
   product: {
     id: 'skribli-windows',
     name: 'Skribli for Windows',
-    status: 'release_candidate_validation',
+    status: 'v0_owner_testing',
   },
 
   download: {
-    enabled: false,
-    mode: 'pre_release_hold',
-    endpoint: null,
-    versionLabel: 'Public downloads unavailable',
+    enabled: true,
+    mode: 'owner_authenticated',
+    endpoint: '/v0-download',
+    versionLabel: 'Verified owner account required',
   },
 
   access: {
-    enabled: false,
+    enabled: true,
+    mode: 'verified_owner_account',
   },
 
   links: {

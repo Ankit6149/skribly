@@ -9,7 +9,7 @@
     <meta name="theme-color" content="#fffdf7" />
     <link rel="canonical" href="https://skribly-desktop.vercel.app/" />
     <meta property="og:title" content="Skribli — Put a Skrib where the thought belongs" />
-    <meta property="og:description" content="A local-first contextual annotation layer for Windows. The current typed-Skrib build is in release-candidate validation." />
+    <meta property="og:description" content="A local-first contextual annotation layer for Windows. The current typed-Skrib v0 build is available only through verified owner access." />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://skribly-desktop.vercel.app/" />
     <meta property="og:image" content="https://skribly-desktop.vercel.app/assets/skribly-social-card-v2.svg" />
@@ -56,21 +56,21 @@
           <a href="#status">Status</a>
           <a href="/privacy">Privacy</a>
         </nav>
-        <a class="button button-small button-dark" data-download-link aria-disabled="true">Downloads unavailable</a>
+        <a class="button button-small button-dark" data-download-link href="/v0-download">Owner v0 access</a>
       </header>
 
       <main id="top">
         <section class="hero section-pad">
           <div class="hero-copy">
-            <div class="eyebrow-pill"><span class="pulse-dot"></span> Windows app · release candidate in validation</div>
+            <div class="eyebrow-pill"><span class="pulse-dot"></span> Windows app · v0 owner test</div>
             <h1>Put the thought <em>where it belongs.</em></h1>
             <p class="hero-lede">
               Skribli is a contextual annotation layer for Windows. The current release begins with typed Skribs: focus an application, press one shortcut, write, and return later with the same work.
             </p>
             <div class="hero-actions">
-              <a class="button button-primary" data-download-link aria-disabled="true">
-                <span>Downloads unavailable</span>
-                <small data-version-label>Windows validation active</small>
+              <a class="button button-primary" data-download-link href="/v0-download">
+                <span>Owner v0 access</span>
+                <small data-version-label>Verified owner account required</small>
               </a>
               <a class="button button-ghost" href="#how-it-works">See the real workflow</a>
             </div>
@@ -166,7 +166,7 @@
               <span class="section-kicker">IMPLEMENTED FOUNDATIONS</span>
               <h2>Small on the surface.<br />Careful underneath.</h2>
             </div>
-            <p>These are implemented foundations in the current repository. They are not a claim that the installer is ready for public use.</p>
+            <p>These are implemented foundations in the current repository. The v0 installer remains limited to the verified owner account while the build is tested.</p>
           </div>
 
           <div class="feature-bento">
@@ -223,20 +223,20 @@
             <div class="comparison-row" role="row"><span>Local storage and recovery foundations</span><span>Implemented</span><strong>Shown here</strong></div>
             <div class="comparison-row" role="row"><span>Handwriting, highlights, arrows, images, reminders</span><span>Product roadmap</span><strong>Not claimed as shipped</strong></div>
             <div class="comparison-row" role="row"><span>Floating dots, attached tabs, checklists</span><span>Not in current MVP</span><strong>Not advertised</strong></div>
-            <div class="comparison-row" role="row"><span>Public installer and paid access</span><span>Disabled pending gates</span><strong>Unavailable</strong></div>
+            <div class="comparison-row" role="row"><span>Windows installer delivery</span><span>Verified owner account only</span><strong>v0 testing</strong></div>
           </div>
         </section>
 
         <section class="download-section status-section section-pad" id="status">
           <img src="./assets/skribly-note-mark-v2.svg" alt="" />
           <span class="section-kicker">CURRENT STATUS</span>
-          <h2>The Windows release candidate is still being validated.</h2>
-          <p data-download-status>Public downloads remain disabled while the exact Windows build completes lifecycle, installer, recovery, accessibility, and physical desktop validation.</p>
+          <h2>The Windows v0 build is ready for owner testing.</h2>
+          <p data-download-status>Use the verified owner account to download the current Windows artifact from this website. It is not a general-download channel.</p>
           <div class="download-actions">
-            <a class="button button-primary button-large" data-download-link aria-disabled="true">Downloads unavailable</a>
+            <a class="button button-primary button-large" data-download-link href="/v0-download">Owner v0 access</a>
             <a class="button button-ghost" data-release-notes-link href="/release-notes">Read development notes</a>
           </div>
-          <div class="system-note"><span>Windows 10/11</span><span>Pre-release validation</span><span>Local-first</span></div>
+          <div class="system-note"><span>Windows 10/11</span><span>Owner v0 testing</span><span>Local-first</span></div>
         </section>
       </main>
 
@@ -244,9 +244,8 @@
         <a class="brand footer-brand" href="#top"><img src="./assets/skribly-note-mark-v2.svg" alt="" /><span>Skribli</span></a>
         <p>A contextual annotation layer for Windows, beginning with typed Skribs.</p>
         <div><a href="/release-notes">Development notes</a><a href="/privacy">Privacy</a><a href="/answers">FAQ</a></div>
-        <small>© 2026 Ankit Bhardwaj. Public downloads are disabled.</small>
+        <small>© 2026 Ankit Bhardwaj. v0 installer access is owner-only.</small>
       </footer>
     </div>
-    <div class="toast" role="status" aria-live="polite" data-toast></div>
   </body>
 </html>
