@@ -1,7 +1,9 @@
 # ADR-001: Provisional Tauri stack with overlay spike gate
 
-- **Status:** Provisional
+- **Status:** Superseded historical spike
 - **Date:** 2026-07-20
+
+> This document records the repository's original exploration only. The full-screen overlay gate was rejected in favor of the compact Windows interaction model, and SQLite is not the current durable store. See the current [architecture](../ARCHITECTURE.md) and accepted ADR-0001 through ADR-0004 for production decisions.
 
 ## Context
 

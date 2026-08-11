@@ -53,6 +53,8 @@ const singleInstanceAcceptance = await read('docs/04-operations/SINGLE_INSTANCE_
 const winEventAcceptance = await read('docs/04-operations/WIN_EVENT_ACCEPTANCE.md');
 const targetCaptureAcceptance = await read('docs/04-operations/TARGET_CAPTURE_ACCEPTANCE.md');
 const firstRunAcceptance = await read('docs/04-operations/FIRST_RUN_ACCEPTANCE.md');
+const architecture = await read('docs/02-engineering/ARCHITECTURE.md');
+const provisionalStackAdr = await read('docs/02-engineering/adr/ADR-001-provisional-stack.md');
 const interactionSpec = await read('docs/01-design/INTERACTION_SPEC.md');
 const componentInventory = await read('docs/01-design/COMPONENT_INVENTORY.md');
 const designDirection = await read('docs/01-design/DESIGN_DIRECTION.md');
@@ -107,6 +109,10 @@ for (const claim of retiredReadmeClaims) {
 }
 
 const requiredCurrentDocumentation = [
+  [architecture, 'Windows v0 source of truth', 'architecture'],
+  [architecture, 'The durable source of truth is a versioned, integrity-checked local JSON envelope', 'architecture'],
+  [architecture, 'SQLite is a possible future migration, not the current store.', 'architecture'],
+  [provisionalStackAdr, 'Superseded historical spike', 'provisional stack ADR'],
   [interactionSpec, 'canonical Founder Alpha interaction contract', 'interaction specification'],
   [interactionSpec, 'Zero active matches creates one note', 'interaction specification'],
   [interactionSpec, '**Move to Trash** is the ordinary delete action', 'interaction specification'],
@@ -132,6 +138,9 @@ for (const [document, claim, label] of requiredCurrentDocumentation) {
 }
 
 const forbiddenCurrentDocumentation = [
+  [architecture, 'SQLite is the durable source of truth.', 'architecture'],
+  [architecture, 'The initial Windows technical proof has been fully implemented:', 'architecture'],
+  [architecture, 'Windows and macOS implementations expose the same operations:', 'architecture'],
   [interactionSpec, '- macOS: `Control + Shift + Space`', 'interaction specification'],
   [interactionSpec, 'Tool palette appears near the pointer.', 'interaction specification'],
   [interactionSpec, 'Default overlay state:', 'interaction specification'],
