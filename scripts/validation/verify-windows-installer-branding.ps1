@@ -1,6 +1,7 @@
 param(
   [string]$BundleRoot = 'apps/desktop/src-tauri/target/release/bundle',
   [string]$EvidencePath = 'artifacts/private-test/branding-evidence.json',
+  [string]$ScreenEvidencePath = 'artifacts/private-test/installed-window.png',
   [switch]$RunInstalledPayloadSmoke,
   [switch]$AllowLocalInstallSmoke
 )
@@ -13,6 +14,60 @@ $iconPath = 'apps/desktop/src-tauri/icons/icon.ico'
 $iconPixelReferencePath = 'apps/desktop/src-tauri/icons/32x32.png'
 $applicationPath = 'apps/desktop/src-tauri/target/release/skribly.exe'
 $config = Get-Content $configPath -Raw | ConvertFrom-Json
+
+Add-Type -AssemblyName System.Drawing
+
+if (-not ('SkribliWindowCapture' -as [type])) {
+  Add-Type @'
+using System;
+using System.Runtime.InteropServices;
+
+public static class SkribliWindowCapture {
+  [StructLayout(LayoutKind.Sequential)]
+  public struct Rect { public int Left; public int Top; public int Right; public int Bottom; }
+
+  [StructLayout(LayoutKind.Sequential)]
+  public struct Point { public int X; public int Y; }
+
+  [DllImport("user32.dll")]
+  public static extern bool GetClientRect(IntPtr window, out Rect rectangle);
+
+  [DllImport("user32.dll")]
+  public static extern bool ClientToScreen(IntPtr window, ref Point point);
+
+  [DllImport("user32.dll")]
+  public static extern bool SetForegroundWindow(IntPtr window);
+
+  [DllImport("user32.dll")]
+  public static extern bool ShowWindowAsync(IntPtr window, int command);
+
+  [DllImport("user32.dll")]
+  public static extern bool PrintWindow(IntPtr window, IntPtr deviceContext, uint flags);
+
+  [DllImport("user32.dll")]
+  public static extern IntPtr SetThreadDpiAwarenessContext(IntPtr dpiContext);
+
+  public static IntPtr EnablePerMonitorDpiAwareness() {
+    return SetThreadDpiAwarenessContext(new IntPtr(-4));
+  }
+
+  public static Rect GetClientScreenRect(IntPtr window) {
+    Rect client;
+    if (!GetClientRect(window, out client)) return default(Rect);
+    Point origin = new Point { X = 0, Y = 0 };
+    if (!ClientToScreen(window, ref origin)) return default(Rect);
+    int width = client.Right - client.Left;
+    int height = client.Bottom - client.Top;
+    return new Rect {
+      Left = origin.X,
+      Top = origin.Y,
+      Right = origin.X + width,
+      Bottom = origin.Y + height
+    };
+  }
+}
+'@
+}
 
 if ($config.productName -ne 'Skribli') {
   throw "Unexpected product name '$($config.productName)'."
@@ -49,6 +104,87 @@ foreach ($installer in @($nsisInstallers + $msiInstallers)) {
 $application = Get-Item $applicationPath
 if ($application.VersionInfo.ProductName -ne $config.productName) {
   throw "Installed executable product name '$($application.VersionInfo.ProductName)' is not '$($config.productName)'."
+}
+
+function Get-InstalledWindowEvidence {
+  param(
+    [Parameter(Mandatory = $true)] [System.Diagnostics.Process]$Process,
+    [Parameter(Mandatory = $true)] [string]$OutputPath
+  )
+
+  $deadline = [DateTime]::UtcNow.AddSeconds(12)
+  do {
+    $Process.Refresh()
+    if ($Process.HasExited) {
+      throw "The installed Skribli process exited before its window became available with exit code $($Process.ExitCode)."
+    }
+    if ($Process.MainWindowHandle -ne [IntPtr]::Zero) { break }
+    Start-Sleep -Milliseconds 250
+  } while ([DateTime]::UtcNow -lt $deadline)
+
+  $windowHandle = $Process.MainWindowHandle
+  if ($windowHandle -eq [IntPtr]::Zero) {
+    throw 'The installed Skribli process did not create a visible main window within 12 seconds.'
+  }
+
+  [void][SkribliWindowCapture]::ShowWindowAsync($windowHandle, 9)
+  [void][SkribliWindowCapture]::SetForegroundWindow($windowHandle)
+  Start-Sleep -Milliseconds 900
+
+  $previousDpiContext = [SkribliWindowCapture]::EnablePerMonitorDpiAwareness()
+  try {
+    $clientRectangle = [SkribliWindowCapture]::GetClientScreenRect($windowHandle)
+  } finally {
+    [void][SkribliWindowCapture]::SetThreadDpiAwarenessContext($previousDpiContext)
+  }
+  $width = $clientRectangle.Right - $clientRectangle.Left
+  $height = $clientRectangle.Bottom - $clientRectangle.Top
+  if ($width -lt 320 -or $height -lt 240) {
+    throw "Windows could not locate a usable installed Skribli client area: ${width}x${height}."
+  }
+
+  $bitmap = [System.Drawing.Bitmap]::new($width, $height)
+  $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+  try {
+    $deviceContext = $graphics.GetHdc()
+    try {
+      $captured = [SkribliWindowCapture]::PrintWindow($windowHandle, $deviceContext, 3)
+    } finally {
+      $graphics.ReleaseHdc($deviceContext)
+    }
+    if (-not $captured) {
+      throw 'Windows could not capture the rendered Skribli client area.'
+    }
+    $outputDirectory = Split-Path -Parent $OutputPath
+    if (-not [string]::IsNullOrWhiteSpace($outputDirectory)) {
+      New-Item -ItemType Directory -Force -Path $outputDirectory | Out-Null
+    }
+    $bitmap.Save($OutputPath, [System.Drawing.Imaging.ImageFormat]::Png)
+
+    $colorBuckets = [System.Collections.Generic.HashSet[string]]::new()
+    for ($y = 0; $y -lt $height; $y += 6) {
+      for ($x = 0; $x -lt $width; $x += 6) {
+        $pixel = $bitmap.GetPixel($x, $y)
+        [void]$colorBuckets.Add("$($pixel.R -shr 4):$($pixel.G -shr 4):$($pixel.B -shr 4)")
+      }
+    }
+    if ($colorBuckets.Count -lt 8) {
+      throw "The installed Skribli window appears blank (only $($colorBuckets.Count) sampled colour buckets)."
+    }
+
+    [ordered]@{
+      screenshot_path = $OutputPath
+      client_width = $width
+      client_height = $height
+      client_left = $clientRectangle.Left
+      client_top = $clientRectangle.Top
+      capture_mode = 'PrintWindow client-only rendered-content'
+      sampled_colour_buckets = $colorBuckets.Count
+    }
+  } finally {
+    $graphics.Dispose()
+    $bitmap.Dispose()
+  }
 }
 
 function Test-InstalledNsisPayload {
@@ -106,6 +242,7 @@ function Test-InstalledNsisPayload {
   $launchedProcess = $null
   $startupSmokeSeconds = 0
   $startupSmokeStatus = 'skipped-noninteractive-session'
+  $windowEvidence = $null
 
   New-Item -ItemType Directory -Force -Path $testRoot | Out-Null
   try {
@@ -149,8 +286,9 @@ function Test-InstalledNsisPayload {
       if ($launchedProcess.HasExited) {
         throw "The installed Skribli executable exited during the five-second startup smoke test with exit code $($launchedProcess.ExitCode)."
       }
+      $windowEvidence = Get-InstalledWindowEvidence -Process $launchedProcess -OutputPath $ScreenEvidencePath
       $startupSmokeSeconds = 5
-      $startupSmokeStatus = 'passed-interactive-session'
+      $startupSmokeStatus = 'passed-interactive-visible-session'
     }
 
     [ordered]@{
@@ -158,6 +296,7 @@ function Test-InstalledNsisPayload {
       startup_smoke_seconds = $startupSmokeSeconds
       startup_smoke_status = $startupSmokeStatus
       start_menu_target = $expectedTarget
+      window_evidence = $windowEvidence
     }
   } finally {
     if ($null -ne $launchedProcess) {
@@ -204,6 +343,7 @@ $installedPayloadEvidence = if ($RunInstalledPayloadSmoke) {
     startup_smoke_seconds = 0
     startup_smoke_status = 'not-requested'
     start_menu_target = $null
+    window_evidence = $null
   }
 }
 
@@ -213,8 +353,6 @@ foreach ($value in @($nsisVersionInfo.ProductName, $nsisVersionInfo.FileDescript
     throw "The NSIS installer exposes Tauri framework branding in Windows version metadata: '$value'."
   }
 }
-
-Add-Type -AssemblyName System.Drawing
 
 function Get-BitmapPixelHash {
   param([Parameter(Mandatory = $true)]$Bitmap)
@@ -288,6 +426,7 @@ try {
     startup_smoke_seconds = $installedPayloadEvidence.startup_smoke_seconds
     startup_smoke_status = $installedPayloadEvidence.startup_smoke_status
     start_menu_target = $installedPayloadEvidence.start_menu_target
+    window_evidence = $installedPayloadEvidence.window_evidence
     nsis_installer = $nsisInstallers[0].Name
     nsis_product_name = $nsisVersionInfo.ProductName
     nsis_file_description = $nsisVersionInfo.FileDescription

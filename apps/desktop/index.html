@@ -5,9 +5,127 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#fff9eb" />
     <title>Skribli</title>
+    <style>
+      .skribli-boot {
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 32px;
+        box-sizing: border-box;
+        background:
+          radial-gradient(circle at 18% 12%, rgba(245, 194, 73, 0.22), transparent 34%),
+          linear-gradient(145deg, #fffdf7, #fff7df);
+        color: #25241f;
+        font-family: "Segoe UI", system-ui, sans-serif;
+      }
+
+      .skribli-boot-card {
+        width: min(430px, 100%);
+        padding: 34px;
+        border: 1px solid rgba(37, 36, 31, 0.12);
+        border-radius: 24px 24px 36px 24px;
+        background: rgba(255, 255, 255, 0.86);
+        box-shadow: 0 22px 70px rgba(63, 52, 24, 0.14);
+      }
+
+      .skribli-boot-mark {
+        display: grid;
+        place-items: center;
+        width: 46px;
+        height: 46px;
+        margin-bottom: 22px;
+        border-radius: 14px 14px 20px 14px;
+        background: #f5c249;
+        color: #25241f;
+        font: 700 25px/1 "Segoe Print", "Comic Sans MS", cursive;
+        transform: rotate(-2deg);
+      }
+
+      .skribli-boot-kicker {
+        margin: 0 0 10px;
+        color: #76663e;
+        font-size: 11px;
+        font-weight: 750;
+        letter-spacing: 0.14em;
+      }
+
+      .skribli-boot h1 {
+        margin: 0;
+        font-size: clamp(27px, 5vw, 38px);
+        line-height: 1.08;
+        letter-spacing: -0.035em;
+      }
+
+      .skribli-boot-copy {
+        margin: 14px 0 0;
+        color: #625f54;
+        font-size: 14px;
+        line-height: 1.6;
+      }
+
+      .skribli-boot-progress {
+        height: 4px;
+        margin-top: 26px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: rgba(37, 36, 31, 0.09);
+      }
+
+      .skribli-boot-progress::after {
+        content: "";
+        display: block;
+        width: 42%;
+        height: 100%;
+        border-radius: inherit;
+        background: #d69b19;
+        animation: skribli-boot-progress 1.2s ease-in-out infinite alternate;
+      }
+
+      .skribli-boot[data-state="failure"] .skribli-boot-progress {
+        display: none;
+      }
+
+      .skribli-boot-retry {
+        display: none;
+        margin-top: 24px;
+        padding: 11px 18px;
+        border: 0;
+        border-radius: 999px;
+        background: #25241f;
+        color: #fffdf7;
+        font: 700 13px/1 "Segoe UI", system-ui, sans-serif;
+        cursor: pointer;
+      }
+
+      .skribli-boot[data-state="failure"] .skribli-boot-retry {
+        display: inline-flex;
+      }
+
+      @keyframes skribli-boot-progress {
+        from { transform: translateX(-10%); }
+        to { transform: translateX(150%); }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .skribli-boot-progress::after { animation: none; width: 100%; opacity: 0.65; }
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <div id="root">
+      <main class="skribli-boot" id="skribli-boot-shell" data-state="loading" role="status" aria-live="polite">
+        <section class="skribli-boot-card">
+          <div class="skribli-boot-mark" aria-hidden="true">S</div>
+          <p class="skribli-boot-kicker" id="skribli-boot-kicker">STARTING SKRIBLI</p>
+          <h1 id="skribli-boot-title">Bringing your thoughts back into context.</h1>
+          <p class="skribli-boot-copy" id="skribli-boot-message">
+            Opening your private local workspace…
+          </p>
+          <div class="skribli-boot-progress" aria-hidden="true"></div>
+          <button class="skribli-boot-retry" id="skribli-boot-retry" type="button">Try again</button>
+        </section>
+      </main>
+    </div>
+    <script type="module" src="/src/bootstrap.ts"></script>
   </body>
 </html>

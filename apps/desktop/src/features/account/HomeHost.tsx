@@ -106,20 +106,29 @@ const AccountSetupSurface: React.FC = () => {
 
       <div className="account-setup-grid">
         <section className="account-story" aria-labelledby="account-title">
-          <span className="account-kicker">YOUR WORK, WITH ITS CONTEXT</span>
-          <h1 id="account-title">A thought should return with the thing that made it matter.</h1>
+          <span className="account-kicker">ACCOUNT AND DEVICE</span>
+          <h1 id="account-title">Set up Skribli on this PC.</h1>
           <p>
-            Skribli starts with typed Skribs and grows into handwriting, highlights, arrows,
-            images, reminders, and richer contextual annotations.
+            Connect an account to verify owner access and keep this Windows device associated with
+            the correct trial or licence.
           </p>
           <ul>
             <li>Skrib content remains local on this Windows device.</li>
             <li>Your account tracks trial access, app version, and update preferences.</li>
             <li>Changing accounts on this device does not restart its trial.</li>
           </ul>
+          <aside className="account-local-note" aria-label="Local-first promise">
+            <span>LOCAL-FIRST</span>
+            <p>your thoughts stay on this PC</p>
+          </aside>
         </section>
 
         <section className="account-card" aria-label="Skribli account">
+          <div className="account-card-heading">
+            <span>ACCOUNT ACCESS</span>
+            <h2>Continue to Skribli</h2>
+            <p>Create the owner account or sign in on this device.</p>
+          </div>
           <div className="account-tabs" role="tablist" aria-label="Account action">
             <button
               type="button"
@@ -234,9 +243,9 @@ const HomeSurface: React.FC<{ onShowGuide: () => void }> = ({ onShowGuide }) => 
       </header>
 
       <section className="home-hero">
-        <span className="account-kicker">READY WHEN THE THOUGHT ARRIVES</span>
-        <h1>Put a Skrib on the work in front of you.</h1>
-        <p>Hide this window, focus any supported app, then press the shortcut.</p>
+        <span className="account-kicker">DESKTOP STATUS</span>
+        <h1>Skribli is ready.</h1>
+        <p>Hide this window, focus a supported app, and use the shortcut to open the compact editor.</p>
         <div className="home-shortcut" aria-label="Control plus Shift plus Space">
           <kbd>Ctrl</kbd><span>+</span><kbd>Shift</kbd><span>+</span><kbd>Space</kbd>
         </div>

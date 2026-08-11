@@ -1,0 +1,84 @@
+.startup-recovery {
+  width: 100vw;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 32px;
+  overflow: auto;
+  background:
+    radial-gradient(circle at 18% 12%, rgb(245 194 73 / 22%), transparent 34%),
+    linear-gradient(145deg, #fffdf7, #fff7df);
+  color: #25241f;
+  user-select: text;
+}
+
+.startup-recovery-card {
+  width: min(460px, 100%);
+  padding: 34px;
+  border: 1px solid rgb(37 36 31 / 12%);
+  border-radius: 24px 24px 36px 24px;
+  background: rgb(255 255 255 / 88%);
+  box-shadow: 0 22px 70px rgb(63 52 24 / 14%);
+}
+
+.startup-recovery-mark {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  margin-bottom: 22px;
+  border-radius: 14px 14px 20px 14px;
+  background: #f5c249;
+  font-family: Kalam, cursive;
+  font-size: 27px;
+  font-weight: 700;
+  transform: rotate(-2deg);
+}
+
+.startup-recovery-kicker {
+  color: #76663e;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+.startup-recovery h1 {
+  margin: 10px 0 12px;
+  font-size: 34px;
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+}
+
+.startup-recovery p {
+  margin: 0;
+  color: #625f54;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.startup-recovery details {
+  margin-top: 20px;
+  color: #625f54;
+  font-size: 12px;
+}
+
+.startup-recovery code {
+  display: block;
+  margin-top: 10px;
+  padding: 12px;
+  overflow-wrap: anywhere;
+  border-radius: 10px;
+  background: rgb(37 36 31 / 6%);
+  user-select: text;
+}
+
+.startup-recovery button {
+  margin-top: 24px;
+  padding: 12px 18px;
+  border: 0;
+  border-radius: 999px;
+  background: #25241f;
+  color: #fffdf7;
+  cursor: pointer;
+  font-weight: 750;
+}

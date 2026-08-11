@@ -1,0 +1,740 @@
+/*
+ * Desktop theme source of truth.
+ *
+ * The public website remains unchanged. The installed app consumes the same visual language
+ * through shared values here: paper, ink, quiet colour, Manrope display type, DM Sans UI type,
+ * and Kalam note content.
+ */
+
+:root {
+  --account-ink: var(--ink);
+  --account-muted: var(--muted);
+  --account-paper: var(--paper);
+  --account-wash: var(--paper-deep);
+  --account-yellow: var(--yellow);
+  --account-line: var(--line);
+  --account-ui: var(--font-ui);
+  --account-hand: var(--font-hand);
+  --library-ink: var(--ink);
+  --library-muted: var(--muted);
+  --library-paper: var(--paper);
+  --library-line: var(--line);
+  --skribli-ui-font: var(--font-ui);
+  --skribli-note-font: var(--font-hand);
+  --skribli-ink: var(--ink);
+  --skribli-muted: rgb(38 41 35 / 58%);
+  --skribli-line: var(--line);
+}
+
+body,
+button,
+input,
+textarea,
+select {
+  font-family: var(--font-ui);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+textarea,
+select,
+summary {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+summary:focus-visible {
+  outline: 2px solid #5f795b !important;
+  outline-offset: 3px !important;
+  box-shadow: var(--focus-ring) !important;
+}
+
+/* Home, setup, account, and loading */
+html[data-skribly-window="home"],
+html[data-skribly-window="home"] body,
+html[data-skribly-window="home"] #root,
+.app-home-root {
+  background: var(--paper) !important;
+}
+
+.account-page {
+  background:
+    radial-gradient(circle at 7% 2%, rgb(248 223 120 / 24%), transparent 28rem),
+    radial-gradient(circle at 98% 19%, rgb(220 234 223 / 42%), transparent 32rem),
+    linear-gradient(180deg, #fffdf7 0%, #fbf8ef 54%, #fffdf7 100%);
+}
+
+.account-setup-header,
+.home-header {
+  min-height: 54px;
+  margin-bottom: 22px;
+  padding: 0 2px 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.account-brand-lockup {
+  gap: 9px;
+}
+
+.account-brand-lockup .account-mark {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+}
+
+.account-brand-lockup strong {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+}
+
+.account-brand-lockup span {
+  font-size: 10px;
+}
+
+.account-step {
+  margin-right: 2px;
+  padding: 7px 11px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgb(255 253 247 / 72%);
+  color: rgb(38 41 35 / 58%);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+}
+
+.account-step::before {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 7px;
+  border-radius: 50%;
+  background: #5a8c62;
+  box-shadow: 0 0 0 4px rgb(90 140 98 / 12%);
+}
+
+.account-page-centered h1,
+.account-story h1,
+.home-hero h1,
+.library-topbar h1,
+.library-detail-header h2,
+.onboarding-panel h1,
+.startup-failure-panel h1,
+.target-capture-error-panel h1,
+.storage-recovery-panel h1,
+.license-gate-panel h1,
+.library-import-panel h2,
+.startup-recovery h1 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.account-story h1,
+.home-hero h1 {
+  letter-spacing: -0.05em;
+  line-height: 1.04;
+}
+
+.account-kicker,
+.library-kicker,
+.onboarding-kicker,
+.startup-failure-kicker,
+.target-capture-error-kicker,
+.storage-recovery-kicker,
+.license-gate-kicker,
+.startup-recovery-kicker,
+.feature-label {
+  color: rgb(38 41 35 / 56%);
+  font-family: var(--font-ui);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+.account-kicker {
+  display: inline-block;
+}
+
+.account-setup-grid {
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 0.84fr);
+  gap: clamp(24px, 4vw, 44px);
+}
+
+.account-story {
+  min-height: 100%;
+  padding: 26px;
+  border: 1px solid var(--line);
+  border-radius: 22px 22px 34px 22px;
+  background:
+    radial-gradient(circle at 92% 92%, rgb(220 234 223 / 76%), transparent 18rem),
+    linear-gradient(145deg, #ffe696, #f8df78 58%, #f7e8a7);
+  box-shadow: 0 22px 54px rgb(163 130 12 / 13%);
+}
+
+.account-story h1 {
+  max-width: 420px;
+  margin-top: 12px;
+  font-size: clamp(30px, 4.2vw, 40px);
+}
+
+.account-story > p {
+  max-width: 620px;
+  color: rgb(38 41 35 / 70%);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.account-story li::before {
+  color: #5a8c62;
+}
+
+.account-local-note {
+  width: fit-content;
+  margin: 30px 0 2px auto;
+  padding: 13px 16px 11px;
+  border: 1px solid rgb(38 41 35 / 11%);
+  border-radius: 9px 9px 22px 9px;
+  background: var(--peach);
+  box-shadow: 0 14px 34px rgb(38 41 35 / 12%);
+  transform: rotate(-2.5deg);
+}
+
+.account-local-note span {
+  display: block;
+  color: rgb(38 41 35 / 52%);
+  font-family: var(--font-ui);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+}
+
+.account-local-note p {
+  margin: 3px 0 0;
+  color: rgb(38 41 35 / 78%);
+  font-family: var(--font-hand);
+  font-size: 18px;
+  line-height: 1.05;
+}
+
+.account-card,
+.home-hero,
+.home-actions button,
+.home-announcement {
+  border-color: var(--line);
+  background: rgb(255 253 247 / 86%);
+  box-shadow: var(--shadow-s);
+}
+
+.account-card {
+  position: relative;
+  padding: 24px;
+  border-radius: 24px 24px 40px 24px;
+  box-shadow: 0 26px 74px rgb(28 31 26 / 13%);
+}
+
+.account-card::before {
+  content: "";
+  position: absolute;
+  top: -9px;
+  left: 50%;
+  width: 84px;
+  height: 22px;
+  background: rgb(255 235 166 / 76%);
+  box-shadow: 0 3px 9px rgb(64 58 31 / 8%);
+  transform: translateX(-50%) rotate(-2deg);
+}
+
+.account-card-heading {
+  margin-bottom: 18px;
+}
+
+.account-card-heading > span {
+  color: rgb(38 41 35 / 52%);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+.account-card-heading h2 {
+  margin: 7px 0 5px;
+  font-family: var(--font-display);
+  font-size: 24px;
+  line-height: 1.1;
+  letter-spacing: -0.045em;
+}
+
+.account-card-heading p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.account-tabs {
+  border: 1px solid rgb(38 41 35 / 7%);
+  border-radius: 999px;
+  background: var(--paper-deep);
+}
+
+.account-tabs button {
+  border-radius: 999px;
+}
+
+.account-tabs button[aria-selected="true"] {
+  background: var(--paper);
+  box-shadow: 0 7px 18px rgb(38 41 35 / 8%);
+}
+
+.account-card input[type="email"],
+.account-card input[type="password"] {
+  min-height: 48px;
+  padding-inline: 14px;
+  border-color: rgb(38 41 35 / 18%);
+  border-radius: 12px;
+  background: #fffefa;
+}
+
+.account-primary,
+.account-secondary,
+.onboarding-primary,
+.onboarding-secondary,
+.startup-failure-primary,
+.startup-failure-secondary,
+.target-capture-error-footer button,
+.storage-recovery-actions button,
+.license-gate-actions button,
+.library-button,
+.library-state button,
+.library-export-message button,
+.library-import-panel button {
+  border-radius: 999px;
+  font-family: var(--font-ui);
+  font-weight: 700;
+  transition: transform 150ms ease, box-shadow 150ms ease, background 150ms ease;
+}
+
+.account-primary,
+.onboarding-primary,
+.startup-failure-primary,
+.target-capture-error-footer .primary,
+.storage-recovery-actions .primary,
+.license-primary,
+.library-button.primary {
+  border: 1px solid rgb(38 41 35 / 12%);
+  background: var(--yellow);
+  color: var(--ink);
+  box-shadow: 0 14px 36px rgb(163 130 12 / 16%);
+}
+
+.account-primary:hover:not(:disabled),
+.onboarding-primary:hover,
+.startup-failure-primary:hover,
+.target-capture-error-footer .primary:hover,
+.storage-recovery-actions .primary:hover,
+.license-primary:hover:not(:disabled),
+.library-button.primary:hover:not(:disabled) {
+  background: #f5d85d;
+  box-shadow: 0 18px 42px rgb(163 130 12 / 20%);
+  transform: translateY(-2px);
+}
+
+.account-secondary,
+.onboarding-secondary,
+.startup-failure-secondary,
+.target-capture-error-footer button:not(.primary),
+.storage-recovery-actions button:not(.primary),
+.license-secondary,
+.library-button.secondary,
+.library-state button,
+.library-export-message button {
+  border: 1px solid var(--line);
+  background: rgb(255 255 255 / 62%);
+  color: var(--ink);
+}
+
+.home-hero {
+  position: relative;
+  overflow: hidden;
+  padding: clamp(26px, 4vw, 38px);
+  border-radius: 24px 24px 38px 24px;
+  background:
+    radial-gradient(circle at 8% 12%, rgb(248 223 120 / 34%), transparent 28rem),
+    radial-gradient(circle at 96% 86%, rgb(220 234 223 / 64%), transparent 29rem),
+    rgb(255 253 247 / 92%);
+  box-shadow: 0 24px 64px rgb(38 41 35 / 10%);
+}
+
+.home-hero h1 {
+  max-width: 520px;
+  margin: 9px 0 8px;
+  font-size: clamp(32px, 4.8vw, 44px);
+}
+
+.home-hero p {
+  margin-left: 0;
+  max-width: 560px;
+  text-align: left;
+}
+
+.home-shortcut kbd,
+.onboarding-shortcut kbd {
+  border-color: var(--line);
+  border-bottom-width: 4px;
+  border-radius: 12px;
+  background: rgb(255 255 255 / 62%);
+  box-shadow: none;
+  font-family: var(--font-ui);
+}
+
+.home-shortcut {
+  justify-content: flex-start;
+  margin-block: 20px 18px;
+}
+
+.home-start {
+  min-height: 50px;
+  padding-inline: 22px;
+}
+
+.home-actions button {
+  min-height: 100px;
+  border-radius: 18px 18px 28px 18px;
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.home-actions button:first-child {
+  background: linear-gradient(145deg, rgb(248 223 120 / 62%), rgb(255 253 247 / 94%));
+}
+
+.home-actions button:last-child {
+  background: linear-gradient(145deg, rgb(220 234 223 / 78%), rgb(255 253 247 / 94%));
+}
+
+.home-actions button:hover {
+  box-shadow: var(--shadow-s);
+  transform: translateY(-3px);
+}
+
+.home-announcement {
+  border-radius: 18px 18px 28px 18px;
+  background: var(--olive-soft);
+}
+
+/* Compact editor and every note-like content surface */
+.composer-textarea,
+.skrib-textarea,
+.library-note-row-preview,
+.library-note-paper p,
+.skrib-card textarea,
+.skrib-card p,
+.skrib-content,
+.note-content,
+[data-skribli-note-content],
+.reminder-card [data-note-content],
+.calendar-skrib-card [data-note-content] {
+  font-family: var(--font-hand) !important;
+  font-weight: 400;
+}
+
+.skrib-composer {
+  border-color: var(--line);
+  border-radius: 18px 18px 34px 18px;
+  box-shadow: 0 26px 70px rgb(38 41 35 / 24%);
+}
+
+.composer-context strong,
+.composer-status,
+.composer-footer button,
+.composer-reposition,
+.composer-close {
+  font-family: var(--font-ui);
+}
+
+.composer-footer button {
+  border-radius: 999px;
+}
+
+.composer-footer button.primary {
+  background: var(--ink);
+  color: var(--paper);
+  box-shadow: 0 10px 24px rgb(38 41 35 / 16%);
+}
+
+.composer-footer button.secondary {
+  border-color: var(--line);
+  background: rgb(255 255 255 / 48%);
+}
+
+.skrib-color-yellow {
+  --skribli-paper: var(--yellow);
+  --skribli-paper-deep: #e6c451;
+  background-color: var(--yellow);
+}
+
+.skrib-color-peach {
+  --skribli-paper: var(--peach);
+  --skribli-paper-deep: #efb49d;
+  background-color: var(--peach);
+}
+
+.skrib-color-mint {
+  --skribli-paper: var(--mint);
+  --skribli-paper-deep: #afd3b1;
+  background-color: var(--mint);
+}
+
+.skrib-color-sky {
+  --skribli-paper: var(--sky);
+  --skribli-paper-deep: #afc9ed;
+  background-color: var(--sky);
+}
+
+.skrib-color-lavender {
+  --skribli-paper: var(--lavender);
+  --skribli-paper-deep: #c9b8ec;
+  background-color: var(--lavender);
+}
+
+/* All Skribs, search, import/export, Trash */
+html[data-skribly-window="library"],
+html[data-skribly-window="library"] body,
+html[data-skribly-window="library"] #root,
+.app-library-root,
+.library-shell {
+  background: var(--paper) !important;
+  color: var(--ink);
+  font-family: var(--font-ui);
+}
+
+.library-shell {
+  background:
+    radial-gradient(circle at 7% 2%, rgb(248 223 120 / 24%), transparent 28rem),
+    radial-gradient(circle at 98% 19%, rgb(220 234 223 / 42%), transparent 32rem),
+    linear-gradient(180deg, #fffdf7 0%, #fbf8ef 54%, #fffdf7 100%) !important;
+}
+
+.library-topbar h1 {
+  font-weight: 700;
+  letter-spacing: -0.055em;
+}
+
+.library-lifecycle-tabs,
+.library-search input {
+  border-color: var(--line);
+  background: rgb(255 253 247 / 88%);
+  box-shadow: 0 12px 36px rgb(38 41 35 / 7%);
+}
+
+.library-lifecycle-tabs {
+  width: fit-content;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+
+.library-lifecycle-tabs button {
+  border-radius: 999px;
+  font-family: var(--font-ui);
+}
+
+.library-lifecycle-tabs button.active,
+.library-lifecycle-tabs button[aria-current="page"] {
+  background: var(--paper);
+  box-shadow: 0 7px 18px rgb(38 41 35 / 8%);
+}
+
+.library-sidebar,
+.library-detail {
+  border-color: var(--line);
+  border-radius: 24px 24px 38px 24px;
+  background: rgb(255 253 247 / 84%);
+  box-shadow: var(--shadow-s);
+}
+
+.library-note-row {
+  border-color: var(--line);
+  border-radius: 14px 14px 24px 14px;
+}
+
+.library-note-row.selected {
+  box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--olive);
+}
+
+.library-note-paper {
+  border-color: var(--line);
+  border-radius: 18px 18px 34px 18px;
+  box-shadow: 0 18px 44px rgb(38 41 35 / 12%);
+}
+
+.library-note-paper p {
+  font-size: 19px;
+  line-height: 1.58;
+}
+
+.library-note-metadata div {
+  border-color: var(--line);
+  background: rgb(245 241 231 / 72%);
+}
+
+.library-import-panel {
+  border-color: var(--line);
+  border-radius: 28px 28px 46px 28px;
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: var(--shadow-l);
+  font-family: var(--font-ui);
+}
+
+/* Onboarding, licensing, recovery, errors, and modal states */
+.onboarding-panel,
+.startup-failure-panel,
+.target-capture-error-panel,
+.storage-recovery-panel,
+.license-gate-panel,
+.startup-recovery-card,
+.target-picker-modal,
+.library-panel {
+  border-color: var(--line);
+  border-radius: 28px 28px 46px 28px;
+  background:
+    radial-gradient(circle at 92% 8%, rgb(220 234 223 / 42%), transparent 19rem),
+    radial-gradient(circle at 8% 96%, rgb(248 223 120 / 24%), transparent 18rem),
+    var(--paper);
+  color: var(--ink);
+  box-shadow: var(--shadow-l);
+  font-family: var(--font-ui);
+}
+
+.onboarding-step,
+.onboarding-trust,
+.storage-recovery-safety,
+.target-capture-error-safety,
+.license-device-card,
+.composer-recovery,
+.library-safety-note {
+  border-color: var(--line);
+  border-radius: 16px 16px 24px 16px;
+  background: var(--olive-soft);
+  color: var(--olive);
+}
+
+.onboarding-step-number,
+.onboarding-trust-mark,
+.target-capture-error-safety > span,
+.storage-recovery-safety > span {
+  background: var(--yellow);
+  color: var(--ink);
+}
+
+.composer-error,
+.license-error,
+.library-export-message.error {
+  border-color: rgb(139 63 56 / 22%);
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.startup-recovery-mark,
+.skribli-boot-mark {
+  background: var(--yellow);
+  color: var(--ink);
+  font-family: var(--font-hand);
+}
+
+.startup-recovery button {
+  border-radius: 999px;
+  background: var(--yellow);
+  color: var(--ink);
+}
+
+.license-trial-badge {
+  border-color: var(--line);
+  background: rgb(255 253 247 / 94%);
+  color: var(--ink);
+  font-family: var(--font-ui);
+}
+
+.license-trial-badge strong {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+@media (min-width: 681px) {
+  .account-setup-grid {
+    grid-template-columns: minmax(360px, 0.98fr) minmax(360px, 0.82fr);
+  }
+
+  .account-story h1 {
+    max-width: 390px;
+    font-size: clamp(30px, 4.2vw, 40px);
+  }
+}
+
+@media (max-width: 680px) {
+  .account-setup-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .account-story h1 {
+    max-width: 620px;
+  }
+}
+
+@media (max-width: 620px) {
+  .account-page {
+    padding: 16px;
+  }
+
+  .account-setup-header,
+  .home-header {
+    align-items: flex-start;
+  }
+
+  .account-step {
+    display: none;
+  }
+
+  .account-story h1,
+  .home-hero h1 { font-size: clamp(30px, 9vw, 40px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+@media (forced-colors: active) {
+  .account-card,
+  .home-hero,
+  .home-actions button,
+  .library-sidebar,
+  .library-detail,
+  .library-note-row,
+  .library-note-paper,
+  .library-import-panel,
+  .onboarding-panel,
+  .startup-failure-panel,
+  .target-capture-error-panel,
+  .storage-recovery-panel,
+  .license-gate-panel,
+  .startup-recovery-card {
+    border: 1px solid CanvasText;
+    background: Canvas;
+    color: CanvasText;
+    box-shadow: none;
+  }
+}
