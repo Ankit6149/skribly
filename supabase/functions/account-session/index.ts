@@ -23,6 +23,16 @@ interface TrialRow {
   active_announcements: unknown[];
 }
 
+type AccountRole = "owner" | "member";
+
+function accountRole(appMetadata: unknown): AccountRole {
+  if (!appMetadata || typeof appMetadata !== "object") return "member";
+  const metadata = appMetadata as Record<string, unknown>;
+  return metadata.skribly_role === "owner" && metadata.skribly_owner === true
+    ? "owner"
+    : "member";
+}
+
 function json(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), { status, headers: JSON_HEADERS });
 }
@@ -54,8 +64,13 @@ async function readBody(request: Request): Promise<RequestBody> {
   return value as RequestBody;
 }
 
-async function signingKey(): Promise<CryptoKey> {
-  const encoded = Deno.env.get("SKRIBLY_ENTITLEMENT_PRIVATE_JWK");
+async function signingKey(adminClient: ReturnType<typeof createClient>): Promise<CryptoKey> {
+  let encoded = Deno.env.get("SKRIBLY_ENTITLEMENT_PRIVATE_JWK");
+  if (!encoded) {
+    const { data, error } = await adminClient.rpc("skribly_get_entitlement_signing_jwk");
+    if (error || typeof data !== "string") throw new Error("signing_unavailable");
+    encoded = data;
+  }
   if (!encoded) throw new Error("signing_unavailable");
   const key = JSON.parse(encoded) as JsonWebKey;
   if (key.kty !== "OKP" || key.crv !== "Ed25519" || !key.d || !key.x) {
@@ -64,9 +79,16 @@ async function signingKey(): Promise<CryptoKey> {
   return crypto.subtle.importKey("jwk", key, { name: "Ed25519" }, false, ["sign"]);
 }
 
-async function signEntitlement(payload: Record<string, unknown>): Promise<string> {
+async function signEntitlement(
+  payload: Record<string, unknown>,
+  adminClient: ReturnType<typeof createClient>,
+): Promise<string> {
   const payloadBytes = new TextEncoder().encode(JSON.stringify(payload));
-  const signature = await crypto.subtle.sign("Ed25519", await signingKey(), payloadBytes);
+  const signature = await crypto.subtle.sign(
+    "Ed25519",
+    await signingKey(adminClient),
+    payloadBytes,
+  );
   return `${base64Url(payloadBytes)}.${base64Url(new Uint8Array(signature))}`;
 }
 
@@ -125,10 +147,11 @@ Deno.serve(async (request: Request) => {
       offlineUntil,
       updatesUntil: 0,
       perpetual: false,
-    });
+    }, adminClient);
 
     return json(200, {
       signedEntitlement,
+      accountRole: accountRole(user.app_metadata),
       productUpdatesOptIn: Boolean(row.product_updates_opt_in),
       announcements: Array.isArray(row.active_announcements) ? row.active_announcements : [],
     });

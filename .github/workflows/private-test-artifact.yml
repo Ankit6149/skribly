@@ -22,7 +22,7 @@ jobs:
     timeout-minutes: 45
     env:
       SKRIBLY_TRIAL_ENFORCED: "1"
-      SKRIBLY_LICENSE_PUBLIC_KEY: "xWfFU3SGshX9gzKt7rJJ4Z8502MNe0DrOmk2nJZoNyk"
+      SKRIBLY_LICENSE_PUBLIC_KEY: "mAiFdpM1Bo1Xt6-QBsORXVMRu1eGI-IWTxJZ_mj5_UY"
       VITE_SKRIBLY_ACCOUNT_URL: "https://bccgutpkjxtogqbywsxr.supabase.co"
       VITE_SKRIBLY_ACCOUNT_PUBLISHABLE_KEY: "sb_publishable_bjfNO80Oxx-gjuOAl8uXEA_YtdvCSHL"
       VITE_SKRIBLY_ACCOUNT_FUNCTION: "account-session"

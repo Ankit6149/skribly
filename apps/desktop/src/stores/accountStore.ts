@@ -3,8 +3,10 @@ import { create } from 'zustand';
 import {
   claimAccountEntitlement,
   getAccountClient,
+  withAccountTimeout,
   type AccountAnnouncement,
   type AccountEntitlementResult,
+  type AccountRole,
 } from '../features/account/accountClient';
 import { invoke } from '@tauri-apps/api/core';
 import { emit } from '@tauri-apps/api/event';
@@ -22,6 +24,7 @@ export type AccountPhase =
 interface AccountStoreState {
   phase: AccountPhase;
   email: string | null;
+  accountRole: AccountRole | null;
   entitlement: LicenseStatus | null;
   productUpdatesOptIn: boolean;
   announcements: AccountAnnouncement[];
@@ -55,12 +58,16 @@ async function claim(
   session: Session,
   productUpdatesOptIn: boolean
 ): Promise<AccountEntitlementResult> {
-  return claimAccountEntitlement(session, productUpdatesOptIn);
+  return withAccountTimeout(
+    claimAccountEntitlement(session, productUpdatesOptIn),
+    'Account and device verification'
+  );
 }
 
 export const useAccountStore = create<AccountStoreState>((set, get) => ({
   phase: 'loading',
   email: null,
+  accountRole: null,
   entitlement: null,
   productUpdatesOptIn: false,
   announcements: [],
@@ -79,13 +86,26 @@ export const useAccountStore = create<AccountStoreState>((set, get) => ({
       }
 
       set({ phase: 'loading', message: null });
-      const { data, error } = await configured.client.auth.getSession();
+      let response: Awaited<ReturnType<typeof configured.client.auth.getSession>>;
+      try {
+        response = await withAccountTimeout(
+          configured.client.auth.getSession(),
+          'Protected session restore'
+        );
+      } catch (error) {
+        set({
+          phase: 'error',
+          message: error instanceof Error ? error.message : String(error),
+        });
+        return;
+      }
+      const { data, error } = response;
       if (error) {
         set({ phase: 'error', message: error.message });
         return;
       }
       if (!data.session) {
-        set({ phase: 'signedOut', email: null, entitlement: null });
+        set({ phase: 'signedOut', email: null, accountRole: null, entitlement: null });
         return;
       }
 
@@ -95,6 +115,7 @@ export const useAccountStore = create<AccountStoreState>((set, get) => ({
         set({
           phase: 'ready',
           email: data.session.user.email ?? null,
+          accountRole: result.accountRole,
           entitlement: result.status,
           productUpdatesOptIn: result.productUpdatesOptIn,
           announcements: result.announcements,
@@ -127,7 +148,24 @@ export const useAccountStore = create<AccountStoreState>((set, get) => ({
     }
 
     set({ phase: 'loading', email, productUpdatesOptIn, message: null });
-    const { data, error } = await configured.client.auth.signUp({ email, password });
+    let response: Awaited<ReturnType<typeof configured.client.auth.signUp>>;
+    try {
+      response = await withAccountTimeout(
+        configured.client.auth.signUp({ email, password }),
+        'Account creation'
+      );
+    } catch (error) {
+      set({
+        phase: 'verificationPending',
+        email,
+        message:
+          error instanceof Error
+            ? `${error.message} If the account was created, use Sign in instead of creating it again.`
+            : String(error),
+      });
+      return;
+    }
+    const { data, error } = response;
     if (error) {
       set({ phase: 'signedOut', message: error.message });
       return;
@@ -147,6 +185,7 @@ export const useAccountStore = create<AccountStoreState>((set, get) => ({
       set({
         phase: 'ready',
         email: data.user?.email ?? email,
+        accountRole: result.accountRole,
         entitlement: result.status,
         productUpdatesOptIn: result.productUpdatesOptIn,
         announcements: result.announcements,
@@ -170,7 +209,21 @@ export const useAccountStore = create<AccountStoreState>((set, get) => ({
     }
 
     set({ phase: 'loading', email, productUpdatesOptIn, message: null });
-    const { data, error } = await configured.client.auth.signInWithPassword({ email, password });
+    let response: Awaited<ReturnType<typeof configured.client.auth.signInWithPassword>>;
+    try {
+      response = await withAccountTimeout(
+        configured.client.auth.signInWithPassword({ email, password }),
+        'Sign in'
+      );
+    } catch (error) {
+      set({
+        phase: 'signedOut',
+        email,
+        message: error instanceof Error ? error.message : String(error),
+      });
+      return;
+    }
+    const { data, error } = response;
     if (error || !data.session) {
       set({ phase: 'signedOut', message: error?.message || 'Sign-in did not create a session.' });
       return;
@@ -182,6 +235,7 @@ export const useAccountStore = create<AccountStoreState>((set, get) => ({
       set({
         phase: 'ready',
         email: data.user.email ?? email,
+        accountRole: result.accountRole,
         entitlement: result.status,
         productUpdatesOptIn: result.productUpdatesOptIn,
         announcements: result.announcements,
@@ -204,6 +258,7 @@ export const useAccountStore = create<AccountStoreState>((set, get) => ({
     set({
       phase: 'signedOut',
       email: null,
+      accountRole: null,
       entitlement: null,
       productUpdatesOptIn: false,
       announcements: [],
@@ -214,6 +269,7 @@ export const useAccountStore = create<AccountStoreState>((set, get) => ({
   resetToSignIn: () =>
     set((state) => ({
       phase: 'signedOut',
+      accountRole: null,
       entitlement: null,
       announcements: [],
       message: null,

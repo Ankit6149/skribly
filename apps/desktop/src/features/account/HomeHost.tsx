@@ -212,7 +212,7 @@ const AccountSetupSurface: React.FC = () => {
 };
 
 const HomeSurface: React.FC<{ onShowGuide: () => void }> = ({ onShowGuide }) => {
-  const { email, entitlement, productUpdatesOptIn, announcements, signOut } = useAccountStore();
+  const { email, accountRole, entitlement, productUpdatesOptIn, announcements, signOut } = useAccountStore();
   const [actionError, setActionError] = useState<string | null>(null);
   const trialLabel = useMemo(() => {
     if (!entitlement) return 'Account verified';
@@ -290,6 +290,7 @@ const HomeSurface: React.FC<{ onShowGuide: () => void }> = ({ onShowGuide }) => 
 
       <footer className="home-footer">
         <span>{email}</span>
+        <span>{accountRole === 'owner' ? 'Owner account' : 'Member account'}</span>
         <span>{productUpdatesOptIn ? 'Product update emails on' : 'Only essential account emails'}</span>
         <span>Skrib content stays local</span>
       </footer>

@@ -12,9 +12,12 @@ export interface AccountConfiguration {
 
 export interface AccountEntitlementResult {
   status: LicenseStatus;
+  accountRole: AccountRole;
   productUpdatesOptIn: boolean;
   announcements: AccountAnnouncement[];
 }
+
+export type AccountRole = 'owner' | 'member';
 
 export interface AccountAnnouncement {
   id: string;
@@ -26,6 +29,7 @@ export interface AccountAnnouncement {
 
 const DEFAULT_ACCOUNT_URL = 'https://bccgutpkjxtogqbywsxr.supabase.co';
 const DEFAULT_ACCOUNT_PUBLISHABLE_KEY = 'sb_publishable_bjfNO80Oxx-gjuOAl8uXEA_YtdvCSHL';
+export const ACCOUNT_OPERATION_TIMEOUT_MS = 20_000;
 
 const browserFallbackStorage = new Map<string, string>();
 
@@ -72,7 +76,7 @@ export function readAccountConfiguration(): AccountConfiguration | null {
   const entitlementFunction = String(
     import.meta.env.VITE_SKRIBLY_ACCOUNT_FUNCTION || 'account-session'
   ).trim();
-  const appVersion = String(import.meta.env.VITE_SKRIBLY_APP_VERSION || '0.1.7').trim();
+  const appVersion = String(import.meta.env.VITE_SKRIBLY_APP_VERSION || '0.1.8').trim();
 
   if (
     !isHttpsUrl(supabaseUrl) ||
@@ -123,8 +127,33 @@ export function getAccountClient(): {
 
 interface EntitlementFunctionPayload {
   signedEntitlement: string;
+  accountRole: AccountRole;
   productUpdatesOptIn: boolean;
   announcements: AccountAnnouncement[];
+}
+
+export async function withAccountTimeout<T>(
+  operation: PromiseLike<T>,
+  description: string,
+  timeoutMs = ACCOUNT_OPERATION_TIMEOUT_MS
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      Promise.resolve(operation),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => {
+          reject(
+            new Error(
+              `${description} took too long. Check your connection and try again; Skribli will not stay stuck on this screen.`
+            )
+          );
+        }, timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 export function parseEntitlementPayload(value: unknown): EntitlementFunctionPayload {
@@ -153,6 +182,7 @@ export function parseEntitlementPayload(value: unknown): EntitlementFunctionPayl
     typeof candidate.signedEntitlement !== 'string' ||
     candidate.signedEntitlement.length < 80 ||
     candidate.signedEntitlement.length > 16 * 1024 ||
+    (candidate.accountRole !== 'owner' && candidate.accountRole !== 'member') ||
     typeof candidate.productUpdatesOptIn !== 'boolean'
   ) {
     throw new Error('The Skribli account server returned an invalid entitlement.');
@@ -191,6 +221,7 @@ export async function claimAccountEntitlement(
   await emit('skribly://license-status-request');
   return {
     status,
+    accountRole: payload.accountRole,
     productUpdatesOptIn: payload.productUpdatesOptIn,
     announcements: payload.announcements,
   };
