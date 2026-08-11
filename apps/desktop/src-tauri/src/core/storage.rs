@@ -171,6 +171,7 @@ enum SaveFault {
 #[derive(Debug)]
 pub struct StorageService {
     primary_path: PathBuf,
+    license_path: PathBuf,
     revision: u64,
     blocked_reason: Option<String>,
 }
@@ -178,8 +179,10 @@ pub struct StorageService {
 impl StorageService {
     pub fn new(primary_path: PathBuf) -> Self {
         let _ = license::initialize_from_skrib_path(&primary_path);
+        let license_path = primary_path.with_file_name("license.json");
         Self {
             primary_path,
+            license_path,
             revision: 0,
             blocked_reason: None,
         }
@@ -436,7 +439,7 @@ impl StorageService {
                 reason: reason.clone(),
             });
         }
-        license::require_global_write_access()
+        license::require_write_access(&self.license_path)
             .map_err(|reason| StorageError::WriteBlocked { reason })?;
 
         let parent = self

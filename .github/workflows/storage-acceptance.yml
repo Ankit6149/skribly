@@ -49,7 +49,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Build storage acceptance binary in release mode
-        run: cargo build --release --manifest-path apps/desktop/src-tauri/Cargo.toml --bin storage_acceptance
+        run: cargo build --release --manifest-path apps/desktop/src-tauri/Cargo.toml --features storage-acceptance --bin storage_acceptance
 
       - name: Run Windows crash, lock, permission, corruption, and recovery matrix
         shell: pwsh

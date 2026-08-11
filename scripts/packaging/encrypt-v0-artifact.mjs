@@ -4,7 +4,9 @@ import path from 'node:path';
 
 const [inputPath, outputPath, downloadKey] = process.argv.slice(2);
 if (!inputPath || !outputPath || !downloadKey || downloadKey.length < 24) {
-  throw new Error('Usage: node encrypt-v0-artifact.mjs <input.zip> <output.enc> <key-at-least-24-characters>');
+  throw new Error(
+    'Usage: node encrypt-v0-artifact.mjs <input-artifact> <output.enc> <key-at-least-24-characters>',
+  );
 }
 
 const magic = Buffer.from('SKRV0E01', 'ascii');

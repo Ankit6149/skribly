@@ -45,21 +45,23 @@
         false,
         ['decrypt']
       );
-      const archive = await crypto.subtle.decrypt(
+      const installer = await crypto.subtle.decrypt(
         { name: 'AES-GCM', iv: encrypted.slice(24, 36), tagLength: 128 },
         aesKey,
         encrypted.slice(36)
       );
 
-      const objectUrl = URL.createObjectURL(new Blob([archive], { type: 'application/zip' }));
+      const objectUrl = URL.createObjectURL(
+        new Blob([installer], { type: 'application/vnd.microsoft.portable-executable' })
+      );
       const link = document.createElement('a');
       link.href = objectUrl;
-      link.download = 'Skribli_v0_Windows.zip';
+      link.download = 'Skribli_0.1.6_x64-setup.exe';
       document.body.appendChild(link);
       link.click();
       link.remove();
       window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
-      setStatus('Download started. Extract the ZIP, then run the Skribli installer.');
+      setStatus('Installer download started. Open the .exe to install Skribli on this PC.');
     } catch {
       setStatus('That key is incorrect, or the installer is not ready yet.', true);
     } finally {

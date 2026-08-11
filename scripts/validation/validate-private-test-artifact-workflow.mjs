@@ -107,6 +107,16 @@ const cargoVersion = cargoToml.match(/^version = "([^"]+)"$/m)?.[1];
 if (!cargoVersion || cargoVersion !== tauriConfig.version) {
   failures.push('Cargo.toml and tauri.conf.json application versions must match.');
 }
+for (const marker of [
+  'default-run = "skribly"',
+  'name = "skribly"',
+  'name = "storage_acceptance"',
+  'required-features = ["storage-acceptance"]',
+]) {
+  if (!cargoToml.includes(marker)) {
+    failures.push(`Cargo production-binary isolation is missing: ${marker}`);
+  }
+}
 
 const bundleIcons = new Set(tauriConfig.bundle?.icon ?? []);
 for (const requiredIcon of ['icons/32x32.png', 'icons/128x128.png', 'icons/128x128@2x.png', 'icons/icon.ico']) {

@@ -442,17 +442,21 @@ pub fn initialize_from_skrib_path(skrib_path: &Path) -> Result<LicenseStatus, St
 }
 
 pub fn current_global_status() -> Result<LicenseStatus, String> {
+    if !enforcement_enabled() {
+        return Ok(beta_status("SKR-BETA".to_string()));
+    }
     match LICENSE_PATH.get() {
         Some(path) => current_status(path),
-        None if !enforcement_enabled() => Ok(beta_status("SKR-BETA".to_string())),
         None => Err("Licence storage has not been initialized.".to_string()),
     }
 }
 
 pub fn require_global_write_access() -> Result<LicenseStatus, String> {
+    if !enforcement_enabled() {
+        return Ok(beta_status("SKR-BETA".to_string()));
+    }
     match LICENSE_PATH.get() {
         Some(path) => require_write_access(path),
-        None if !enforcement_enabled() => Ok(beta_status("SKR-BETA".to_string())),
         None => Err("Licence storage has not been initialized.".to_string()),
     }
 }

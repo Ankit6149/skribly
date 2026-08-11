@@ -279,7 +279,7 @@ for (const marker of [
   "'PBKDF2'",
   "'AES-GCM'",
   '210_000',
-  "link.download = 'Skribli_v0_Windows.zip'",
+  "link.download = 'Skribli_0.1.6_x64-setup.exe'",
 ]) {
   if (!ownerDownloadScript.includes(marker)) failures.push(`Owner v0 client flow is missing: ${marker}`);
 }
@@ -288,7 +288,7 @@ if (/supabase|\/api\/download|accessToken/i.test(ownerDownloadScript)) {
 }
 
 const encryptedArtifact = await readFile(join(root, 'assets/skribli-v0-windows.enc'));
-if (encryptedArtifact.length < 100_000 || encryptedArtifact.subarray(0, 8).toString('ascii') !== 'SKRV0E01') {
+if (encryptedArtifact.length < 2_000_000 || encryptedArtifact.subarray(0, 8).toString('ascii') !== 'SKRV0E01') {
   failures.push('Encrypted v0 Windows artifact is missing or invalid.');
 }
 

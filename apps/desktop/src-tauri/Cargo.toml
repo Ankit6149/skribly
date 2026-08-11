@@ -4,6 +4,19 @@ version = "0.1.6"
 description = "Local-first contextual annotations for Windows"
 authors = ["Ankit Bhardwaj"]
 edition = "2021"
+default-run = "skribly"
+
+[features]
+storage-acceptance = []
+
+[[bin]]
+name = "skribly"
+path = "src/main.rs"
+
+[[bin]]
+name = "storage_acceptance"
+path = "src/bin/storage_acceptance.rs"
+required-features = ["storage-acceptance"]
 
 [lib]
 name = "skribly_lib"
