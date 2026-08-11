@@ -22,7 +22,7 @@ ed25519-dalek = "3"
 sha2 = "0.10"
 
 [target.'cfg(target_os = "windows")'.dependencies]
-winreg = "0.55.0"
+winreg = "0.56.0"
 windows = { version = "0.62", features = [
   "Win32_Foundation",
   "Win32_Security",
