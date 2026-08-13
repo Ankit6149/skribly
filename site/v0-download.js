@@ -56,7 +56,7 @@
       );
       const link = document.createElement('a');
       link.href = objectUrl;
-      link.download = 'Skribli_0.1.9_x64-setup.exe';
+      link.download = 'Skribli_0.1.10_x64-setup.exe';
       document.body.appendChild(link);
       link.click();
       link.remove();

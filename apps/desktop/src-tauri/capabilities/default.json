@@ -3,5 +3,12 @@
   "identifier": "default",
   "description": "Minimal capabilities for Skribli home, the compact editor, and All Skribs",
   "windows": ["home", "main", "library"],
-  "permissions": ["core:default"]
+  "permissions": [
+    "core:default",
+    "core:window:allow-center",
+    "core:window:allow-hide",
+    "core:window:allow-set-focus",
+    "core:window:allow-show",
+    "core:window:allow-unminimize"
+  ]
 }

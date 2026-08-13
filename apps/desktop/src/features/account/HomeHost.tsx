@@ -224,76 +224,129 @@ const HomeSurface: React.FC<{ onShowGuide: () => void }> = ({ onShowGuide }) => 
     return entitlement.message;
   }, [entitlement]);
 
+  const handleOpenLibrary = () => {
+    setActionError(null);
+    void openLibrary().catch((error) =>
+      setActionError(error instanceof Error ? error.message : String(error))
+    );
+  };
+
   return (
     <div className="account-page home-page">
-      <header className="home-header">
+      <aside className="home-sidebar" aria-label="Skribli navigation">
         <div className="account-brand-lockup">
           <img className="account-mark" src={skriblyMarkUrl} alt="" />
           <div>
             <strong>Skribli</strong>
-            <span>{trialLabel}</span>
+            <span>Desktop workspace</span>
           </div>
         </div>
-        <div className="home-header-actions">
-          <span className="account-step">READY · 3 OF 3</span>
+
+        <div className="home-sidebar-status" role="status">
+          <span aria-hidden="true" />
+          <div>
+            <strong>Ready</strong>
+            <small>{trialLabel}</small>
+          </div>
+        </div>
+
+        <nav className="home-navigation" aria-label="Workspace">
+          <span className="home-navigation-label">WORKSPACE</span>
+          <button type="button" className="current" aria-current="page" disabled>
+            <strong>Home</strong>
+            <span>Shortcut and status</span>
+          </button>
+          <button type="button" onClick={handleOpenLibrary}>
+            <strong>All Skribs</strong>
+            <span>Search, import, and export</span>
+          </button>
+          <button type="button" onClick={onShowGuide}>
+            <strong>Quick guide</strong>
+            <span>How Skribli works</span>
+          </button>
+        </nav>
+
+        <div className="home-account-summary">
+          <span>{accountRole === 'owner' ? 'OWNER ACCOUNT' : 'MEMBER ACCOUNT'}</span>
+          <strong>{email}</strong>
+          <small>{productUpdatesOptIn ? 'Product updates enabled' : 'Essential account emails only'}</small>
           <button className="account-text-button" type="button" onClick={() => void signOut()}>
             Sign out
           </button>
         </div>
-      </header>
+      </aside>
 
-      <section className="home-hero">
-        <span className="account-kicker">DESKTOP STATUS</span>
-        <h1>Skribli is ready.</h1>
-        <p>Hide this window, focus a supported app, and use the shortcut to open the compact editor.</p>
-        <div className="home-shortcut" aria-label="Control plus Shift plus Space">
-          <kbd>Ctrl</kbd><span>+</span><kbd>Shift</kbd><span>+</span><kbd>Space</kbd>
-        </div>
-        <button
-          className="account-primary home-start"
-          type="button"
-          disabled={entitlement ? !entitlement.canWrite : true}
-          onClick={() => void getCurrentWindow().hide()}
-        >
-          {entitlement?.canWrite ? 'Hide Skribli and use the shortcut' : 'Writing is unavailable'}
-        </button>
-      </section>
+      <main className="home-main">
+        <header className="home-main-header">
+          <div>
+            <span className="account-kicker">DESKTOP STATUS</span>
+            <h1>Skribli is ready.</h1>
+          </div>
+          <span className="account-step">READY · 3 OF 3</span>
+        </header>
 
-      {announcements[0] && (
-        <section className="home-announcement" aria-label="Skribli update">
-          <span className="account-kicker">WHAT'S NEW</span>
-          <strong>{announcements[0].title}</strong>
-          <p>{announcements[0].body}</p>
+        <section className="home-hero" aria-label="Start a Skrib">
+          <div className="home-hero-copy">
+            <span className="home-section-label">CREATE A SKRIB</span>
+            <h2>Focus any supported app, then press your shortcut.</h2>
+            <p>The compact editor opens for that exact window and saves your note locally.</p>
+          </div>
+          <div className="home-command-card">
+            <span className="home-command-label">GLOBAL SHORTCUT</span>
+            <div className="home-shortcut" aria-label="Control plus Shift plus Space">
+              <kbd>Ctrl</kbd><span>+</span><kbd>Shift</kbd><span>+</span><kbd>Space</kbd>
+            </div>
+            <button
+              className="account-primary home-start"
+              type="button"
+              disabled={entitlement ? !entitlement.canWrite : true}
+              onClick={() => void getCurrentWindow().hide()}
+            >
+              {entitlement?.canWrite ? 'Hide Skribli and start' : 'Writing is unavailable'}
+            </button>
+          </div>
         </section>
-      )}
 
-      <section className="home-actions" aria-label="Skribli actions">
-        <button
-          type="button"
-          onClick={() => {
-            setActionError(null);
-            void openLibrary().catch((error) =>
-              setActionError(error instanceof Error ? error.message : String(error))
-            );
-          }}
-        >
-          <strong>All Skribs</strong>
-          <span>Search, restore, import, or export local Skribs.</span>
-        </button>
-        <button type="button" onClick={onShowGuide}>
-          <strong>Quick guide</strong>
-          <span>Review the shortcut, privacy, and background behavior.</span>
-        </button>
-      </section>
+        {announcements[0] && (
+          <section className="home-announcement" aria-label="Skribli update">
+            <span className="account-kicker">WHAT'S NEW</span>
+            <strong>{announcements[0].title}</strong>
+            <p>{announcements[0].body}</p>
+          </section>
+        )}
 
-      {actionError && <div className="account-message" role="alert">{actionError}</div>}
+        <section className="home-overview-grid" aria-label="Skribli overview">
+          <article>
+            <span className="home-overview-number">01</span>
+            <div>
+              <strong>Private by default</strong>
+              <p>Skrib content stays on this PC. Account checks never upload your notes.</p>
+            </div>
+          </article>
+          <article>
+            <span className="home-overview-number">02</span>
+            <div>
+              <strong>Context stays attached</strong>
+              <p>Skribli returns a saved note only when the matching window is active.</p>
+            </div>
+          </article>
+          <article className="home-library-card">
+            <span className="home-overview-number">03</span>
+            <div>
+              <strong>Local note library</strong>
+              <p>Review, restore, import, or export your saved Skribs.</p>
+            </div>
+            <button type="button" onClick={handleOpenLibrary}>Open All Skribs</button>
+          </article>
+        </section>
 
-      <footer className="home-footer">
-        <span>{email}</span>
-        <span>{accountRole === 'owner' ? 'Owner account' : 'Member account'}</span>
-        <span>{productUpdatesOptIn ? 'Product update emails on' : 'Only essential account emails'}</span>
-        <span>Skrib content stays local</span>
-      </footer>
+        {actionError && <div className="account-message" role="alert">{actionError}</div>}
+
+        <footer className="home-footer">
+          <span>Skrib content stays local</span>
+          <span>Skribli remains available from the Windows tray after this window is hidden.</span>
+        </footer>
+      </main>
     </div>
   );
 };

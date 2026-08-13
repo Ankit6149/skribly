@@ -13,6 +13,7 @@ import {
   type OpenNoteRequest,
 } from '../skribs/noteLifecycle';
 import { SkribComposer } from '../skribs/SkribComposer';
+import { hideOverlayThen } from './overlayWindowLifecycle';
 import { selectStorageSurface } from './storageSurface';
 import type { TargetCaptureErrorPayload } from './targetCaptureError';
 import { TargetCaptureErrorSurface } from './TargetCaptureErrorSurface';
@@ -81,9 +82,6 @@ export const OverlayHost: React.FC = () => {
           setCaptureError(event.payload);
         }
       }),
-      listen('skribly://target-capture-clear', () => {
-        if (!disposed) setCaptureError(null);
-      }),
       listen<unknown>('skribly://open-note-request', (event) => {
         if (!disposed && isOpenNoteRequest(event.payload)) {
           setOpenNoteRequest(event.payload);
@@ -107,7 +105,10 @@ export const OverlayHost: React.FC = () => {
     const requestedNote = selectRequestedNote(openNoteRequest, skribs);
     if (!requestedNote || !openNoteRequest) return;
 
+    // The native clear event arrives before this request. Keep the recovery surface mounted
+    // until the replacement composer is ready so the transparent overlay never renders empty.
     setComposerOpenAction(openNoteRequest.action);
+    setCaptureError(null);
     openComposer(requestedNote.id, 'type');
     setOpenNoteRequest(null);
   }, [openComposer, openNoteRequest, skribs]);
@@ -194,7 +195,15 @@ export const OverlayHost: React.FC = () => {
 
           <footer className="storage-recovery-footer">
             {storageNotice && storageWritable && (
-              <button type="button" className="secondary" onClick={dismissStorageNotice}>
+              <button
+                type="button"
+                className="secondary"
+                onClick={() =>
+                  void hideOverlayThen(hideCurrentWindow, dismissStorageNotice).catch(
+                    () => undefined
+                  )
+                }
+              >
                 Dismiss notice
               </button>
             )}
@@ -218,7 +227,15 @@ export const OverlayHost: React.FC = () => {
     return (
       <StartupFailureSurface
         message={initStatus.type === 'Failed' ? initStatus.payload : 'Native setup failed.'}
-        onRetry={() => void retryOverlayInit()}
+        onRetry={() =>
+          void retryOverlayInit()
+            .then(() => {
+              if (useSkribStore.getState().initStatus.type !== 'Failed') {
+                return hideCurrentWindow();
+              }
+            })
+            .catch(() => undefined)
+        }
         onHide={() => void hideCurrentWindow().catch(() => undefined)}
       />
     );

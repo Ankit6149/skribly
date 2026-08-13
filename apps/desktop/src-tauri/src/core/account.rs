@@ -34,16 +34,18 @@ fn validate_storage_key(key: &str) -> Result<(), String> {
             .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
         && !project_ref.starts_with('-')
         && !project_ref.ends_with('-');
-    let valid_suffix = matches!(suffix, "" | "-user" | "-code-verifier" | "-flows-code-verifier")
-        || suffix
-            .strip_prefix("-flow-")
-            .and_then(|value| value.strip_suffix("-code-verifier"))
-            .is_some_and(|flow_id| {
-                (8..=64).contains(&flow_id.len())
-                    && flow_id.bytes().all(|byte| {
-                        byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_')
-                    })
-            });
+    let valid_suffix = matches!(
+        suffix,
+        "" | "-user" | "-code-verifier" | "-flows-code-verifier"
+    ) || suffix
+        .strip_prefix("-flow-")
+        .and_then(|value| value.strip_suffix("-code-verifier"))
+        .is_some_and(|flow_id| {
+            (8..=64).contains(&flow_id.len())
+                && flow_id
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'))
+        });
 
     if key.len() > 180 || !valid_project_ref || !valid_suffix {
         return Err("The account session storage key is not allowed.".to_string());
@@ -279,11 +281,13 @@ mod tests {
         assert!(validate_storage_key("license").is_err());
         assert!(validate_storage_key("sb-project-ref-auth-token/../../notes").is_err());
         assert!(validate_storage_key("sb-project-ref-auth-token-other").is_err());
-        assert!(validate_storage_key("sb-project-ref-auth-token-flow-short-code-verifier").is_err());
-        assert!(validate_storage_key(
-            "sb-project-ref-auth-token-flow-01234567.bad-code-verifier"
-        )
-        .is_err());
+        assert!(
+            validate_storage_key("sb-project-ref-auth-token-flow-short-code-verifier").is_err()
+        );
+        assert!(
+            validate_storage_key("sb-project-ref-auth-token-flow-01234567.bad-code-verifier")
+                .is_err()
+        );
         assert!(validate_storage_key("sb--project-auth-token").is_err());
     }
 
@@ -303,9 +307,7 @@ mod tests {
         fs::create_dir_all(&directory).expect("create protected-session test directory");
 
         let base = "sb-bccgutpkjxtogqbywsxr-auth-token";
-        let flow_key = format!(
-            "{base}-flow-0123456789abcdef0123456789abcdef-code-verifier"
-        );
+        let flow_key = format!("{base}-flow-0123456789abcdef0123456789abcdef-code-verifier");
         let secret = "test-refresh-token-that-must-not-appear-in-the-vault";
         set_session_value(&directory, base, secret).expect("store protected session");
         set_session_value(&directory, &flow_key, "test-code-verifier")

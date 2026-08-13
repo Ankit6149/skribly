@@ -1,6 +1,7 @@
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import React from 'react';
 import '../../styles/target-capture-error.css';
+import { hideOverlayThen } from './overlayWindowLifecycle';
 import { captureErrorTitle, TargetCaptureErrorPayload } from './targetCaptureError';
 
 interface TargetCaptureErrorSurfaceProps {
@@ -13,8 +14,7 @@ export const TargetCaptureErrorSurface: React.FC<TargetCaptureErrorSurfaceProps>
   onDismiss,
 }) => {
   const dismiss = async () => {
-    onDismiss();
-    await getCurrentWindow().hide();
+    await hideOverlayThen(() => getCurrentWindow().hide(), onDismiss);
   };
 
   return (
@@ -37,7 +37,7 @@ export const TargetCaptureErrorSurface: React.FC<TargetCaptureErrorSurfaceProps>
           <button
             type="button"
             className="target-capture-error-close"
-            onClick={() => void dismiss()}
+            onClick={() => void dismiss().catch(() => undefined)}
             aria-label="Hide this message"
             title="Hide"
           >
@@ -61,7 +61,12 @@ export const TargetCaptureErrorSurface: React.FC<TargetCaptureErrorSurfaceProps>
         </div>
 
         <footer className="target-capture-error-footer">
-          <button type="button" className="primary" onClick={() => void dismiss()} autoFocus>
+          <button
+            type="button"
+            className="primary"
+            onClick={() => void dismiss().catch(() => undefined)}
+            autoFocus
+          >
             Got it
           </button>
         </footer>

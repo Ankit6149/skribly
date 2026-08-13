@@ -14,7 +14,7 @@ describe('account client boundary', () => {
     expect(configuration?.supabaseUrl).toBe('https://bccgutpkjxtogqbywsxr.supabase.co');
     expect(configuration?.publishableKey).toMatch(/^sb_publishable_/);
     expect(configuration?.entitlementFunction).toBe('account-session');
-    expect(configuration?.appVersion).toBe('0.1.9');
+    expect(configuration?.appVersion).toBe('0.1.10');
   });
 
   it('uses an async storage contract outside the installed Tauri runtime', async () => {
