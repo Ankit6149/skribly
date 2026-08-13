@@ -18,15 +18,34 @@ struct SessionVault {
 }
 
 fn validate_storage_key(key: &str) -> Result<(), String> {
-    let valid_characters = key
-        .bytes()
-        .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.'));
-    if key.len() < 8
-        || key.len() > 180
-        || !key.starts_with("sb-")
-        || !key.ends_with("-auth-token")
-        || !valid_characters
-    {
+    const AUTH_TOKEN_MARKER: &str = "-auth-token";
+
+    let Some(rest) = key.strip_prefix("sb-") else {
+        return Err("The account session storage key is not allowed.".to_string());
+    };
+    let Some(marker_index) = rest.find(AUTH_TOKEN_MARKER) else {
+        return Err("The account session storage key is not allowed.".to_string());
+    };
+    let project_ref = &rest[..marker_index];
+    let suffix = &rest[marker_index + AUTH_TOKEN_MARKER.len()..];
+    let valid_project_ref = (3..=80).contains(&project_ref.len())
+        && project_ref
+            .bytes()
+            .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
+        && !project_ref.starts_with('-')
+        && !project_ref.ends_with('-');
+    let valid_suffix = matches!(suffix, "" | "-user" | "-code-verifier" | "-flows-code-verifier")
+        || suffix
+            .strip_prefix("-flow-")
+            .and_then(|value| value.strip_suffix("-code-verifier"))
+            .is_some_and(|flow_id| {
+                (8..=64).contains(&flow_id.len())
+                    && flow_id.bytes().all(|byte| {
+                        byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_')
+                    })
+            });
+
+    if key.len() > 180 || !valid_project_ref || !valid_suffix {
         return Err("The account session storage key is not allowed.".to_string());
     }
     Ok(())
@@ -243,10 +262,73 @@ mod tests {
     use super::*;
 
     #[test]
-    fn account_storage_accepts_only_supabase_auth_session_keys() {
-        assert!(validate_storage_key("sb-project-ref-auth-token").is_ok());
+    fn account_storage_accepts_supabase_auth_session_key_family() {
+        let base = "sb-bccgutpkjxtogqbywsxr-auth-token";
+        assert!(validate_storage_key(base).is_ok());
+        assert!(validate_storage_key(&format!("{base}-user")).is_ok());
+        assert!(validate_storage_key(&format!("{base}-code-verifier")).is_ok());
+        assert!(validate_storage_key(&format!("{base}-flows-code-verifier")).is_ok());
+        assert!(validate_storage_key(&format!(
+            "{base}-flow-0123456789abcdef0123456789abcdef-code-verifier"
+        ))
+        .is_ok());
+    }
+
+    #[test]
+    fn account_storage_rejects_unrelated_or_malformed_keys() {
         assert!(validate_storage_key("license").is_err());
         assert!(validate_storage_key("sb-project-ref-auth-token/../../notes").is_err());
+        assert!(validate_storage_key("sb-project-ref-auth-token-other").is_err());
+        assert!(validate_storage_key("sb-project-ref-auth-token-flow-short-code-verifier").is_err());
+        assert!(validate_storage_key(
+            "sb-project-ref-auth-token-flow-01234567.bad-code-verifier"
+        )
+        .is_err());
+        assert!(validate_storage_key("sb--project-auth-token").is_err());
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn supabase_session_keys_round_trip_through_windows_protection() {
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system clock")
+            .as_nanos();
+        let directory = std::env::temp_dir().join(format!(
+            "skribly-account-session-test-{}-{unique}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&directory).expect("create protected-session test directory");
+
+        let base = "sb-bccgutpkjxtogqbywsxr-auth-token";
+        let flow_key = format!(
+            "{base}-flow-0123456789abcdef0123456789abcdef-code-verifier"
+        );
+        let secret = "test-refresh-token-that-must-not-appear-in-the-vault";
+        set_session_value(&directory, base, secret).expect("store protected session");
+        set_session_value(&directory, &flow_key, "test-code-verifier")
+            .expect("store protected PKCE verifier");
+
+        assert_eq!(
+            get_session_value(&directory, base).expect("read protected session"),
+            Some(secret.to_string())
+        );
+        assert_eq!(
+            get_session_value(&directory, &flow_key).expect("read protected PKCE verifier"),
+            Some("test-code-verifier".to_string())
+        );
+
+        let encrypted = fs::read(vault_path(&directory)).expect("read encrypted vault");
+        assert!(!String::from_utf8_lossy(&encrypted).contains(secret));
+
+        remove_session_value(&directory, &flow_key).expect("remove protected PKCE verifier");
+        assert_eq!(
+            get_session_value(&directory, &flow_key).expect("confirm verifier removal"),
+            None
+        );
+        fs::remove_dir_all(&directory).expect("remove protected-session test directory");
     }
 
     #[test]
