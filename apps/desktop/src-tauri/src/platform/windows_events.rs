@@ -15,7 +15,9 @@ pub const EVENT_SYSTEM_FOREGROUND: u32 = 0x0003;
 pub const EVENT_SYSTEM_MINIMIZESTART: u32 = 0x0016;
 pub const EVENT_SYSTEM_MINIMIZEEND: u32 = 0x0017;
 pub const EVENT_OBJECT_DESTROY: u32 = 0x8001;
+pub const EVENT_OBJECT_HIDE: u32 = 0x8003;
 pub const EVENT_OBJECT_LOCATIONCHANGE: u32 = 0x800B;
+pub const EVENT_OBJECT_NAMECHANGE: u32 = 0x800C;
 pub const OBJID_WINDOW_VALUE: i32 = 0;
 pub const CHILDID_SELF_VALUE: i32 = 0;
 pub const WIN_EVENT_QUEUE_CAPACITY: usize = 64;
@@ -28,7 +30,9 @@ enum WinEventClass {
     TargetMinimizeStart,
     TargetMinimizeEnd,
     TargetDestroyed,
+    TargetHidden,
     TargetLocation,
+    TargetName,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -226,10 +230,16 @@ fn classify_event(
         EVENT_OBJECT_DESTROY if hwnd_val == active_target_hwnd && active_target_hwnd != 0 => {
             Some(WinEventClass::TargetDestroyed)
         }
+        EVENT_OBJECT_HIDE if hwnd_val == active_target_hwnd && active_target_hwnd != 0 => {
+            Some(WinEventClass::TargetHidden)
+        }
         EVENT_OBJECT_LOCATIONCHANGE
             if hwnd_val == active_target_hwnd && active_target_hwnd != 0 =>
         {
             Some(WinEventClass::TargetLocation)
+        }
+        EVENT_OBJECT_NAMECHANGE if hwnd_val == active_target_hwnd && active_target_hwnd != 0 => {
+            Some(WinEventClass::TargetName)
         }
         _ => None,
     }
@@ -285,6 +295,43 @@ mod tests {
         assert_eq!(metrics.forwarded, 2);
         assert_eq!(metrics.processed, 2);
         assert_eq!(metrics.pending, 0);
+    }
+
+    #[test]
+    fn forwards_hidden_active_target_even_when_the_process_reuses_windows() {
+        let (pipeline, receiver) = WinEventPipeline::new(8);
+        pipeline.set_active_target(Some(100));
+
+        pipeline.deliver_raw(
+            EVENT_OBJECT_HIDE,
+            100,
+            OBJID_WINDOW_VALUE,
+            CHILDID_SELF_VALUE,
+        );
+
+        let mut notice = receiver.try_recv().expect("active target hide notice");
+        notice.mark_processing_started();
+        assert_eq!(notice.event_type, EVENT_OBJECT_HIDE);
+        assert_eq!(notice.hwnd_val, 100);
+        drop(notice);
+        assert_eq!(pipeline.metrics().processed, 1);
+    }
+
+    #[test]
+    fn forwards_active_target_name_changes_for_browser_tab_context() {
+        let (pipeline, receiver) = WinEventPipeline::new(8);
+        pipeline.set_active_target(Some(100));
+
+        pipeline.deliver_raw(
+            EVENT_OBJECT_NAMECHANGE,
+            100,
+            OBJID_WINDOW_VALUE,
+            CHILDID_SELF_VALUE,
+        );
+
+        let notice = receiver.try_recv().expect("active target name notice");
+        assert_eq!(notice.event_type, EVENT_OBJECT_NAMECHANGE);
+        assert_eq!(notice.hwnd_val, 100);
     }
 
     #[test]

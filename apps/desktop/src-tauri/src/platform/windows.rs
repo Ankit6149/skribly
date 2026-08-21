@@ -25,8 +25,8 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
 use windows::Win32::UI::WindowsAndMessaging::{
     CallWindowProcW, EnumWindows, GetClassNameW, GetForegroundWindow, GetMessageW,
     GetWindowLongPtrW, GetWindowRect, GetWindowTextW, GetWindowThreadProcessId, IsIconic, IsWindow,
-    IsWindowVisible, SetWindowLongPtrW, GWLP_WNDPROC, HTCLIENT, MSG, WINEVENT_OUTOFCONTEXT,
-    WINEVENT_SKIPOWNPROCESS, WM_HOTKEY, WM_NCHITTEST, WNDPROC,
+    IsWindowVisible, SetWindowLongPtrW, GWLP_WNDPROC, MSG, WINEVENT_OUTOFCONTEXT,
+    WINEVENT_SKIPOWNPROCESS, WM_HOTKEY, WNDPROC,
 };
 
 use crate::core::coordinator::Coordinator;
@@ -34,8 +34,8 @@ use crate::core::models::{HitTestRect, OverlayMetrics, TargetWindowInfo, WindowR
 
 use super::windows_events::{deliver_global_win_event, WinEventPipeline};
 pub use super::windows_events::{
-    WinEventNotice, EVENT_OBJECT_DESTROY, EVENT_OBJECT_LOCATIONCHANGE, EVENT_SYSTEM_FOREGROUND,
-    EVENT_SYSTEM_MINIMIZEEND, EVENT_SYSTEM_MINIMIZESTART,
+    EVENT_OBJECT_DESTROY, EVENT_OBJECT_HIDE, EVENT_OBJECT_LOCATIONCHANGE, EVENT_OBJECT_NAMECHANGE,
+    EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_MINIMIZEEND, EVENT_SYSTEM_MINIMIZESTART,
 };
 
 static ORIGINAL_WNDPROC: AtomicIsize = AtomicIsize::new(0);
@@ -248,10 +248,9 @@ unsafe extern "system" fn overlay_subclass_proc(
     wparam: WPARAM,
     lparam: LPARAM,
 ) -> LRESULT {
-    if msg == WM_NCHITTEST {
-        return LRESULT(HTCLIENT as isize);
-    }
-
+    // Always delegate hit testing to Tauri's original procedure. Tauri uses that path to turn
+    // only `data-tauri-drag-region` elements into native caption drags while leaving buttons,
+    // inputs, the editor canvas, and other controls as normal client interactions.
     let original = ORIGINAL_WNDPROC.load(Ordering::Relaxed);
     if original != 0 {
         let original_fn: WNDPROC = std::mem::transmute(original);
@@ -317,7 +316,9 @@ pub fn install_winevent_hooks(pipeline: WinEventPipeline) -> bool {
         EVENT_SYSTEM_MINIMIZESTART,
         EVENT_SYSTEM_MINIMIZEEND,
         EVENT_OBJECT_DESTROY,
+        EVENT_OBJECT_HIDE,
         EVENT_OBJECT_LOCATIONCHANGE,
+        EVENT_OBJECT_NAMECHANGE,
     ];
 
     let Ok(mut hooks_guard) = ACTIVE_WINEVENT_HOOKS.lock() else {
@@ -586,7 +587,7 @@ mod tests {
         assert!(!is_expected_hotkey_message(&wrong_id, 0x534B));
 
         let mut wrong_message = expected;
-        wrong_message.message = WM_NCHITTEST;
+        wrong_message.message = windows::Win32::UI::WindowsAndMessaging::WM_NCHITTEST;
         assert!(!is_expected_hotkey_message(&wrong_message, 0x534B));
     }
 

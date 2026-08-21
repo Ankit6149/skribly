@@ -7,6 +7,22 @@
   --skribli-paper: var(--yellow);
   --skribli-paper-deep: color-mix(in srgb, var(--skribli-paper) 78%, var(--ink));
   --skribli-line: var(--line);
+  --compact-surface-logical-width: 420px;
+  --compact-surface-logical-height: 360px;
+  --compact-surface-gutter: 4px;
+  --collapsed-dot-surface-size: 44px;
+  --collapsed-dot-diameter: 32px;
+  --collapsed-dot-bubble-left: 4px;
+  --collapsed-dot-bubble-top: 8px;
+  --collapsed-dot-open-size: 22px;
+  --collapsed-dot-open-left: 9px;
+  --collapsed-dot-open-top: 13px;
+  --collapsed-dot-open-notch-width: 3px;
+  --collapsed-dot-open-notch-height: 2px;
+  --collapsed-dot-dismiss-width: 12px;
+  --collapsed-dot-dismiss-height: 12px;
+  --collapsed-dot-dismiss-left: 28px;
+  --collapsed-dot-dismiss-top: 3px;
 }
 
 html,
@@ -34,7 +50,7 @@ body {
 .skrib-composer-backdrop {
   position: fixed;
   inset: 0;
-  padding: 10px;
+  padding: var(--compact-surface-gutter);
   display: grid;
   pointer-events: auto;
   background: transparent;
@@ -55,9 +71,8 @@ body {
     linear-gradient(rgba(38, 39, 31, 0.035) 1px, transparent 1px),
     var(--skribli-paper);
   background-size: 100% 30px;
-  box-shadow: 0 24px 70px rgba(38, 39, 31, 0.26);
+  box-shadow: 0 1px 3px rgba(38, 39, 31, 0.2);
   color: var(--skribli-ink);
-  animation: note-enter 150ms ease-out;
 }
 
 .skrib-composer::before {
@@ -86,6 +101,23 @@ body {
 }
 
 .composer-header:active {
+  cursor: grabbing;
+}
+
+.composer-drag-grip {
+  width: 14px;
+  height: 28px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background-image: radial-gradient(circle, rgba(38, 41, 35, 0.42) 1.2px, transparent 1.4px);
+  background-position: center;
+  background-size: 5px 5px;
+  cursor: grab;
+  opacity: 0.72;
+  touch-action: none;
+}
+
+.composer-drag-grip:active {
   cursor: grabbing;
 }
 
@@ -361,80 +393,239 @@ body {
 
 /* Persistent active-note lifecycle: the native window shrinks to this movable dot. */
 .collapsed-skrib-surface {
+  position: relative;
   width: 100%;
   height: 100%;
-  display: grid;
-  place-items: center;
   overflow: hidden;
   background: transparent;
+  touch-action: none;
 }
 
 .collapsed-skrib-dot {
   position: relative;
-  width: 60px;
-  height: 60px;
-  display: grid;
-  place-items: center;
-  border: 1px solid rgba(38, 39, 31, 0.18);
-  border-radius: 50%;
-  background: var(--skribli-paper);
-  box-shadow: 0 12px 30px rgba(38, 39, 31, 0.24);
-  cursor: grab;
+  width: var(--collapsed-dot-surface-size);
+  height: var(--collapsed-dot-surface-size);
   user-select: none;
-  animation: note-enter 150ms ease-out;
+  touch-action: none;
 }
 
-.collapsed-skrib-dot:active {
+.collapsed-skrib-bubble {
+  position: absolute;
+  top: var(--collapsed-dot-bubble-top);
+  left: var(--collapsed-dot-bubble-left);
+  width: var(--collapsed-dot-diameter);
+  height: var(--collapsed-dot-diameter);
+  border-radius: 50%;
+  background: var(--skribli-paper);
+  box-shadow:
+    inset 0 0 0 1px rgba(38, 39, 31, 0.08),
+    0 2px 4px rgba(38, 39, 31, 0.18);
+  transform: translateZ(0);
+  transition: filter 150ms ease, opacity 150ms ease;
+}
+
+.collapsed-skrib-drag-zone {
+  position: absolute;
+  z-index: 1;
+  cursor: grab;
+  touch-action: none;
+}
+
+.collapsed-skrib-drag-zone:active {
   cursor: grabbing;
 }
 
-.collapsed-skrib-drag-ring {
-  position: absolute;
-  inset: 3px;
-  border: 1px dashed rgba(38, 39, 31, 0.2);
-  border-radius: inherit;
+.collapsed-skrib-drag-top {
+  top: 8px;
+  left: 4px;
+  width: 24px;
+  height: 5px;
+}
+
+.collapsed-skrib-drag-left {
+  top: 13px;
+  left: 4px;
+  width: 5px;
+  height: 22px;
+}
+
+.collapsed-skrib-drag-right {
+  top: 15px;
+  left: 31px;
+  width: 5px;
+  height: 20px;
+}
+
+.collapsed-skrib-drag-bottom {
+  top: 35px;
+  left: 4px;
+  width: 32px;
+  height: 5px;
 }
 
 .collapsed-skrib-open {
-  position: relative;
-  z-index: 1;
-  width: 40px;
-  height: 40px;
-  display: grid;
-  place-items: center;
+  position: absolute;
+  top: var(--collapsed-dot-open-top);
+  left: var(--collapsed-dot-open-left);
+  z-index: 2;
+  width: var(--collapsed-dot-open-size);
+  height: var(--collapsed-dot-open-size);
+  padding: 0;
   border: 0;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.34);
+  background: transparent;
   color: var(--skribli-ink);
   cursor: pointer;
-  font-family: var(--skribli-note-font);
-  font-size: 19px;
-  font-weight: 700;
-  transition: background 130ms ease, transform 130ms ease;
+  box-shadow: none;
+  clip-path: polygon(
+    0 0,
+    calc(100% - var(--collapsed-dot-open-notch-width)) 0,
+    calc(100% - var(--collapsed-dot-open-notch-width)) var(--collapsed-dot-open-notch-height),
+    100% var(--collapsed-dot-open-notch-height),
+    100% 100%,
+    0 100%
+  );
+  transition: background 130ms ease, box-shadow 130ms ease;
 }
 
 .collapsed-skrib-open:hover:not(:disabled),
 .collapsed-skrib-open:focus-visible {
-  background: rgba(255, 255, 255, 0.68);
-  transform: scale(1.05);
+  background: rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 0 0 1px rgba(38, 41, 35, 0.22);
 }
 
 .collapsed-skrib-open:focus-visible {
-  outline: 2px solid var(--skribli-ink);
-  outline-offset: 2px;
+  outline: 0;
+  box-shadow: inset 0 0 0 2px var(--skribli-ink);
 }
 
-.collapsed-skrib-error {
+.collapsed-skrib-dismiss {
   position: absolute;
-  width: max-content;
-  max-width: 68px;
-  padding: 3px 5px;
-  border-radius: 6px;
+  top: var(--collapsed-dot-dismiss-top);
+  left: var(--collapsed-dot-dismiss-left);
+  z-index: 2;
+  width: var(--collapsed-dot-dismiss-width);
+  height: var(--collapsed-dot-dismiss-height);
+  display: grid;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow:
+    inset 0 0 0 1px rgba(38, 39, 31, 0.12),
+    0 1px 3px rgba(38, 39, 31, 0.2);
+  color: rgba(38, 39, 31, 0.82);
+  cursor: pointer;
+  font: 700 9px/1 'DM Sans', sans-serif;
+  touch-action: manipulation;
+}
+
+.collapsed-skrib-dismiss:hover:not(:disabled) {
+  background: #fff;
+  color: var(--skribli-ink);
+}
+
+.collapsed-skrib-dismiss:focus-visible {
+  outline: 0;
+  box-shadow: inset 0 0 0 1px var(--skribli-ink);
+}
+
+.collapsed-skrib-dismiss:disabled {
+  cursor: wait;
+  opacity: 0.56;
+}
+
+.collapsed-skrib-dot[data-error='open'] .collapsed-skrib-open,
+.collapsed-skrib-dot[data-error='dismiss'] .collapsed-skrib-dismiss {
   background: #fff7f5;
+  box-shadow: inset 0 0 0 1px rgba(127, 41, 41, 0.48);
   color: #7f2929;
-  font-size: 8px;
-  line-height: 1.1;
-  text-align: center;
+}
+
+.collapsed-skrib-dot[data-opening='true'] .collapsed-skrib-bubble {
+  animation: collapsed-bubble-opening 700ms ease-in-out infinite alternate;
+}
+
+.overlay-preparing-surface {
+  position: fixed;
+  inset: 0;
+  padding: var(--compact-surface-gutter);
+  display: grid;
+  pointer-events: auto;
+  background: transparent;
+}
+
+.overlay-preparing-note {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(38, 39, 31, 0.16);
+  border-radius: 18px 18px 34px 18px;
+  background: var(--yellow);
+  box-shadow: 0 1px 3px rgba(38, 39, 31, 0.2);
+  color: var(--skribli-ink);
+}
+
+.overlay-preparing-mark {
+  position: relative;
+  width: 30px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(38, 41, 35, 0.12);
+  border-radius: 7px 7px 11px 7px;
+  background: rgba(255, 255, 255, 0.42);
+  box-shadow: 0 1px 2px rgba(38, 41, 35, 0.1);
+}
+
+.overlay-preparing-mark > span {
+  width: 10px;
+  height: 2px;
+  border-radius: 999px;
+  background: rgba(38, 41, 35, 0.64);
+  box-shadow: 0 5px 0 rgba(38, 41, 35, 0.3);
+}
+
+.overlay-preparing-copy {
+  display: grid;
+  gap: 2px;
+}
+
+.overlay-preparing-copy strong {
+  font-family: var(--font-display);
+  font-size: 15px;
+}
+
+.overlay-preparing-copy small {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--skribli-muted);
+  font-size: 11px;
+}
+
+.overlay-preparing-pulse {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--olive);
+  animation: preparing-pulse 720ms ease-in-out infinite alternate;
+}
+
+@keyframes collapsed-bubble-opening {
+  from { filter: brightness(0.98); opacity: 0.82; }
+  to { filter: brightness(1.03); opacity: 1; }
+}
+
+@keyframes preparing-pulse {
+  from { transform: scale(0.72); opacity: 0.42; }
+  to { transform: scale(1); opacity: 1; }
 }
 
 .composer-color-control {
@@ -813,30 +1004,229 @@ body {
 }
 
 .note-reminder-scheduler {
-  padding: 12px 0;
-  display: flex;
-  align-items: flex-end;
-  gap: 10px;
+  padding: 10px 0 12px;
+  display: grid;
+  gap: 9px;
   border-bottom: 1px solid rgba(38, 41, 35, 0.1);
 }
 
-.note-reminder-scheduler label {
-  flex: 1 1 auto;
+.note-reminder-panel {
+  scrollbar-color: color-mix(in srgb, var(--skribli-ink) 28%, transparent) transparent;
+  scrollbar-width: thin;
+}
+
+.note-reminder-panel::-webkit-scrollbar {
+  width: 7px;
+}
+
+.note-reminder-panel::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--skribli-ink) 28%, transparent);
+  background-clip: padding-box;
+}
+
+.note-reminder-presets {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+}
+
+.note-reminder-presets > span,
+.note-reminder-time-kicker {
+  margin-right: 3px;
+  color: var(--skribli-muted);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.note-reminder-presets button {
+  min-height: 27px;
+  padding: 0 9px;
+  border-color: rgba(38, 41, 35, 0.1);
+  font-size: 8px;
+}
+
+.note-reminder-presets button:nth-of-type(1) {
+  background: color-mix(in srgb, var(--yellow) 68%, white);
+}
+
+.note-reminder-presets button:nth-of-type(2) {
+  background: color-mix(in srgb, var(--mint) 62%, white);
+}
+
+.note-reminder-presets button:nth-of-type(3) {
+  background: color-mix(in srgb, var(--lavender) 58%, white);
+}
+
+.note-reminder-picker {
+  min-height: 218px;
+  display: grid;
+  grid-template-columns: minmax(248px, 1.45fr) minmax(148px, 0.75fr);
+  overflow: hidden;
+  border: 1px solid rgba(38, 41, 35, 0.16);
+  border-radius: 16px 16px 25px 16px;
+  background: color-mix(in srgb, var(--skribli-paper) 48%, white);
+  box-shadow: 0 1px 2px rgba(38, 41, 35, 0.07);
+}
+
+.note-reminder-calendar {
+  min-width: 0;
+  padding: 10px 12px 11px;
+}
+
+.note-reminder-calendar-nav {
+  min-height: 28px;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) 28px;
+  align-items: center;
+  gap: 5px;
+}
+
+.note-reminder-calendar-nav strong {
+  overflow: hidden;
+  font-family: var(--font-display);
+  font-size: 13px;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.note-reminder-calendar-nav button,
+.note-reminder-days button {
+  min-height: 26px;
+  padding: 0;
+  border-color: transparent;
+  border-radius: 8px;
+  background: transparent;
+}
+
+.note-reminder-calendar-nav button {
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.note-reminder-weekdays,
+.note-reminder-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 2px;
+}
+
+.note-reminder-weekdays {
+  margin: 5px 0 3px;
+}
+
+.note-reminder-weekdays span {
+  color: var(--skribli-muted);
+  font-size: 7px;
+  font-weight: 800;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.note-reminder-days button {
+  position: relative;
+  color: var(--skribli-ink);
+  font-size: 9px;
+}
+
+.note-reminder-days button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--sky) 54%, white);
+}
+
+.note-reminder-days button[data-outside='true'] {
+  opacity: 0.42;
+}
+
+.note-reminder-days button[data-today='true']::after {
+  position: absolute;
+  right: 5px;
+  bottom: 3px;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--olive);
+  content: '';
+}
+
+.note-reminder-days button.selected,
+.note-reminder-days button.selected:hover:not(:disabled) {
+  border-color: var(--skribli-ink);
+  background: var(--skribli-ink);
+  color: var(--paper);
+}
+
+.note-reminder-days button:focus-visible,
+.note-reminder-calendar-nav button:focus-visible,
+.note-reminder-time select:focus-visible {
+  outline: 2px solid var(--olive);
+  outline-offset: 1px;
+}
+
+.note-reminder-time {
+  min-width: 0;
+  padding: 15px 13px;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  align-items: stretch;
+  justify-content: center;
+  gap: 8px;
+  border-left: 1px solid rgba(38, 41, 35, 0.1);
+  background:
+    radial-gradient(circle at 85% 12%, color-mix(in srgb, var(--peach) 58%, transparent), transparent 42%),
+    color-mix(in srgb, var(--mint) 46%, white);
+}
+
+.note-reminder-time label {
+  position: relative;
+}
+
+.note-reminder-time label::after {
+  position: absolute;
+  top: 50%;
+  right: 10px;
   color: var(--skribli-muted);
-  font-size: 9px;
+  content: '⌄';
+  pointer-events: none;
+  transform: translateY(-55%);
+}
+
+.note-reminder-time select {
+  width: 100%;
+  min-height: 36px;
+  padding: 0 28px 0 10px;
+  appearance: none;
+  border: 1px solid rgba(38, 41, 35, 0.15);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.66);
+  color: var(--skribli-ink);
+  font-family: var(--skribli-ui-font);
+  font-size: 11px;
   font-weight: 700;
 }
 
-.note-reminder-scheduler input {
-  min-height: 38px;
-  padding: 0 10px;
-  border: 1px solid rgba(38, 41, 35, 0.16);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.46);
-  color: var(--skribli-ink);
+.note-reminder-selected-date {
+  overflow: hidden;
+  font-family: var(--skribli-note-font);
+  font-size: 17px;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.note-reminder-time .primary {
+  width: 100%;
+  min-height: 34px;
+}
+
+.note-reminder-time small {
+  color: var(--skribli-muted);
+  font-size: 7px;
+  line-height: 1.35;
 }
 
 .note-reminder-row {
@@ -861,20 +1251,33 @@ body {
   opacity: 0.64;
 }
 
-@keyframes note-enter {
-  from {
-    opacity: 0;
-    transform: translateY(8px) scale(0.985);
+@media (max-width: 560px) {
+  .note-reminder-picker {
+    grid-template-columns: minmax(0, 1fr);
   }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
+
+  .note-reminder-time {
+    padding: 10px 12px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(112px, auto);
+    align-items: center;
+    border-top: 1px solid rgba(38, 41, 35, 0.1);
+    border-left: 0;
+  }
+
+  .note-reminder-time-kicker,
+  .note-reminder-time small {
+    grid-column: 1 / -1;
+  }
+
+  .note-reminder-selected-date {
+    display: none;
   }
 }
 
 @media (max-width: 360px), (max-height: 300px) {
   .skrib-composer-backdrop {
-    padding: 6px;
+    padding: var(--compact-surface-gutter);
   }
 
   .composer-header {
@@ -922,7 +1325,8 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .skrib-composer {
+  .collapsed-skrib-dot[data-opening='true'] .collapsed-skrib-bubble,
+  .overlay-preparing-pulse {
     animation: none;
   }
 }

@@ -220,7 +220,7 @@ for (const marker of [
   'Reversible 30-day local Trash',
   'Trash behavior in this release candidate',
   'this release does not silently purge them',
-  'Add portable import with preview',
+  'Portable JSON import with mandatory preview',
   'Public downloads are disabled.',
 ]) {
   if (!releaseNotes.includes(marker)) failures.push(`Development-note lifecycle truth is missing: ${marker}`);

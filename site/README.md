@@ -19,7 +19,7 @@ Skribli is in **Windows release-candidate validation**. Public installer access 
 3. Skribli validates the foreground target and creates or reopens the deterministic contextual note.
 4. Write in the compact editor.
 5. Choose Done, Escape, Ctrl+Enter, or close.
-6. Skribli saves the latest non-empty draft and fully hides the editor. An untouched empty note is discarded.
+6. Skribli saves text and rich content, then folds the active note into a movable dot. An untouched empty note is discarded.
 
 The background process remains in the tray. Nothing from the note remains floating after the editor hides.
 

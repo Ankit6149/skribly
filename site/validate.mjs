@@ -163,12 +163,12 @@ for (const requiredSection of ['how-it-works', 'principles', 'features', 'audien
 const requiredLandingTruth = [
   'v0 owner test',
   'Owner v0 access',
-  'No floating remainder',
+  'Movable collapsed dot',
   'NEW SKRIB FOR',
   'Saved locally',
-  'Editor fully hides',
-  'leaves no dot, tab, checklist, or floating widget after it closes.',
-  'Floating dots, attached tabs, checklists',
+  'Saved note folds into a dot',
+  'folds a saved note into one movable pastel dot',
+  'Multiple simultaneous note windows, screenshot pins, checklists',
   'Owner v0 testing',
   'contextual annotation layer for Windows',
   'A verified account tracks trial access',
@@ -234,8 +234,8 @@ const answers = await readFile(join(root, 'answers.html'), 'utf8');
 for (const fact of [
   'creates one empty note',
   'reopens that note',
-  'Nothing from Skribli remains floating',
-  'full-screen interactive overlay',
+  'folds it into one movable pastel dot',
+  'one active note or dot at a time',
   'Public downloads are disabled',
 ]) {
   if (!answers.includes(fact)) failures.push(`FAQ is missing current behavior: ${fact}.`);
@@ -258,7 +258,7 @@ const privacy = await readFile(join(root, 'privacy.html'), 'utf8');
 for (const fact of [
   'The current shortcut path does not record your screen.',
   'Public downloads are disabled.',
-  'portable JSON import with mandatory preview and rollback backup',
+  'portable JSON import with mandatory preview and rollback',
   'This Skrib content is not uploaded to the account service.',
   'Changing account or reinstalling on the same device does not restart the device trial.',
 ]) {
@@ -279,7 +279,7 @@ for (const marker of [
   "'PBKDF2'",
   "'AES-GCM'",
   '210_000',
-  "link.download = 'Skribli_0.1.11_x64-setup.exe'",
+  "link.download = 'Skribli_0.1.12_x64-setup.exe'",
 ]) {
   if (!ownerDownloadScript.includes(marker)) failures.push(`Owner v0 client flow is missing: ${marker}`);
 }
@@ -313,7 +313,7 @@ for (const fact of [
   'Windows',
   'Public downloads: disabled',
   'local-first',
-  'does not ship floating note dots',
+  'does not ship multiple simultaneous note windows/dots',
 ]) {
   if (!llms.toLowerCase().includes(fact.toLowerCase())) {
     failures.push(`llms.txt is missing current product fact: ${fact}.`);

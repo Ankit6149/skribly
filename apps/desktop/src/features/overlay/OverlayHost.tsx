@@ -283,5 +283,26 @@ export const OverlayHost: React.FC = () => {
     );
   }
 
-  return null;
+  return (
+    <div
+      className="overlay-preparing-surface"
+      data-overlay-surface="preparing"
+      role="status"
+      aria-live="polite"
+      aria-label="Skribli is preparing your note"
+    >
+      <section className="overlay-preparing-note" data-tauri-drag-region>
+        <span className="overlay-preparing-mark" aria-hidden="true" data-tauri-drag-region>
+          <span />
+        </span>
+        <span className="overlay-preparing-copy" data-tauri-drag-region>
+          <strong data-tauri-drag-region>Opening Skribli</strong>
+          <small data-tauri-drag-region>
+            <span className="overlay-preparing-pulse" aria-hidden="true" />
+            Getting your note ready…
+          </small>
+        </span>
+      </section>
+    </div>
+  );
 };

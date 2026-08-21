@@ -393,8 +393,15 @@ if ($canonicalBitmap.Width -ne 32 -or $canonicalBitmap.Height -ne 32) {
   $canonicalBitmap.Dispose()
   throw 'The canonical executable icon pixel reference must remain 32x32.'
 }
-$applicationIcon = [System.Drawing.Icon]::ExtractAssociatedIcon($application.FullName)
-$nsisIcon = [System.Drawing.Icon]::ExtractAssociatedIcon($nsisInstallers[0].FullName)
+$previousIconDpiContext = [SkribliWindowCapture]::SetThreadDpiAwarenessContext([IntPtr](-1))
+try {
+  # ExtractAssociatedIcon follows the calling thread's DPI context. Pinning extraction to the
+  # canonical 100% size prevents a valid 32px resource from being resampled to 40px at 125%.
+  $applicationIcon = [System.Drawing.Icon]::ExtractAssociatedIcon($application.FullName)
+  $nsisIcon = [System.Drawing.Icon]::ExtractAssociatedIcon($nsisInstallers[0].FullName)
+} finally {
+  [void][SkribliWindowCapture]::SetThreadDpiAwarenessContext($previousIconDpiContext)
+}
 try {
   if ($null -eq $applicationIcon) { throw 'The installed executable has no associated Windows icon.' }
   if ($null -eq $nsisIcon) { throw 'The NSIS installer has no associated Windows icon.' }

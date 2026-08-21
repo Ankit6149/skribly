@@ -58,7 +58,9 @@ describe('primary compact-window decision layer', () => {
         onboardingVisible: true,
       })
     ).toBe('onboarding');
+  });
 
+  it('never selects a visually empty surface while the native window is visible', () => {
     expect(
       selectPrimaryWindowSurface({
         storageSurface: 'empty',
@@ -66,6 +68,6 @@ describe('primary compact-window decision layer', () => {
         hasCaptureError: false,
         onboardingVisible: false,
       })
-    ).toBe('empty');
+    ).toBe('preparing');
   });
 });

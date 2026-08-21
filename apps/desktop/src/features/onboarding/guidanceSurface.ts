@@ -7,7 +7,7 @@ export type PrimaryWindowSurface =
   | 'startupFailure'
   | 'captureError'
   | 'onboarding'
-  | 'empty';
+  | 'preparing';
 
 interface PrimaryWindowSurfaceInput {
   storageSurface: StorageSurface;
@@ -24,5 +24,5 @@ export function selectPrimaryWindowSurface(
   if (input.initStatus.type === 'Failed') return 'startupFailure';
   if (input.hasCaptureError) return 'captureError';
   if (input.onboardingVisible) return 'onboarding';
-  return 'empty';
+  return 'preparing';
 }

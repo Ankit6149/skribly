@@ -449,7 +449,7 @@ html[data-skribly-window="home"] #root,
 .skrib-composer {
   border-color: var(--line);
   border-radius: 18px 18px 34px 18px;
-  box-shadow: 0 26px 70px rgb(38 41 35 / 24%);
+  box-shadow: 0 1px 3px rgb(38 41 35 / 20%);
 }
 
 .composer-context strong,

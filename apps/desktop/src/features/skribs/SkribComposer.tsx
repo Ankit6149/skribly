@@ -530,7 +530,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
   const isNewNote = openAction === 'created';
 
   return (
-    <div className="skrib-composer-backdrop">
+    <div className="skrib-composer-backdrop" data-overlay-surface="composer">
       <section
         className={`skrib-composer skrib-color-${note.color}`}
         aria-label={
@@ -541,7 +541,8 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
             : 'View contextual note'
         }
       >
-        <header className="composer-header" data-tauri-drag-region>
+        <header className="composer-header" data-tauri-drag-region title="Drag this header to move the Skrib">
+          <span className="composer-drag-grip" data-tauri-drag-region aria-hidden="true" />
           <div className="composer-context" data-tauri-drag-region>
             <span className="composer-kicker" data-tauri-drag-region>
               {isNewNote ? 'NEW SKRIB FOR' : 'REOPENED SKRIB FOR'}

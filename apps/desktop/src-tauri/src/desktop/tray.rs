@@ -30,6 +30,10 @@ fn classify_tray_action(id: &str) -> TrayAction {
     }
 }
 
+fn tray_action_requires_overlay_hide(action: TrayAction) -> bool {
+    action == TrayAction::Quit
+}
+
 pub fn install_tray<R: Runtime>(app: &App<R>) -> tauri::Result<()> {
     crate::desktop::license_bridge::install_license_bridge(app)?;
     crate::desktop::library::install_library_bridge(app)?;
@@ -46,31 +50,41 @@ pub fn install_tray<R: Runtime>(app: &App<R>) -> tauri::Result<()> {
         .tooltip("Skribli — contextual annotations for Windows")
         .menu(&menu)
         .show_menu_on_left_click(true)
-        .on_menu_event(|app, event| match classify_tray_action(event.id.as_ref()) {
-            TrayAction::OpenSkribli => {
-                if let Some(window) = app.get_webview_window("home") {
-                    let _ = window.unminimize();
-                    let _ = window.show();
-                    let _ = window.set_focus();
+        .on_menu_event(|app, event| {
+            let action = classify_tray_action(event.id.as_ref());
+            if tray_action_requires_overlay_hide(action) {
+                // Hide the transparent always-on-top HWND before beginning shutdown so neither a
+                // dot nor its native region can linger during teardown.
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.hide();
                 }
             }
-            TrayAction::OpenAllSkribs => {
-                if let Some(window) = app.get_webview_window(LIBRARY_WINDOW_LABEL) {
-                    let _ = window.unminimize();
-                    let _ = window.show();
-                    let _ = window.set_focus();
+            match action {
+                TrayAction::OpenSkribli => {
+                    if let Some(window) = app.get_webview_window("home") {
+                        let _ = window.unminimize();
+                        let _ = window.show();
+                        let _ = window.set_focus();
+                    }
                 }
-            }
-            TrayAction::ShowQuickGuide => {
-                let _ = app.emit("skribly://show-onboarding", ());
-                if let Some(window) = app.get_webview_window("home") {
-                    let _ = window.unminimize();
-                    let _ = window.show();
-                    let _ = window.set_focus();
+                TrayAction::OpenAllSkribs => {
+                    if let Some(window) = app.get_webview_window(LIBRARY_WINDOW_LABEL) {
+                        let _ = window.unminimize();
+                        let _ = window.show();
+                        let _ = window.set_focus();
+                    }
                 }
+                TrayAction::ShowQuickGuide => {
+                    let _ = app.emit("skribly://show-onboarding", ());
+                    if let Some(window) = app.get_webview_window("home") {
+                        let _ = window.unminimize();
+                        let _ = window.show();
+                        let _ = window.set_focus();
+                    }
+                }
+                TrayAction::Quit => app.exit(0),
+                TrayAction::Ignore => {}
             }
-            TrayAction::Quit => app.exit(0),
-            TrayAction::Ignore => {}
         })
         .build(app)?;
 
@@ -97,5 +111,7 @@ mod tests {
         );
         assert_eq!(classify_tray_action(QUIT_ID), TrayAction::Quit);
         assert_eq!(classify_tray_action("unknown"), TrayAction::Ignore);
+        assert!(tray_action_requires_overlay_hide(TrayAction::Quit));
+        assert!(!tray_action_requires_overlay_hide(TrayAction::OpenSkribli));
     }
 }

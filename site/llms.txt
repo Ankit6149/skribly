@@ -1,6 +1,6 @@
 # Skribli
 
-Skribli is a local-first contextual annotation application for Windows 10 and Windows 11. The active codebase is in pre-release validation and public downloads are disabled. The current release begins with contextual typed Skribs; handwriting, highlights, arrows, images, reminders, screenshot pins, and richer screen/application/page/file/folder context are roadmap capabilities rather than shipped claims.
+Skribli is a local-first contextual annotation application for Windows 10 and Windows 11. Public downloads are disabled, while the encrypted owner v0 installer is available through a key-protected page. The current release supports pastel typed and handwritten Skribs, pen/highlighter/eraser input, local image/video/document attachments, one-time reminders, and a local calendar.
 
 ## Current workflow
 
@@ -9,8 +9,9 @@ Skribli is a local-first contextual annotation application for Windows 10 and Wi
 - Skribli clears any previous target and revalidates the foreground window and process identity.
 - With no matching active note, Skribli creates one empty note.
 - With an existing active match, Skribli reopens the deterministic existing note.
-- Write in one compact paper-like editor.
-- Done, Escape, Ctrl+Enter, or close waits for the latest non-empty draft to save, then fully hides the editor.
+- Type, draw, attach a local reference, or set a reminder in one focused paper-like editor.
+- Done, Escape, Ctrl+Enter, or close waits for text and rich content to save, then folds the active note into a movable pastel dot.
+- Select or move the dot to reopen or reposition the active note. The current v0 shows one active note or dot at a time.
 - Ordinary Delete moves a saved note to local Trash. An untouched empty note uses a separate constrained discard path.
 - The background process remains available in the Windows system tray.
 
@@ -20,7 +21,8 @@ All Skribs is a normal, non-floating, taskbar-visible library opened from the tr
 
 - separate searchable Notes and Trash views;
 - same-record restore and separately confirmed permanent deletion;
-- selected-note and complete schema-version-1 JSON export;
+- selected/all-record schema-version-2 JSON export with explicit rich-content exclusions;
+- import compatibility for legacy schema-version-1 note-record exports;
 - local-only portable JSON import with mandatory native preview;
 - exact duplicate detection and stable-ID conflict handling;
 - revision-locked apply and a durably verified pre-import rollback backup;
@@ -35,7 +37,9 @@ Imported files are not uploaded and never cause Skribli to launch, focus, guess,
 - ordered local note saves with truthful state and retry behavior;
 - schema-v3 crash-safe local storage with schema-v1/v2 migration and recovery generations;
 - reversible 30-day Trash without silent automatic purge;
-- lifecycle-complete local export and portable JSON import with preview and rollback backup;
+- truthful local note-record export and portable JSON import with preview and rollback;
+- editable vector drawing, bounded local attachments, reminders, and calendar views;
+- saved-note collapse/restore through one movable pastel dot;
 - target-monitor work-area placement;
 - bounded Windows accessibility-event delivery;
 - single-instance routing;
@@ -43,13 +47,13 @@ Imported files are not uploaded and never cause Skribli to launch, focus, guess,
 
 ## Not in the current MVP
 
-The current build does not ship floating note dots, attached tabs, persistent note widgets, checklists, a permanent toolbar, or a full-screen selective click-through overlay.
+The current build does not ship multiple simultaneous note windows/dots, attached tabs, screenshot pins, checklists, cloud sync, a permanent toolbar, or a full-screen selective click-through overlay.
 
 ## Availability
 
 - Platform under active validation: Windows 10 and Windows 11, x64
 - Public downloads: disabled
-- Public installer: unavailable
+- Owner v0 installer: available through the encrypted key-protected page
 - macOS: not available
 - Website: https://skribly-desktop.vercel.app/
 - Development notes: https://skribly-desktop.vercel.app/release-notes
@@ -58,7 +62,7 @@ The current build does not ship floating note dots, attached tabs, persistent no
 
 ## Open release gates
 
-Public installer access remains disabled until the exact Windows release candidate completes attachment and future-annotation portability decisions, optional scheduled/user-selected backups, automatic/configurable retention decisions, context-safe reopen/re-anchor behavior, installer install/upgrade/repair/uninstall checks, accessibility and long-session physical testing, compatibility documentation, checksums, signing, support readiness, and final delivery reconciliation.
+Public installer access remains disabled until the exact Windows release candidate completes rich-content portability decisions, optional scheduled/user-selected backups, automatic/configurable retention decisions, installer upgrade/repair/uninstall checks, accessibility and long-session physical testing, compatibility documentation, trusted code signing, support readiness, and final delivery reconciliation.
 
 ## Privacy
 

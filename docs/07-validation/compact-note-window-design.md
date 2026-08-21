@@ -16,10 +16,10 @@ Skribli uses one compact, borderless note window rather than a transparent deskt
 ## Safety constraints
 
 - The Skribli window must never cover the virtual desktop.
-- The active note may remain as one compact dot. No empty transparent editor shell or desktop-sized surface remains visible.
+- The active note may remain as one compact notification-style dot. Its 44×44 logical-pixel native window uses the union of a 32×32 pastel bubble at `(4, 8)` and a 12×12 close badge at `(28, 3)`; transparent space outside that silhouette does not capture input. No empty transparent editor shell or desktop-sized surface remains visible.
 - The editor and dot share one native window in this release, so only the current contextual note is shown on screen at once.
 - Editor and dot positions persist target-relative coordinates and clamp to the target monitor's usable work area after monitor/DPI changes.
-- The whole compact window is interactive; native selective hit testing is not used for the note editor.
+- The open editor uses a rounded native Windows region aligned to its compact surface, and the collapsed dot uses the union of its bubble and close-badge ellipses. Windows' rectangular shadow is disabled for both; the themed CSS surface supplies a contained shape-matched shadow.
 - Windows builds use the GUI subsystem in both development and packaged binaries so no console window appears.
 - The system tray remains the only persistent surface and provides explicit show, hide, and quit controls.
 

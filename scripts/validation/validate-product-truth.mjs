@@ -295,7 +295,8 @@ for (const claim of requiredTargetCaptureImplementation) {
 }
 
 const requiredShortcutFlow = [
-  'set_runtime_active_target(&state_hk, None);',
+  'native_window_operation_gate.lock()',
+  'clear_active_target_and_hide_note_locked(&app_handle_hk, &state_hk);',
   'capture_foreground_target()',
   'revalidate_captured_target(&capture)',
   'present_target_capture_error',
@@ -306,6 +307,21 @@ for (const claim of requiredShortcutFlow) {
   if (!nativeEntry.includes(claim)) {
     failures.push(`The shortcut path is missing required capture safety: ${claim}`);
   }
+}
+
+const retryOverlayStart = nativeEntry.indexOf('fn retry_overlay_initialization(');
+const retryOverlayEnd = nativeEntry.indexOf('\nfn reposition_compact_window(', retryOverlayStart);
+const retryOverlayFlow =
+  retryOverlayStart >= 0 && retryOverlayEnd > retryOverlayStart
+    ? nativeEntry.slice(retryOverlayStart, retryOverlayEnd)
+    : '';
+if (
+  !retryOverlayFlow.includes('native_window_operation_gate.lock()') ||
+  !retryOverlayFlow.includes('initialize_native_overlay(&app_handle, &state, &window)')
+) {
+  failures.push(
+    'Overlay initialization retry must hold the native-window operation gate through HWND initialization.'
+  );
 }
 
 const retiredTargetFallbacks = [

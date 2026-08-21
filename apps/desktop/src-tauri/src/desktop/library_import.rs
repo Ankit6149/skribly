@@ -915,6 +915,9 @@ mod tests {
             storage_notice: Mutex::new(None),
             storage_error: Mutex::new(None),
             note_window_runtime: Mutex::new(crate::NoteWindowRuntime::default()),
+            native_lifecycle_generation: std::sync::atomic::AtomicU64::new(0),
+            native_lifecycle_commit_lock: Mutex::new(()),
+            native_window_operation_gate: crate::NativeWindowOperationGate::default(),
             #[cfg(target_os = "windows")]
             win_event_pipeline,
         };
@@ -967,6 +970,9 @@ mod tests {
             storage_notice: Mutex::new(None),
             storage_error: Mutex::new(None),
             note_window_runtime: Mutex::new(crate::NoteWindowRuntime::default()),
+            native_lifecycle_generation: std::sync::atomic::AtomicU64::new(0),
+            native_lifecycle_commit_lock: Mutex::new(()),
+            native_window_operation_gate: crate::NativeWindowOperationGate::default(),
             #[cfg(target_os = "windows")]
             win_event_pipeline,
         };

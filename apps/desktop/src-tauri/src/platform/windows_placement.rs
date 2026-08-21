@@ -8,10 +8,11 @@ use std::mem::size_of;
 use std::thread;
 use std::time::Duration;
 
-use tauri::{PhysicalPosition, PhysicalSize};
+use tauri::{LogicalSize, PhysicalPosition, PhysicalSize};
 use windows::Win32::Foundation::HWND;
 use windows::Win32::Graphics::Gdi::{
-    GetMonitorInfoW, MonitorFromWindow, MONITORINFO, MONITOR_DEFAULTTONEAREST,
+    CombineRgn, CreateEllipticRgn, CreateRoundRectRgn, DeleteObject, GetMonitorInfoW,
+    MonitorFromWindow, SetWindowRgn, MONITORINFO, MONITOR_DEFAULTTONEAREST, RGN_OR,
 };
 
 use crate::core::models::{OverlayMetrics, SkribNote, TargetWindowInfo, WindowRect};
@@ -20,7 +21,7 @@ use super::windows::{get_overlay_metrics, get_window_bounds, get_window_dpi, rec
 
 pub const COMPACT_WINDOW_LOGICAL_WIDTH: i32 = 420;
 pub const COMPACT_WINDOW_LOGICAL_HEIGHT: i32 = 360;
-pub const COLLAPSED_NOTE_LOGICAL_SIZE: i32 = 72;
+pub const COLLAPSED_NOTE_LOGICAL_SIZE: i32 = 44;
 pub const WORKSPACE_LOGICAL_WIDTH: i32 = 760;
 pub const WORKSPACE_LOGICAL_HEIGHT: i32 = 620;
 const COMPACT_WINDOW_MIN_LOGICAL_WIDTH: i32 = 320;
@@ -29,6 +30,34 @@ const COMPACT_WINDOW_LOGICAL_MARGIN: i32 = 18;
 const COMPACT_WINDOW_TARGET_RIGHT_INSET: i32 = 24;
 const COMPACT_WINDOW_TARGET_TOP_OFFSET: i32 = 48;
 const FINAL_RECT_TOLERANCE_PX: i32 = 8;
+const NOTE_SURFACE_LOGICAL_RADIUS: i32 = 18;
+const COLLAPSED_NOTE_MAIN_REGION_LOGICAL_DIAMETER: i32 = 40;
+const COLLAPSED_NOTE_MAIN_REGION_LOGICAL_TOP: i32 = 4;
+const COLLAPSED_NOTE_BADGE_REGION_LOGICAL_DIAMETER: i32 = 18;
+const COLLAPSED_NOTE_BADGE_REGION_LOGICAL_LEFT: i32 = 26;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum NativeNoteSurface {
+    Note,
+    Dot,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct NativeEllipseRegion {
+    left: i32,
+    top: i32,
+    right: i32,
+    bottom: i32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct NativeSurfaceRegion {
+    primary: NativeEllipseRegion,
+    badge: Option<NativeEllipseRegion>,
+    ellipse_width: i32,
+    ellipse_height: i32,
+    circular: bool,
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct CompactWindowPlacement {
@@ -51,6 +80,215 @@ fn normalized_dpi(dpi: u32) -> u32 {
 
 fn logical_to_physical(logical: i32, scale_factor: f64) -> i32 {
     ((logical as f64) * scale_factor).round().max(1.0) as i32
+}
+
+fn calculate_native_surface_region(
+    physical_width: i32,
+    physical_height: i32,
+    scale_factor: f64,
+    surface: NativeNoteSurface,
+) -> Result<NativeSurfaceRegion, String> {
+    if physical_width <= 0 || physical_height <= 0 {
+        return Err("Skribli cannot shape an empty native note surface.".into());
+    }
+
+    match surface {
+        NativeNoteSurface::Dot => {
+            // Preserve the full 44x44 transparent HWND for CSS antialiasing and contained shadow,
+            // but make only the dot + close-badge silhouette interactive. The main region gives
+            // the visible 32px dot a 4px gutter; the badge region gives the visible 12px close
+            // control a 3px gutter. Their union avoids both clipping and invisible corner hits.
+            let main_diameter =
+                logical_to_physical(COLLAPSED_NOTE_MAIN_REGION_LOGICAL_DIAMETER, scale_factor);
+            let main_top =
+                logical_to_physical(COLLAPSED_NOTE_MAIN_REGION_LOGICAL_TOP, scale_factor);
+            let badge_diameter =
+                logical_to_physical(COLLAPSED_NOTE_BADGE_REGION_LOGICAL_DIAMETER, scale_factor);
+            let badge_left =
+                logical_to_physical(COLLAPSED_NOTE_BADGE_REGION_LOGICAL_LEFT, scale_factor);
+            let primary = NativeEllipseRegion {
+                left: 0,
+                top: main_top,
+                right: main_diameter.min(physical_width),
+                bottom: logical_to_physical(COLLAPSED_NOTE_LOGICAL_SIZE, scale_factor)
+                    .min(physical_height),
+            };
+            let badge = NativeEllipseRegion {
+                left: badge_left.min(physical_width),
+                top: 0,
+                right: logical_to_physical(COLLAPSED_NOTE_LOGICAL_SIZE, scale_factor)
+                    .min(physical_width),
+                bottom: badge_diameter.min(physical_height),
+            };
+            if primary.right <= primary.left
+                || primary.bottom <= primary.top
+                || badge.right <= badge.left
+                || badge.bottom <= badge.top
+            {
+                return Err(
+                    "Skribli cannot shape the native dot silhouette at this display scale.".into(),
+                );
+            }
+            Ok(NativeSurfaceRegion {
+                primary,
+                badge: Some(badge),
+                ellipse_width: main_diameter,
+                ellipse_height: main_diameter,
+                circular: true,
+            })
+        }
+        NativeNoteSurface::Note => {
+            // The frontend keeps its small contained CSS shadow inside these bounds. Shape the
+            // entire transparent HWND as a rounded surface so corners do not intercept clicks,
+            // without clipping that deliberately contained shadow.
+            let ellipse =
+                logical_to_physical(NOTE_SURFACE_LOGICAL_RADIUS.saturating_mul(2), scale_factor);
+            Ok(NativeSurfaceRegion {
+                primary: NativeEllipseRegion {
+                    left: 0,
+                    top: 0,
+                    right: physical_width,
+                    bottom: physical_height,
+                },
+                badge: None,
+                ellipse_width: ellipse,
+                ellipse_height: ellipse,
+                circular: false,
+            })
+        }
+    }
+}
+
+#[cfg(test)]
+fn ellipse_region_contains(region: &NativeEllipseRegion, x: f64, y: f64) -> bool {
+    let radius_x = (region.right - region.left) as f64 / 2.0;
+    let radius_y = (region.bottom - region.top) as f64 / 2.0;
+    if radius_x <= 0.0 || radius_y <= 0.0 {
+        return false;
+    }
+    let center_x = region.left as f64 + radius_x;
+    let center_y = region.top as f64 + radius_y;
+    let normalized_x = (x - center_x) / radius_x;
+    let normalized_y = (y - center_y) / radius_y;
+    normalized_x * normalized_x + normalized_y * normalized_y <= 1.0
+}
+
+#[cfg(test)]
+fn native_dot_region_contains(region: &NativeSurfaceRegion, x: f64, y: f64) -> bool {
+    region.circular
+        && (ellipse_region_contains(&region.primary, x, y)
+            || region
+                .badge
+                .as_ref()
+                .is_some_and(|badge| ellipse_region_contains(badge, x, y)))
+}
+
+fn apply_native_surface(
+    window: &tauri::WebviewWindow,
+    placement: &CompactWindowPlacement,
+    surface: NativeNoteSurface,
+) -> Result<(), String> {
+    let hwnd = window
+        .hwnd()
+        .map_err(|error| format!("Skribli could not shape the note window: {error}"))?;
+    let bounds = calculate_native_surface_region(
+        placement.width,
+        placement.height,
+        placement.scale_factor,
+        surface,
+    )?;
+    let region = if bounds.circular {
+        let primary = unsafe {
+            CreateEllipticRgn(
+                bounds.primary.left,
+                bounds.primary.top,
+                bounds.primary.right,
+                bounds.primary.bottom,
+            )
+        };
+        if primary.0.is_null() {
+            return Err("Windows could not create the native dot region.".into());
+        }
+        let Some(badge_bounds) = bounds.badge.as_ref() else {
+            let _ = unsafe { DeleteObject(primary.into()) };
+            return Err("Skribli's native dot badge region is unavailable.".into());
+        };
+        let badge = unsafe {
+            CreateEllipticRgn(
+                badge_bounds.left,
+                badge_bounds.top,
+                badge_bounds.right,
+                badge_bounds.bottom,
+            )
+        };
+        if badge.0.is_null() {
+            let _ = unsafe { DeleteObject(primary.into()) };
+            return Err("Windows could not create the native close-badge region.".into());
+        }
+        let combined = unsafe { CombineRgn(Some(primary), Some(primary), Some(badge), RGN_OR) };
+        // The temporary badge is always caller-owned. Only the combined primary is transferred
+        // to Windows after SetWindowRgn succeeds.
+        let _ = unsafe { DeleteObject(badge.into()) };
+        if combined.0 == 0 {
+            let _ = unsafe { DeleteObject(primary.into()) };
+            return Err("Windows could not combine the native dot silhouette.".into());
+        }
+        primary
+    } else {
+        unsafe {
+            CreateRoundRectRgn(
+                bounds.primary.left,
+                bounds.primary.top,
+                bounds.primary.right,
+                bounds.primary.bottom,
+                bounds.ellipse_width,
+                bounds.ellipse_height,
+            )
+        }
+    };
+    if region.0.is_null() {
+        return Err("Windows could not create the native note surface region.".into());
+    }
+    let applied = unsafe { SetWindowRgn(HWND(hwnd.0 as *mut _), Some(region), true) };
+    if applied == 0 {
+        // On success Windows owns the region; on failure the caller remains responsible for it.
+        let _ = unsafe { DeleteObject(region.into()) };
+        return Err("Windows could not apply the native note surface region.".into());
+    }
+    Ok(())
+}
+
+pub fn restore_standard_window_surface(window: &tauri::WebviewWindow) -> Result<(), String> {
+    let hwnd = window
+        .hwnd()
+        .map_err(|error| format!("Skribli could not restore the window surface: {error}"))?;
+    if unsafe { SetWindowRgn(HWND(hwnd.0 as *mut _), None, true) } == 0 {
+        return Err("Windows could not restore the full window surface.".into());
+    }
+    window
+        .set_shadow(true)
+        .map_err(|error| format!("Skribli could not restore the standard window shadow: {error}"))
+}
+
+fn standard_compact_surface_logical_size() -> (u32, u32) {
+    (
+        COMPACT_WINDOW_LOGICAL_WIDTH as u32,
+        COMPACT_WINDOW_LOGICAL_HEIGHT as u32,
+    )
+}
+
+pub fn prepare_standard_compact_surface(window: &tauri::WebviewWindow) -> Result<(), String> {
+    let (width, height) = standard_compact_surface_logical_size();
+    window
+        .set_min_size(Some(LogicalSize::new(
+            COMPACT_WINDOW_MIN_LOGICAL_WIDTH as u32,
+            COMPACT_WINDOW_MIN_LOGICAL_HEIGHT as u32,
+        )))
+        .map_err(|error| format!("Skribli could not restore the compact minimum size: {error}"))?;
+    window
+        .set_size(LogicalSize::new(width, height))
+        .map_err(|error| format!("Skribli could not restore the compact recovery size: {error}"))?;
+    restore_standard_window_surface(window)
 }
 
 fn rect_right(rect: &WindowRect) -> i64 {
@@ -345,7 +583,11 @@ fn actual_matches_placement(actual: &AppliedPlacement, placement: &CompactWindow
 fn apply_placement(
     window: &tauri::WebviewWindow,
     placement: &CompactWindowPlacement,
+    surface: NativeNoteSurface,
 ) -> Result<AppliedPlacement, String> {
+    window.set_shadow(false).map_err(|error| {
+        format!("Skribli could not disable the transparent window shadow: {error}")
+    })?;
     window
         .set_size(PhysicalSize::new(
             placement.width as u32,
@@ -355,6 +597,7 @@ fn apply_placement(
     window
         .set_position(PhysicalPosition::new(placement.x, placement.y))
         .map_err(|error| format!("Skribli could not move the compact editor: {error}"))?;
+    apply_native_surface(window, placement, surface)?;
 
     thread::sleep(Duration::from_millis(35));
     let hwnd = window
@@ -383,14 +626,14 @@ pub fn position_compact_window_for_target(
     let (dpi, _) = get_window_dpi(target_hwnd);
     let placement = calculate_compact_window_placement(&work_area, &target_bounds, dpi)?;
 
-    let first = apply_placement(window, &placement)?;
+    let first = apply_placement(window, &placement, NativeNoteSurface::Note)?;
     if actual_matches_placement(&first, &placement) {
         return Ok(first.outer_metrics);
     }
 
     // A per-monitor DPI transition can resize the HWND after its first move. Apply the same
     // target-monitor physical rectangle once more after Windows has processed that transition.
-    let second = apply_placement(window, &placement)?;
+    let second = apply_placement(window, &placement, NativeNoteSurface::Note)?;
     if actual_matches_placement(&second, &placement) {
         return Ok(second.outer_metrics);
     }
@@ -430,12 +673,17 @@ pub fn position_note_window_for_target(
             placement.height as u32,
         )))
         .map_err(|error| format!("Skribli could not prepare the note window size: {error}"))?;
-    let applied = apply_placement(window, &placement)?;
+    let surface = if collapsed {
+        NativeNoteSurface::Dot
+    } else {
+        NativeNoteSurface::Note
+    };
+    let applied = apply_placement(window, &placement, surface)?;
     if actual_matches_placement(&applied, &placement) {
         return Ok(applied.outer_metrics);
     }
 
-    let reapplied = apply_placement(window, &placement)?;
+    let reapplied = apply_placement(window, &placement, surface)?;
     if actual_matches_placement(&reapplied, &placement) {
         return Ok(reapplied.outer_metrics);
     }
@@ -462,7 +710,7 @@ pub fn position_note_workspace_for_target(
             logical_to_physical(360, placement.scale_factor) as u32,
         )))
         .map_err(|error| format!("Skribli could not prepare the writing workspace: {error}"))?;
-    let applied = apply_placement(window, &placement)?;
+    let applied = apply_placement(window, &placement, NativeNoteSurface::Note)?;
     if actual_matches_placement(&applied, &placement) {
         Ok(applied.outer_metrics)
     } else {
@@ -535,7 +783,81 @@ mod tests {
         assert_eq!((editor.x, editor.y), (225, 200));
         assert_eq!((editor.width, editor.height), (400, 340));
         assert_eq!((dot.x, dot.y), (225, 200));
-        assert_eq!((dot.width, dot.height), (72, 72));
+        assert_eq!((dot.width, dot.height), (44, 44));
+    }
+
+    #[test]
+    fn native_regions_hug_the_rounded_note_and_collapsed_dot() {
+        let note = calculate_native_surface_region(420, 360, 1.0, NativeNoteSurface::Note)
+            .expect("note region");
+        assert_eq!(
+            (
+                note.primary.left,
+                note.primary.top,
+                note.primary.right,
+                note.primary.bottom,
+            ),
+            (0, 0, 420, 360)
+        );
+        assert_eq!((note.ellipse_width, note.ellipse_height), (36, 36));
+        assert!(!note.circular);
+        assert!(note.badge.is_none());
+
+        let dot = calculate_native_surface_region(44, 44, 1.0, NativeNoteSurface::Dot)
+            .expect("dot region");
+        assert_eq!(
+            (
+                dot.primary.left,
+                dot.primary.top,
+                dot.primary.right,
+                dot.primary.bottom,
+            ),
+            (0, 4, 40, 44)
+        );
+        let badge = dot.badge.as_ref().expect("dot badge region");
+        assert_eq!(
+            (badge.left, badge.top, badge.right, badge.bottom),
+            (26, 0, 44, 18)
+        );
+        assert!(dot.circular);
+        for point in [(4.0, 24.0), (20.0, 8.0), (36.0, 24.0), (20.0, 40.0)] {
+            assert!(native_dot_region_contains(&dot, point.0, point.1));
+        }
+        for point in [(28.0, 9.0), (35.0, 3.0), (40.0, 9.0), (35.0, 15.0)] {
+            assert!(native_dot_region_contains(&dot, point.0, point.1));
+        }
+        for point in [(0.0, 0.0), (0.0, 44.0), (44.0, 44.0)] {
+            assert!(!native_dot_region_contains(&dot, point.0, point.1));
+        }
+
+        let scaled_dot = calculate_native_surface_region(55, 55, 1.25, NativeNoteSurface::Dot)
+            .expect("scaled dot region");
+        assert_eq!(
+            (
+                scaled_dot.primary.left,
+                scaled_dot.primary.top,
+                scaled_dot.primary.right,
+                scaled_dot.primary.bottom,
+            ),
+            (0, 5, 50, 55)
+        );
+        let scaled_badge = scaled_dot.badge.expect("scaled badge region");
+        assert_eq!(
+            (
+                scaled_badge.left,
+                scaled_badge.top,
+                scaled_badge.right,
+                scaled_badge.bottom,
+            ),
+            (33, 0, 55, 23)
+        );
+    }
+
+    #[test]
+    fn recovery_surface_restores_compact_logical_dimensions_after_a_dot() {
+        assert_eq!(standard_compact_surface_logical_size(), (420, 360));
+        assert!(standard_compact_surface_logical_size().0 > COLLAPSED_NOTE_LOGICAL_SIZE as u32);
+        assert!(standard_compact_surface_logical_size().1 > COLLAPSED_NOTE_LOGICAL_SIZE as u32);
     }
 
     #[test]

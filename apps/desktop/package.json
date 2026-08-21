@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "prebuild": "node ../../scripts/validation/validate-react-runtime.mjs && node ../../scripts/validation/validate-desktop-theme.mjs",
+    "prebuild": "node ../../scripts/validation/validate-react-runtime.mjs && node ../../scripts/validation/validate-desktop-theme.mjs && node ../../scripts/validation/validate-compact-surface.mjs",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "tauri": "tauri",

@@ -13,6 +13,16 @@ import {
   scheduleReminder,
   type ReminderWithStatus,
 } from '../../lib/reminderStore';
+import {
+  createReminderCalendarDays,
+  createReminderTimeOptions,
+  defaultReminderTimestamp,
+  localDateTimeFromValues,
+  reminderPresetTimestamp,
+  toLocalDateKey,
+  toLocalTimeValue,
+  type ReminderPreset,
+} from './reminderCalendarModel';
 
 interface NoteReminderPanelProps {
   noteId: string;
@@ -20,18 +30,6 @@ interface NoteReminderPanelProps {
   disabled?: boolean;
   onError?: (message: string) => void;
   onBusyChange?: (busy: boolean) => void;
-}
-
-function toLocalDateTimeValue(timestamp: number): string {
-  const date = new Date(timestamp);
-  const timezoneOffset = date.getTimezoneOffset() * 60_000;
-  return new Date(timestamp - timezoneOffset).toISOString().slice(0, 16);
-}
-
-function defaultDueValue(): string {
-  const date = new Date(Date.now() + 60 * 60 * 1000);
-  date.setMinutes(Math.ceil(date.getMinutes() / 5) * 5, 0, 0);
-  return toLocalDateTimeValue(date.getTime());
 }
 
 function reminderTitle(noteText: string): string {
@@ -55,7 +53,14 @@ export const NoteReminderPanel: React.FC<NoteReminderPanelProps> = ({
   onBusyChange,
 }) => {
   const [reminders, setReminders] = useState<ReminderWithStatus[]>([]);
-  const [dueValue, setDueValue] = useState(defaultDueValue);
+  const [dueSelection, setDueSelection] = useState(() => {
+    const timestamp = defaultReminderTimestamp();
+    return { date: toLocalDateKey(timestamp), time: toLocalTimeValue(timestamp) };
+  });
+  const [calendarMonth, setCalendarMonth] = useState(() => {
+    const date = new Date(defaultReminderTimestamp());
+    return { year: date.getFullYear(), month: date.getMonth() };
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [mutatingId, setMutatingId] = useState<string | null>(null);
   const [isScheduling, setIsScheduling] = useState(false);
@@ -94,12 +99,57 @@ export const NoteReminderPanel: React.FC<NoteReminderPanelProps> = ({
   );
 
   useEffect(() => {
-    if (activeReminder) setDueValue(toLocalDateTimeValue(activeReminder.dueAt));
+    if (!activeReminder) return;
+    const date = new Date(activeReminder.dueAt);
+    setDueSelection({
+      date: toLocalDateKey(activeReminder.dueAt),
+      time: toLocalTimeValue(activeReminder.dueAt),
+    });
+    setCalendarMonth({ year: date.getFullYear(), month: date.getMonth() });
   }, [activeReminder]);
+
+  const calendarDays = useMemo(
+    () => createReminderCalendarDays(
+      calendarMonth.year,
+      calendarMonth.month,
+      dueSelection.date
+    ),
+    [calendarMonth, dueSelection.date]
+  );
+  const timeOptions = useMemo(
+    () => createReminderTimeOptions(dueSelection.time),
+    [dueSelection.time]
+  );
+  const calendarTitle = useMemo(
+    () => new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' }).format(
+      new Date(calendarMonth.year, calendarMonth.month, 1)
+    ),
+    [calendarMonth]
+  );
+
+  const moveCalendarMonth = (offset: number) => {
+    setCalendarMonth((current) => {
+      const date = new Date(current.year, current.month + offset, 1);
+      return { year: date.getFullYear(), month: date.getMonth() };
+    });
+  };
+
+  const chooseDate = (dateKey: string) => {
+    const date = new Date(`${dateKey}T12:00:00`);
+    setDueSelection((current) => ({ ...current, date: dateKey }));
+    setCalendarMonth({ year: date.getFullYear(), month: date.getMonth() });
+  };
+
+  const applyPreset = (preset: ReminderPreset) => {
+    const timestamp = reminderPresetTimestamp(preset);
+    const date = new Date(timestamp);
+    setDueSelection({ date: toLocalDateKey(timestamp), time: toLocalTimeValue(timestamp) });
+    setCalendarMonth({ year: date.getFullYear(), month: date.getMonth() });
+  };
 
   const schedule = async () => {
     if (disabled || operationInProgressRef.current) return;
-    const dueAt = new Date(dueValue).getTime();
+    const dueAt = localDateTimeFromValues(dueSelection.date, dueSelection.time);
     if (!Number.isFinite(dueAt)) {
       reportError(new Error('Choose a valid reminder date and time.'));
       return;
@@ -154,25 +204,72 @@ export const NoteReminderPanel: React.FC<NoteReminderPanelProps> = ({
     <section className="note-reminder-panel" aria-labelledby="note-reminder-title">
       <header className="note-panel-heading">
         <div>
-          <strong id="note-reminder-title">Reminder</strong>
-          <span>Stored locally and shown through Windows while Skribli is running.</span>
+          <strong id="note-reminder-title">Set a reminder</strong>
+          <span>Private to this device · visible in Skribli Calendar</span>
         </div>
       </header>
 
       <div className="note-reminder-scheduler">
-        <label>
-          <span>{activeReminder ? 'Change reminder time' : 'Remind me'}</span>
-          <input
-            type="datetime-local"
-            value={dueValue}
-            min={toLocalDateTimeValue(Date.now() + 60_000)}
-            disabled={disabled || panelBusy}
-            onChange={(event) => setDueValue(event.target.value)}
-          />
-        </label>
-        <button type="button" className="primary" disabled={disabled || panelBusy} onClick={() => void schedule()}>
-          {isScheduling ? 'Saving…' : activeReminder ? 'Reschedule' : 'Set reminder'}
-        </button>
+        <div className="note-reminder-presets" aria-label="Quick reminder times">
+          <span>Quick pick</span>
+          <button type="button" disabled={disabled || panelBusy} onClick={() => applyPreset('hour')}>In 1 hour</button>
+          <button type="button" disabled={disabled || panelBusy} onClick={() => applyPreset('tomorrowMorning')}>Tomorrow, 9:00</button>
+          <button type="button" disabled={disabled || panelBusy} onClick={() => applyPreset('nextWeek')}>Next week</button>
+        </div>
+
+        <div className="note-reminder-picker">
+          <div className="note-reminder-calendar">
+            <div className="note-reminder-calendar-nav">
+              <button type="button" aria-label="Previous month" disabled={disabled || panelBusy} onClick={() => moveCalendarMonth(-1)}>‹</button>
+              <strong aria-live="polite">{calendarTitle}</strong>
+              <button type="button" aria-label="Next month" disabled={disabled || panelBusy} onClick={() => moveCalendarMonth(1)}>›</button>
+            </div>
+            <div className="note-reminder-weekdays" aria-hidden="true">
+              {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map((day) => <span key={day}>{day}</span>)}
+            </div>
+            <div className="note-reminder-days" role="grid" aria-label={calendarTitle}>
+              {calendarDays.map((day) => (
+                <button
+                  key={day.key}
+                  type="button"
+                  className={day.isSelected ? 'selected' : ''}
+                  data-outside={!day.inDisplayedMonth || undefined}
+                  data-today={day.isToday || undefined}
+                  disabled={disabled || panelBusy || day.isPast}
+                  aria-label={new Intl.DateTimeFormat(undefined, { dateStyle: 'full' }).format(new Date(`${day.key}T12:00:00`))}
+                  aria-pressed={day.isSelected}
+                  onClick={() => chooseDate(day.key)}
+                >
+                  {day.dayNumber}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="note-reminder-time">
+            <span className="note-reminder-time-kicker">Time</span>
+            <label>
+              <span className="sr-only">Reminder time</span>
+              <select
+                value={dueSelection.time}
+                disabled={disabled || panelBusy}
+                aria-label="Reminder time"
+                onChange={(event) => setDueSelection((current) => ({ ...current, time: event.target.value }))}
+              >
+                {timeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
+            </label>
+            <span className="note-reminder-selected-date">
+              {new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric' }).format(
+                new Date(`${dueSelection.date}T12:00:00`)
+              )}
+            </span>
+            <button type="button" className="primary" disabled={disabled || panelBusy} onClick={() => void schedule()}>
+              {isScheduling ? 'Saving…' : activeReminder ? 'Save new time' : 'Set reminder'}
+            </button>
+            <small>Saved locally. Windows alerts can be enabled separately.</small>
+          </div>
+        </div>
       </div>
 
       {error && <div className="note-panel-error" role="alert">{error}</div>}

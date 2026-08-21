@@ -4,12 +4,12 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="application-name" content="Skribli" />
-    <meta name="description" content="Skribli is a local-first contextual annotation app for Windows. The current build starts with typed Skribs and is designed to grow into handwriting, highlights, arrows, images, reminders, and richer context." />
+    <meta name="description" content="Skribli is a local-first contextual annotation app for Windows with pastel typed and handwritten notes, attachments, reminders, and a calendar." />
     <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1" />
     <meta name="theme-color" content="#fffdf7" />
     <link rel="canonical" href="https://skribly-desktop.vercel.app/" />
     <meta property="og:title" content="Skribli — Put a Skrib where the thought belongs" />
-    <meta property="og:description" content="A local-first contextual annotation layer for Windows. The encrypted typed-Skrib v0 build requires a download key." />
+    <meta property="og:description" content="A local-first contextual annotation layer for Windows. The encrypted owner v0 build requires a download key." />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://skribly-desktop.vercel.app/" />
     <meta property="og:image" content="https://skribly-desktop.vercel.app/assets/skribly-social-card-v2.svg" />
@@ -27,15 +27,17 @@
         "name": "Skribli",
         "applicationCategory": "ProductivityApplication",
         "operatingSystem": "Windows 10, Windows 11",
-        "description": "A local-first Windows contextual annotation application. The current release starts with typed Skribs opened by Ctrl+Shift+Space.",
+        "description": "A local-first Windows contextual annotation application with pastel typed and handwritten Skribs, attachments, reminders, and a calendar.",
         "url": "https://skribly-desktop.vercel.app/",
         "softwareVersion": "Pre-release validation",
         "featureList": [
           "Visible account-first setup and Home window",
-          "Compact typed-Skrib editor opened with Ctrl+Shift+Space",
+          "Compact pastel Skrib editor opened with Ctrl+Shift+Space",
+          "Vector pen, highlighter, eraser, local image/video/document attachments, and reminders",
+          "Movable collapsed note dot and local reminder calendar",
           "Foreground application context captured and revalidated before opening",
           "Local-first note storage with recovery foundations",
-          "Save-then-hide workflow with quiet system-tray operation"
+          "Save-then-collapse workflow with quiet system-tray operation"
         ]
       }
     </script>
@@ -65,7 +67,7 @@
             <div class="eyebrow-pill"><span class="pulse-dot"></span> Windows app · v0 owner test</div>
             <h1>Put the thought <em>where it belongs.</em></h1>
             <p class="hero-lede">
-              Skribli is a contextual annotation layer for Windows. The current release begins with typed Skribs: focus an application, press one shortcut, write, and return later with the same work.
+              Skribli is a contextual annotation layer for Windows. Focus an application, press one shortcut, then type, draw, attach a reference, or set a reminder—and return later with the same work.
             </p>
             <div class="hero-actions">
               <a class="button button-primary" data-download-link href="/v0-download">
@@ -77,7 +79,7 @@
             <div class="note-script">focus app → shortcut → write → Done ↗</div>
             <div class="hero-meta">
               <span>Account-connected, content local</span>
-              <span>No floating remainder</span>
+              <span>Movable collapsed dot</span>
               <span>Windows 10/11</span>
             </div>
           </div>
@@ -117,25 +119,25 @@
               <li><span>1</span>Focus an app</li>
               <li><span>2</span>Press Ctrl+Shift+Space</li>
               <li><span>3</span>Write, then choose Done</li>
-              <li><span>4</span>Editor fully hides</li>
+              <li><span>4</span>Saved note folds into a dot</li>
             </ol>
-            <div class="hero-scribble">nothing stays floating<br />after Done</div>
+            <div class="hero-scribble">Done folds the thought<br />into a movable dot</div>
           </div>
         </section>
 
         <section class="proof-strip" id="principles" aria-label="Skribli product principles">
           <div><strong>Contextual</strong><span>The shortcut captures the application already in front of you.</span></div>
           <div><strong>Explicit</strong><span>Skribli tells you whether a Skrib is new or reopened.</span></div>
-          <div><strong>Quiet</strong><span>Done saves and fully hides the compact editor.</span></div>
+          <div><strong>Quiet</strong><span>Done saves and folds the active note into a small dot.</span></div>
           <div><strong>Local-first</strong><span>Your Skrib content stays on your computer.</span></div>
         </section>
 
         <section class="section-pad story-section" id="how-it-works">
           <div class="section-heading">
             <span class="section-kicker">THE CURRENT WINDOWS WORKFLOW</span>
-            <h2>One compact editor.<br /><span class="handwritten-line">No permanent overlay.</span></h2>
+            <h2>One focused editor.<br /><span class="handwritten-line">No permanent canvas.</span></h2>
             <p>
-              The current build is intentionally focused. It opens only when requested, keeps the active draft visible when saving fails, and leaves no dot, tab, checklist, or floating widget after it closes.
+              The current build opens only when requested, keeps the active draft visible when saving fails, and folds a saved note into one movable pastel dot. One active note or dot is shown at a time.
             </p>
           </div>
           <div class="steps-grid">
@@ -153,9 +155,9 @@
             </article>
             <article class="step-card step-mint">
               <span class="step-number">03</span>
-              <div class="step-visual hide-visual"><div class="return-note">Saved locally</div><span>→</span><div class="done-chip">Done</div><span>→</span><div class="hidden-chip">hidden</div></div>
-              <h3>Save, then fully hide</h3>
-              <p>Done, Escape, Ctrl+Enter, or close waits for the latest non-empty draft to save. An untouched empty note is discarded.</p>
+              <div class="step-visual hide-visual"><div class="return-note">Saved locally</div><span>→</span><div class="done-chip">Done</div><span>→</span><div class="hidden-chip">movable dot</div></div>
+              <h3>Save, then fold</h3>
+              <p>Done, Escape, Ctrl+Enter, or close waits for text and rich content to save, then folds the active note into a dot. An untouched empty note is discarded.</p>
             </article>
           </div>
         </section>
@@ -219,10 +221,11 @@
           </div>
           <div class="comparison-table" role="table" aria-label="Current Skribli capability status">
             <div class="comparison-row comparison-head" role="row"><span role="columnheader">Capability</span><span role="columnheader">Current status</span><span role="columnheader">Public claim</span></div>
-            <div class="comparison-row" role="row"><span>Account-first setup and compact typed Skribs</span><span>Implemented</span><strong>Shown here</strong></div>
+            <div class="comparison-row" role="row"><span>Account-first setup and compact pastel Skribs</span><span>Implemented</span><strong>Shown here</strong></div>
             <div class="comparison-row" role="row"><span>Local storage and recovery foundations</span><span>Implemented</span><strong>Shown here</strong></div>
-            <div class="comparison-row" role="row"><span>Handwriting, highlights, arrows, images, reminders</span><span>Product roadmap</span><strong>Not claimed as shipped</strong></div>
-            <div class="comparison-row" role="row"><span>Floating dots, attached tabs, checklists</span><span>Not in current MVP</span><strong>Not advertised</strong></div>
+            <div class="comparison-row" role="row"><span>Drawing, highlights, local files, reminders, calendar</span><span>Implemented</span><strong>Included in owner v0</strong></div>
+            <div class="comparison-row" role="row"><span>One movable collapsed note dot</span><span>Implemented</span><strong>One active note at a time</strong></div>
+            <div class="comparison-row" role="row"><span>Multiple simultaneous note windows, screenshot pins, checklists</span><span>Future work</span><strong>Not claimed as shipped</strong></div>
             <div class="comparison-row" role="row"><span>Windows installer delivery</span><span>Encrypted owner key</span><strong>v0 testing</strong></div>
           </div>
         </section>
@@ -242,7 +245,7 @@
 
       <footer class="site-footer">
         <a class="brand footer-brand" href="#top"><img src="./assets/skribly-note-mark-v2.svg" alt="" /><span>Skribli</span></a>
-        <p>A contextual annotation layer for Windows, beginning with typed Skribs.</p>
+        <p>A local-first contextual annotation layer for Windows.</p>
         <div><a href="/release-notes">Development notes</a><a href="/privacy">Privacy</a><a href="/answers">FAQ</a></div>
         <small>© 2026 Ankit Bhardwaj. v0 installer access is owner-only.</small>
       </footer>

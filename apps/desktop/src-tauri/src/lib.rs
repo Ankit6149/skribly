@@ -3,9 +3,9 @@ mod desktop;
 mod note_lifecycle;
 mod platform;
 
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::{channel, Receiver};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager, RunEvent, State};
 
@@ -23,8 +23,8 @@ use platform::windows::{
     get_overlay_metrics as query_overlay_metrics, inspect_target_window, install_overlay_subclass,
     install_winevent_hooks, list_candidate_target_windows, reconstruct_hwnd, set_dpi_awareness,
     start_global_hotkey_listener, uninstall_overlay_subclass, uninstall_winevent_hooks,
-    EVENT_OBJECT_DESTROY, EVENT_OBJECT_LOCATIONCHANGE, EVENT_SYSTEM_FOREGROUND,
-    EVENT_SYSTEM_MINIMIZEEND, EVENT_SYSTEM_MINIMIZESTART,
+    EVENT_OBJECT_DESTROY, EVENT_OBJECT_HIDE, EVENT_OBJECT_LOCATIONCHANGE, EVENT_OBJECT_NAMECHANGE,
+    EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_MINIMIZEEND, EVENT_SYSTEM_MINIMIZESTART,
 };
 #[cfg(target_os = "windows")]
 use platform::windows_events::{WinEventPipeline, WIN_EVENT_QUEUE_CAPACITY};
@@ -33,8 +33,8 @@ use platform::windows_focus::focus_external_window;
 #[cfg(target_os = "windows")]
 use platform::windows_placement::{
     initialize_compact_window, position_compact_window_for_target, position_note_window_for_target,
-    position_note_workspace_for_target, COMPACT_WINDOW_LOGICAL_HEIGHT,
-    COMPACT_WINDOW_LOGICAL_WIDTH,
+    position_note_workspace_for_target, prepare_standard_compact_surface,
+    restore_standard_window_surface, COMPACT_WINDOW_LOGICAL_HEIGHT, COMPACT_WINDOW_LOGICAL_WIDTH,
 };
 #[cfg(target_os = "windows")]
 use platform::windows_target_capture::{
@@ -58,11 +58,32 @@ struct ProgrammaticNotePlacement {
     physical_y: i32,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct DismissedCollapsedWindow {
+    note_id: String,
+    target_hwnd: isize,
+    target_process_name: String,
+    target_title: String,
+    armed: bool,
+}
+
 #[derive(Debug, Default)]
 pub(crate) struct NoteWindowRuntime {
     active_note_id: Option<String>,
     workspace_expanded: bool,
     pending_programmatic_placement: Option<ProgrammaticNotePlacement>,
+    dismissed_collapsed_window: Option<DismissedCollapsedWindow>,
+}
+
+#[derive(Debug, Default)]
+struct NativeWindowOperationGate(Mutex<()>);
+
+impl NativeWindowOperationGate {
+    fn lock(&self) -> Result<MutexGuard<'_, ()>, String> {
+        self.0
+            .lock()
+            .map_err(|_| "The native window operation lock is unavailable.".to_string())
+    }
 }
 
 impl NoteWindowRuntime {
@@ -78,6 +99,53 @@ impl NoteWindowRuntime {
         self.active_note_id.is_some() && self.workspace_expanded
     }
 
+    fn clear(&mut self) {
+        self.active_note_id = None;
+        self.workspace_expanded = false;
+        self.pending_programmatic_placement = None;
+        self.dismissed_collapsed_window = None;
+    }
+
+    fn dismiss_collapsed_window(&mut self, note: &SkribNote, target: &TargetWindowInfo) {
+        self.hide_collapsed_window(note, target, false);
+    }
+
+    fn hide_collapsed_until_context_returns(
+        &mut self,
+        note: &SkribNote,
+        target: &TargetWindowInfo,
+    ) {
+        self.hide_collapsed_window(note, target, true);
+    }
+
+    fn hide_collapsed_window(&mut self, note: &SkribNote, target: &TargetWindowInfo, armed: bool) {
+        self.active_note_id = Some(note.id.clone());
+        self.workspace_expanded = false;
+        self.pending_programmatic_placement = None;
+        self.dismissed_collapsed_window = Some(DismissedCollapsedWindow {
+            note_id: note.id.clone(),
+            target_hwnd: target.hwnd_val,
+            target_process_name: target.process_name.clone(),
+            target_title: target.title.clone(),
+            armed,
+        });
+    }
+
+    fn dismissed_collapsed_window(&self) -> Option<&DismissedCollapsedWindow> {
+        self.dismissed_collapsed_window.as_ref()
+    }
+
+    fn arm_dismissed_collapsed_window(&mut self, expected: &DismissedCollapsedWindow) -> bool {
+        let Some(current) = self.dismissed_collapsed_window.as_mut() else {
+            return false;
+        };
+        if current != expected || current.armed {
+            return false;
+        }
+        current.armed = true;
+        true
+    }
+
     fn record_programmatic_placement(
         &mut self,
         note_id: &str,
@@ -86,6 +154,7 @@ impl NoteWindowRuntime {
     ) {
         self.active_note_id = Some(note_id.to_string());
         self.workspace_expanded = workspace_expanded;
+        self.dismissed_collapsed_window = None;
         self.pending_programmatic_placement = Some(ProgrammaticNotePlacement {
             note_id: note_id.to_string(),
             physical_x: metrics.overlay_physical_x,
@@ -123,11 +192,14 @@ pub struct AppState {
     pub storage_notice: Mutex<Option<storage::StorageNotice>>,
     pub storage_error: Mutex<Option<String>>,
     pub(crate) note_window_runtime: Mutex<NoteWindowRuntime>,
+    native_lifecycle_generation: AtomicU64,
+    native_lifecycle_commit_lock: Mutex<()>,
+    native_window_operation_gate: NativeWindowOperationGate,
     #[cfg(target_os = "windows")]
     pub win_event_pipeline: WinEventPipeline,
 }
 
-fn set_runtime_active_target(state: &AppState, target: Option<TargetWindowInfo>) {
+fn set_runtime_active_target_unchecked(state: &AppState, target: Option<TargetWindowInfo>) {
     #[cfg(target_os = "windows")]
     state
         .win_event_pipeline
@@ -135,15 +207,565 @@ fn set_runtime_active_target(state: &AppState, target: Option<TargetWindowInfo>)
     state.coordinator.set_active_target(target);
 }
 
+fn set_runtime_active_target(state: &AppState, target: Option<TargetWindowInfo>) {
+    let Ok(_operation_guard) = state.native_window_operation_gate.lock() else {
+        return;
+    };
+    set_runtime_active_target_locked(state, target);
+}
+
+fn set_runtime_active_target_locked(state: &AppState, target: Option<TargetWindowInfo>) {
+    let Ok(_commit_guard) = state.native_lifecycle_commit_lock.lock() else {
+        return;
+    };
+    state
+        .native_lifecycle_generation
+        .fetch_add(1, Ordering::AcqRel);
+    set_runtime_active_target_unchecked(state, target);
+}
+
+fn begin_native_lifecycle_action(state: &AppState) -> Result<u64, String> {
+    let _commit_guard = state
+        .native_lifecycle_commit_lock
+        .lock()
+        .map_err(|_| "The native window lifecycle lock is unavailable.".to_string())?;
+    Ok(state
+        .native_lifecycle_generation
+        .fetch_add(1, Ordering::AcqRel)
+        .saturating_add(1))
+}
+
+fn native_lifecycle_action_is_current(state: &AppState, generation: u64) -> bool {
+    state.native_lifecycle_generation.load(Ordering::Acquire) == generation
+}
+
+fn lifecycle_snapshot_can_clear_target(
+    expected_generation: u64,
+    current_generation: u64,
+    expected_hwnd: isize,
+    current_target: Option<&TargetWindowInfo>,
+) -> bool {
+    expected_generation == current_generation
+        && current_target.map(|target| target.hwnd_val) == Some(expected_hwnd)
+}
+
+fn dismissal_snapshot_can_commit(
+    expected_generation: u64,
+    current_generation: u64,
+    note_id: &str,
+    expected_hwnd: isize,
+    active_note_id: Option<&str>,
+    current_target: Option<&TargetWindowInfo>,
+) -> bool {
+    expected_generation == current_generation
+        && active_note_id == Some(note_id)
+        && current_target.map(|target| target.hwnd_val) == Some(expected_hwnd)
+}
+
+fn dismissed_restore_can_commit(
+    show_succeeded: bool,
+    expected_generation: u64,
+    current_generation: u64,
+    expected: &DismissedCollapsedWindow,
+    current: Option<&DismissedCollapsedWindow>,
+) -> bool {
+    show_succeeded && expected_generation == current_generation && current == Some(expected)
+}
+
+fn active_note_removal_requires_full_clear(active_note_id: Option<&str>, note_id: &str) -> bool {
+    active_note_id == Some(note_id)
+}
+
+fn commit_refreshed_target_if_current(
+    state: &AppState,
+    generation: u64,
+    expected_hwnd: isize,
+    target: TargetWindowInfo,
+) -> Result<bool, String> {
+    let _operation_guard = state.native_window_operation_gate.lock()?;
+    commit_refreshed_target_if_current_locked(state, generation, expected_hwnd, target)
+}
+
+fn commit_refreshed_target_if_current_locked(
+    state: &AppState,
+    generation: u64,
+    expected_hwnd: isize,
+    target: TargetWindowInfo,
+) -> Result<bool, String> {
+    let _commit_guard = state
+        .native_lifecycle_commit_lock
+        .lock()
+        .map_err(|_| "The native window lifecycle lock is unavailable.".to_string())?;
+    let current_generation = state.native_lifecycle_generation.load(Ordering::Acquire);
+    let current_target = state.coordinator.get_active_target();
+    if !lifecycle_snapshot_can_clear_target(
+        generation,
+        current_generation,
+        expected_hwnd,
+        current_target.as_ref(),
+    ) {
+        return Ok(false);
+    }
+    set_runtime_active_target_unchecked(state, Some(target));
+    Ok(true)
+}
+
+fn record_note_placement_if_current(
+    state: &AppState,
+    generation: u64,
+    target_hwnd: isize,
+    note_id: &str,
+    workspace_expanded: bool,
+    metrics: &OverlayMetrics,
+) -> Result<bool, String> {
+    let _commit_guard = state
+        .native_lifecycle_commit_lock
+        .lock()
+        .map_err(|_| "The native window lifecycle lock is unavailable.".to_string())?;
+    let current_generation = state.native_lifecycle_generation.load(Ordering::Acquire);
+    let current_target = state.coordinator.get_active_target();
+    if !lifecycle_snapshot_can_clear_target(
+        generation,
+        current_generation,
+        target_hwnd,
+        current_target.as_ref(),
+    ) {
+        return Ok(false);
+    }
+    let mut runtime = state
+        .note_window_runtime
+        .lock()
+        .map_err(|_| "The native note window state is unavailable.".to_string())?;
+    runtime.record_programmatic_placement(note_id, workspace_expanded, metrics);
+    Ok(true)
+}
+
+fn hide_main_note_window(app_handle: &AppHandle) {
+    if let Some(window) = app_handle.get_webview_window("main") {
+        let _ = window.hide();
+        #[cfg(target_os = "windows")]
+        let _ = restore_standard_window_surface(&window);
+    }
+}
+
+fn hide_main_note_window_as_lifecycle_action(app_handle: &AppHandle, state: &AppState) {
+    let Ok(_operation_guard) = state.native_window_operation_gate.lock() else {
+        return;
+    };
+    let Ok(generation) = begin_native_lifecycle_action(state) else {
+        return;
+    };
+    if native_lifecycle_action_is_current(state, generation) {
+        hide_main_note_window(app_handle);
+    }
+}
+
+fn clear_active_target_and_hide_note(app_handle: &AppHandle, state: &AppState) {
+    let Ok(_operation_guard) = state.native_window_operation_gate.lock() else {
+        return;
+    };
+    clear_active_target_and_hide_note_locked(app_handle, state);
+}
+
+fn clear_active_target_and_hide_note_locked(app_handle: &AppHandle, state: &AppState) {
+    let generation = {
+        let Ok(_commit_guard) = state.native_lifecycle_commit_lock.lock() else {
+            return;
+        };
+        let generation = state
+            .native_lifecycle_generation
+            .fetch_add(1, Ordering::AcqRel)
+            .saturating_add(1);
+        set_runtime_active_target_unchecked(state, None);
+        if let Ok(mut runtime) = state.note_window_runtime.lock() {
+            runtime.clear();
+        }
+        generation
+    };
+    // A newer open/restore action owns the physical window if it started after this clear.
+    if native_lifecycle_action_is_current(state, generation) {
+        hide_main_note_window(app_handle);
+    }
+}
+
+fn clear_active_target_and_hide_note_if_current(
+    app_handle: &AppHandle,
+    state: &AppState,
+    expected_generation: u64,
+    expected_hwnd: isize,
+) -> bool {
+    let Ok(_operation_guard) = state.native_window_operation_gate.lock() else {
+        return false;
+    };
+    clear_active_target_and_hide_note_if_current_locked(
+        app_handle,
+        state,
+        expected_generation,
+        expected_hwnd,
+    )
+}
+
+fn clear_active_target_and_hide_note_if_current_locked(
+    app_handle: &AppHandle,
+    state: &AppState,
+    expected_generation: u64,
+    expected_hwnd: isize,
+) -> bool {
+    let generation = {
+        let Ok(_commit_guard) = state.native_lifecycle_commit_lock.lock() else {
+            return false;
+        };
+        let current_generation = state.native_lifecycle_generation.load(Ordering::Acquire);
+        let current_target = state.coordinator.get_active_target();
+        if !lifecycle_snapshot_can_clear_target(
+            expected_generation,
+            current_generation,
+            expected_hwnd,
+            current_target.as_ref(),
+        ) {
+            return false;
+        }
+        let generation = state
+            .native_lifecycle_generation
+            .fetch_add(1, Ordering::AcqRel)
+            .saturating_add(1);
+        set_runtime_active_target_unchecked(state, None);
+        if let Ok(mut runtime) = state.note_window_runtime.lock() {
+            runtime.clear();
+        }
+        generation
+    };
+    if native_lifecycle_action_is_current(state, generation) {
+        hide_main_note_window(app_handle);
+    }
+    true
+}
+
+fn hide_if_active_note_was_removed(app_handle: &AppHandle, state: &AppState, note_id: &str) {
+    let removed_active_note = state
+        .note_window_runtime
+        .lock()
+        .map(|runtime| active_note_removal_requires_full_clear(runtime.active_note_id(), note_id))
+        .unwrap_or(false);
+    if removed_active_note {
+        // Removing the active note must clear all three native sources of truth: coordinator,
+        // WinEvent filtering, and the note runtime. A window-only hide leaves a stale HWND in the
+        // event pipeline that can later re-open or reposition the deleted note.
+        clear_active_target_and_hide_note(app_handle, state);
+    }
+}
+
+fn dismissed_collapsed_target_matches(
+    dismissed: &DismissedCollapsedWindow,
+    note: &SkribNote,
+    target: &TargetWindowInfo,
+) -> bool {
+    note.id == dismissed.note_id
+        && note.collapsed
+        && note.deleted_at.is_none()
+        && target.is_focused
+        && !dismissed.target_title.trim().is_empty()
+        && note
+            .target_process_name
+            .eq_ignore_ascii_case(&dismissed.target_process_name)
+        && target.match_score(&note.target_process_name, &note.target_title) >= 75
+        && target
+            .process_name
+            .eq_ignore_ascii_case(&dismissed.target_process_name)
+        && target.match_score(&dismissed.target_process_name, &dismissed.target_title) >= 75
+}
+
 #[cfg(target_os = "windows")]
-fn present_target_capture_error(
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum DismissedTargetEventTransition {
+    Ignore,
+    Arm,
+    Restore,
+}
+
+#[cfg(target_os = "windows")]
+fn classify_dismissed_target_event(
+    event_type: u32,
+    dismissed: &DismissedCollapsedWindow,
+    note: &SkribNote,
+    candidate: &TargetWindowInfo,
+) -> DismissedTargetEventTransition {
+    if !matches!(
+        event_type,
+        EVENT_SYSTEM_FOREGROUND | EVENT_OBJECT_NAMECHANGE
+    ) {
+        return DismissedTargetEventTransition::Ignore;
+    }
+
+    if dismissed_collapsed_target_matches(dismissed, note, candidate) {
+        return if dismissed.armed {
+            DismissedTargetEventTransition::Restore
+        } else {
+            // Clicking the dot's close button returns foreground to the linked target. That
+            // immediate bounce is part of dismissal and must not resurrect the dot.
+            DismissedTargetEventTransition::Ignore
+        };
+    }
+
+    if dismissed.armed || !candidate.is_focused {
+        return DismissedTargetEventTransition::Ignore;
+    }
+
+    let unrelated_foreground = event_type == EVENT_SYSTEM_FOREGROUND;
+    let same_window_context_changed = event_type == EVENT_OBJECT_NAMECHANGE
+        && candidate.hwnd_val == dismissed.target_hwnd
+        && candidate
+            .process_name
+            .eq_ignore_ascii_case(&dismissed.target_process_name)
+        && candidate.match_score(&dismissed.target_process_name, &dismissed.target_title) < 75;
+    if unrelated_foreground || same_window_context_changed {
+        DismissedTargetEventTransition::Arm
+    } else {
+        DismissedTargetEventTransition::Ignore
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn collapsed_dot_should_hide_for_context(
+    event_type: u32,
+    note: &SkribNote,
+    linked_target: &TargetWindowInfo,
+    candidate: &TargetWindowInfo,
+) -> bool {
+    if !note.collapsed || note.deleted_at.is_some() || !candidate.is_focused {
+        return false;
+    }
+    let relevant_event = event_type == EVENT_SYSTEM_FOREGROUND
+        || (event_type == EVENT_OBJECT_NAMECHANGE && candidate.hwnd_val == linked_target.hwnd_val);
+    if !relevant_event {
+        return false;
+    }
+    let exact_linked_context = candidate.hwnd_val == linked_target.hwnd_val
+        && refreshed_target_preserves_identity(linked_target, candidate)
+        && candidate.match_score(&note.target_process_name, &note.target_title) >= 75;
+    !exact_linked_context
+}
+
+fn refreshed_target_preserves_identity(
+    active: &TargetWindowInfo,
+    refreshed: &TargetWindowInfo,
+) -> bool {
+    active.hwnd_val == refreshed.hwnd_val
+        && active
+            .process_name
+            .eq_ignore_ascii_case(&refreshed.process_name)
+        && active
+            .class_name
+            .eq_ignore_ascii_case(&refreshed.class_name)
+}
+
+#[cfg(target_os = "windows")]
+fn restore_dismissed_collapsed_window_for_target(
+    app_handle: &AppHandle,
+    state: &AppState,
+    target: &TargetWindowInfo,
+) -> Result<bool, String> {
+    let _operation_guard = state.native_window_operation_gate.lock()?;
+    let generation = begin_native_lifecycle_action(state)?;
+    let dismissed = state
+        .note_window_runtime
+        .lock()
+        .ok()
+        .and_then(|runtime| runtime.dismissed_collapsed_window().cloned());
+    let Some(dismissed) = dismissed else {
+        return Ok(false);
+    };
+    if !dismissed.armed {
+        return Ok(false);
+    }
+    let Some(note) = state.coordinator.get_skrib(&dismissed.note_id) else {
+        clear_dismissed_lifecycle_if_current(state, generation, &dismissed);
+        return Ok(false);
+    };
+    if !note.collapsed || note.deleted_at.is_some() {
+        clear_dismissed_lifecycle_if_current(state, generation, &dismissed);
+        return Ok(false);
+    }
+    if !dismissed_collapsed_target_matches(&dismissed, &note, target) {
+        return Ok(false);
+    }
+
+    let window = app_handle
+        .get_webview_window("main")
+        .ok_or_else(|| "The collapsed Skrib window is unavailable.".to_string())?;
+    let metrics = position_note_window_for_target(&window, target, &note, true)?;
+    window
+        .show()
+        .map_err(|error| format!("Skribli could not restore the collapsed note: {error}"))?;
+
+    // Keep the dismissal available for retry until the fallible native show succeeds. Only the
+    // action that still owns the same generation and dismissal identity may publish the restored
+    // target/runtime; a newer hotkey, delete, dismiss, or watchdog action wins instead.
+    let _commit_guard = state
+        .native_lifecycle_commit_lock
+        .lock()
+        .map_err(|_| "The native window lifecycle lock is unavailable.".to_string())?;
+    let current_generation = state.native_lifecycle_generation.load(Ordering::Acquire);
+    let mut runtime = state
+        .note_window_runtime
+        .lock()
+        .map_err(|_| "The native note window state is unavailable.".to_string())?;
+    if !dismissed_restore_can_commit(
+        true,
+        generation,
+        current_generation,
+        &dismissed,
+        runtime.dismissed_collapsed_window(),
+    ) {
+        return Ok(false);
+    }
+    runtime.record_programmatic_placement(&note.id, false, &metrics);
+    drop(runtime);
+    set_runtime_active_target_unchecked(state, Some(target.clone()));
+    Ok(true)
+}
+
+fn clear_dismissed_lifecycle_if_current(
+    state: &AppState,
+    generation: u64,
+    dismissed: &DismissedCollapsedWindow,
+) {
+    let Ok(_commit_guard) = state.native_lifecycle_commit_lock.lock() else {
+        return;
+    };
+    let current_generation = state.native_lifecycle_generation.load(Ordering::Acquire);
+    let Ok(mut runtime) = state.note_window_runtime.lock() else {
+        return;
+    };
+    if !dismissed_restore_can_commit(
+        true,
+        generation,
+        current_generation,
+        dismissed,
+        runtime.dismissed_collapsed_window(),
+    ) {
+        return;
+    }
+    state
+        .native_lifecycle_generation
+        .fetch_add(1, Ordering::AcqRel);
+    runtime.clear();
+    drop(runtime);
+    set_runtime_active_target_unchecked(state, None);
+}
+
+fn dismissed_lifecycle_snapshot(state: &AppState) -> Option<(u64, DismissedCollapsedWindow)> {
+    let _operation_guard = state.native_window_operation_gate.lock().ok()?;
+    let generation = state.native_lifecycle_generation.load(Ordering::Acquire);
+    let dismissed = state
+        .note_window_runtime
+        .lock()
+        .ok()?
+        .dismissed_collapsed_window()
+        .cloned()?;
+    Some((generation, dismissed))
+}
+
+fn arm_dismissed_lifecycle_if_current(
+    state: &AppState,
+    expected_generation: u64,
+    expected: &DismissedCollapsedWindow,
+) -> Result<bool, String> {
+    let _operation_guard = state.native_window_operation_gate.lock()?;
+    let _commit_guard = state
+        .native_lifecycle_commit_lock
+        .lock()
+        .map_err(|_| "The native window lifecycle lock is unavailable.".to_string())?;
+    if state.native_lifecycle_generation.load(Ordering::Acquire) != expected_generation {
+        return Ok(false);
+    }
+    let mut runtime = state
+        .note_window_runtime
+        .lock()
+        .map_err(|_| "The native note window state is unavailable.".to_string())?;
+    if !runtime.arm_dismissed_collapsed_window(expected) {
+        return Ok(false);
+    }
+    state
+        .native_lifecycle_generation
+        .fetch_add(1, Ordering::AcqRel);
+    Ok(true)
+}
+
+#[cfg(target_os = "windows")]
+fn hide_collapsed_dot_for_unrelated_context(
+    app_handle: &AppHandle,
+    state: &AppState,
+    event_type: u32,
+    candidate: &TargetWindowInfo,
+) -> Result<bool, String> {
+    let _operation_guard = state.native_window_operation_gate.lock()?;
+    let linked_target = match state.coordinator.get_active_target() {
+        Some(target) => target,
+        None => return Ok(false),
+    };
+    let note_id = state
+        .note_window_runtime
+        .lock()
+        .map_err(|_| "The native note window state is unavailable.".to_string())?
+        .active_note_id()
+        .map(ToString::to_string);
+    let Some(note) = note_id.and_then(|id| state.coordinator.get_skrib(&id)) else {
+        return Ok(false);
+    };
+    if !collapsed_dot_should_hide_for_context(event_type, &note, &linked_target, candidate) {
+        return Ok(false);
+    }
+
+    let generation = begin_native_lifecycle_action(state)?;
+    let window = app_handle
+        .get_webview_window("main")
+        .ok_or_else(|| "The collapsed Skrib window is unavailable.".to_string())?;
+    window
+        .hide()
+        .map_err(|error| format!("Skribli could not hide the inactive collapsed note: {error}"))?;
+    let _ = restore_standard_window_surface(&window);
+
+    let _commit_guard = state
+        .native_lifecycle_commit_lock
+        .lock()
+        .map_err(|_| "The native window lifecycle lock is unavailable.".to_string())?;
+    let current_generation = state.native_lifecycle_generation.load(Ordering::Acquire);
+    let current_target = state.coordinator.get_active_target();
+    let mut runtime = state
+        .note_window_runtime
+        .lock()
+        .map_err(|_| "The native note window state is unavailable.".to_string())?;
+    if !dismissal_snapshot_can_commit(
+        generation,
+        current_generation,
+        &note.id,
+        linked_target.hwnd_val,
+        runtime.active_note_id(),
+        current_target.as_ref(),
+    ) {
+        return Ok(false);
+    }
+    runtime.hide_collapsed_until_context_returns(&note, &linked_target);
+    Ok(true)
+}
+
+#[cfg(target_os = "windows")]
+fn present_target_capture_error_locked(
     app_handle: &AppHandle,
     state: &AppState,
     error: TargetCaptureError,
 ) {
-    set_runtime_active_target(state, None);
+    clear_active_target_and_hide_note_locked(app_handle, state);
     let _ = app_handle.emit("skribly://target-capture-error", error);
     if let Some(window) = app_handle.get_webview_window("main") {
+        if let Err(message) = prepare_standard_compact_surface(&window) {
+            let _ = app_handle.emit(
+                "skribly://hotkey-error",
+                format!("Skribli could not prepare the recovery window safely: {message}"),
+            );
+            return;
+        }
         let _ = window.center();
         let _ = window.show();
         let _ = window.set_focus();
@@ -430,6 +1052,24 @@ fn position_active_note_window(
     state: &AppState,
     target: &TargetWindowInfo,
 ) -> Result<OverlayMetrics, String> {
+    let _operation_guard = state.native_window_operation_gate.lock()?;
+    position_active_note_window_locked(window, state, target)
+}
+
+#[cfg(target_os = "windows")]
+fn position_active_note_window_locked(
+    window: &tauri::WebviewWindow,
+    state: &AppState,
+    target: &TargetWindowInfo,
+) -> Result<OverlayMetrics, String> {
+    let generation = begin_native_lifecycle_action(state)?;
+    let current_target = state
+        .coordinator
+        .get_active_target()
+        .ok_or_else(|| "The native note target was cleared before repositioning.".to_string())?;
+    if !refreshed_target_preserves_identity(&current_target, target) {
+        return Err("The native note target changed before repositioning.".into());
+    }
     let runtime_note_id = state
         .note_window_runtime
         .lock()
@@ -458,8 +1098,25 @@ fn position_active_note_window(
     } else {
         position_note_window_for_target(window, target, &note, note.collapsed)?
     };
-    if let Ok(mut runtime) = state.note_window_runtime.lock() {
+    let _commit_guard = state
+        .native_lifecycle_commit_lock
+        .lock()
+        .map_err(|_| "The native window lifecycle lock is unavailable.".to_string())?;
+    let current_generation = state.native_lifecycle_generation.load(Ordering::Acquire);
+    let current_target = state.coordinator.get_active_target();
+    if lifecycle_snapshot_can_clear_target(
+        generation,
+        current_generation,
+        target.hwnd_val,
+        current_target.as_ref(),
+    ) {
+        let mut runtime = state
+            .note_window_runtime
+            .lock()
+            .map_err(|_| "The native note window state is unavailable.".to_string())?;
         runtime.record_programmatic_placement(&note.id, workspace_expanded, &metrics);
+        drop(runtime);
+        set_runtime_active_target_unchecked(state, Some(target.clone()));
     }
     Ok(metrics)
 }
@@ -510,7 +1167,16 @@ fn retry_overlay_initialization(
     #[cfg(target_os = "windows")]
     {
         if let Some(window) = app_handle.get_webview_window("main") {
-            initialize_native_overlay(&app_handle, &state, &window);
+            match state.native_window_operation_gate.lock() {
+                Ok(_operation_guard) => {
+                    initialize_native_overlay(&app_handle, &state, &window);
+                }
+                Err(message) => {
+                    let status = OverlayInitializationStatus::Failed(message);
+                    state.set_init_status(status.clone());
+                    let _ = app_handle.emit("skribly://overlay-init-status", status);
+                }
+            }
         }
     }
     build_overlay_payload(&app_handle, &state, false)
@@ -534,6 +1200,7 @@ fn reposition_compact_window(
         let window = app_handle
             .get_webview_window("main")
             .ok_or_else(|| "The compact editor window is unavailable.".to_string())?;
+        let _operation_guard = state.native_window_operation_gate.lock()?;
         let workspace_expanded = state
             .note_window_runtime
             .lock()
@@ -543,11 +1210,18 @@ fn reposition_compact_window(
             // Repositioning an expanded Draw/Files/Reminder surface must preserve the workspace
             // dimensions. This path also records the programmatic move so it cannot overwrite
             // the user's saved compact/dot anchor through the frontend onMoved listener.
-            position_active_note_window(&window, &state, &refreshed_target)?
+            position_active_note_window_locked(&window, &state, &refreshed_target)?
         } else {
-            position_compact_window_for_target(&window, &refreshed_target)?
+            let generation = begin_native_lifecycle_action(&state)?;
+            let metrics = position_compact_window_for_target(&window, &refreshed_target)?;
+            let _ = commit_refreshed_target_if_current_locked(
+                &state,
+                generation,
+                target.hwnd_val,
+                refreshed_target.clone(),
+            )?;
+            metrics
         };
-        set_runtime_active_target(&state, Some(refreshed_target));
         Ok(metrics)
     }
     #[cfg(not(target_os = "windows"))]
@@ -563,7 +1237,11 @@ fn set_active_target(
     state: State<'_, AppState>,
     target: Option<TargetWindowInfo>,
 ) -> OverlayStatePayload {
-    set_runtime_active_target(&state, target);
+    if let Some(target) = target {
+        set_runtime_active_target(&state, Some(target));
+    } else {
+        clear_active_target_and_hide_note(&app_handle, &state);
+    }
     build_overlay_payload(&app_handle, &state, false)
 }
 
@@ -686,6 +1364,7 @@ fn set_skrib_window_collapsed(
     let window = app_handle
         .get_webview_window("main")
         .ok_or_else(|| "The Skrib window is unavailable.".to_string())?;
+    let _operation_guard = state.native_window_operation_gate.lock()?;
     let was_workspace_expanded = state
         .note_window_runtime
         .lock()
@@ -716,7 +1395,12 @@ fn set_skrib_window_collapsed(
     positioned_note.rel_y = rel_y;
 
     #[cfg(target_os = "windows")]
-    let placement = position_note_window_for_target(&window, &target, &positioned_note, collapsed)?;
+    let (generation, placement) = {
+        let generation = begin_native_lifecycle_action(&state)?;
+        let placement =
+            position_note_window_for_target(&window, &target, &positioned_note, collapsed)?;
+        (generation, placement)
+    };
     #[cfg(not(target_os = "windows"))]
     let _ = (&window, &target, &positioned_note, collapsed);
 
@@ -728,27 +1412,139 @@ fn set_skrib_window_collapsed(
     }) {
         #[cfg(target_os = "windows")]
         {
-            let _ = if was_workspace_expanded {
-                position_note_workspace_for_target(&window, &target, &note)
-            } else {
-                position_note_window_for_target(&window, &target, &note, note.collapsed)
-            };
+            if native_lifecycle_action_is_current(&state, generation) {
+                let _ = if was_workspace_expanded {
+                    position_note_workspace_for_target(&window, &target, &note)
+                } else {
+                    position_note_window_for_target(&window, &target, &note, note.collapsed)
+                };
+            }
         }
         return Err(message);
     }
 
     #[cfg(target_os = "windows")]
-    if let Ok(mut runtime) = state.note_window_runtime.lock() {
-        runtime.record_programmatic_placement(&id, false, &placement);
-    }
+    let native_action_current = {
+        let _commit_guard = state
+            .native_lifecycle_commit_lock
+            .lock()
+            .map_err(|_| "The native window lifecycle lock is unavailable.".to_string())?;
+        let current_generation = state.native_lifecycle_generation.load(Ordering::Acquire);
+        let current_target = state.coordinator.get_active_target();
+        let current = lifecycle_snapshot_can_clear_target(
+            generation,
+            current_generation,
+            target.hwnd_val,
+            current_target.as_ref(),
+        );
+        if current {
+            let mut runtime = state
+                .note_window_runtime
+                .lock()
+                .map_err(|_| "The native note window state is unavailable.".to_string())?;
+            runtime.record_programmatic_placement(&id, false, &placement);
+        }
+        current
+    };
+    #[cfg(not(target_os = "windows"))]
+    let native_action_current = true;
 
-    if collapsed {
-        let _ = window.show();
-    } else {
-        let _ = window.show();
-        let _ = window.set_focus();
+    if native_action_current {
+        if collapsed {
+            let _ = window.show();
+        } else {
+            let _ = window.show();
+            let _ = window.set_focus();
+        }
     }
     Ok(build_mutation_payload(&app_handle, &state, false))
+}
+
+#[tauri::command]
+fn dismiss_collapsed_skrib_window(
+    app_handle: AppHandle,
+    state: State<'_, AppState>,
+    id: String,
+) -> Result<(), String> {
+    let note = state
+        .coordinator
+        .get_skrib(&id)
+        .ok_or_else(|| "The collapsed Skrib was not found.".to_string())?;
+    if !note.collapsed || note.deleted_at.is_some() {
+        return Err("Only an active collapsed Skrib can be hidden temporarily.".into());
+    }
+    let _operation_guard = state.native_window_operation_gate.lock()?;
+    let generation = begin_native_lifecycle_action(&state)?;
+    let target = state
+        .coordinator
+        .get_active_target()
+        .ok_or_else(|| "Skribli no longer has an active target application.".to_string())?;
+    if !target
+        .process_name
+        .eq_ignore_ascii_case(&note.target_process_name)
+        || target.match_score(&note.target_process_name, &note.target_title) < 75
+    {
+        return Err("The collapsed Skrib no longer matches the active application.".into());
+    }
+    if !dismissal_action_is_current(&state, generation, &id, target.hwnd_val)? {
+        return Err("The collapsed Skrib is not the active native note window.".into());
+    }
+    let window = app_handle
+        .get_webview_window("main")
+        .ok_or_else(|| "The collapsed Skrib window is unavailable.".to_string())?;
+    window
+        .hide()
+        .map_err(|error| format!("Skribli could not hide the collapsed note: {error}"))?;
+    #[cfg(target_os = "windows")]
+    let _ = restore_standard_window_surface(&window);
+    let _commit_guard = state
+        .native_lifecycle_commit_lock
+        .lock()
+        .map_err(|_| "The native window lifecycle lock is unavailable.".to_string())?;
+    let current_generation = state.native_lifecycle_generation.load(Ordering::Acquire);
+    let current_target = state.coordinator.get_active_target();
+    let mut runtime = state
+        .note_window_runtime
+        .lock()
+        .map_err(|_| "The native note window state is unavailable.".to_string())?;
+    if !dismissal_snapshot_can_commit(
+        generation,
+        current_generation,
+        &id,
+        target.hwnd_val,
+        runtime.active_note_id(),
+        current_target.as_ref(),
+    ) {
+        return Err("The active note changed while Skribli was hiding the collapsed dot.".into());
+    }
+    runtime.dismiss_collapsed_window(&note, &target);
+    Ok(())
+}
+
+fn dismissal_action_is_current(
+    state: &AppState,
+    generation: u64,
+    note_id: &str,
+    target_hwnd: isize,
+) -> Result<bool, String> {
+    let _commit_guard = state
+        .native_lifecycle_commit_lock
+        .lock()
+        .map_err(|_| "The native window lifecycle lock is unavailable.".to_string())?;
+    let current_generation = state.native_lifecycle_generation.load(Ordering::Acquire);
+    let current_target = state.coordinator.get_active_target();
+    let runtime = state
+        .note_window_runtime
+        .lock()
+        .map_err(|_| "The native note window state is unavailable.".to_string())?;
+    Ok(dismissal_snapshot_can_commit(
+        generation,
+        current_generation,
+        note_id,
+        target_hwnd,
+        runtime.active_note_id(),
+        current_target.as_ref(),
+    ))
 }
 
 #[tauri::command]
@@ -814,12 +1610,29 @@ fn set_skrib_workspace_mode(
 
     #[cfg(target_os = "windows")]
     {
+        let _operation_guard = state.native_window_operation_gate.lock()?;
+        let generation = begin_native_lifecycle_action(&state)?;
         let metrics = if expanded {
             position_note_workspace_for_target(&window, &target, &note)
         } else {
             position_note_window_for_target(&window, &target, &note, false)
         }?;
-        if let Ok(mut runtime) = state.note_window_runtime.lock() {
+        let _commit_guard = state
+            .native_lifecycle_commit_lock
+            .lock()
+            .map_err(|_| "The native window lifecycle lock is unavailable.".to_string())?;
+        let current_generation = state.native_lifecycle_generation.load(Ordering::Acquire);
+        let current_target = state.coordinator.get_active_target();
+        if lifecycle_snapshot_can_clear_target(
+            generation,
+            current_generation,
+            target.hwnd_val,
+            current_target.as_ref(),
+        ) {
+            let mut runtime = state
+                .note_window_runtime
+                .lock()
+                .map_err(|_| "The native note window state is unavailable.".to_string())?;
             runtime.record_programmatic_placement(&id, expanded, &metrics);
         }
         Ok(metrics)
@@ -852,6 +1665,7 @@ fn trash_skrib_note(
             .map(|_| ())
             .ok_or_else(|| "Only an active writable note can be moved to Trash".to_string())
     })?;
+    hide_if_active_note_was_removed(&app_handle, &state, &id);
     Ok(build_mutation_payload(&app_handle, &state, false))
 }
 
@@ -867,6 +1681,7 @@ fn discard_empty_skrib_note(
             .map(|_| ())
             .ok_or_else(|| "Only an active empty note can be discarded".to_string())
     })?;
+    hide_if_active_note_was_removed(&app_handle, &state, &id);
     Ok(build_mutation_payload(&app_handle, &state, false))
 }
 
@@ -972,8 +1787,13 @@ fn apply_account_entitlement(token: String) -> Result<license::LicenseStatus, St
 }
 
 #[tauri::command]
-fn clear_account_entitlement() -> Result<license::LicenseStatus, String> {
-    license::deactivate_global()
+fn clear_account_entitlement(
+    app_handle: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<license::LicenseStatus, String> {
+    let status = license::deactivate_global()?;
+    clear_active_target_and_hide_note(&app_handle, &state);
+    Ok(status)
 }
 
 #[tauri::command]
@@ -981,15 +1801,31 @@ fn refresh_target_state(app_handle: AppHandle, state: State<'_, AppState>) -> Ov
     let mut is_ambiguous = false;
     #[cfg(target_os = "windows")]
     {
+        let lifecycle_generation = state.native_lifecycle_generation.load(Ordering::Acquire);
         if let Some(target) = state.coordinator.get_active_target() {
             if let Some(hwnd) = reconstruct_hwnd(target.hwnd_val) {
                 if let Some(updated_target) = inspect_target_window(hwnd) {
-                    set_runtime_active_target(&state, Some(updated_target));
+                    let _ = commit_refreshed_target_if_current(
+                        &state,
+                        lifecycle_generation,
+                        target.hwnd_val,
+                        updated_target,
+                    );
                 } else {
-                    set_runtime_active_target(&state, None);
+                    let _ = clear_active_target_and_hide_note_if_current(
+                        &app_handle,
+                        &state,
+                        lifecycle_generation,
+                        target.hwnd_val,
+                    );
                 }
             } else {
-                set_runtime_active_target(&state, None);
+                let _ = clear_active_target_and_hide_note_if_current(
+                    &app_handle,
+                    &state,
+                    lifecycle_generation,
+                    target.hwnd_val,
+                );
             }
         } else {
             let candidates = list_candidate_target_windows();
@@ -1008,6 +1844,35 @@ fn refresh_target_state(app_handle: AppHandle, state: State<'_, AppState>) -> Ov
 }
 
 const GLOBAL_HOTKEY_ID: i32 = 0x534B;
+
+#[cfg(target_os = "windows")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum VisibleNoteTargetEvent {
+    Ignore,
+    Reanchor,
+    Disconnect,
+}
+
+#[cfg(target_os = "windows")]
+fn classify_visible_note_target_event(
+    event_type: u32,
+    event_hwnd: isize,
+    active_hwnd: Option<isize>,
+) -> VisibleNoteTargetEvent {
+    if active_hwnd != Some(event_hwnd) {
+        return VisibleNoteTargetEvent::Ignore;
+    }
+    if matches!(event_type, EVENT_OBJECT_DESTROY | EVENT_OBJECT_HIDE) {
+        VisibleNoteTargetEvent::Disconnect
+    } else if matches!(
+        event_type,
+        EVENT_OBJECT_LOCATIONCHANGE | EVENT_SYSTEM_MINIMIZEEND
+    ) {
+        VisibleNoteTargetEvent::Reanchor
+    } else {
+        VisibleNoteTargetEvent::Ignore
+    }
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -1032,6 +1897,9 @@ pub fn run() {
         storage_notice: Mutex::new(None),
         storage_error: Mutex::new(None),
         note_window_runtime: Mutex::new(NoteWindowRuntime::default()),
+        native_lifecycle_generation: AtomicU64::new(0),
+        native_lifecycle_commit_lock: Mutex::new(()),
+        native_window_operation_gate: NativeWindowOperationGate::default(),
         #[cfg(target_os = "windows")]
         win_event_pipeline: win_event_pipeline.clone(),
     };
@@ -1054,6 +1922,7 @@ pub fn run() {
             update_skrib_color,
             toggle_skrib_collapse,
             set_skrib_window_collapsed,
+            dismiss_collapsed_skrib_window,
             save_skrib_window_position,
             set_skrib_workspace_mode,
             trash_skrib_note,
@@ -1139,13 +2008,24 @@ pub fn run() {
                         }
 
                         let state_hk = app_handle_hk.state::<AppState>();
-                        set_runtime_active_target(&state_hk, None);
+                        let _operation_guard = match state_hk.native_window_operation_gate.lock() {
+                            Ok(guard) => guard,
+                            Err(message) => {
+                                let _ = app_handle_hk.emit("skribly://hotkey-error", message);
+                                continue;
+                            }
+                        };
+                        clear_active_target_and_hide_note_locked(&app_handle_hk, &state_hk);
 
                         #[cfg(target_os = "windows")]
                         let capture = match capture_foreground_target() {
                             Ok(capture) => capture,
                             Err(error) => {
-                                present_target_capture_error(&app_handle_hk, &state_hk, error);
+                                present_target_capture_error_locked(
+                                    &app_handle_hk,
+                                    &state_hk,
+                                    error,
+                                );
                                 continue;
                             }
                         };
@@ -1154,7 +2034,11 @@ pub fn run() {
                         let target = match revalidate_captured_target(&capture) {
                             Ok(target) => target,
                             Err(error) => {
-                                present_target_capture_error(&app_handle_hk, &state_hk, error);
+                                present_target_capture_error_locked(
+                                    &app_handle_hk,
+                                    &state_hk,
+                                    error,
+                                );
                                 continue;
                             }
                         };
@@ -1174,23 +2058,18 @@ pub fn run() {
                         };
 
                         #[cfg(target_os = "windows")]
-                        let initial_metrics =
-                            match position_compact_window_for_target(&window, &target) {
-                                Ok(metrics) => metrics,
-                                Err(message) => {
-                                    let _ = app_handle_hk.emit(
-                                        "skribly://hotkey-error",
-                                        format!("Skribli could not place the compact editor safely: {message}"),
-                                    );
-                                    continue;
-                                }
-                            };
-                        #[cfg(not(target_os = "windows"))]
-                        let initial_metrics = OverlayMetrics::default();
-
-                        #[cfg(target_os = "windows")]
                         clear_target_capture_error(&app_handle_hk);
-                        set_runtime_active_target(&state_hk, Some(target.clone()));
+                        set_runtime_active_target_locked(&state_hk, Some(target.clone()));
+                        #[cfg(target_os = "windows")]
+                        let lifecycle_generation = match begin_native_lifecycle_action(&state_hk) {
+                            Ok(generation) => generation,
+                            Err(message) => {
+                                let _ = app_handle_hk.emit("skribly://hotkey-error", message);
+                                continue;
+                            }
+                        };
+                        #[cfg(target_os = "windows")]
+                        let native_open_current: bool;
                         let existing_notes = coordinator_hk.get_skribs_for_target(&target);
                         let open_request = if let Some(request) =
                             reopened_open_request(existing_notes)
@@ -1233,15 +2112,36 @@ pub fn run() {
                                 continue;
                             }
                             #[cfg(target_os = "windows")]
-                            if let Ok(mut runtime) = state_hk.note_window_runtime.lock() {
-                                runtime.record_programmatic_placement(
+                            {
+                                native_open_current = record_note_placement_if_current(
+                                    &state_hk,
+                                    lifecycle_generation,
+                                    target.hwnd_val,
                                     &request.note_id,
                                     false,
                                     &restored_metrics,
-                                );
+                                )
+                                .unwrap_or(false);
                             }
                             request
                         } else {
+                            // Only a brand-new note needs the generic near-target placement.
+                            // Existing notes go directly to their saved DPI-aware placement above,
+                            // avoiding a redundant resize/move/region update and native wait.
+                            #[cfg(target_os = "windows")]
+                            let initial_metrics =
+                                match position_compact_window_for_target(&window, &target) {
+                                    Ok(metrics) => metrics,
+                                    Err(message) => {
+                                        let _ = app_handle_hk.emit(
+                                            "skribly://hotkey-error",
+                                            format!("Skribli could not place the compact editor safely: {message}"),
+                                        );
+                                        continue;
+                                    }
+                                };
+                            #[cfg(not(target_os = "windows"))]
+                            let initial_metrics = OverlayMetrics::default();
                             let timestamp = std::time::SystemTime::now()
                                 .duration_since(std::time::UNIX_EPOCH)
                                 .unwrap_or_default()
@@ -1282,16 +2182,29 @@ pub fn run() {
                                 continue;
                             }
                             #[cfg(target_os = "windows")]
-                            if let Ok(mut runtime) = state_hk.note_window_runtime.lock() {
-                                runtime.record_programmatic_placement(
+                            {
+                                native_open_current = record_note_placement_if_current(
+                                    &state_hk,
+                                    lifecycle_generation,
+                                    target.hwnd_val,
                                     &note_id,
                                     false,
                                     &initial_metrics,
-                                );
+                                )
+                                .unwrap_or(false);
                             }
                             created_open_request(note_id)
                         };
 
+                        #[cfg(target_os = "windows")]
+                        if !native_open_current
+                            || !native_lifecycle_action_is_current(
+                                &state_hk,
+                                lifecycle_generation,
+                            )
+                        {
+                            continue;
+                        }
                         let _ = window.show();
                         let _ = window.set_focus();
                         let payload = build_overlay_payload(&app_handle_hk, &state_hk, false);
@@ -1300,6 +2213,60 @@ pub fn run() {
                     }
                 }
             });
+
+            #[cfg(target_os = "windows")]
+            {
+                let app_handle_watchdog = app_handle.clone();
+                let running_flag_watchdog = running_flag.clone();
+                std::thread::spawn(move || {
+                    while running_flag_watchdog.load(Ordering::Relaxed) {
+                        std::thread::sleep(Duration::from_millis(500));
+                        let state_watchdog = app_handle_watchdog.state::<AppState>();
+                        let dismissed = state_watchdog
+                            .note_window_runtime
+                            .lock()
+                            .map(|runtime| runtime.dismissed_collapsed_window().is_some())
+                            .unwrap_or(false);
+                        if dismissed {
+                            continue;
+                        }
+                        let note_window_visible = app_handle_watchdog
+                            .get_webview_window("main")
+                            .and_then(|window| window.is_visible().ok())
+                            .unwrap_or(false);
+                        if !note_window_visible {
+                            continue;
+                        }
+                        let lifecycle_generation = state_watchdog
+                            .native_lifecycle_generation
+                            .load(Ordering::Acquire);
+                        let Some(active) = state_watchdog.coordinator.get_active_target() else {
+                            // A missing target is handled by the normal clear paths. Do not hide
+                            // here after an unlocked sample: a hotkey may already be publishing a
+                            // newly captured target.
+                            continue;
+                        };
+                        let refreshed = reconstruct_hwnd(active.hwnd_val)
+                            .and_then(inspect_target_window)
+                            .filter(|target| refreshed_target_preserves_identity(&active, target));
+                        if refreshed.is_none()
+                            && clear_active_target_and_hide_note_if_current(
+                                &app_handle_watchdog,
+                                &state_watchdog,
+                                lifecycle_generation,
+                                active.hwnd_val,
+                            )
+                        {
+                            let payload = build_mutation_payload(
+                                &app_handle_watchdog,
+                                &state_watchdog,
+                                false,
+                            );
+                            let _ = app_handle_watchdog.emit("skribly://overlay-update", payload);
+                        }
+                    }
+                });
+            }
 
             let app_handle_ev = app_handle.clone();
             std::thread::spawn(move || {
@@ -1315,31 +2282,56 @@ pub fn run() {
                             .unwrap_or(false);
 
                         #[cfg(target_os = "windows")]
-                        if note_window_visible {
+                        let dismissed_lifecycle = dismissed_lifecycle_snapshot(&state_ev);
+
+                        #[cfg(target_os = "windows")]
+                        if let Some((dismissed_generation, dismissed)) = dismissed_lifecycle {
                             if matches!(
                                 notice.event_type,
-                                EVENT_OBJECT_LOCATIONCHANGE | EVENT_SYSTEM_MINIMIZEEND
+                                EVENT_SYSTEM_FOREGROUND | EVENT_OBJECT_NAMECHANGE
                             ) {
-                                if let Some(target) = coordinator.get_active_target() {
-                                    if target.hwnd_val == notice.hwnd_val {
-                                        if let Some(hwnd) = reconstruct_hwnd(notice.hwnd_val) {
-                                            if let Some(updated) = inspect_target_window(hwnd) {
-                                                set_runtime_active_target(
+                                let candidate = reconstruct_hwnd(notice.hwnd_val)
+                                    .and_then(inspect_target_window);
+                                if let Some(candidate) = candidate {
+                                    if let Some(note) =
+                                        state_ev.coordinator.get_skrib(&dismissed.note_id)
+                                    {
+                                        match classify_dismissed_target_event(
+                                            notice.event_type,
+                                            &dismissed,
+                                            &note,
+                                            &candidate,
+                                        ) {
+                                            DismissedTargetEventTransition::Ignore => {}
+                                            DismissedTargetEventTransition::Arm => {
+                                                let _ = arm_dismissed_lifecycle_if_current(
                                                     &state_ev,
-                                                    Some(updated.clone()),
+                                                    dismissed_generation,
+                                                    &dismissed,
                                                 );
-                                                if let Some(window) =
-                                                    app_handle_ev.get_webview_window("main")
-                                                {
-                                                    if let Err(message) = position_active_note_window(
-                                                        &window,
-                                                        &state_ev,
-                                                        &updated,
-                                                    )
-                                                    {
+                                            }
+                                            DismissedTargetEventTransition::Restore => {
+                                                match restore_dismissed_collapsed_window_for_target(
+                                                    &app_handle_ev,
+                                                    &state_ev,
+                                                    &candidate,
+                                                ) {
+                                                    Ok(true) => {
+                                                        let payload = build_mutation_payload(
+                                                            &app_handle_ev,
+                                                            &state_ev,
+                                                            false,
+                                                        );
+                                                        let _ = app_handle_ev.emit(
+                                                            "skribly://overlay-update",
+                                                            payload,
+                                                        );
+                                                    }
+                                                    Ok(false) => {}
+                                                    Err(message) => {
                                                         let _ = app_handle_ev.emit(
                                                             "skribly://hotkey-error",
-                                                            format!("Skribli could not keep the editor on the target display: {message}"),
+                                                            format!("Skribli could not restore the hidden collapsed note: {message}"),
                                                         );
                                                     }
                                                 }
@@ -1347,6 +2339,118 @@ pub fn run() {
                                         }
                                     }
                                 }
+                            }
+                            // A temporary dismissal is bound to its note identity. Unrelated
+                            // foreground windows must not replace that context in the coordinator.
+                            continue;
+                        }
+
+                        #[cfg(target_os = "windows")]
+                        if note_window_visible {
+                            if matches!(
+                                notice.event_type,
+                                EVENT_SYSTEM_FOREGROUND | EVENT_OBJECT_NAMECHANGE
+                            ) {
+                                if let Some(candidate) = reconstruct_hwnd(notice.hwnd_val)
+                                    .and_then(inspect_target_window)
+                                {
+                                    match hide_collapsed_dot_for_unrelated_context(
+                                        &app_handle_ev,
+                                        &state_ev,
+                                        notice.event_type,
+                                        &candidate,
+                                    ) {
+                                        Ok(true) => {
+                                            let payload = build_mutation_payload(
+                                                &app_handle_ev,
+                                                &state_ev,
+                                                false,
+                                            );
+                                            let _ = app_handle_ev
+                                                .emit("skribly://overlay-update", payload);
+                                            continue;
+                                        }
+                                        Ok(false) => {}
+                                        Err(message) => {
+                                            let _ = app_handle_ev.emit(
+                                                "skribly://hotkey-error",
+                                                format!("Skribli could not hide the inactive collapsed note: {message}"),
+                                            );
+                                        }
+                                    }
+                                }
+                            }
+                            let lifecycle_generation = state_ev
+                                .native_lifecycle_generation
+                                .load(Ordering::Acquire);
+                            let active_target = coordinator.get_active_target();
+                            let active_hwnd = active_target.as_ref().map(|target| target.hwnd_val);
+                            match classify_visible_note_target_event(
+                                notice.event_type,
+                                notice.hwnd_val,
+                                active_hwnd,
+                            ) {
+                                VisibleNoteTargetEvent::Disconnect => {
+                                    if clear_active_target_and_hide_note_if_current(
+                                        &app_handle_ev,
+                                        &state_ev,
+                                        lifecycle_generation,
+                                        notice.hwnd_val,
+                                    ) {
+                                        let payload = build_mutation_payload(
+                                            &app_handle_ev,
+                                            &state_ev,
+                                            false,
+                                        );
+                                        let _ = app_handle_ev
+                                            .emit("skribly://overlay-update", payload);
+                                    }
+                                }
+                                VisibleNoteTargetEvent::Reanchor => {
+                                    let updated = reconstruct_hwnd(notice.hwnd_val)
+                                        .and_then(inspect_target_window);
+                                    if let Some(updated) = updated {
+                                        let refreshed_committed = commit_refreshed_target_if_current(
+                                            &state_ev,
+                                            lifecycle_generation,
+                                            notice.hwnd_val,
+                                            updated.clone(),
+                                        )
+                                        .unwrap_or(false);
+                                        if refreshed_committed {
+                                            if let Some(window) =
+                                                app_handle_ev.get_webview_window("main")
+                                            {
+                                                if let Err(message) = position_active_note_window(
+                                                    &window,
+                                                    &state_ev,
+                                                    &updated,
+                                                ) {
+                                                    let _ = app_handle_ev.emit(
+                                                        "skribly://hotkey-error",
+                                                        format!("Skribli could not keep the editor on the target display: {message}"),
+                                                    );
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        if clear_active_target_and_hide_note_if_current(
+                                            &app_handle_ev,
+                                            &state_ev,
+                                            lifecycle_generation,
+                                            notice.hwnd_val,
+                                        ) {
+                                            let payload = build_mutation_payload(
+                                                &app_handle_ev,
+                                                &state_ev,
+                                                false,
+                                            );
+                                            let _ = app_handle_ev
+                                                .emit("skribly://overlay-update", payload);
+                                        }
+                                    }
+                                }
+                                VisibleNoteTargetEvent::Ignore => {}
                             }
                             continue;
                         }
@@ -1358,43 +2462,73 @@ pub fn run() {
                                 | EVENT_SYSTEM_MINIMIZESTART
                                 | EVENT_SYSTEM_MINIMIZEEND
                                 | EVENT_OBJECT_DESTROY
+                                | EVENT_OBJECT_HIDE
                                 | EVENT_OBJECT_LOCATIONCHANGE
                         ) {
+                            let lifecycle_generation = state_ev
+                                .native_lifecycle_generation
+                                .load(Ordering::Acquire);
                             if let Some(target) = coordinator.get_active_target() {
                                 if target.hwnd_val == notice.hwnd_val {
-                                    if notice.event_type == EVENT_OBJECT_DESTROY {
-                                        set_runtime_active_target(&state_ev, None);
-                                        let payload = build_mutation_payload(
+                                    if matches!(
+                                        notice.event_type,
+                                        EVENT_OBJECT_DESTROY | EVENT_OBJECT_HIDE
+                                    ) {
+                                        if clear_active_target_and_hide_note_if_current(
                                             &app_handle_ev,
                                             &state_ev,
-                                            false,
-                                        );
-                                        let _ = app_handle_ev.emit("skribly://overlay-update", payload);
+                                            lifecycle_generation,
+                                            target.hwnd_val,
+                                        ) {
+                                            let payload = build_mutation_payload(
+                                                &app_handle_ev,
+                                                &state_ev,
+                                                false,
+                                            );
+                                            let _ = app_handle_ev
+                                                .emit("skribly://overlay-update", payload);
+                                        }
                                     } else if let Some(hwnd) = reconstruct_hwnd(notice.hwnd_val) {
                                         if let Some(updated) = inspect_target_window(hwnd) {
-                                            set_runtime_active_target(
+                                            if commit_refreshed_target_if_current(
                                                 &state_ev,
-                                                Some(updated.clone()),
-                                            );
-                                            let payload = build_mutation_payload(
-                                                &app_handle_ev,
-                                                &state_ev,
-                                                false,
-                                            );
-                                            let _ = app_handle_ev.emit("skribly://overlay-update", payload);
+                                                lifecycle_generation,
+                                                target.hwnd_val,
+                                                updated,
+                                            )
+                                            .unwrap_or(false)
+                                            {
+                                                let payload = build_mutation_payload(
+                                                    &app_handle_ev,
+                                                    &state_ev,
+                                                    false,
+                                                );
+                                                let _ = app_handle_ev
+                                                    .emit("skribly://overlay-update", payload);
+                                            }
                                         } else {
-                                            set_runtime_active_target(&state_ev, None);
-                                            let payload = build_mutation_payload(
+                                            if clear_active_target_and_hide_note_if_current(
                                                 &app_handle_ev,
                                                 &state_ev,
-                                                false,
-                                            );
-                                            let _ = app_handle_ev.emit("skribly://overlay-update", payload);
+                                                lifecycle_generation,
+                                                target.hwnd_val,
+                                            ) {
+                                                let payload = build_mutation_payload(
+                                                    &app_handle_ev,
+                                                    &state_ev,
+                                                    false,
+                                                );
+                                                let _ = app_handle_ev
+                                                    .emit("skribly://overlay-update", payload);
+                                            }
                                         }
                                     }
                                 } else if notice.event_type == EVENT_SYSTEM_FOREGROUND {
                                     if let Some(hwnd) = reconstruct_hwnd(notice.hwnd_val) {
                                         if let Some(new_target) = inspect_target_window(hwnd) {
+                                            if !new_target.is_focused {
+                                                continue;
+                                            }
                                             let candidates = vec![new_target.clone()];
                                             match coordinator.find_best_context_match(&candidates) {
                                                 MatchResult::Unique(best) => {
@@ -1419,6 +2553,9 @@ pub fn run() {
                             } else if notice.event_type == EVENT_SYSTEM_FOREGROUND {
                                 if let Some(hwnd) = reconstruct_hwnd(notice.hwnd_val) {
                                     if let Some(new_target) = inspect_target_window(hwnd) {
+                                        if !new_target.is_focused {
+                                            continue;
+                                        }
                                         let candidates = vec![new_target.clone()];
                                         match coordinator.find_best_context_match(&candidates) {
                                             MatchResult::Unique(best) => {
@@ -1454,24 +2591,46 @@ pub fn run() {
                         #[cfg(target_os = "windows")]
                         {
                             let state_ev = app_handle_ev.state::<AppState>();
+                            let lifecycle_generation = state_ev
+                                .native_lifecycle_generation
+                                .load(Ordering::Acquire);
                             if let Some(target) = coordinator.get_active_target() {
                                 let Some(hwnd) = reconstruct_hwnd(target.hwnd_val) else {
-                                    set_runtime_active_target(&state_ev, None);
-                                    let payload =
-                                        build_mutation_payload(&app_handle_ev, &state_ev, false);
-                                    let _ = app_handle_ev.emit("skribly://overlay-update", payload);
+                                    if clear_active_target_and_hide_note_if_current(
+                                        &app_handle_ev,
+                                        &state_ev,
+                                        lifecycle_generation,
+                                        target.hwnd_val,
+                                    ) {
+                                        let payload = build_mutation_payload(
+                                            &app_handle_ev,
+                                            &state_ev,
+                                            false,
+                                        );
+                                        let _ = app_handle_ev
+                                            .emit("skribly://overlay-update", payload);
+                                    }
                                     continue;
                                 };
 
                                 if let Some(updated) = inspect_target_window(hwnd) {
                                     let placement_changed = updated.bounds != target.bounds
                                         || updated.dpi != target.dpi;
-                                    set_runtime_active_target(&state_ev, Some(updated.clone()));
+                                    let refreshed_committed = commit_refreshed_target_if_current(
+                                        &state_ev,
+                                        lifecycle_generation,
+                                        target.hwnd_val,
+                                        updated.clone(),
+                                    )
+                                    .unwrap_or(false);
                                     let note_window_visible = app_handle_ev
                                         .get_webview_window("main")
                                         .and_then(|window| window.is_visible().ok())
                                         .unwrap_or(false);
-                                    if placement_changed && note_window_visible {
+                                    if refreshed_committed
+                                        && placement_changed
+                                        && note_window_visible
+                                    {
                                         if let Some(window) =
                                             app_handle_ev.get_webview_window("main")
                                         {
@@ -1487,6 +2646,21 @@ pub fn run() {
                                                 );
                                             }
                                         }
+                                    }
+                                } else {
+                                    if clear_active_target_and_hide_note_if_current(
+                                        &app_handle_ev,
+                                        &state_ev,
+                                        lifecycle_generation,
+                                        target.hwnd_val,
+                                    ) {
+                                        let payload = build_mutation_payload(
+                                            &app_handle_ev,
+                                            &state_ev,
+                                            false,
+                                        );
+                                        let _ = app_handle_ev
+                                            .emit("skribly://overlay-update", payload);
                                     }
                                 }
                             }
@@ -1507,11 +2681,17 @@ pub fn run() {
             ..
         } if label == "main" || label == "home" || label == "library" => {
             api.prevent_close();
-            if let Some(window) = app_handle.get_webview_window(label.as_str()) {
+            if label == "main" {
+                let state = app_handle.state::<AppState>();
+                hide_main_note_window_as_lifecycle_action(app_handle, &state);
+            } else if let Some(window) = app_handle.get_webview_window(label.as_str()) {
                 let _ = window.hide();
             }
         }
         RunEvent::Exit => {
+            if let Some(window) = app_handle.get_webview_window("main") {
+                let _ = window.hide();
+            }
             running.store(false, Ordering::Relaxed);
             #[cfg(target_os = "windows")]
             {
@@ -1547,6 +2727,25 @@ mod tests {
             created_at,
             updated_at: created_at,
             deleted_at: None,
+        }
+    }
+
+    fn test_target(hwnd_val: isize, title: &str) -> TargetWindowInfo {
+        TargetWindowInfo {
+            hwnd_val,
+            title: title.into(),
+            process_name: "notepad.exe".into(),
+            class_name: "Notepad".into(),
+            bounds: core::models::WindowRect {
+                x: 100,
+                y: 80,
+                width: 1200,
+                height: 800,
+            },
+            is_minimized: false,
+            is_focused: true,
+            dpi: 96,
+            scale_factor: 1.0,
         }
     }
 
@@ -1625,6 +2824,342 @@ mod tests {
 
         runtime.record_programmatic_placement("note-a", false, &metrics);
         assert!(!runtime.workspace_is_expanded());
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn visible_note_destroy_event_disconnects_instead_of_being_skipped() {
+        assert_eq!(
+            classify_visible_note_target_event(EVENT_OBJECT_DESTROY, 42, Some(42)),
+            VisibleNoteTargetEvent::Disconnect
+        );
+        assert_eq!(
+            classify_visible_note_target_event(EVENT_OBJECT_LOCATIONCHANGE, 42, Some(42)),
+            VisibleNoteTargetEvent::Reanchor
+        );
+        assert_eq!(
+            classify_visible_note_target_event(EVENT_OBJECT_DESTROY, 99, Some(42)),
+            VisibleNoteTargetEvent::Ignore
+        );
+        assert_eq!(
+            classify_visible_note_target_event(EVENT_OBJECT_HIDE, 42, Some(42)),
+            VisibleNoteTargetEvent::Disconnect
+        );
+    }
+
+    #[test]
+    fn clearing_native_note_runtime_removes_stale_window_state() {
+        let metrics = OverlayMetrics {
+            overlay_physical_x: 200,
+            overlay_physical_y: 160,
+            ..OverlayMetrics::default()
+        };
+        let mut runtime = NoteWindowRuntime::default();
+        runtime.record_programmatic_placement("note-a", true, &metrics);
+
+        runtime.clear();
+
+        assert_eq!(runtime.active_note_id(), None);
+        assert!(!runtime.workspace_is_expanded());
+        assert!(!runtime.should_ignore_position_save("note-a", 200, 160));
+    }
+
+    #[test]
+    fn dismissed_collapsed_note_restores_only_for_its_matching_context() {
+        let mut note = color_note("note-a", "sky", 1);
+        note.collapsed = true;
+        let original_target = test_target(42, "Document.txt - Notepad");
+        let unrelated_target = test_target(77, "Other.txt - Notepad");
+        let reopened_target = test_target(99, "Document.txt - Notepad");
+        let mut runtime = NoteWindowRuntime::default();
+        runtime.dismiss_collapsed_window(&note, &original_target);
+        let dismissed = runtime
+            .dismissed_collapsed_window()
+            .expect("dismissed runtime");
+
+        assert!(!dismissed_collapsed_target_matches(
+            dismissed,
+            &note,
+            &unrelated_target
+        ));
+        assert!(runtime.dismissed_collapsed_window().is_some());
+        assert!(dismissed_collapsed_target_matches(
+            dismissed,
+            &note,
+            &reopened_target
+        ));
+
+        runtime.record_programmatic_placement("note-a", false, &OverlayMetrics::default());
+        assert!(runtime.dismissed_collapsed_window().is_none());
+        assert!(note.collapsed);
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn dismissal_ignores_immediate_foreground_then_restores_after_leave_and_return() {
+        let mut note = color_note("note-a", "sky", 1);
+        note.collapsed = true;
+        let matching = test_target(42, "Document.txt - Notepad");
+        let unrelated = test_target(77, "Other.txt - Notepad");
+        let mut runtime = NoteWindowRuntime::default();
+        runtime.dismiss_collapsed_window(&note, &matching);
+        let unarmed = runtime
+            .dismissed_collapsed_window()
+            .expect("unarmed dismissal")
+            .clone();
+
+        assert!(!unarmed.armed);
+        assert_eq!(
+            classify_dismissed_target_event(EVENT_SYSTEM_FOREGROUND, &unarmed, &note, &matching,),
+            DismissedTargetEventTransition::Ignore
+        );
+        assert_eq!(
+            classify_dismissed_target_event(EVENT_SYSTEM_FOREGROUND, &unarmed, &note, &unrelated,),
+            DismissedTargetEventTransition::Arm
+        );
+        assert!(runtime.arm_dismissed_collapsed_window(&unarmed));
+        let armed = runtime
+            .dismissed_collapsed_window()
+            .expect("armed dismissal");
+        assert!(armed.armed);
+        assert_eq!(
+            classify_dismissed_target_event(EVENT_SYSTEM_FOREGROUND, armed, &note, &matching),
+            DismissedTargetEventTransition::Restore
+        );
+        assert_eq!(
+            classify_dismissed_target_event(EVENT_OBJECT_DESTROY, armed, &note, &matching),
+            DismissedTargetEventTransition::Ignore
+        );
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn same_browser_window_tab_away_arms_then_tab_return_restores() {
+        let mut note = color_note("note-a", "lavender", 1);
+        note.collapsed = true;
+        let matching = test_target(42, "Document.txt - Notepad");
+        let tab_away = test_target(42, "Completely unrelated context");
+        let mut runtime = NoteWindowRuntime::default();
+        runtime.dismiss_collapsed_window(&note, &matching);
+        let unarmed = runtime
+            .dismissed_collapsed_window()
+            .expect("unarmed dismissal")
+            .clone();
+
+        assert_eq!(
+            classify_dismissed_target_event(EVENT_OBJECT_NAMECHANGE, &unarmed, &note, &tab_away,),
+            DismissedTargetEventTransition::Arm
+        );
+        assert!(runtime.arm_dismissed_collapsed_window(&unarmed));
+        assert_eq!(
+            classify_dismissed_target_event(
+                EVENT_OBJECT_NAMECHANGE,
+                runtime
+                    .dismissed_collapsed_window()
+                    .expect("armed dismissal"),
+                &note,
+                &matching,
+            ),
+            DismissedTargetEventTransition::Restore
+        );
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn visible_collapsed_dot_hides_off_context_and_restores_when_linked_context_returns() {
+        let mut note = color_note("note-a", "mint", 1);
+        note.collapsed = true;
+        let linked = test_target(42, "Document.txt - Notepad");
+        let unrelated = test_target(77, "Other.txt - Notepad");
+
+        assert!(!collapsed_dot_should_hide_for_context(
+            EVENT_SYSTEM_FOREGROUND,
+            &note,
+            &linked,
+            &linked,
+        ));
+        assert!(collapsed_dot_should_hide_for_context(
+            EVENT_SYSTEM_FOREGROUND,
+            &note,
+            &linked,
+            &unrelated,
+        ));
+
+        let mut runtime = NoteWindowRuntime::default();
+        runtime.hide_collapsed_until_context_returns(&note, &linked);
+        let hidden = runtime
+            .dismissed_collapsed_window()
+            .expect("context-hidden dot");
+        assert!(hidden.armed);
+        assert_eq!(
+            classify_dismissed_target_event(EVENT_SYSTEM_FOREGROUND, hidden, &note, &linked),
+            DismissedTargetEventTransition::Restore
+        );
+
+        note.collapsed = false;
+        assert!(!collapsed_dot_should_hide_for_context(
+            EVENT_SYSTEM_FOREGROUND,
+            &note,
+            &linked,
+            &unrelated,
+        ));
+    }
+
+    #[test]
+    fn stale_dismiss_action_cannot_overwrite_a_newer_native_note() {
+        let target = test_target(42, "Document.txt - Notepad");
+
+        assert!(dismissal_snapshot_can_commit(
+            7,
+            7,
+            "note-a",
+            42,
+            Some("note-a"),
+            Some(&target),
+        ));
+        assert!(!dismissal_snapshot_can_commit(
+            7,
+            8,
+            "note-a",
+            42,
+            Some("note-a"),
+            Some(&target),
+        ));
+        assert!(!dismissal_snapshot_can_commit(
+            7,
+            7,
+            "note-a",
+            42,
+            Some("note-b"),
+            Some(&target),
+        ));
+    }
+
+    #[test]
+    fn failed_or_stale_restore_keeps_the_dismissal_available_for_retry() {
+        let mut note = color_note("note-a", "sky", 1);
+        note.collapsed = true;
+        let target = test_target(42, "Document.txt - Notepad");
+        let mut runtime = NoteWindowRuntime::default();
+        runtime.dismiss_collapsed_window(&note, &target);
+        let expected = runtime
+            .dismissed_collapsed_window()
+            .expect("dismissed runtime")
+            .clone();
+
+        assert!(!dismissed_restore_can_commit(
+            false,
+            11,
+            11,
+            &expected,
+            runtime.dismissed_collapsed_window(),
+        ));
+        assert!(runtime.dismissed_collapsed_window().is_some());
+        assert!(!dismissed_restore_can_commit(
+            true,
+            11,
+            12,
+            &expected,
+            runtime.dismissed_collapsed_window(),
+        ));
+        assert!(runtime.dismissed_collapsed_window().is_some());
+        assert!(dismissed_restore_can_commit(
+            true,
+            11,
+            11,
+            &expected,
+            runtime.dismissed_collapsed_window(),
+        ));
+
+        runtime.record_programmatic_placement("note-a", false, &OverlayMetrics::default());
+        assert!(runtime.dismissed_collapsed_window().is_none());
+    }
+
+    #[test]
+    fn stale_watchdog_sample_cannot_clear_a_newer_target() {
+        let old_target = test_target(42, "Document.txt - Notepad");
+        let new_target = test_target(99, "Other.txt - Notepad");
+
+        assert!(lifecycle_snapshot_can_clear_target(
+            3,
+            3,
+            42,
+            Some(&old_target),
+        ));
+        assert!(!lifecycle_snapshot_can_clear_target(
+            3,
+            4,
+            42,
+            Some(&old_target),
+        ));
+        assert!(!lifecycle_snapshot_can_clear_target(
+            3,
+            3,
+            42,
+            Some(&new_target),
+        ));
+    }
+
+    #[test]
+    fn native_window_transactions_are_serialized_through_physical_commit() {
+        let gate = Arc::new(NativeWindowOperationGate::default());
+        let order = Arc::new(Mutex::new(Vec::new()));
+        let first_guard = gate.lock().expect("first native transaction");
+        order.lock().expect("order").push("first-start");
+
+        let (attempted_tx, attempted_rx) = std::sync::mpsc::channel();
+        let second_gate = gate.clone();
+        let second_order = order.clone();
+        let second = std::thread::spawn(move || {
+            attempted_tx.send(()).expect("signal second attempt");
+            let _second_guard = second_gate.lock().expect("second native transaction");
+            second_order.lock().expect("order").push("second-enter");
+        });
+
+        attempted_rx.recv().expect("second attempted the gate");
+        order.lock().expect("order").push("first-commit");
+        drop(first_guard);
+        second.join().expect("second transaction");
+
+        assert_eq!(
+            *order.lock().expect("order"),
+            vec!["first-start", "first-commit", "second-enter"]
+        );
+    }
+
+    #[test]
+    fn removing_the_active_note_requires_the_full_native_clear_path() {
+        assert!(active_note_removal_requires_full_clear(
+            Some("note-a"),
+            "note-a"
+        ));
+        assert!(!active_note_removal_requires_full_clear(
+            Some("note-b"),
+            "note-a"
+        ));
+        assert!(!active_note_removal_requires_full_clear(None, "note-a"));
+    }
+
+    #[test]
+    fn target_watchdog_rejects_hidden_window_handle_reuse() {
+        let active = test_target(42, "Document.txt - Notepad");
+        let same = test_target(42, "Document renamed.txt - Notepad");
+        let reused_process = TargetWindowInfo {
+            process_name: "explorer.exe".into(),
+            class_name: "CabinetWClass".into(),
+            ..test_target(42, "Folder")
+        };
+        let different_handle = test_target(99, "Document.txt - Notepad");
+
+        assert!(refreshed_target_preserves_identity(&active, &same));
+        assert!(!refreshed_target_preserves_identity(
+            &active,
+            &reused_process
+        ));
+        assert!(!refreshed_target_preserves_identity(
+            &active,
+            &different_handle
+        ));
     }
 
     #[test]
@@ -1710,6 +3245,9 @@ mod tests {
             storage_notice: Mutex::new(None),
             storage_error: Mutex::new(None),
             note_window_runtime: Mutex::new(NoteWindowRuntime::default()),
+            native_lifecycle_generation: AtomicU64::new(0),
+            native_lifecycle_commit_lock: Mutex::new(()),
+            native_window_operation_gate: NativeWindowOperationGate::default(),
             #[cfg(target_os = "windows")]
             win_event_pipeline,
         };
@@ -1811,6 +3349,9 @@ mod tests {
             storage_notice: Mutex::new(None),
             storage_error: Mutex::new(None),
             note_window_runtime: Mutex::new(NoteWindowRuntime::default()),
+            native_lifecycle_generation: AtomicU64::new(0),
+            native_lifecycle_commit_lock: Mutex::new(()),
+            native_window_operation_gate: NativeWindowOperationGate::default(),
             #[cfg(target_os = "windows")]
             win_event_pipeline,
         };

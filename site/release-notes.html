@@ -18,7 +18,7 @@
     <header class="site-header is-scrolled">
       <a class="brand" href="/"><img src="./assets/skribly-note-mark-v2.svg" alt="" /><span>Skribli</span></a>
       <nav class="desktop-nav" aria-label="Development navigation"><a href="/">Product</a><a href="/privacy">Privacy</a><a href="/answers">FAQ</a></nav>
-      <a class="button button-dark button-small" aria-disabled="true">Downloads unavailable</a>
+      <a class="button button-dark button-small" href="/v0-download">Owner v0 access</a>
     </header>
 
     <main class="legal-page">
@@ -30,7 +30,12 @@
         <section>
           <h2>Implemented foundations</h2>
           <ul>
-            <li>A compact typed-note editor opened with Ctrl + Shift + Space.</li>
+            <li>A compact pastel note editor opened with Ctrl + Shift + Space.</li>
+            <li>Vector pen, highlighter, and eraser input with mouse, touchpad, touch, or pen.</li>
+            <li>Local image, video, and document attachments with bounded storage quotas.</li>
+            <li>One-time local reminders, Windows notifications while Skribli runs, and a calendar view.</li>
+            <li>Done folds the saved active note into one movable pastel dot.</li>
+            <li>The open note uses a shaped rounded Windows surface, while the smaller 40px dot uses a circular native region so transparent corners do not cover other applications.</li>
             <li>Fail-closed foreground target capture and process/window revalidation.</li>
             <li>Deterministic native create-versus-reopen requests.</li>
             <li>Ordered local saves with dirty, saving, saved, failed, and retry states.</li>
@@ -51,10 +56,10 @@
             <li>Skribli creates or reopens the deterministic contextual note.</li>
             <li>Write in the compact editor.</li>
             <li>Choose Done, Escape, Ctrl+Enter, or close.</li>
-            <li>Skribli waits for the latest non-empty draft to save, then fully hides the editor.</li>
+            <li>Skribli waits for text and rich content to save, then folds the active note into a movable dot.</li>
             <li>Choose Delete only when needed; the note moves to local Trash and can be restored from All Skribs.</li>
           </ol>
-          <p>The current MVP leaves no floating dot, attached tab, checklist, permanent toolbar, saved-notes widget, or full-screen interactive overlay.</p>
+          <p>The current v0 shows one active note or collapsed dot at a time. Multiple simultaneous note windows, attached tabs, checklists, screenshot pins, cloud sync, and a full-screen interactive overlay are not included.</p>
         </section>
 
         <section>
@@ -72,9 +77,8 @@
         <section>
           <h2>Open release gates</h2>
           <ul>
-            <li>Add portable import with preview, duplicate handling, migration, and rollback.</li>
             <li>Define and validate automatic purge, configurable retention, archive, and attachment cleanup.</li>
-            <li>Complete context-safe open-in-application and re-anchor decisions without guessing targets.</li>
+            <li>Decide whether a future multi-window architecture should support several simultaneous note dots.</li>
             <li>Finish installer build, install, upgrade, repair, uninstall, and rollback validation.</li>
             <li>Run the physical Windows matrix across display scaling, lifecycle interruptions, suspend/resume, Remote Desktop, and long sessions.</li>
             <li>Reconcile support, compatibility, checksums, signing, and download delivery with the exact candidate.</li>
