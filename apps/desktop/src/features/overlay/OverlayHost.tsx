@@ -12,6 +12,7 @@ import {
   type OpenNoteAction,
   type OpenNoteRequest,
 } from '../skribs/noteLifecycle';
+import { CollapsedSkribDot } from '../skribs/CollapsedSkribDot';
 import { SkribComposer } from '../skribs/SkribComposer';
 import { hideOverlayThen } from './overlayWindowLifecycle';
 import { selectStorageSurface } from './storageSurface';
@@ -42,6 +43,7 @@ export const OverlayHost: React.FC = () => {
     storageBackupDirectory,
     dismissStorageNotice,
     exportStorageDiagnostics,
+    isTauriAvailable,
   } = useSkribStore();
   const { composerNoteId, openComposer } = useSkribUiStore();
   const [diagnosticsPath, setDiagnosticsPath] = useState<string | null>(null);
@@ -119,7 +121,38 @@ export const OverlayHost: React.FC = () => {
     }
   }, [initStatus.type, storageSurface]);
 
+  useEffect(() => {
+    if (!composerNoteId || !isTauriAvailable) return;
+
+    let disposed = false;
+    let saveTimer: ReturnType<typeof setTimeout> | null = null;
+    let unlisten: (() => void) | null = null;
+    void getCurrentWindow()
+      .onMoved(() => {
+        if (saveTimer) clearTimeout(saveTimer);
+        saveTimer = setTimeout(() => {
+          if (!disposed) {
+            void useSkribStore.getState().saveSkribWindowPosition(composerNoteId);
+          }
+        }, 180);
+      })
+      .then((dispose) => {
+        if (disposed) dispose();
+        else unlisten = dispose;
+      })
+      .catch(() => undefined);
+
+    return () => {
+      disposed = true;
+      if (saveTimer) clearTimeout(saveTimer);
+      unlisten?.();
+    };
+  }, [composerNoteId, isTauriAvailable]);
+
   if (primarySurface === 'composer' && composerNote) {
+    if (composerNote.collapsed) {
+      return <CollapsedSkribDot note={composerNote} />;
+    }
     return (
       <SkribComposer
         note={composerNote}

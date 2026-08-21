@@ -217,6 +217,16 @@ impl Coordinator {
         }
     }
 
+    pub fn get_skrib(&self, id: &str) -> Option<SkribNote> {
+        if !is_valid_note_id(id) {
+            return None;
+        }
+        self.state
+            .lock()
+            .ok()
+            .and_then(|state| state.skribs.get(id).cloned())
+    }
+
     pub fn get_active_skribs(&self) -> Vec<SkribNote> {
         if let Ok(state) = self.state.lock() {
             state
@@ -399,6 +409,62 @@ impl Coordinator {
             None
         }
     }
+
+    pub fn set_skrib_collapsed(&self, id: &str, collapsed: bool) -> bool {
+        if license::require_global_write_access().is_err() || !is_valid_note_id(id) {
+            return false;
+        }
+        if let Ok(mut state) = self.state.lock() {
+            if let Some(note) = state.skribs.get_mut(id) {
+                if !can_mutate_note(note) {
+                    return false;
+                }
+                note.collapsed = collapsed;
+                note.updated_at = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_secs();
+                true
+            } else {
+                false
+            }
+        } else {
+            false
+        }
+    }
+
+    pub fn set_skrib_window_state(
+        &self,
+        id: &str,
+        rel_x: f64,
+        rel_y: f64,
+        collapsed: bool,
+    ) -> bool {
+        if license::require_global_write_access().is_err() || !is_valid_note_id(id) {
+            return false;
+        }
+        if let Ok(mut state) = self.state.lock() {
+            if let Some(note) = state.skribs.get_mut(id) {
+                if !can_mutate_note(note)
+                    || !is_valid_note_geometry(rel_x, rel_y, note.width, note.height)
+                {
+                    return false;
+                }
+                note.rel_x = rel_x;
+                note.rel_y = rel_y;
+                note.collapsed = collapsed;
+                note.updated_at = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_secs();
+                true
+            } else {
+                false
+            }
+        } else {
+            false
+        }
+    }
 }
 
 #[cfg(test)]
@@ -493,6 +559,33 @@ mod tests {
 
         assert!(!coordinator.upsert_skrib(note));
         assert!(coordinator.get_all_skribs().is_empty());
+    }
+
+    #[test]
+    fn explicit_collapse_state_and_note_lookup_preserve_the_same_record() {
+        let coordinator = Coordinator::new();
+        let note = sample_note();
+        assert!(coordinator.upsert_skrib(note.clone()));
+
+        assert!(coordinator.set_skrib_collapsed(&note.id, true));
+        assert!(
+            coordinator
+                .get_skrib(&note.id)
+                .expect("saved note")
+                .collapsed
+        );
+        assert!(coordinator.set_skrib_collapsed(&note.id, false));
+        assert!(
+            !coordinator
+                .get_skrib(&note.id)
+                .expect("saved note")
+                .collapsed
+        );
+        assert!(coordinator.set_skrib_window_state(&note.id, 155.0, 85.0, true));
+        let moved = coordinator.get_skrib(&note.id).expect("moved note");
+        assert_eq!((moved.rel_x, moved.rel_y), (155.0, 85.0));
+        assert!(moved.collapsed);
+        assert!(coordinator.get_skrib("missing").is_none());
     }
 
     #[test]

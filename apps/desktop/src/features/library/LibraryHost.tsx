@@ -3,6 +3,8 @@ import { emit, listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { SkribNote } from '../../lib/geometry';
+import { deleteOrphanedRichContent } from '../../lib/richContentStore';
+import { deleteRemindersForNote } from '../../lib/reminderStore';
 import { useLicenseStore } from '../../stores/licenseStore';
 import type { StorageHealthPayload } from '../../stores/skribStore';
 import '../../styles/library.css';
@@ -13,6 +15,8 @@ import {
   LIBRARY_EXPORT_RESULT_EVENT,
 } from './libraryExport';
 import { LibraryImportPanel } from './LibraryImportPanel';
+import { LibraryRichContent } from './LibraryRichContent';
+import { ReminderCalendar } from './ReminderCalendar';
 import {
   filterLibraryNotes,
   noteContextLabel,
@@ -32,6 +36,8 @@ type ExportMessage =
   | { type: 'success'; path: string }
   | { type: 'error'; message: string }
   | null;
+
+type LibraryView = LibraryLifecycleView | 'calendar';
 
 const EXPORT_RESPONSE_TIMEOUT_MS = 15_000;
 
@@ -56,7 +62,7 @@ function timestampDateTime(timestampSeconds: number): string | undefined {
 
 export const LibraryHost: React.FC = () => {
   const [notes, setNotes] = useState<SkribNote[]>([]);
-  const [lifecycleView, setLifecycleView] = useState<LibraryLifecycleView>('notes');
+  const [lifecycleView, setLifecycleView] = useState<LibraryView>('notes');
   const [query, setQuery] = useState('');
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -127,6 +133,23 @@ export const LibraryHost: React.FC = () => {
       unlisten?.();
     };
   }, [refreshNotes]);
+
+  useEffect(() => {
+    let disposed = false;
+    let unlisten: (() => void) | null = null;
+    void listen<unknown>('skribly://library-view', (event) => {
+      if (disposed || !event.payload || typeof event.payload !== 'object') return;
+      const view = (event.payload as { view?: unknown }).view;
+      if (view === 'notes' || view === 'calendar' || view === 'trash') setLifecycleView(view);
+    }).then((callback) => {
+      if (disposed) callback();
+      else unlisten = callback;
+    });
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, []);
 
   useEffect(() => {
     let disposed = false;
@@ -254,7 +277,22 @@ export const LibraryHost: React.FC = () => {
     setLifecycleError(null);
     try {
       await invoke(command, { id: note.id });
+      let cleanupWarning: string | null = null;
+      if (command === 'permanently_delete_skrib_note') {
+        try {
+          const remainingNotes = await invoke<SkribNote[]>('get_all_skribs');
+          await Promise.all([
+            deleteOrphanedRichContent(remainingNotes.map((remainingNote) => remainingNote.id)),
+            deleteRemindersForNote(note.id),
+          ]);
+        } catch (reason) {
+          cleanupWarning = `The note was deleted, but Skribli could not finish local attachment/reminder cleanup: ${
+            reason instanceof Error ? reason.message : String(reason)
+          }`;
+        }
+      }
       await refreshNotes();
+      if (cleanupWarning) setLifecycleError(cleanupWarning);
       return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -329,7 +367,7 @@ export const LibraryHost: React.FC = () => {
             onClick={() => void requestExport(null)}
             disabled={isExporting}
           >
-            {isExporting ? 'Exporting…' : 'Export complete backup'}
+            {isExporting ? 'Exporting…' : 'Export note records'}
           </button>
         </div>
       </header>
@@ -345,6 +383,14 @@ export const LibraryHost: React.FC = () => {
         </button>
         <button
           type="button"
+          aria-current={lifecycleView === 'calendar' ? 'page' : undefined}
+          className={lifecycleView === 'calendar' ? 'active' : ''}
+          onClick={() => setLifecycleView('calendar')}
+        >
+          Calendar
+        </button>
+        <button
+          type="button"
           aria-current={lifecycleView === 'trash' ? 'page' : undefined}
           className={lifecycleView === 'trash' ? 'active' : ''}
           onClick={() => setLifecycleView('trash')}
@@ -357,6 +403,18 @@ export const LibraryHost: React.FC = () => {
           </span>
         )}
       </nav>
+
+      {lifecycleView === 'calendar' && (
+        <ReminderCalendar
+          notes={activeNotes}
+          onOpenNote={(noteId) => {
+            setLifecycleView('notes');
+            setSelectedNoteId(noteId);
+          }}
+        />
+      )}
+
+      <div className="library-standard-view" hidden={lifecycleView === 'calendar'}>
 
       <section className="library-toolbar" aria-label="Library search and status">
         <label className="library-search">
@@ -526,6 +584,8 @@ export const LibraryHost: React.FC = () => {
                 <p>{selectedNote.text || 'This note has no saved text.'}</p>
               </article>
 
+              <LibraryRichContent noteId={selectedNote.id} />
+
               <dl className="library-note-metadata">
                 <div>
                   <dt>Application</dt>
@@ -599,6 +659,7 @@ export const LibraryHost: React.FC = () => {
             </div>
           )}
         </section>
+      </div>
       </div>
     </main>
   );

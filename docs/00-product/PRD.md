@@ -2,10 +2,10 @@
 
 > **Status: long-term product vision, not the current release contract.**  
 > The current Windows MVP behavior and release sequence are defined by [issue #34](https://github.com/Ankit6149/skribly/issues/34), [issue #20](https://github.com/Ankit6149/skribly/issues/20), and the [product backlog/contribution map](../06-planning/PRODUCT_BACKLOG_AND_CONTRIBUTION_MAP.md).  
-> Future annotations, browser integration, macOS, revision history, and sync are tracked under [issue #46](https://github.com/Ankit6149/skribly/issues/46) and must not be treated as implemented or approved release scope.
+> Further annotations, browser integration, macOS, revision history, and sync are tracked under [issue #46](https://github.com/Ankit6149/skribly/issues/46) and must not be treated as implemented or approved release scope.
 
 **Product:** Skribli  
-**Current release target:** account-connected, local-content Windows contextual annotations; typed Skribs are the first tool
+**Current release target:** account-connected, local-content Windows contextual Skribs with typing, drawing, local attachments, and one-time reminders
 **Future platforms/capabilities:** separate gated roadmaps  
 **Distribution:** direct installer after signed release and runtime acceptance  
 **Business model:** one server-owned seven-day free trial for each account/device; payments remain deferred
@@ -14,11 +14,18 @@
 
 When a user notices something worth remembering inside an application, webpage, file, folder, or screen context, Skribli should let them capture it quickly and restore it safely when the intended context returns.
 
-For the current Windows MVP, the first implemented annotation tool is a typed contextual Skrib through a compact transient editor and a non-floating recovery/library surface. This implementation slice must not redefine the product as merely a notes app.
+For the current Windows MVP, an active contextual Skrib can contain typed text, editable drawing strokes, approved local attachments, and a one-time local reminder. It is edited through a compact window that can temporarily expand for richer tools, collapse to one movable dot, and be recovered through a non-floating library and calendar surface. This implementation slice must not redefine the product as merely a notes app.
 
 ## 2. Current Windows MVP objects
 
-The initial supported persistent object is a typed contextual Skrib record. Future tools—handwriting, highlights, arrows, images, reminders, screenshot pins, and richer screen/application/page/file/folder contexts—extend the same annotation system after separate acceptance work.
+The supported contextual Skrib has two coordinated local persistence parts:
+
+- Rust-owned typed text, colour, context, position, and lifecycle metadata in the authoritative versioned JSON store;
+- WebView-owned editable pen/highlighter/eraser strokes, approved image/video/document attachments, and one-time reminder state in local IndexedDB.
+
+Each newly created Skrib rotates through the website's exact yellow, peach, mint, sky, and lavender pastels. The user can change the active Skrib to any of those five colours. Only one native editor or collapsed dot can be active on screen at a time in this release; the library still preserves all saved records.
+
+Arrows, shapes, pins, labels, checklists, recurring reminders, screenshot pins, and richer screen/application/page/file/folder contexts require separate acceptance work.
 
 The exact fields, one-versus-many behavior, create/open semantics, close behavior, archive/trash rules, and context identity are decided and implemented through #20, #14, #18, #21, and #60 where applicable.
 
@@ -30,11 +37,14 @@ The current intended flow is:
 2. The user invokes the configured global shortcut.
 3. Skribli captures a supported foreground context before taking focus.
 4. A compact editor opens near the target on the correct display.
-5. The user types while the application reports truthful saving/saved/error state.
-6. Done/Close/Escape hides the editor only after the final draft is durable, or keeps it open with recovery when persistence fails.
-7. The user can later recover every note through the non-floating All Skribs library.
+5. The user types, draws with a touchpad/touch/pen, attaches an approved local file, or schedules one reminder. Drawing, Files, and Reminder use a bounded expanded workspace rather than a full-screen surface.
+6. New notes receive the next pastel in the five-colour rotation, and the user can choose another approved pastel.
+7. The application reports truthful saving/saved/error state for the Rust-owned note record and clear local feedback for rich content.
+8. Done/Close/Escape collapses the editor to a movable dot only after the latest typed draft is durable, or keeps it open with recovery when native persistence fails.
+9. Clicking or moving the dot restores or repositions the same active Skrib; editor and dot positions persist and are clamped to the target monitor's work area.
+10. The user can later recover every note through the non-floating All Skribs library, with linked reminders also visible in its local calendar.
 
-This flow must not require a permanently interactive full-screen overlay or persistent floating dots/widgets.
+This flow must not require a permanently interactive full-screen overlay. The current release may keep the one active contextual note visible as a compact movable dot.
 
 ## 4. Current context behavior
 
@@ -48,7 +58,7 @@ This flow must not require a permanently interactive full-screen overlay or pers
 
 ## 5. Current editing and lifecycle behavior
 
-The implemented Windows foundation creates one note for zero active context matches, reopens the deterministic existing match, serializes/coalesces draft writes, flushes before hide, discards untouched whitespace-empty notes, and moves saved notes into reversible Trash. Restore preserves the same record; permanent deletion exists only inside Trash after note-specific confirmation.
+The implemented Windows foundation creates one note for zero active context matches, reopens the deterministic existing match, serializes/coalesces draft writes, flushes before collapse, and moves saved notes into reversible Trash. A note that has drawing, attachments, or a reminder is retained even when its typed text is empty. Restore preserves the same native record; permanent deletion exists only inside Trash after note-specific confirmation and initiates local rich-content/reminder cleanup.
 
 Parent #20 remains open for archive, broader context/lifecycle consistency, supported-field and appearance decisions, Settings/privacy entry points, usability evidence, and exact release-candidate validation.
 
@@ -56,9 +66,9 @@ Persistent note revision history and cross-session undo/redo are deferred to #83
 
 ## 6. All Skribs library and backups
 
-The implemented library is one normal non-floating recovery surface opened from the tray. It provides deterministic ordering, Unicode-normalized search across current fields, read-only detail, Notes and Trash views, reversible restore, selected/all portable export, and strict import preview with duplicate/conflict handling, rollback backup, and atomic apply.
+The implemented library is one normal non-floating recovery surface opened from the tray. It provides deterministic ordering, Unicode-normalized search across current fields, rich-content summaries, Notes and Trash views, a one-time-reminder calendar and agenda, reversible restore, selected/all portable export, and strict import preview with duplicate/conflict handling, rollback backup, and atomic apply.
 
-Remaining #21/#61/#79 work includes context-safe open/re-anchor, archive, richer filters, scalable indexing/index recovery, attachment portability, and physical release-candidate evidence.
+The native versioned JSON export/import currently covers the Rust-owned Skrib record only. Editable ink, attachment blobs, and reminder state remain in IndexedDB and are **not yet included in portable JSON export/import**. Remaining #21/#61/#79 work includes rich-content/reminder portability, context-safe open/re-anchor, archive, richer filters, scalable indexing/index recovery, and physical release-candidate evidence.
 
 Internal crash-recovery generations are owned by #14. Verified user-controlled backups, restore preview, retention, and clean-device disaster recovery are owned by #82. Portable export, internal recovery, and recurring backup must remain distinct concepts in product copy and implementation.
 
@@ -90,25 +100,22 @@ Internal crash-recovery generations are owned by #14. Verified user-controlled b
 - supported Windows versions, architectures, hardware tiers, runtimes, applications, RDP/VM behavior, and known limitations are defined and evidence-backed through #85;
 - signed reproducible installers before public distribution.
 
-## 9. Deferred expressive annotations
+## 9. Current expressive tools and remaining limits
 
-The following are long-term possibilities, not current release commitments:
+The current Windows v0 includes:
 
-- editable ink and highlighter;
-- arrows, shapes, pins, labels, and checklists;
-- reminders and notifications;
-- secure local attachments;
-- touch/pen-specific interaction;
-- local revision history and cross-session undo/redo;
-- browser URL/DOM anchoring.
+- editable pen and highlighter strokes plus an eraser, usable with mouse, touchpad, touch, or pen input;
+- approved local image, video, and document attachments with per-file/per-note limits and local previews where supported;
+- one-time local reminders, upcoming/overdue/completed/dismissed states, a linked month calendar and agenda, and Windows notifications when operating-system permission is available;
+- website-aligned yellow, peach, mint, sky, and lavender note colours plus themed scrollbars and Kalam for handwritten note content.
 
-They require #60–#67 and #83 and may not reuse the rejected global overlay architecture without a new approved decision.
+The current expressive data remains local to the installed WebView profile and is not yet part of native portable JSON export/import. Only one native contextual editor or dot can be visible at a time. Recurring reminders, cloud scheduling, arrows, shapes, pins, labels, checklists, screenshot capture, local revision history/cross-session undo-redo, and browser URL/DOM anchoring remain deferred. No expressive tool may reintroduce a screen-blocking global overlay.
 
 ## 10. Deferred platforms and services
 
 - macOS is tracked by #68 and is not currently implemented.
 - Optional end-to-end encrypted sync is research under #69.
-- Collaboration, mobile, AI, OCR, plugins, and a marketplace require separate approved issue sets.
+- Cloud sync, collaboration, mobile, AI, OCR, plugins, and a marketplace require separate approved issue sets.
 
 ## 11. Commercial status
 

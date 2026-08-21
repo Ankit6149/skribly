@@ -149,7 +149,8 @@ for (const testName of [
 }
 
 for (const marker of [
-  "useState<LibraryLifecycleView>('notes')",
+  "type LibraryView = LibraryLifecycleView | 'calendar'",
+  "useState<LibraryView>('notes')",
   "filterNotesForLifecycle(notes, 'notes')",
   "filterNotesForLifecycle(notes, 'trash')",
   'Notes <span>',
@@ -161,7 +162,7 @@ for (const marker of [
   'Permanently delete “{noteDisplayTitle(selectedNote)}”?',
   'This removes the local record and cannot be undone.',
   'does not purge expired Trash automatically in this release',
-  'Export complete backup',
+  'Export note records',
 ]) {
   if (!library.includes(marker)) failures.push(`All Skribs lifecycle behavior is missing: ${marker}`);
 }

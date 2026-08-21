@@ -4,7 +4,7 @@ These limits apply to the current Windows release-candidate implementation.
 
 ## Supported today
 
-- JSON files produced by the current **Export this note** and **Export complete backup** actions.
+- JSON files produced by the current **Export this note** and **Export note records** actions; these exclude IndexedDB ink, attachments, and reminders.
 - Portable schema version 1.
 - Typed-note records with the current active/Trash lifecycle metadata.
 - Files up to 10 MB and 50,000 records.

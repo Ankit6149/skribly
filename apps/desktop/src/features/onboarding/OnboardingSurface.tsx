@@ -28,7 +28,7 @@ const STEPS: readonly OnboardingStep[] = [
   {
     number: '03',
     title: 'Type, then choose Done',
-    description: 'The Skrib saves locally, the editor hides, and Skribli stays in the tray.',
+    description: 'The Skrib saves locally and folds into a small dot you can move or reopen.',
   },
 ];
 
@@ -89,7 +89,7 @@ export const OnboardingSurface: React.FC<OnboardingSurfaceProps> = ({
         </aside>
 
         <p className="onboarding-lifecycle-note">
-          <strong>Done</strong> hides the editor but keeps the shortcut ready. Use{' '}
+          <strong>Done</strong> folds the saved Skrib into a movable dot. Use{' '}
           <strong>Quit Skribli</strong> in the tray to stop the background process.
         </p>
       </div>

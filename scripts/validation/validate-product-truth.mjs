@@ -71,19 +71,19 @@ const requiredReadmeClaims = [
   'The guide creates no sample Skrib and can be reopened later from **Quick guide** in the tray.',
   'A verified account is mandatory for write access',
   'Changing accounts or reinstalling on the same Windows device does not restart that device’s trial.',
-  'Skribli hides only after the latest non-empty draft is durably saved.',
+  'Skribli collapses the saved note into a movable pastel dot only after the latest draft is durable.',
   'A compact note editor opens inside that target monitor’s usable work area.',
   'Skribli captures the foreground target once, clears any previous runtime target, and revalidates the exact HWND and process identity before using it.',
   'Skribli shows one actionable compact message, clears the previous target, and does not create, reopen, move, or focus a note.',
   'Launching Skribli again in the same Windows user session restores the existing Home window',
   'Windows accessibility events use bounded, non-blocking delivery with callback-side filtering and duplicate coalescing.',
-  'The current build does **not** leave a floating dot, attached tab, permanent toolbar, or full-screen interactive overlay',
+  'The current build leaves one movable collapsed dot for the active Skrib.',
   'ordinary deletion is reversible through Trash',
   'A normal non-floating **All Skribs** window',
   'Reversible Trash with 30-day recovery guidance',
   'Portable JSON import with strict validation',
   'macOS support;',
-  'Skribli is **not currently available for download**.',
+  'Skribli is **not currently available as a public download**.',
 ];
 
 for (const claim of requiredReadmeClaims) {
@@ -111,12 +111,16 @@ for (const claim of retiredReadmeClaims) {
 const requiredCurrentDocumentation = [
   [architecture, 'Windows v0 source of truth', 'architecture'],
   [architecture, 'The durable source of truth is a versioned, integrity-checked local JSON envelope', 'architecture'],
+  [architecture, 'one active contextual note/dot with text, drawing, local attachments, one-time reminders, and a linked calendar', 'architecture'],
+  [architecture, 'Ink strokes, attachment blobs, and reminder records are not yet included in native portable JSON export/import.', 'architecture'],
   [architecture, 'SQLite is a possible future migration, not the current store.', 'architecture'],
   [provisionalStackAdr, 'Superseded historical spike', 'provisional stack ADR'],
   [interactionSpec, 'canonical Founder Alpha interaction contract', 'interaction specification'],
   [interactionSpec, 'Zero active matches creates one note', 'interaction specification'],
   [interactionSpec, '**Move to Trash** is the ordinary delete action', 'interaction specification'],
   [interactionSpec, 'Portable import', 'interaction specification'],
+  [interactionSpec, 'The editor exposes **Type**, **Draw**, **Files**, and **Reminder** tools.', 'interaction specification'],
+  [interactionSpec, 'every scrollable desktop surface uses the themed scrollbar tokens', 'interaction specification'],
   [interactionSpec, 'Explicitly deferred interactions', 'interaction specification'],
   [componentInventory, 'Implemented foundations under #21', 'component inventory'],
   [componentInventory, 'strict portable JSON preview', 'component inventory'],
@@ -147,7 +151,7 @@ const forbiddenCurrentDocumentation = [
   [componentInventory, '- trash pending;', 'component inventory'],
   [componentInventory, '- import/migration pending;', 'component inventory'],
   [designDirection, 'Empty overlay space must remain click-through.', 'design direction'],
-  [designDirection, 'Collapsed Skribs must be identifiable but unobtrusive.', 'design direction'],
+  [designDirection, 'Closing or completing the editor hides the complete editor instead of leaving a collapsed dot or tab.', 'design direction'],
   [decisionLog, 'Windows and macOS are first-class targets | Current', 'decision log'],
 ];
 

@@ -1,4 +1,4 @@
-/* Skribli uses one compact note window. Nothing remains floating after it closes. */
+/* Skribli uses one active native note window that moves between editor and collapsed-dot modes. */
 :root {
   --skribli-ui-font: var(--font-ui);
   --skribli-note-font: var(--font-hand);
@@ -358,6 +358,508 @@ body {
 .skrib-color-mint { --skribli-paper: var(--mint); }
 .skrib-color-sky { --skribli-paper: var(--sky); }
 .skrib-color-lavender { --skribli-paper: var(--lavender); }
+
+/* Persistent active-note lifecycle: the native window shrinks to this movable dot. */
+.collapsed-skrib-surface {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: transparent;
+}
+
+.collapsed-skrib-dot {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(38, 39, 31, 0.18);
+  border-radius: 50%;
+  background: var(--skribli-paper);
+  box-shadow: 0 12px 30px rgba(38, 39, 31, 0.24);
+  cursor: grab;
+  user-select: none;
+  animation: note-enter 150ms ease-out;
+}
+
+.collapsed-skrib-dot:active {
+  cursor: grabbing;
+}
+
+.collapsed-skrib-drag-ring {
+  position: absolute;
+  inset: 3px;
+  border: 1px dashed rgba(38, 39, 31, 0.2);
+  border-radius: inherit;
+}
+
+.collapsed-skrib-open {
+  position: relative;
+  z-index: 1;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.34);
+  color: var(--skribli-ink);
+  cursor: pointer;
+  font-family: var(--skribli-note-font);
+  font-size: 19px;
+  font-weight: 700;
+  transition: background 130ms ease, transform 130ms ease;
+}
+
+.collapsed-skrib-open:hover:not(:disabled),
+.collapsed-skrib-open:focus-visible {
+  background: rgba(255, 255, 255, 0.68);
+  transform: scale(1.05);
+}
+
+.collapsed-skrib-open:focus-visible {
+  outline: 2px solid var(--skribli-ink);
+  outline-offset: 2px;
+}
+
+.collapsed-skrib-error {
+  position: absolute;
+  width: max-content;
+  max-width: 68px;
+  padding: 3px 5px;
+  border-radius: 6px;
+  background: #fff7f5;
+  color: #7f2929;
+  font-size: 8px;
+  line-height: 1.1;
+  text-align: center;
+}
+
+.composer-color-control {
+  position: relative;
+}
+
+.composer-color-button {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(38, 41, 35, 0.14);
+  border-radius: 50%;
+  background: var(--skribli-paper);
+  cursor: pointer;
+}
+
+.composer-color-button > span {
+  width: 13px;
+  height: 13px;
+  border: 1px solid rgba(38, 41, 35, 0.18);
+  border-radius: 50%;
+  background: var(--skribli-paper);
+}
+
+.composer-color-popover {
+  position: absolute;
+  top: 39px;
+  right: 0;
+  z-index: 8;
+  padding: 8px;
+  display: flex;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--paper);
+  box-shadow: 0 14px 34px rgba(38, 41, 35, 0.18);
+}
+
+.composer-color-popover .color-swatch {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid rgba(38, 41, 35, 0.16);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.composer-color-popover .color-swatch.active {
+  box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--olive);
+}
+
+.composer-workspace-tabs {
+  flex: 0 0 auto;
+  min-height: 38px;
+  padding: 0 14px;
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  border-bottom: 1px dashed var(--skribli-line);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.composer-workspace-tabs button {
+  position: relative;
+  padding: 0 10px;
+  border: 0;
+  background: transparent;
+  color: var(--skribli-muted);
+  cursor: pointer;
+  font-family: var(--skribli-ui-font);
+  font-size: 9px;
+  font-weight: 750;
+}
+
+.composer-workspace-tabs button::after {
+  content: '';
+  position: absolute;
+  right: 10px;
+  bottom: -1px;
+  left: 10px;
+  height: 2px;
+  border-radius: 2px;
+  background: transparent;
+}
+
+.composer-workspace-tabs button.active {
+  color: var(--skribli-ink);
+}
+
+.composer-workspace-tabs button.active::after {
+  background: var(--skribli-ink);
+}
+
+.composer-workspace-tabs button:disabled {
+  opacity: 0.5;
+}
+
+.composer-workspace {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+}
+
+.composer-workspace > .composer-textarea {
+  height: 100%;
+}
+
+.composer-workspace-loading,
+.note-panel-empty {
+  width: 100%;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  color: var(--skribli-muted);
+  font-size: 11px;
+  text-align: center;
+}
+
+.note-panel-empty strong {
+  color: var(--skribli-ink);
+  font-size: 13px;
+}
+
+.ink-editor,
+.note-attachment-panel,
+.note-reminder-panel {
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+  font-family: var(--skribli-ui-font);
+}
+
+.ink-editor-toolbar,
+.note-panel-heading,
+.note-reminder-scheduler,
+.note-attachment-summary,
+.ink-editor-status {
+  flex: 0 0 auto;
+}
+
+.ink-editor-toolbar {
+  margin-bottom: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.ink-tool-group,
+.ink-history-actions,
+.ink-color-group,
+.note-attachment-actions,
+.note-reminder-actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.ink-editor button,
+.note-attachment-panel button,
+.note-reminder-panel button,
+.note-attachment-panel a {
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid rgba(38, 41, 35, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.42);
+  color: var(--skribli-ink);
+  cursor: pointer;
+  font-family: var(--skribli-ui-font);
+  font-size: 9px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.ink-editor button.active,
+.ink-editor button.primary,
+.note-attachment-panel button.primary,
+.note-reminder-panel button.primary {
+  border-color: var(--skribli-ink);
+  background: var(--skribli-ink);
+  color: var(--paper);
+}
+
+.ink-editor button.danger,
+.note-attachment-actions button.danger,
+.note-reminder-actions button.danger {
+  border-color: rgba(133, 64, 64, 0.28);
+  color: #854040;
+}
+
+.ink-editor button:disabled,
+.note-attachment-panel button:disabled,
+.note-reminder-panel button:disabled {
+  cursor: not-allowed;
+  opacity: 0.46;
+}
+
+.ink-color-group button {
+  width: 25px;
+  min-height: 25px;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--ink-swatch);
+}
+
+.ink-color-group button.active {
+  box-shadow: 0 0 0 2px var(--skribli-paper), 0 0 0 4px var(--olive);
+}
+
+.ink-width-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--skribli-muted);
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.ink-width-control input {
+  width: 84px;
+  accent-color: var(--olive);
+}
+
+.ink-history-actions {
+  margin-left: auto;
+}
+
+.ink-canvas-frame {
+  flex: 1 1 auto;
+  min-height: 260px;
+  overflow: hidden;
+  border: 1px solid rgba(38, 41, 35, 0.14);
+  border-radius: 16px 16px 28px 16px;
+  background:
+    linear-gradient(rgba(38, 41, 35, 0.035) 1px, transparent 1px),
+    rgba(255, 255, 255, 0.32);
+  background-size: 100% 28px;
+}
+
+.ink-canvas {
+  width: 100%;
+  height: 100%;
+  min-height: 260px;
+  display: block;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.ink-editor-status,
+.note-attachment-summary {
+  padding-top: 8px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--skribli-muted);
+  font-size: 8px;
+}
+
+.ink-editor-error,
+.note-panel-error,
+.note-panel-notice {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px solid rgba(133, 64, 64, 0.22);
+  border-radius: 10px;
+  background: rgba(255, 243, 240, 0.74);
+  color: #854040;
+  font-size: 9px;
+}
+
+.note-panel-notice {
+  border-color: rgba(83, 106, 79, 0.22);
+  background: rgba(231, 239, 228, 0.78);
+  color: var(--olive);
+}
+
+.note-panel-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(38, 41, 35, 0.12);
+}
+
+.note-panel-heading > div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.note-panel-heading strong {
+  font-family: var(--font-display);
+  font-size: 16px;
+}
+
+.note-panel-heading span {
+  color: var(--skribli-muted);
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.note-attachment-grid,
+.note-reminder-list {
+  margin-top: 8px;
+  display: grid;
+}
+
+.note-attachment,
+.note-reminder-row {
+  min-width: 0;
+  padding: 9px 0;
+  display: grid;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid rgba(38, 41, 35, 0.1);
+}
+
+.note-attachment {
+  grid-template-columns: 72px minmax(0, 1fr) auto;
+}
+
+.note-attachment-preview {
+  width: 72px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(38, 41, 35, 0.12);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.34);
+  color: var(--skribli-muted);
+  font-size: 8px;
+  font-weight: 800;
+}
+
+.note-attachment-preview img,
+.note-attachment-preview video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.note-attachment-copy,
+.note-reminder-row > div:first-child {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.note-attachment-copy strong {
+  overflow: hidden;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.note-attachment-copy span,
+.note-reminder-row small {
+  color: var(--skribli-muted);
+  font-size: 8px;
+}
+
+.note-reminder-scheduler {
+  padding: 12px 0;
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  border-bottom: 1px solid rgba(38, 41, 35, 0.1);
+}
+
+.note-reminder-scheduler label {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  color: var(--skribli-muted);
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.note-reminder-scheduler input {
+  min-height: 38px;
+  padding: 0 10px;
+  border: 1px solid rgba(38, 41, 35, 0.16);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.46);
+  color: var(--skribli-ink);
+}
+
+.note-reminder-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.note-reminder-state {
+  width: fit-content;
+  color: var(--skribli-muted);
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.note-reminder-row.overdue .note-reminder-state {
+  color: #854040;
+}
+
+.note-reminder-row.completed,
+.note-reminder-row.dismissed {
+  opacity: 0.64;
+}
 
 @keyframes note-enter {
   from {

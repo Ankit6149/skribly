@@ -141,7 +141,7 @@ const requiredLibraryHost = [
   'aria-selected={selected}',
   'READ-ONLY LIBRARY VIEW',
   'Export this note',
-  'Export complete backup',
+  'Export note records',
   'All Skribs never launches or guesses the original application',
   'LIBRARY_EXPORT_REQUEST_EVENT',
   'LIBRARY_EXPORT_RESULT_EVENT',

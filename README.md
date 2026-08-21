@@ -5,7 +5,7 @@
 > **Status — active product development**  
 > Public downloads remain disabled while the Windows desktop build completes its data-safety, lifecycle, context, recovery, accessibility, physical-runtime, and release-validation gates.
 
-Skribli is a local-first contextual annotation application for Windows. Its product scope is broader than notes: handwriting, highlights, arrows, images, reminders, screenshot pins, and context attached to screens, applications, pages, files, and folders all belong to the long-term system. The current Founder Alpha implements the first honest slice—typed contextual **Skribs** in a compact editor—without pretending the richer tools are already shipped.
+Skribli is a local-first contextual annotation application for Windows. The current owner-test v0 supports typed and handwritten **Skribs**, local image/video/document attachments, one-time reminders, and a local calendar. Arrows, shapes, screenshot pins, richer context types, sync, and collaboration remain future work.
 
 A normal launch always opens the visible **Skribli Home** window. Fresh users see account setup first, then a compact guide that explains the shortcut and local-first behavior, and finally a ready Home surface. The guide creates no sample Skrib and can be reopened later from **Quick guide** in the tray.
 
@@ -21,7 +21,7 @@ The active compact-note flow is:
 4. A compact note editor opens inside that target monitor’s usable work area.
 5. Type while Skribli reports truthful **Unsaved**, **Saving**, **Saved**, or **Save failed** state.
 6. Choose **Done**, press **Escape**, or press **Ctrl + Enter**.
-7. Skribli hides only after the latest non-empty draft is durably saved. If persistence fails, the editor remains open so the draft is not silently lost.
+7. Skribli collapses the saved note into a movable pastel dot only after the latest draft is durable. If persistence fails, the editor remains open so the draft is not silently lost.
 
 When Windows cannot provide or revalidate a safe target, Skribli shows one actionable compact message, clears the previous target, and does not create, reopen, move, or focus a note.
 
@@ -29,14 +29,19 @@ Launching Skribli again in the same Windows user session restores the existing H
 
 Windows accessibility events use bounded, non-blocking delivery with callback-side filtering and duplicate coalescing. Relevant foreground and active-target changes are processed by a separate consumer thread; unrelated child-object and non-target movement events are discarded before queue delivery.
 
-The current build does **not** leave a floating dot, attached tab, permanent toolbar, or full-screen interactive overlay after the editor closes.
+The current build leaves one movable collapsed dot for the active Skrib. It does **not** create an attached tab, permanent toolbar, or full-screen interactive overlay.
 
-The create/reopen decision is deterministic, All Skribs recovery is available, ordinary deletion is reversible through Trash, and portable JSON import requires a non-mutating preview before one atomic apply. Durable versioned context identity, archive/indexing/attachment work, physical Windows acceptance, installer lifecycle, and signed release evidence remain tracked in the production-readiness backlog. Do not treat a successful compile or website deployment as proof that the Windows product is ready to distribute.
+The create/reopen decision is deterministic, All Skribs recovery is available, ordinary deletion is reversible through Trash, and portable JSON import requires a non-mutating preview before one atomic apply. Rich attachments, ink, and reminders are device-local and are not yet included in that portable JSON path. Durable versioned context identity, archive/indexing, rich-data portability, physical Windows acceptance, installer lifecycle, and signed release evidence remain tracked in the production-readiness backlog.
 
 ## Implemented foundations
 
 - Tauri 2 desktop shell with React, TypeScript, Vite, and Rust.
 - Compact fully interactive note window rather than a screen-blocking overlay.
+- Movable saved-note collapse dot with target-relative, monitor-safe position restoration; the current single-window runtime shows one active note or dot at a time.
+- Five exact website pastels with automatic new-note rotation and per-note color selection.
+- Bounded Draw workspace with pen, highlighter, eraser, width/color controls, undo, and editable vector-stroke persistence.
+- Safe device-local image, video, and document attachments with preview and quota enforcement.
+- Device-local one-time reminders, Calendar view, and permission-gated Windows notifications.
 - A visible, decorated Home window that opens on every normal launch and remains recoverable after setup failures.
 - Mandatory email/password account setup with verified-email state, secure Windows DPAPI session storage, and explicit optional product-update consent.
 - Server-owned seven-day trial records joined across verified account and privacy-minimized stable device claim.
@@ -56,7 +61,7 @@ The create/reopen decision is deterministic, All Skribs recovery is available, o
 - Ordered/coalesced text persistence with truthful save and retry states.
 - Final-save flush before the compact editor hides.
 - Rust-side note mutation validation for IDs, Unicode length, colours, and geometry.
-- A normal non-floating **All Skribs** window with deterministic ordering, search, read-only detail, selected-note export, and complete portable backup export.
+- A normal non-floating **All Skribs** window with deterministic ordering, search, read-only detail, and portable text/metadata record export.
 - Reversible Trash with 30-day recovery guidance; permanent deletion exists only inside Trash after note-specific confirmation.
 - Portable JSON import with strict validation, non-mutating preview, duplicate/conflict reporting, revision/fingerprint locking, verified rollback backup, and atomic apply.
 - No console window in the Windows release build configuration.
@@ -86,14 +91,14 @@ An issue must remain open when only part of its acceptance criteria has been imp
 ### Current release target
 
 - Windows desktop only.
-- Typed contextual Skribs through a compact transient editor as the first annotation tool.
+- Typed or handwritten contextual Skribs with local attachments and one-time reminders through a compact or moderately expanded editor.
 - Mandatory verified account for trial/write access; Skrib content itself remains local.
 
 ### Deferred and unavailable in the current build
 
 - macOS support;
 - browser URL or DOM-element anchoring;
-- the not-yet-implemented ink, highlighter, arrow, shape, pin, reminder, screenshot, and attachment tools;
+- arrow, shape, pin, checklist, screenshot, recurring-reminder, and rich attachment portability tools;
 - cloud sync, collaboration, mobile apps, AI, OCR, plugins, and a marketplace.
 
 Deferred capabilities are tracked under [issue #46](https://github.com/Ankit6149/skribly/issues/46). Their placeholder code or documentation must not be interpreted as released support.
@@ -113,7 +118,7 @@ skribly/
 ├── assets/                    Product and branding assets
 ├── docs/                      Product, engineering, operations, and planning documents
 ├── scripts/                   Validation, governance, storage, and licence tooling
-└── site/                      Product website with downloads disabled
+└── site/                      Product website with owner-key v0 access; public downloads disabled
 ```
 
 ## Development prerequisites
@@ -169,4 +174,4 @@ When code behavior changes, update the relevant issue, tests, README, product do
 
 ## Distribution status
 
-Skribli is **not currently available for download**. A public installer must not be enabled until the applicable release gates in issue #34 pass against an exact signed Windows package.
+Skribli is **not currently available as a public download**. The website exposes only an owner-key-encrypted v0 installer; a public installer must not be enabled until the applicable release gates in issue #34 pass against an exact signed Windows package.

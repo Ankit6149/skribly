@@ -14,12 +14,15 @@ use windows::Win32::Graphics::Gdi::{
     GetMonitorInfoW, MonitorFromWindow, MONITORINFO, MONITOR_DEFAULTTONEAREST,
 };
 
-use crate::core::models::{OverlayMetrics, TargetWindowInfo, WindowRect};
+use crate::core::models::{OverlayMetrics, SkribNote, TargetWindowInfo, WindowRect};
 
 use super::windows::{get_overlay_metrics, get_window_bounds, get_window_dpi, reconstruct_hwnd};
 
 pub const COMPACT_WINDOW_LOGICAL_WIDTH: i32 = 420;
 pub const COMPACT_WINDOW_LOGICAL_HEIGHT: i32 = 360;
+pub const COLLAPSED_NOTE_LOGICAL_SIZE: i32 = 72;
+pub const WORKSPACE_LOGICAL_WIDTH: i32 = 760;
+pub const WORKSPACE_LOGICAL_HEIGHT: i32 = 620;
 const COMPACT_WINDOW_MIN_LOGICAL_WIDTH: i32 = 320;
 const COMPACT_WINDOW_MIN_LOGICAL_HEIGHT: i32 = 260;
 const COMPACT_WINDOW_LOGICAL_MARGIN: i32 = 18;
@@ -146,6 +149,142 @@ pub fn calculate_compact_window_placement(
     Ok(placement)
 }
 
+pub fn calculate_saved_note_window_placement(
+    work_area: &WindowRect,
+    target_bounds: &WindowRect,
+    note: &SkribNote,
+    dpi: u32,
+    collapsed: bool,
+) -> Result<CompactWindowPlacement, String> {
+    if work_area.width <= 0 || work_area.height <= 0 {
+        return Err("The selected display reported an invalid usable work area.".into());
+    }
+
+    let dpi = normalized_dpi(dpi);
+    let scale_factor = dpi as f64 / 96.0;
+    let margin = logical_to_physical(
+        if collapsed {
+            8
+        } else {
+            COMPACT_WINDOW_LOGICAL_MARGIN
+        },
+        scale_factor,
+    );
+    let logical_width = if collapsed {
+        COLLAPSED_NOTE_LOGICAL_SIZE
+    } else {
+        note.width.round().clamp(
+            COMPACT_WINDOW_MIN_LOGICAL_WIDTH as f64,
+            COMPACT_WINDOW_LOGICAL_WIDTH as f64,
+        ) as i32
+    };
+    let logical_height = if collapsed {
+        COLLAPSED_NOTE_LOGICAL_SIZE
+    } else {
+        note.height.round().clamp(
+            COMPACT_WINDOW_MIN_LOGICAL_HEIGHT as f64,
+            COMPACT_WINDOW_LOGICAL_HEIGHT as f64,
+        ) as i32
+    };
+    let width = logical_to_physical(logical_width, scale_factor);
+    let height = logical_to_physical(logical_height, scale_factor);
+    let available_width = work_area.width.saturating_sub(margin.saturating_mul(2));
+    let available_height = work_area.height.saturating_sub(margin.saturating_mul(2));
+    if available_width < width || available_height < height {
+        return Err(format!(
+            "The selected display work area is too small for this Skrib at {}% scaling.",
+            (scale_factor * 100.0).round() as i32
+        ));
+    }
+
+    let min_x = work_area.x.saturating_add(margin);
+    let min_y = work_area.y.saturating_add(margin);
+    let max_x = work_area
+        .x
+        .saturating_add(work_area.width)
+        .saturating_sub(width)
+        .saturating_sub(margin)
+        .max(min_x);
+    let max_y = work_area
+        .y
+        .saturating_add(work_area.height)
+        .saturating_sub(height)
+        .saturating_sub(margin)
+        .max(min_y);
+    let preferred_x = target_bounds
+        .x
+        .saturating_add((note.rel_x * scale_factor).round() as i32);
+    let preferred_y = target_bounds
+        .y
+        .saturating_add((note.rel_y * scale_factor).round() as i32);
+
+    Ok(CompactWindowPlacement {
+        x: preferred_x.clamp(min_x, max_x),
+        y: preferred_y.clamp(min_y, max_y),
+        width,
+        height,
+        dpi,
+        scale_factor,
+        work_area: work_area.clone(),
+    })
+}
+
+pub fn calculate_note_workspace_placement(
+    work_area: &WindowRect,
+    target_bounds: &WindowRect,
+    note: &SkribNote,
+    dpi: u32,
+) -> Result<CompactWindowPlacement, String> {
+    if work_area.width <= 0 || work_area.height <= 0 {
+        return Err("The selected display reported an invalid usable work area.".into());
+    }
+    let dpi = normalized_dpi(dpi);
+    let scale_factor = dpi as f64 / 96.0;
+    let margin = logical_to_physical(COMPACT_WINDOW_LOGICAL_MARGIN, scale_factor);
+    let available_width = work_area.width.saturating_sub(margin.saturating_mul(2));
+    let available_height = work_area.height.saturating_sub(margin.saturating_mul(2));
+    let minimum_width = logical_to_physical(480, scale_factor);
+    let minimum_height = logical_to_physical(360, scale_factor);
+    if available_width < minimum_width || available_height < minimum_height {
+        return Err(format!(
+            "The selected display work area is too small for the writing workspace at {}% scaling.",
+            (scale_factor * 100.0).round() as i32
+        ));
+    }
+    let width = logical_to_physical(WORKSPACE_LOGICAL_WIDTH, scale_factor).min(available_width);
+    let height = logical_to_physical(WORKSPACE_LOGICAL_HEIGHT, scale_factor).min(available_height);
+    let min_x = work_area.x.saturating_add(margin);
+    let min_y = work_area.y.saturating_add(margin);
+    let max_x = work_area
+        .x
+        .saturating_add(work_area.width)
+        .saturating_sub(width)
+        .saturating_sub(margin)
+        .max(min_x);
+    let max_y = work_area
+        .y
+        .saturating_add(work_area.height)
+        .saturating_sub(height)
+        .saturating_sub(margin)
+        .max(min_y);
+    let preferred_x = target_bounds
+        .x
+        .saturating_add((note.rel_x * scale_factor).round() as i32);
+    let preferred_y = target_bounds
+        .y
+        .saturating_add((note.rel_y * scale_factor).round() as i32);
+
+    Ok(CompactWindowPlacement {
+        x: preferred_x.clamp(min_x, max_x),
+        y: preferred_y.clamp(min_y, max_y),
+        width,
+        height,
+        dpi,
+        scale_factor,
+        work_area: work_area.clone(),
+    })
+}
+
 pub fn monitor_work_area_for_window(hwnd: HWND) -> Result<WindowRect, String> {
     unsafe {
         let monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
@@ -269,6 +408,68 @@ pub fn position_compact_window_for_target(
     ))
 }
 
+pub fn position_note_window_for_target(
+    window: &tauri::WebviewWindow,
+    target: &TargetWindowInfo,
+    note: &SkribNote,
+    collapsed: bool,
+) -> Result<OverlayMetrics, String> {
+    let target_hwnd = reconstruct_hwnd(target.hwnd_val)
+        .ok_or_else(|| "The original target application is no longer available.".to_string())?;
+    let target_bounds = get_window_bounds(target_hwnd).ok_or_else(|| {
+        "Windows could not read the target application's current bounds.".to_string()
+    })?;
+    let work_area = monitor_work_area_for_window(target_hwnd)?;
+    let (dpi, _) = get_window_dpi(target_hwnd);
+    let placement =
+        calculate_saved_note_window_placement(&work_area, &target_bounds, note, dpi, collapsed)?;
+
+    window
+        .set_min_size(Some(PhysicalSize::new(
+            placement.width as u32,
+            placement.height as u32,
+        )))
+        .map_err(|error| format!("Skribli could not prepare the note window size: {error}"))?;
+    let applied = apply_placement(window, &placement)?;
+    if actual_matches_placement(&applied, &placement) {
+        return Ok(applied.outer_metrics);
+    }
+
+    let reapplied = apply_placement(window, &placement)?;
+    if actual_matches_placement(&reapplied, &placement) {
+        return Ok(reapplied.outer_metrics);
+    }
+
+    Err("Windows did not keep this Skrib inside the selected display work area.".into())
+}
+
+pub fn position_note_workspace_for_target(
+    window: &tauri::WebviewWindow,
+    target: &TargetWindowInfo,
+    note: &SkribNote,
+) -> Result<OverlayMetrics, String> {
+    let target_hwnd = reconstruct_hwnd(target.hwnd_val)
+        .ok_or_else(|| "The original target application is no longer available.".to_string())?;
+    let target_bounds = get_window_bounds(target_hwnd).ok_or_else(|| {
+        "Windows could not read the target application's current bounds.".to_string()
+    })?;
+    let work_area = monitor_work_area_for_window(target_hwnd)?;
+    let (dpi, _) = get_window_dpi(target_hwnd);
+    let placement = calculate_note_workspace_placement(&work_area, &target_bounds, note, dpi)?;
+    window
+        .set_min_size(Some(PhysicalSize::new(
+            logical_to_physical(480, placement.scale_factor) as u32,
+            logical_to_physical(360, placement.scale_factor) as u32,
+        )))
+        .map_err(|error| format!("Skribli could not prepare the writing workspace: {error}"))?;
+    let applied = apply_placement(window, &placement)?;
+    if actual_matches_placement(&applied, &placement) {
+        Ok(applied.outer_metrics)
+    } else {
+        Err("Windows did not keep the writing workspace inside the selected display.".into())
+    }
+}
+
 pub fn initialize_compact_window(window: &tauri::WebviewWindow) -> Result<OverlayMetrics, String> {
     let hwnd = window
         .hwnd()
@@ -300,6 +501,99 @@ mod tests {
 
         assert_eq!((placement.width, placement.height), (420, 360));
         assert_eq!((placement.x, placement.y), (456, 148));
+        assert!(rect_is_within_work_area(
+            &rect(placement.x, placement.y, placement.width, placement.height),
+            &placement.work_area
+        ));
+    }
+
+    #[test]
+    fn restores_saved_note_position_and_switches_between_editor_and_dot_sizes() {
+        let note = SkribNote {
+            id: "saved-note".into(),
+            target_process_name: "notepad.exe".into(),
+            target_title: "Document.txt - Notepad".into(),
+            rel_x: 125.0,
+            rel_y: 80.0,
+            width: 400.0,
+            height: 340.0,
+            text: "Saved".into(),
+            color: "yellow".into(),
+            collapsed: false,
+            created_at: 1,
+            updated_at: 1,
+            deleted_at: None,
+        };
+        let work_area = rect(0, 0, 1920, 1040);
+        let target = rect(100, 120, 1000, 700);
+
+        let editor = calculate_saved_note_window_placement(&work_area, &target, &note, 96, false)
+            .expect("editor placement");
+        let dot = calculate_saved_note_window_placement(&work_area, &target, &note, 96, true)
+            .expect("dot placement");
+
+        assert_eq!((editor.x, editor.y), (225, 200));
+        assert_eq!((editor.width, editor.height), (400, 340));
+        assert_eq!((dot.x, dot.y), (225, 200));
+        assert_eq!((dot.width, dot.height), (72, 72));
+    }
+
+    #[test]
+    fn clamps_saved_positions_to_the_monitor_work_area() {
+        let note = SkribNote {
+            id: "offscreen-note".into(),
+            target_process_name: "notepad.exe".into(),
+            target_title: "Document.txt - Notepad".into(),
+            rel_x: 50_000.0,
+            rel_y: -50_000.0,
+            width: 400.0,
+            height: 340.0,
+            text: String::new(),
+            color: "yellow".into(),
+            collapsed: false,
+            created_at: 1,
+            updated_at: 1,
+            deleted_at: None,
+        };
+        let placement = calculate_saved_note_window_placement(
+            &rect(1920, 0, 1920, 1040),
+            &rect(2100, 100, 900, 700),
+            &note,
+            96,
+            false,
+        )
+        .expect("clamped placement");
+        assert!(rect_is_within_work_area(
+            &rect(placement.x, placement.y, placement.width, placement.height),
+            &placement.work_area
+        ));
+    }
+
+    #[test]
+    fn expands_to_a_moderate_workspace_without_leaving_the_monitor() {
+        let note = SkribNote {
+            id: "workspace-note".into(),
+            target_process_name: "notepad.exe".into(),
+            target_title: "Document.txt - Notepad".into(),
+            rel_x: 900.0,
+            rel_y: 500.0,
+            width: 420.0,
+            height: 360.0,
+            text: String::new(),
+            color: "mint".into(),
+            collapsed: false,
+            created_at: 1,
+            updated_at: 1,
+            deleted_at: None,
+        };
+        let placement = calculate_note_workspace_placement(
+            &rect(0, 0, 1920, 1040),
+            &rect(100, 100, 1200, 800),
+            &note,
+            96,
+        )
+        .expect("workspace placement");
+        assert_eq!((placement.width, placement.height), (760, 620));
         assert!(rect_is_within_work_area(
             &rect(placement.x, placement.y, placement.width, placement.height),
             &placement.work_area

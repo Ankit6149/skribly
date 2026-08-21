@@ -31,7 +31,11 @@ use platform::windows_events::{WinEventPipeline, WIN_EVENT_QUEUE_CAPACITY};
 #[cfg(target_os = "windows")]
 use platform::windows_focus::focus_external_window;
 #[cfg(target_os = "windows")]
-use platform::windows_placement::{initialize_compact_window, position_compact_window_for_target};
+use platform::windows_placement::{
+    initialize_compact_window, position_compact_window_for_target, position_note_window_for_target,
+    position_note_workspace_for_target, COMPACT_WINDOW_LOGICAL_HEIGHT,
+    COMPACT_WINDOW_LOGICAL_WIDTH,
+};
 #[cfg(target_os = "windows")]
 use platform::windows_target_capture::{
     capture_foreground_target, revalidate_captured_target, TargetCaptureError,
@@ -47,6 +51,65 @@ struct StorageHealthPayload {
     backup_directory: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ProgrammaticNotePlacement {
+    note_id: String,
+    physical_x: i32,
+    physical_y: i32,
+}
+
+#[derive(Debug, Default)]
+pub(crate) struct NoteWindowRuntime {
+    active_note_id: Option<String>,
+    workspace_expanded: bool,
+    pending_programmatic_placement: Option<ProgrammaticNotePlacement>,
+}
+
+impl NoteWindowRuntime {
+    fn active_note_id(&self) -> Option<&str> {
+        self.active_note_id.as_deref()
+    }
+
+    fn workspace_expanded_for(&self, note_id: &str) -> bool {
+        self.active_note_id.as_deref() == Some(note_id) && self.workspace_expanded
+    }
+
+    fn record_programmatic_placement(
+        &mut self,
+        note_id: &str,
+        workspace_expanded: bool,
+        metrics: &OverlayMetrics,
+    ) {
+        self.active_note_id = Some(note_id.to_string());
+        self.workspace_expanded = workspace_expanded;
+        self.pending_programmatic_placement = Some(ProgrammaticNotePlacement {
+            note_id: note_id.to_string(),
+            physical_x: metrics.overlay_physical_x,
+            physical_y: metrics.overlay_physical_y,
+        });
+    }
+
+    fn should_ignore_position_save(
+        &mut self,
+        note_id: &str,
+        physical_x: i32,
+        physical_y: i32,
+    ) -> bool {
+        if self.active_note_id.is_some() && self.active_note_id.as_deref() != Some(note_id) {
+            return true;
+        }
+        let Some(pending) = self.pending_programmatic_placement.as_ref() else {
+            return false;
+        };
+        if pending.note_id != note_id {
+            return false;
+        }
+        let should_ignore = pending.physical_x == physical_x && pending.physical_y == physical_y;
+        self.pending_programmatic_placement = None;
+        should_ignore
+    }
+}
+
 pub struct AppState {
     pub coordinator: Coordinator,
     pub running: Arc<AtomicBool>,
@@ -55,6 +118,7 @@ pub struct AppState {
     pub storage: Mutex<storage::StorageService>,
     pub storage_notice: Mutex<Option<storage::StorageNotice>>,
     pub storage_error: Mutex<Option<String>>,
+    pub(crate) note_window_runtime: Mutex<NoteWindowRuntime>,
     #[cfg(target_os = "windows")]
     pub win_event_pipeline: WinEventPipeline,
 }
@@ -304,6 +368,98 @@ fn visible_skribs(
         .unwrap_or_default()
 }
 
+const NOTE_COLOR_ROTATION: [&str; 5] = ["yellow", "peach", "mint", "sky", "lavender"];
+
+fn next_note_color(notes: &[SkribNote]) -> String {
+    let Some(latest) = notes
+        .iter()
+        .filter(|note| note.deleted_at.is_none())
+        .max_by(|left, right| {
+            left.created_at
+                .cmp(&right.created_at)
+                .then_with(|| left.id.cmp(&right.id))
+        })
+    else {
+        return NOTE_COLOR_ROTATION[0].into();
+    };
+    let next_index = NOTE_COLOR_ROTATION
+        .iter()
+        .position(|color| *color == latest.color)
+        .map(|index| (index + 1) % NOTE_COLOR_ROTATION.len())
+        .unwrap_or(0);
+    NOTE_COLOR_ROTATION[next_index].into()
+}
+
+fn relative_note_position(
+    target: &TargetWindowInfo,
+    physical_x: i32,
+    physical_y: i32,
+) -> (f64, f64) {
+    let scale_factor = if target.scale_factor.is_finite() && target.scale_factor > 0.0 {
+        target.scale_factor
+    } else {
+        1.0
+    };
+    (
+        (physical_x - target.bounds.x) as f64 / scale_factor,
+        (physical_y - target.bounds.y) as f64 / scale_factor,
+    )
+}
+
+fn position_to_persist(
+    target: &TargetWindowInfo,
+    note: &SkribNote,
+    physical_x: i32,
+    physical_y: i32,
+    workspace_expanded: bool,
+) -> (f64, f64) {
+    if workspace_expanded {
+        (note.rel_x, note.rel_y)
+    } else {
+        relative_note_position(target, physical_x, physical_y)
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn position_active_note_window(
+    window: &tauri::WebviewWindow,
+    state: &AppState,
+    target: &TargetWindowInfo,
+) -> Result<OverlayMetrics, String> {
+    let runtime_note_id = state
+        .note_window_runtime
+        .lock()
+        .ok()
+        .and_then(|runtime| runtime.active_note_id().map(ToString::to_string));
+    let note = runtime_note_id
+        .and_then(|note_id| state.coordinator.get_skrib(&note_id))
+        .filter(|note| {
+            note.deleted_at.is_none()
+                && note
+                    .target_process_name
+                    .eq_ignore_ascii_case(&target.process_name)
+        })
+        .or_else(|| {
+            let request = reopened_open_request(state.coordinator.get_skribs_for_target(target))?;
+            state.coordinator.get_skrib(&request.note_id)
+        })
+        .ok_or_else(|| "No active Skrib is available for this application.".to_string())?;
+    let workspace_expanded = state
+        .note_window_runtime
+        .lock()
+        .map(|runtime| runtime.workspace_expanded_for(&note.id))
+        .unwrap_or(false);
+    let metrics = if workspace_expanded {
+        position_note_workspace_for_target(window, target, &note)?
+    } else {
+        position_note_window_for_target(window, target, &note, note.collapsed)?
+    };
+    if let Ok(mut runtime) = state.note_window_runtime.lock() {
+        runtime.record_programmatic_placement(&note.id, workspace_expanded, &metrics);
+    }
+    Ok(metrics)
+}
+
 #[cfg(target_os = "windows")]
 fn initialize_native_overlay(
     app_handle: &AppHandle,
@@ -491,6 +647,172 @@ fn toggle_skrib_collapse(
             .ok_or_else(|| "Skrib note was not found or is not writable".to_string())
     })?;
     Ok(build_mutation_payload(&app_handle, &state, false))
+}
+
+#[tauri::command]
+fn set_skrib_window_collapsed(
+    app_handle: AppHandle,
+    state: State<'_, AppState>,
+    id: String,
+    collapsed: bool,
+) -> Result<OverlayStatePayload, String> {
+    let note = state
+        .coordinator
+        .get_skrib(&id)
+        .ok_or_else(|| "Skrib note was not found or is not writable".to_string())?;
+    if note.deleted_at.is_some() {
+        return Err("A note in Trash cannot be shown on screen.".into());
+    }
+    let target = state
+        .coordinator
+        .get_active_target()
+        .ok_or_else(|| "Skribli no longer has an active target application.".to_string())?;
+    let window = app_handle
+        .get_webview_window("main")
+        .ok_or_else(|| "The Skrib window is unavailable.".to_string())?;
+    let was_workspace_expanded = state
+        .note_window_runtime
+        .lock()
+        .map(|runtime| runtime.workspace_expanded_for(&id))
+        .unwrap_or(false);
+    let current_position = if was_workspace_expanded {
+        None
+    } else {
+        let current_position = window
+            .outer_position()
+            .map_err(|error| format!("Skribli could not read the note position: {error}"))?;
+        Some(current_position)
+    };
+    // Opening a larger tool workspace is a native layout operation, not a user move of the
+    // compact note. Keep the last saved compact/dot anchor when Done collapses the note.
+    let (physical_x, physical_y) = current_position
+        .map(|position| (position.x, position.y))
+        .unwrap_or((0, 0));
+    let (rel_x, rel_y) = position_to_persist(
+        &target,
+        &note,
+        physical_x,
+        physical_y,
+        was_workspace_expanded,
+    );
+    let mut positioned_note = note.clone();
+    positioned_note.rel_x = rel_x;
+    positioned_note.rel_y = rel_y;
+
+    #[cfg(target_os = "windows")]
+    let placement = position_note_window_for_target(&window, &target, &positioned_note, collapsed)?;
+    #[cfg(not(target_os = "windows"))]
+    let _ = (&window, &target, &positioned_note, collapsed);
+
+    if let Err(message) = run_persisted_mutation(&state, |coordinator| {
+        coordinator
+            .set_skrib_window_state(&id, rel_x, rel_y, collapsed)
+            .then_some(())
+            .ok_or_else(|| "Skrib note was not found or is not writable".to_string())
+    }) {
+        #[cfg(target_os = "windows")]
+        {
+            let _ = if was_workspace_expanded {
+                position_note_workspace_for_target(&window, &target, &note)
+            } else {
+                position_note_window_for_target(&window, &target, &note, note.collapsed)
+            };
+        }
+        return Err(message);
+    }
+
+    #[cfg(target_os = "windows")]
+    if let Ok(mut runtime) = state.note_window_runtime.lock() {
+        runtime.record_programmatic_placement(&id, false, &placement);
+    }
+
+    if collapsed {
+        let _ = window.show();
+    } else {
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
+    Ok(build_mutation_payload(&app_handle, &state, false))
+}
+
+#[tauri::command]
+fn save_skrib_window_position(
+    app_handle: AppHandle,
+    state: State<'_, AppState>,
+    id: String,
+) -> Result<OverlayStatePayload, String> {
+    let note = state
+        .coordinator
+        .get_skrib(&id)
+        .ok_or_else(|| "Skrib note was not found or is not writable".to_string())?;
+    let target = state
+        .coordinator
+        .get_active_target()
+        .ok_or_else(|| "Skribli no longer has an active target application.".to_string())?;
+    let window = app_handle
+        .get_webview_window("main")
+        .ok_or_else(|| "The Skrib window is unavailable.".to_string())?;
+    let position = window
+        .outer_position()
+        .map_err(|error| format!("Skribli could not read the note position: {error}"))?;
+    if state
+        .note_window_runtime
+        .lock()
+        .map(|mut runtime| runtime.should_ignore_position_save(&id, position.x, position.y))
+        .unwrap_or(false)
+    {
+        return Ok(build_mutation_payload(&app_handle, &state, false));
+    }
+    let (rel_x, rel_y) = relative_note_position(&target, position.x, position.y);
+
+    run_persisted_mutation(&state, |coordinator| {
+        coordinator
+            .update_skrib_position(&id, rel_x, rel_y, note.width, note.height)
+            .then_some(())
+            .ok_or_else(|| "Skrib note was not found or is not writable".to_string())
+    })?;
+    Ok(build_mutation_payload(&app_handle, &state, false))
+}
+
+#[tauri::command]
+fn set_skrib_workspace_mode(
+    app_handle: AppHandle,
+    state: State<'_, AppState>,
+    id: String,
+    expanded: bool,
+) -> Result<OverlayMetrics, String> {
+    let note = state
+        .coordinator
+        .get_skrib(&id)
+        .ok_or_else(|| "Skrib note was not found or is not writable".to_string())?;
+    if note.collapsed || note.deleted_at.is_some() {
+        return Err("Expand this Skrib before opening its writing workspace.".into());
+    }
+    let target = state
+        .coordinator
+        .get_active_target()
+        .ok_or_else(|| "Skribli no longer has an active target application.".to_string())?;
+    let window = app_handle
+        .get_webview_window("main")
+        .ok_or_else(|| "The Skrib window is unavailable.".to_string())?;
+
+    #[cfg(target_os = "windows")]
+    {
+        let metrics = if expanded {
+            position_note_workspace_for_target(&window, &target, &note)
+        } else {
+            position_note_window_for_target(&window, &target, &note, false)
+        }?;
+        if let Ok(mut runtime) = state.note_window_runtime.lock() {
+            runtime.record_programmatic_placement(&id, expanded, &metrics);
+        }
+        Ok(metrics)
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = (window, target, note, expanded);
+        Err("The expanded Skrib workspace is currently available on Windows only.".into())
+    }
 }
 
 fn lifecycle_timestamp_seconds() -> u64 {
@@ -693,11 +1015,13 @@ pub fn run() {
         storage: Mutex::new(storage::StorageService::new(storage_path)),
         storage_notice: Mutex::new(None),
         storage_error: Mutex::new(None),
+        note_window_runtime: Mutex::new(NoteWindowRuntime::default()),
         #[cfg(target_os = "windows")]
         win_event_pipeline: win_event_pipeline.clone(),
     };
 
     let app = tauri::Builder::default()
+        .plugin(tauri_plugin_notification::init())
         .manage(app_state)
         .invoke_handler(tauri::generate_handler![
             get_foreground_window,
@@ -713,6 +1037,9 @@ pub fn run() {
             update_skrib_text,
             update_skrib_color,
             toggle_skrib_collapse,
+            set_skrib_window_collapsed,
+            save_skrib_window_position,
+            set_skrib_workspace_mode,
             trash_skrib_note,
             discard_empty_skrib_note,
             restore_skrib_note,
@@ -831,23 +1158,72 @@ pub fn run() {
                         };
 
                         #[cfg(target_os = "windows")]
-                        {
-                            if let Err(message) = position_compact_window_for_target(&window, &target)
-                            {
-                                let _ = app_handle_hk.emit(
-                                    "skribly://hotkey-error",
-                                    format!("Skribli could not place the compact editor safely: {message}"),
-                                );
-                                continue;
-                            }
-                        }
+                        let initial_metrics =
+                            match position_compact_window_for_target(&window, &target) {
+                                Ok(metrics) => metrics,
+                                Err(message) => {
+                                    let _ = app_handle_hk.emit(
+                                        "skribly://hotkey-error",
+                                        format!("Skribli could not place the compact editor safely: {message}"),
+                                    );
+                                    continue;
+                                }
+                            };
+                        #[cfg(not(target_os = "windows"))]
+                        let initial_metrics = OverlayMetrics::default();
 
                         #[cfg(target_os = "windows")]
                         clear_target_capture_error(&app_handle_hk);
                         set_runtime_active_target(&state_hk, Some(target.clone()));
                         let existing_notes = coordinator_hk.get_skribs_for_target(&target);
-                        let open_request = if let Some(request) = reopened_open_request(existing_notes)
+                        let open_request = if let Some(request) =
+                            reopened_open_request(existing_notes)
                         {
+                            let Some(note) = coordinator_hk.get_skrib(&request.note_id) else {
+                                let _ = app_handle_hk.emit(
+                                    "skribly://hotkey-error",
+                                    "The saved Skrib could not be loaded. Open All Skribs to recover it.",
+                                );
+                                continue;
+                            };
+                            #[cfg(target_os = "windows")]
+                            let restored_metrics =
+                                match position_note_window_for_target(&window, &target, &note, false)
+                                {
+                                    Ok(metrics) => metrics,
+                                    Err(message) => {
+                                        let _ = app_handle_hk.emit(
+                                            "skribly://hotkey-error",
+                                            format!("Skribli could not restore the saved note position: {message}"),
+                                        );
+                                        continue;
+                                    }
+                                };
+                            if note.collapsed
+                                && run_persisted_mutation(&state_hk, |coordinator| {
+                                    coordinator
+                                        .set_skrib_collapsed(&request.note_id, false)
+                                        .then_some(())
+                                        .ok_or_else(|| {
+                                            "The saved Skrib could not be expanded.".to_string()
+                                        })
+                                })
+                                .is_err()
+                            {
+                                let _ = app_handle_hk.emit(
+                                    "skribly://storage-error",
+                                    "The saved Skrib could not be expanded safely.",
+                                );
+                                continue;
+                            }
+                            #[cfg(target_os = "windows")]
+                            if let Ok(mut runtime) = state_hk.note_window_runtime.lock() {
+                                runtime.record_programmatic_placement(
+                                    &request.note_id,
+                                    false,
+                                    &restored_metrics,
+                                );
+                            }
                             request
                         } else {
                             let timestamp = std::time::SystemTime::now()
@@ -855,16 +1231,21 @@ pub fn run() {
                                 .unwrap_or_default()
                                 .as_millis();
                             let note_id = format!("skrib-hotkey-{timestamp}");
+                            let (rel_x, rel_y) = relative_note_position(
+                                &target,
+                                initial_metrics.overlay_physical_x,
+                                initial_metrics.overlay_physical_y,
+                            );
                             let new_note = SkribNote {
                                 id: note_id.clone(),
                                 target_process_name: target.process_name.clone(),
                                 target_title: target.title.clone(),
-                                rel_x: 0.0,
-                                rel_y: 0.0,
-                                width: 400.0,
-                                height: 340.0,
+                                rel_x,
+                                rel_y,
+                                width: COMPACT_WINDOW_LOGICAL_WIDTH as f64,
+                                height: COMPACT_WINDOW_LOGICAL_HEIGHT as f64,
                                 text: String::new(),
-                                color: "yellow".into(),
+                                color: next_note_color(&coordinator_hk.get_all_skribs()),
                                 collapsed: false,
                                 created_at: (timestamp / 1000) as u64,
                                 updated_at: (timestamp / 1000) as u64,
@@ -883,6 +1264,14 @@ pub fn run() {
                             {
                                 let _ = app_handle_hk.emit("skribly://storage-error", message);
                                 continue;
+                            }
+                            #[cfg(target_os = "windows")]
+                            if let Ok(mut runtime) = state_hk.note_window_runtime.lock() {
+                                runtime.record_programmatic_placement(
+                                    &note_id,
+                                    false,
+                                    &initial_metrics,
+                                );
                             }
                             created_open_request(note_id)
                         };
@@ -926,10 +1315,11 @@ pub fn run() {
                                                 if let Some(window) =
                                                     app_handle_ev.get_webview_window("main")
                                                 {
-                                                    if let Err(message) =
-                                                        position_compact_window_for_target(
-                                                            &window, &updated,
-                                                        )
+                                                    if let Err(message) = position_active_note_window(
+                                                        &window,
+                                                        &state_ev,
+                                                        &updated,
+                                                    )
                                                     {
                                                         let _ = app_handle_ev.emit(
                                                             "skribly://hotkey-error",
@@ -1069,10 +1459,11 @@ pub fn run() {
                                         if let Some(window) =
                                             app_handle_ev.get_webview_window("main")
                                         {
-                                            if let Err(message) =
-                                                position_compact_window_for_target(
-                                                    &window, &updated,
-                                                )
+                                            if let Err(message) = position_active_note_window(
+                                                &window,
+                                                &state_ev,
+                                                &updated,
+                                            )
                                             {
                                                 let _ = app_handle_ev.emit(
                                                     "skribly://hotkey-error",
@@ -1125,6 +1516,124 @@ pub fn run() {
 mod tests {
     use super::*;
 
+    fn color_note(id: &str, color: &str, created_at: u64) -> SkribNote {
+        SkribNote {
+            id: id.into(),
+            target_process_name: "notepad.exe".into(),
+            target_title: "Document.txt - Notepad".into(),
+            rel_x: 0.0,
+            rel_y: 0.0,
+            width: 420.0,
+            height: 360.0,
+            text: String::new(),
+            color: color.into(),
+            collapsed: false,
+            created_at,
+            updated_at: created_at,
+            deleted_at: None,
+        }
+    }
+
+    #[test]
+    fn new_notes_rotate_through_the_website_pastels_after_restart() {
+        assert_eq!(next_note_color(&[]), "yellow");
+        assert_eq!(next_note_color(&[color_note("one", "yellow", 1)]), "peach");
+        assert_eq!(
+            next_note_color(&[
+                color_note("older", "peach", 1),
+                color_note("latest", "lavender", 2),
+            ]),
+            "yellow"
+        );
+    }
+
+    #[test]
+    fn native_window_positions_round_trip_as_target_relative_logical_units() {
+        let target = TargetWindowInfo {
+            hwnd_val: 1,
+            title: "Document".into(),
+            process_name: "notepad.exe".into(),
+            class_name: "Notepad".into(),
+            bounds: core::models::WindowRect {
+                x: 2000,
+                y: 120,
+                width: 1200,
+                height: 800,
+            },
+            is_minimized: false,
+            is_focused: true,
+            dpi: 144,
+            scale_factor: 1.5,
+        };
+        let (rel_x, rel_y) = relative_note_position(&target, 2300, 270);
+        assert_eq!((rel_x, rel_y), (200.0, 100.0));
+    }
+
+    #[test]
+    fn expanded_workspace_mode_survives_programmatic_reanchoring() {
+        let mut runtime = NoteWindowRuntime::default();
+        let initial = OverlayMetrics {
+            overlay_physical_x: 300,
+            overlay_physical_y: 180,
+            ..OverlayMetrics::default()
+        };
+        runtime.record_programmatic_placement("note-a", true, &initial);
+        assert!(runtime.workspace_expanded_for("note-a"));
+
+        let reanchored = OverlayMetrics {
+            overlay_physical_x: 640,
+            overlay_physical_y: 240,
+            ..OverlayMetrics::default()
+        };
+        runtime.record_programmatic_placement("note-a", true, &reanchored);
+
+        assert!(runtime.workspace_expanded_for("note-a"));
+        assert!(!runtime.workspace_expanded_for("note-b"));
+    }
+
+    #[test]
+    fn programmatic_workspace_move_does_not_replace_the_saved_compact_anchor() {
+        let target = TargetWindowInfo {
+            hwnd_val: 1,
+            title: "Document".into(),
+            process_name: "notepad.exe".into(),
+            class_name: "Notepad".into(),
+            bounds: core::models::WindowRect {
+                x: 100,
+                y: 80,
+                width: 1200,
+                height: 800,
+            },
+            is_minimized: false,
+            is_focused: true,
+            dpi: 96,
+            scale_factor: 1.0,
+        };
+        let note = SkribNote {
+            rel_x: 44.0,
+            rel_y: 52.0,
+            ..color_note("note-a", "mint", 1)
+        };
+        let workspace = OverlayMetrics {
+            overlay_physical_x: 420,
+            overlay_physical_y: 260,
+            ..OverlayMetrics::default()
+        };
+        let mut runtime = NoteWindowRuntime::default();
+        runtime.record_programmatic_placement("note-a", true, &workspace);
+
+        assert!(runtime.should_ignore_position_save("note-a", 420, 260));
+        assert_eq!(
+            position_to_persist(&target, &note, 420, 260, true),
+            (44.0, 52.0)
+        );
+        assert!(!runtime.should_ignore_position_save("note-a", 500, 320));
+        assert_eq!(
+            position_to_persist(&target, &note, 500, 320, false),
+            (400.0, 240.0)
+        );
+    }
+
     #[test]
     fn test_mutation_payload_does_not_enumerate_windows() {
         let coordinator = Coordinator::new();
@@ -1164,6 +1673,7 @@ mod tests {
             )),
             storage_notice: Mutex::new(None),
             storage_error: Mutex::new(None),
+            note_window_runtime: Mutex::new(NoteWindowRuntime::default()),
             #[cfg(target_os = "windows")]
             win_event_pipeline,
         };
@@ -1264,6 +1774,7 @@ mod tests {
             storage: Mutex::new(storage_service),
             storage_notice: Mutex::new(None),
             storage_error: Mutex::new(None),
+            note_window_runtime: Mutex::new(NoteWindowRuntime::default()),
             #[cfg(target_os = "windows")]
             win_event_pipeline,
         };

@@ -124,7 +124,7 @@ Tie all evidence to the exact candidate executable, exact source file hash, and 
 | Backup creation fails | No coordinator or storage mutation occurs. |
 | Storage save fails after in-memory merge | Prior collection is restored and an actionable error remains visible. |
 | Restart after successful apply | Imported active and Trash records remain present exactly once. |
-| Export complete backup after import | All current active and Trash records are present in the new export. |
+| Export note records after import | All current active and Trash text/metadata records are present in the new export; IndexedDB ink, attachments, and reminders are not yet portable. |
 | Read-only storage or expired licence | File can be selected and previewed; Apply button is disabled. |
 | Close and reopen import panel | Pending state is cleared; no hidden apply occurs. |
 | Preview/apply native response is missing | Visible timeout appears and controls recover safely. |

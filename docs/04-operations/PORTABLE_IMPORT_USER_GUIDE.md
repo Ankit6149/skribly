@@ -1,6 +1,6 @@
 # Portable import user guide
 
-Skribli imports only JSON files created by the current **Export this note** or **Export complete backup** actions in All Skribs.
+Skribli imports only JSON files created by the current **Export this note** or **Export note records** actions in All Skribs. These files contain native text/metadata records; drawing, attachment, and reminder data is not yet included.
 
 ## Preview a file
 

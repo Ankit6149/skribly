@@ -1,7 +1,16 @@
 import React, { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { emit } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { OverlayMetrics, SkribNote, TargetWindowInfo } from '../../lib/geometry';
+import {
+  addInkToNote,
+  getInkForNote,
+  getRichContent,
+  replaceInkForNote,
+  type InkStroke,
+} from '../../lib/richContentStore';
+import { dismissReminder, listReminders } from '../../lib/reminderStore';
 import { useLicenseStore } from '../../stores/licenseStore';
 import { useSkribStore } from '../../stores/skribStore';
 import { useSkribUiStore } from '../../stores/skribUiStore';
@@ -16,7 +25,14 @@ import {
   type DeleteConfirmationState,
 } from './deleteConfirmation';
 import type { OpenNoteAction } from './noteLifecycle';
+import { InkCanvas } from './InkCanvas';
+import { NoteAttachmentPanel } from './NoteAttachmentPanel';
+import { NoteReminderPanel } from './NoteReminderPanel';
 import { discardSkribDraft, persistSkribText, stageSkribDraft } from './textPersistence';
+
+type ComposerWorkspace = 'type' | 'write' | 'attachments' | 'reminder';
+
+const NOTE_COLORS = ['yellow', 'peach', 'mint', 'sky', 'lavender'] as const;
 
 interface SkribComposerProps {
   note: SkribNote;
@@ -49,6 +65,8 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
     dismissStorageNotice,
     exportStorageDiagnostics,
     isTauriAvailable,
+    setSkribCollapsed,
+    updateSkribColor,
   } = useSkribStore();
   const licenseStatus = useLicenseStore((state) => state.status);
   const licenceAllowsWrite = !licenseStatus.enforcementEnabled || licenseStatus.canWrite;
@@ -59,10 +77,36 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
   const [diagnosticsPath, setDiagnosticsPath] = useState<string | null>(null);
   const [isFinishing, setIsFinishing] = useState(false);
   const [isRepositioning, setIsRepositioning] = useState(false);
+  const [workspace, setWorkspace] = useState<ComposerWorkspace>('type');
+  const [isChangingWorkspace, setIsChangingWorkspace] = useState(false);
+  const [inkStrokes, setInkStrokes] = useState<InkStroke[]>([]);
+  const [isInkLoading, setIsInkLoading] = useState(true);
+  const [colorPickerOpen, setColorPickerOpen] = useState(false);
+  const [richOperationCount, setRichOperationCount] = useState(0);
   const [deleteConfirmation, setDeleteConfirmation] = useState<DeleteConfirmationState>(
     INITIAL_DELETE_CONFIRMATION_STATE
   );
   const operationInProgress = useRef(false);
+  const richOperationsInProgress = useRef(new Set<string>());
+
+  const setRichOperationBusy = useCallback((operation: string, busy: boolean) => {
+    if (busy) richOperationsInProgress.current.add(operation);
+    else richOperationsInProgress.current.delete(operation);
+    setRichOperationCount(richOperationsInProgress.current.size);
+  }, []);
+
+  const handleInkBusy = useCallback(
+    (busy: boolean) => setRichOperationBusy('ink', busy),
+    [setRichOperationBusy]
+  );
+  const handleAttachmentsBusy = useCallback(
+    (busy: boolean) => setRichOperationBusy('attachments', busy),
+    [setRichOperationBusy]
+  );
+  const handleReminderBusy = useCallback(
+    (busy: boolean) => setRichOperationBusy('reminder', busy),
+    [setRichOperationBusy]
+  );
 
   const saveController = useMemo(
     () =>
@@ -86,6 +130,10 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
     setSaveSnapshot(saveController.getSnapshot());
     setComposerError(null);
     setDiagnosticsPath(null);
+    setWorkspace('type');
+    richOperationsInProgress.current.clear();
+    setRichOperationCount(0);
+    setColorPickerOpen(false);
     setDeleteConfirmation((state) => reduceDeleteConfirmation(state, 'note-changed'));
     return saveController.subscribe((snapshot) => {
       setSaveSnapshot(snapshot);
@@ -99,9 +147,31 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
 
   useEffect(() => () => saveController.dispose(), [saveController]);
 
+  useEffect(() => {
+    let cancelled = false;
+    setIsInkLoading(true);
+    void getInkForNote(note.id)
+      .then((document) => {
+        if (!cancelled) setInkStrokes(document.strokes);
+      })
+      .catch((reason) => {
+        if (!cancelled) {
+          setComposerError(
+            `Skribli could not read this drawing: ${reason instanceof Error ? reason.message : String(reason)}`
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setIsInkLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [note.id]);
+
   const hideWindow = useCallback(async () => {
-    closeComposer();
     await getCurrentWindow().hide();
+    closeComposer();
   }, [closeComposer]);
 
   const runExclusive = useCallback(async (operation: () => Promise<void>) => {
@@ -116,8 +186,53 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
     }
   }, []);
 
+  const changeWorkspace = useCallback(
+    async (nextWorkspace: ComposerWorkspace) => {
+      if (nextWorkspace === workspace || isChangingWorkspace) return;
+      setIsChangingWorkspace(true);
+      setComposerError(null);
+      try {
+        if (isTauriAvailable) {
+          await invoke('set_skrib_workspace_mode', {
+            id: note.id,
+            expanded: nextWorkspace !== 'type',
+          });
+        }
+        setWorkspace(nextWorkspace);
+      } catch (reason) {
+        setComposerError(
+          `Skribli could not resize the editor safely: ${
+            reason instanceof Error ? reason.message : String(reason)
+          }`
+        );
+      } finally {
+        setIsChangingWorkspace(false);
+      }
+    },
+    [isChangingWorkspace, isTauriAvailable, note.id, workspace]
+  );
+
+  const hasPersistedExtras = useCallback(async () => {
+    const [richContent, reminders] = await Promise.all([
+      getRichContent(note.id),
+      listReminders(),
+    ]);
+    return (
+      richContent.attachments.length > 0 ||
+      Boolean(richContent.inkDocument?.strokes.length) ||
+      reminders.some((reminder) => reminder.noteId === note.id)
+    );
+  }, [note.id]);
+
   const finishAndHide = useCallback(async () => {
     await runExclusive(async () => {
+      if (richOperationsInProgress.current.size > 0) {
+        setComposerError(
+          'Skribli is still saving this drawing, file, or reminder. Wait for it to finish before collapsing the note.'
+        );
+        return;
+      }
+
       if (!storageWritable) {
         setComposerError(
           'This draft is not safely stored yet. Skribli will stay open until storage is available or the text is copied elsewhere.'
@@ -131,7 +246,19 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
       }
 
       const currentDraft = saveController.getSnapshot().draft;
-      if (currentDraft.trim().length === 0) {
+      let hasExtras = false;
+      try {
+        hasExtras = await hasPersistedExtras();
+      } catch (reason) {
+        setComposerError(
+          `Skribli could not verify this note's local drawing, files, or reminder. It stayed open to avoid losing them: ${
+            reason instanceof Error ? reason.message : String(reason)
+          }`
+        );
+        return;
+      }
+
+      if (currentDraft.trim().length === 0 && !hasExtras) {
         await saveController.prepareForDelete();
         const discarded = await discardEmptySkrib(note.id);
         if (discarded) {
@@ -147,7 +274,12 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
 
       const saved = await saveController.flush();
       if (saved) {
-        await hideWindow();
+        const collapsed = await setSkribCollapsed(note.id, true);
+        if (!collapsed) {
+          setComposerError(
+            'The note was saved, but Skribli could not collapse it safely. The editor stayed open.'
+          );
+        }
       } else {
         setComposerError(
           'The note could not be saved safely. Skribli kept the editor open so the text is not lost.'
@@ -157,10 +289,12 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
   }, [
     discardEmptySkrib,
     hideWindow,
+    hasPersistedExtras,
     licenceAllowsWrite,
     note.id,
     runExclusive,
     saveController,
+    setSkribCollapsed,
     storageWritable,
   ]);
 
@@ -236,6 +370,36 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
     }
   };
 
+  const handleColorChange = async (color: (typeof NOTE_COLORS)[number]) => {
+    if (!canWrite || color === note.color) {
+      setColorPickerOpen(false);
+      return;
+    }
+    try {
+      await updateSkribColor(note.id, color);
+      setColorPickerOpen(false);
+    } catch (reason) {
+      setComposerError(
+        `Skribli could not change this note color: ${
+          reason instanceof Error ? reason.message : String(reason)
+        }`
+      );
+    }
+  };
+
+  const persistInk = async (strokes: InkStroke[]) => {
+    if (!canWrite) return;
+    const document = await replaceInkForNote(note.id, strokes);
+    setInkStrokes(document.strokes);
+    void emit('skribly://rich-content-updated', { noteId: note.id }).catch(() => undefined);
+  };
+
+  const saveInkPreview = async (blob: Blob) => {
+    if (!canWrite) return;
+    await addInkToNote(note.id, blob);
+    void emit('skribly://rich-content-updated', { noteId: note.id }).catch(() => undefined);
+  };
+
   const requestDeleteConfirmation = () => {
     if (!storageWritable) {
       setComposerError('Storage needs recovery, so Skribli cannot delete this note.');
@@ -265,6 +429,17 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
       await saveController.prepareForDelete();
       const movedToTrash = await trashSkrib(note.id);
       if (movedToTrash) {
+        try {
+          const linkedReminders = (await listReminders()).filter(
+            (reminder) =>
+              reminder.noteId === note.id &&
+              (reminder.status === 'upcoming' || reminder.status === 'overdue')
+          );
+          await Promise.all(linkedReminders.map((reminder) => dismissReminder(reminder.id)));
+          void emit('skribly://reminders-updated', { noteId: note.id }).catch(() => undefined);
+        } catch {
+          // The note is already safely in Trash; the Calendar will still expose any stale reminder.
+        }
         discardSkribDraft(note.id);
         await hideWindow();
       } else {
@@ -279,9 +454,12 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
   const recoveryDirectory = storageNotice?.backupDirectory || storageBackupDirectory;
   const visibleError = composerError || saveSnapshot.error || storageErrorMessage;
   const saveLabel = saveStatusLabel(saveSnapshot);
-  const saveDetail = storageWritable
-    ? 'Esc or Ctrl+Enter closes after the latest text is saved'
-    : 'Recovery required before closing';
+  const hasPendingRichOperation = richOperationCount > 0;
+  const saveDetail = hasPendingRichOperation
+    ? 'Saving local drawing, file, or reminder…'
+    : storageWritable
+      ? 'Esc or Ctrl+Enter collapses after the latest text is saved'
+      : 'Recovery required before closing';
   const textareaDescription =
     deleteConfirmation === 'confirming'
       ? 'composer-delete-warning'
@@ -313,11 +491,38 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
             </span>
           </div>
           <div className="composer-header-actions">
+            <div className="composer-color-control">
+              <button
+                type="button"
+                className={`composer-color-button skrib-color-${note.color}`}
+                onClick={() => setColorPickerOpen((open) => !open)}
+                disabled={!canWrite || isFinishing || hasPendingRichOperation}
+                aria-label="Change note color"
+                aria-expanded={colorPickerOpen}
+                title="Change note color"
+              >
+                <span aria-hidden="true" />
+              </button>
+              {colorPickerOpen && (
+                <div className="composer-color-popover" role="group" aria-label="Note color">
+                  {NOTE_COLORS.map((color) => (
+                    <button
+                      key={color}
+                      type="button"
+                      className={`color-swatch skrib-color-${color} ${note.color === color ? 'active' : ''}`}
+                      aria-label={`${color} note`}
+                      aria-pressed={note.color === color}
+                      onClick={() => void handleColorChange(color)}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
             <button
               type="button"
               className="composer-reposition"
               onClick={() => void handleReposition()}
-              disabled={!isTauriAvailable || isRepositioning || isFinishing}
+              disabled={!isTauriAvailable || isRepositioning || isFinishing || hasPendingRichOperation}
               aria-label="Reposition Skribli beside the target application"
               title="Reposition beside target"
             >
@@ -327,9 +532,9 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
               type="button"
               className="composer-close"
               onClick={() => void finishAndHide()}
-              disabled={isFinishing || isRepositioning}
-              aria-label={storageWritable ? 'Save and close Skribli' : 'Storage recovery required'}
-              title={storageWritable ? 'Save and close' : 'Storage recovery required'}
+              disabled={isFinishing || isRepositioning || hasPendingRichOperation}
+              aria-label={storageWritable ? 'Save and collapse this Skrib' : 'Storage recovery required'}
+              title={storageWritable ? 'Save and collapse' : 'Storage recovery required'}
             >
               ✕
             </button>
@@ -368,27 +573,82 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
           </div>
         )}
 
-        <textarea
-          className="composer-textarea"
-          value={text}
-          autoFocus={canWrite}
-          readOnly={!canWrite}
-          placeholder="Write the thought before it disappears…"
-          spellCheck
-          aria-describedby={textareaDescription}
-          onChange={(event: ChangeEvent<HTMLTextAreaElement>) => handleTextChange(event.target.value)}
-          onBlur={() => {
-            if (!canWrite || operationInProgress.current) return;
-            void saveController.flush().then((saved) => {
-              if (
-                !saved &&
-                saveController.getSnapshot().draft !== saveController.getSnapshot().committed
-              ) {
-                setComposerError('The latest text is not saved. Keep this window open and retry.');
-              }
-            });
-          }}
-        />
+        <nav className="composer-workspace-tabs" aria-label="Skrib editor tools">
+          {(
+            [
+              ['type', 'Text'],
+              ['write', 'Draw'],
+              ['attachments', 'Files'],
+              ['reminder', 'Reminder'],
+            ] as const
+          ).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              className={workspace === value ? 'active' : ''}
+              aria-current={workspace === value ? 'page' : undefined}
+              disabled={isChangingWorkspace || isFinishing || hasPendingRichOperation}
+              onClick={() => void changeWorkspace(value)}
+            >
+              {label}
+            </button>
+          ))}
+        </nav>
+
+        <div className={`composer-workspace composer-workspace-${workspace}`}>
+          {workspace === 'type' && (
+            <textarea
+              className="composer-textarea"
+              value={text}
+              autoFocus={canWrite}
+              readOnly={!canWrite}
+              placeholder="Write the thought before it disappears…"
+              spellCheck
+              aria-describedby={textareaDescription}
+              onChange={(event: ChangeEvent<HTMLTextAreaElement>) => handleTextChange(event.target.value)}
+              onBlur={() => {
+                if (!canWrite || operationInProgress.current) return;
+                void saveController.flush().then((saved) => {
+                  if (
+                    !saved &&
+                    saveController.getSnapshot().draft !== saveController.getSnapshot().committed
+                  ) {
+                    setComposerError('The latest text is not saved. Keep this window open and retry.');
+                  }
+                });
+              }}
+            />
+          )}
+          {workspace === 'write' &&
+            (isInkLoading ? (
+              <div className="composer-workspace-loading" role="status">Opening drawing…</div>
+            ) : (
+              <InkCanvas
+                initialStrokes={inkStrokes}
+                disabled={!canWrite || isFinishing}
+                onChange={persistInk}
+                onSavePreview={saveInkPreview}
+                onBusyChange={handleInkBusy}
+              />
+            ))}
+          {workspace === 'attachments' && (
+            <NoteAttachmentPanel
+              noteId={note.id}
+              disabled={!canWrite || isFinishing}
+              onError={setComposerError}
+              onBusyChange={handleAttachmentsBusy}
+            />
+          )}
+          {workspace === 'reminder' && (
+            <NoteReminderPanel
+              noteId={note.id}
+              noteText={text}
+              disabled={!canWrite || isFinishing}
+              onError={setComposerError}
+              onBusyChange={handleReminderBusy}
+            />
+          )}
+        </div>
 
         <footer className="composer-footer">
           {deleteConfirmation === 'confirming' ? (
@@ -439,7 +699,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
                 <button
                   type="button"
                   className="secondary danger"
-                  disabled={!canWrite || isFinishing}
+                  disabled={!canWrite || isFinishing || hasPendingRichOperation}
                   onClick={requestDeleteConfirmation}
                 >
                   Delete
@@ -447,10 +707,10 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
                 <button
                   type="button"
                   className="primary"
-                  disabled={isFinishing}
+                  disabled={isFinishing || hasPendingRichOperation}
                   onClick={() => void finishAndHide()}
                 >
-                  {isFinishing ? 'Finishing…' : 'Done'}
+                  {isFinishing ? 'Finishing…' : hasPendingRichOperation ? 'Saving…' : 'Done'}
                 </button>
               </div>
             </>

@@ -91,6 +91,9 @@ describe('skribStore', () => {
     await useSkribStore.getState().toggleSkribCollapse(noteId);
     expect(useSkribStore.getState().skribs[0]!.collapsed).toBe(true);
 
+    expect(await useSkribStore.getState().setSkribCollapsed(noteId, false)).toBe(true);
+    expect(useSkribStore.getState().skribs[0]!.collapsed).toBe(false);
+
     await useSkribStore.getState().updateSkribPosition(noteId, 100, 120, 350, 240);
     expect(useSkribStore.getState().skribs[0]!.rel_x).toBe(100);
     expect(useSkribStore.getState().skribs[0]!.rel_y).toBe(120);

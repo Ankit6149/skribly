@@ -880,6 +880,7 @@ mod tests {
             storage: Mutex::new(StorageService::new(blocked_parent.join("skribs.json"))),
             storage_notice: Mutex::new(None),
             storage_error: Mutex::new(None),
+            note_window_runtime: Mutex::new(crate::NoteWindowRuntime::default()),
             #[cfg(target_os = "windows")]
             win_event_pipeline,
         };
@@ -931,6 +932,7 @@ mod tests {
             storage: Mutex::new(StorageService::new(primary.clone())),
             storage_notice: Mutex::new(None),
             storage_error: Mutex::new(None),
+            note_window_runtime: Mutex::new(crate::NoteWindowRuntime::default()),
             #[cfg(target_os = "windows")]
             win_event_pipeline,
         };

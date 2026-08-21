@@ -112,6 +112,8 @@ interface SkribStoreState {
   updateSkribText: (id: string, text: string) => Promise<boolean>;
   updateSkribColor: (id: string, color: SkribNote['color']) => Promise<void>;
   toggleSkribCollapse: (id: string) => Promise<void>;
+  setSkribCollapsed: (id: string, collapsed: boolean) => Promise<boolean>;
+  saveSkribWindowPosition: (id: string) => Promise<void>;
   trashSkrib: (id: string) => Promise<boolean>;
   discardEmptySkrib: (id: string) => Promise<boolean>;
   updateHitTestRects: (
@@ -425,6 +427,62 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
       const msg = e instanceof Error ? e.message : String(e);
       set({ skribs: previousSkribs, errorMessage: `Failed to toggle collapse: ${msg}` });
       await get().refreshStorageHealth();
+    }
+  },
+
+  setSkribCollapsed: async (id, collapsed) => {
+    const blocked = writeBlockMessage();
+    if (blocked) {
+      set({ errorMessage: blocked });
+      return false;
+    }
+
+    const previousSkribs = get().skribs;
+    set({
+      skribs: previousSkribs.map((note) =>
+        note.id === id ? { ...note, collapsed } : note
+      ),
+    });
+    if (!get().isTauriAvailable) return true;
+
+    try {
+      const payload = await invoke<OverlayStatePayload>('set_skrib_window_collapsed', {
+        id,
+        collapsed,
+      });
+      set({
+        skribs: payload.skribs,
+        overlayMetrics: payload.overlay_metrics || get().overlayMetrics,
+        initStatus: payload.init_status || get().initStatus,
+        errorMessage: null,
+        storageErrorMessage: null,
+      });
+      return true;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      set({
+        skribs: previousSkribs,
+        errorMessage: `Failed to change the Skrib window: ${message}`,
+      });
+      await get().refreshStorageHealth();
+      return false;
+    }
+  },
+
+  saveSkribWindowPosition: async (id) => {
+    if (!get().isTauriAvailable || writeBlockMessage()) return;
+    try {
+      const payload = await invoke<OverlayStatePayload>('save_skrib_window_position', { id });
+      set({
+        skribs: payload.skribs,
+        overlayMetrics: payload.overlay_metrics || get().overlayMetrics,
+        initStatus: payload.init_status || get().initStatus,
+        errorMessage: null,
+        storageErrorMessage: null,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      set({ errorMessage: `Failed to save the Skrib position: ${message}` });
     }
   },
 

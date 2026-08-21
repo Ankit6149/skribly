@@ -145,7 +145,18 @@ Deno.serve(async (request: Request) => {
     const expiresAt = Number(row.trial_ends_at);
     if (!Number.isSafeInteger(expiresAt) || expiresAt <= 0) throw new Error("trial_claim_failed");
     const offlineUntil = Math.min(expiresAt, issuedAt + OFFLINE_GRACE_SECONDS);
-    const signedEntitlement = await signEntitlement({
+    const role = accountRole(user.app_metadata);
+    const entitlement = role === "owner" ? {
+      productId: "skribly-personal-windows",
+      licenseId: crypto.randomUUID(),
+      accountId: user.id,
+      email: user.email.toLowerCase(),
+      deviceId: body.deviceClaim,
+      issuedAt,
+      entitlementType: "licensed",
+      updatesUntil: 0,
+      perpetual: true,
+    } : {
       productId: "skribly-personal-windows",
       licenseId: crypto.randomUUID(),
       accountId: user.id,
@@ -157,11 +168,12 @@ Deno.serve(async (request: Request) => {
       offlineUntil,
       updatesUntil: 0,
       perpetual: false,
-    }, adminClient);
+    };
+    const signedEntitlement = await signEntitlement(entitlement, adminClient);
 
     return json(200, {
       signedEntitlement,
-      accountRole: accountRole(user.app_metadata),
+      accountRole: role,
       productUpdatesOptIn: Boolean(row.product_updates_opt_in),
       announcements: Array.isArray(row.active_announcements) ? row.active_announcements : [],
     });

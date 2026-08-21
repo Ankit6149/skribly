@@ -1,4 +1,4 @@
-import { listen } from '@tauri-apps/api/event';
+import { emit, listen } from '@tauri-apps/api/event';
 import { getCurrentWindow, Window } from '@tauri-apps/api/window';
 import React, { useEffect, useMemo, useState } from 'react';
 import skriblyMarkUrl from '../../../../../assets/branding/skribly-app-icon.svg?url';
@@ -9,15 +9,17 @@ import {
   readOnboardingStatus,
 } from '../onboarding/onboardingState';
 import { OnboardingSurface } from '../onboarding/OnboardingSurface';
+import { ReminderNotificationMonitor } from '../skribs/ReminderNotificationMonitor';
 
 type AccountMode = 'signIn' | 'create';
 
-async function openLibrary(): Promise<void> {
+async function openLibrary(view: 'notes' | 'calendar' = 'notes'): Promise<void> {
   const library = await Window.getByLabel('library');
   if (!library) throw new Error('All Skribs is unavailable. Restart Skribli and try again.');
   await library.unminimize();
   await library.show();
   await library.setFocus();
+  await emit('skribly://library-view', { view });
 }
 
 const BusySurface: React.FC<{ label: string }> = ({ label }) => (
@@ -260,6 +262,17 @@ const HomeSurface: React.FC<{ onShowGuide: () => void }> = ({ onShowGuide }) => 
             <strong>All Skribs</strong>
             <span>Search, import, and export</span>
           </button>
+          <button
+            type="button"
+            onClick={() =>
+              void openLibrary('calendar').catch((error) =>
+                setActionError(error instanceof Error ? error.message : String(error))
+              )
+            }
+          >
+            <strong>Calendar</strong>
+            <span>Upcoming and overdue reminders</span>
+          </button>
           <button type="button" onClick={onShowGuide}>
             <strong>Quick guide</strong>
             <span>How Skribli works</span>
@@ -398,5 +411,10 @@ export const HomeHost: React.FC = () => {
     );
   }
 
-  return <HomeSurface onShowGuide={() => setGuideVisible(true)} />;
+  return (
+    <>
+      <ReminderNotificationMonitor />
+      <HomeSurface onShowGuide={() => setGuideVisible(true)} />
+    </>
+  );
 };

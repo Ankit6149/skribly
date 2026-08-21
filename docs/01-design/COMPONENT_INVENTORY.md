@@ -18,7 +18,11 @@ Required states and components:
 
 - compact transient window shell;
 - target/context summary with privacy-conscious display rules;
-- typed-note editor;
+- Type, Draw, Files, and Reminder workspaces;
+- five-pastel note color selection and automatic creation rotation;
+- pen, highlighter, eraser, width/color, undo, and confirmed clear controls;
+- bounded image, video, and document attachment picker/previews;
+- one-time reminder scheduling and state controls;
 - primary Done/Close action;
 - delete/trash action according to #20/#21;
 - saving, saved, unsaved, failed, recovered, blocked, and read-only status;
@@ -28,7 +32,7 @@ Required states and components:
 - accessible names, live regions, focus boundaries, and system-font fallback;
 - high-contrast, reduced-motion, large-text, and solid-background variants.
 
-The current editor does not imply a full-screen interactive overlay, persistent floating tab, dot, widget, drawing surface, or tool palette.
+The editor remains bounded to its native window and does not imply a full-screen interactive overlay, attached tab, or permanent toolbar. Done collapses the one active Skrib into a movable dot; richer modes expand the same window to a moderate monitor-clamped workspace.
 
 ### 1.2 All Skribs library
 
@@ -40,6 +44,8 @@ Implemented foundations under #21:
 - deterministic updated/created/ID ordering;
 - privacy-safe read-only note detail;
 - Notes and Trash views with counts and lifecycle status;
+- local Calendar view with linked reminder agenda and note-color markers;
+- read-only drawing, attachment, and reminder summaries in note detail;
 - reversible Trash, same-record restore, and note-specific permanent-delete confirmation;
 - selected-note and complete versioned JSON export;
 - strict portable JSON preview with new/duplicate/conflict counts;
@@ -54,6 +60,7 @@ Remaining work under #21, #61, #79, and #82:
 - richer filters and approved grouping controls;
 - scalable indexing, pagination/virtualization, and index rebuilding;
 - attachment portability;
+- ink and reminder portability in native JSON export/import;
 - scheduled/user-selected backups and clean-device disaster recovery;
 - exact physical Windows accessibility and release-candidate evidence.
 
@@ -88,7 +95,7 @@ Owned by #51:
 - skip, back, restart, and revisit actions;
 - keyboard, screen-reader, reduced-motion, and large-text variants.
 
-macOS permissions, browser extension pairing, ink, or other deferred features are not included in Windows MVP onboarding.
+macOS permissions, browser extension pairing, recurring reminders, and other deferred features are not included in Windows MVP onboarding.
 
 ### 1.5 Tray and background status
 
@@ -162,21 +169,19 @@ Current typed notes and context UX may require:
 
 The final state model belongs to #18, #20, #21, and #61. UI code must not invent matching rules.
 
-## 4. Deferred annotation components
+## 4. Annotation components and remaining extensions
 
-The following are post-MVP and may not be included in production until their parent foundations and capability gates pass.
+The v0 implements bounded freehand ink, local attachments, and one-time reminders. The remaining items below may not be claimed until their parent foundations and capability gates pass.
 
 ### 4.1 Input and creation controls
 
 Tracked by #62–#64:
 
-- explicit annotation interaction surface;
-- pointer/pen/touch state indicators;
-- approved tool selection mechanism;
-- pen and highlighter controls;
+- richer annotation interaction surface beyond the current note workspace;
+- advanced pointer/pen/touch state indicators;
+- expanded tool selection beyond Type, Draw, Files, and Reminder;
 - shapes/arrows/pins/labels/checklist tools;
-- eraser;
-- undo/redo;
+- redo and history inspection beyond current undo;
 - selection, move, resize, lock, grouping, and z-order controls;
 - snap/anchor guides;
 - keyboard alternatives.
@@ -187,13 +192,8 @@ A floating tool palette and placement dimmer are not approved by this inventory.
 
 Tracked by #63:
 
-- vector stroke renderer;
-- live stroke preview;
 - pressure/tilt-aware input where supported;
-- translucent highlighter;
-- stroke erase and clear confirmation;
 - selection/lasso if separately approved;
-- color/width controls;
 - typed summary/alt text;
 - performance and storage-limit states.
 
@@ -213,22 +213,17 @@ Tracked by #64:
 
 Tracked by #65:
 
-- date/time picker;
-- timezone interpretation;
-- notification preview and privacy setting;
-- upcoming, overdue, missed, failed, snoozed, completed, and dismissed states;
-- recurrence only after one-time reminders are accepted;
-- permission/status guidance;
+- notification preview and finer privacy setting;
+- snooze and failed-delivery recovery beyond current upcoming, overdue, completed, and dismissed states;
+- recurrence;
+- richer permission/status guidance;
 - locked-screen redaction controls.
 
 ### 4.5 Attachment UI
 
 Tracked by #66:
 
-- supported file picker/drop target;
-- upload/copy progress for local storage;
-- type/size/quota validation;
-- bounded thumbnail/preview;
+- drag-and-drop and upload/copy progress beyond the current file picker;
 - duplicate state;
 - missing linked-source state if links are supported;
 - low-disk and storage-management state;

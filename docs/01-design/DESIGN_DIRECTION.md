@@ -24,16 +24,17 @@ Current product motion is brief, functional, and reduced or removed when Windows
 
 - compact surfaces appear without a long entrance sequence;
 - button, selection, confirmation, loading, and save-state feedback remains subtle;
-- All Skribs, Trash, onboarding, and import transitions do not imply that notes float over other applications;
+- All Skribs, Trash, onboarding, and import transitions remain restrained while the active collapsed Skrib uses one quiet pastel dot;
 - no idle looping animations.
 
-Peel/unfold, collapse, persistent-note hover, anchor-placement, drawing, and gesture motion belong to deferred annotation research. They are not current interaction or release claims.
+Collapse/restore and the drawing workspace use only short functional state changes. Peel/unfold, persistent-note hover animation, richer anchor-placement motion, and gesture choreography remain deferred research.
 
 ## Design constraints
 
 - Never cover underlying content unnecessarily.
 - The transient compact editor uses only its visible window bounds; there is no interactive full-screen overlay.
-- Closing or completing the editor hides the complete editor instead of leaving a collapsed dot or tab.
+- Completing the editor durably saves and collapses the active Skrib into one movable pastel dot; clicking it restores the same Skrib.
+- The current single-window runtime shows one active editor or collapsed dot, not an unlimited desktop widget layer.
 - The blank folded-note mark keeps the warm paper/yellow/ink palette, uses soft rounded corners, and contains no letterform.
 - Notes must remain readable at different DPI scales.
 - Keyboard focus, forced colours, reduced motion, and larger text must remain legible without changing the brand language.

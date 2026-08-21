@@ -24,7 +24,7 @@ html[data-skribly-window='library'] #root {
   min-height: 0;
   padding: 24px;
   display: grid;
-  grid-template-rows: auto auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
   gap: 16px;
   overflow: hidden;
   background:
@@ -34,6 +34,22 @@ html[data-skribly-window='library'] #root {
   color: var(--library-ink);
   font-family: var(--font-ui);
   user-select: text;
+}
+
+.library-standard-view {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.library-standard-view[hidden] {
+  display: none;
+}
+
+.library-standard-view .library-workspace {
+  flex: 1 1 auto;
 }
 
 .library-topbar {
@@ -428,6 +444,380 @@ html[data-skribly-window='library'] #root {
 .skrib-color-sky { background-color: var(--sky); }
 .skrib-color-lavender { background-color: var(--lavender); }
 
+.library-rich-content {
+  display: grid;
+  gap: 14px;
+}
+
+.library-rich-summary,
+.library-rich-section {
+  padding: 14px 0;
+  border-top: 1px solid var(--library-line);
+}
+
+.library-rich-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.library-rich-summary strong {
+  font-size: 12px;
+}
+
+.library-rich-summary > span:last-child,
+.library-rich-heading > span:last-child {
+  color: var(--library-muted);
+  font-size: 9px;
+}
+
+.library-rich-heading {
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.library-rich-attachments,
+.library-rich-reminders {
+  display: grid;
+  gap: 0;
+}
+
+.library-rich-attachments article {
+  min-width: 0;
+  padding: 8px 0;
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--library-line);
+}
+
+.library-rich-preview {
+  width: 64px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--library-line);
+  border-radius: 8px;
+  background: var(--paper-deep);
+  color: var(--library-muted);
+  font-size: 8px;
+  font-weight: 800;
+}
+
+.library-rich-preview img,
+.library-rich-preview video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.library-rich-attachments article > div:nth-child(2) {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.library-rich-attachments article strong {
+  overflow: hidden;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.library-rich-attachments article span,
+.library-rich-attachments article a {
+  color: var(--library-muted);
+  font-size: 8px;
+}
+
+.library-rich-attachments article a {
+  color: var(--library-ink);
+  font-weight: 750;
+  text-underline-offset: 3px;
+}
+
+.library-rich-reminders > div {
+  padding: 8px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--library-line);
+}
+
+.library-rich-reminders span {
+  color: var(--library-muted);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.library-rich-reminders .overdue span {
+  color: #854040;
+}
+
+.library-rich-reminders .completed,
+.library-rich-reminders .dismissed {
+  opacity: 0.6;
+}
+
+.library-rich-reminders strong {
+  font-size: 9px;
+}
+
+.library-rich-error {
+  padding: 10px 12px;
+  border: 1px solid rgb(133 64 64 / 22%);
+  border-radius: 10px;
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-size: 9px;
+}
+
+.reminder-calendar {
+  min-width: 0;
+  min-height: 0;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--library-line);
+  border-radius: 22px 22px 34px 22px;
+  background:
+    radial-gradient(circle at 96% 4%, rgb(220 234 223 / 54%), transparent 24rem),
+    rgb(255 253 247 / 88%);
+  box-shadow: var(--shadow-s);
+}
+
+.reminder-calendar-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--library-line);
+}
+
+.reminder-calendar-header h2 {
+  margin: 4px 0 3px;
+  font-family: var(--font-display);
+  font-size: clamp(22px, 3vw, 30px);
+  letter-spacing: -0.045em;
+}
+
+.reminder-calendar-header p {
+  margin: 0;
+  color: var(--library-muted);
+  font-size: 10px;
+}
+
+.reminder-calendar-navigation,
+.reminder-agenda-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.reminder-calendar-navigation button,
+.reminder-agenda-actions button {
+  min-height: 32px;
+  padding: 0 11px;
+  border: 1px solid var(--library-line);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 54%);
+  color: var(--library-ink);
+  cursor: pointer;
+  font-family: var(--font-ui);
+  font-size: 9px;
+  font-weight: 750;
+}
+
+.reminder-calendar-layout {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding-top: 14px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.36fr) minmax(250px, 0.64fr);
+  gap: 16px;
+}
+
+.reminder-month-grid,
+.reminder-day-agenda {
+  min-width: 0;
+  min-height: 0;
+}
+
+.reminder-month-grid {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.reminder-weekdays,
+.reminder-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.reminder-weekdays span {
+  padding: 0 6px 7px;
+  color: var(--library-muted);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.reminder-days {
+  min-height: 0;
+  grid-template-rows: repeat(6, minmax(46px, 1fr));
+  overflow: hidden;
+  border-top: 1px solid var(--library-line);
+  border-left: 1px solid var(--library-line);
+  border-radius: 14px;
+}
+
+.reminder-days > button {
+  min-width: 0;
+  min-height: 0;
+  padding: 7px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  border: 0;
+  border-right: 1px solid var(--library-line);
+  border-bottom: 1px solid var(--library-line);
+  background: rgb(255 255 255 / 38%);
+  color: var(--library-ink);
+  cursor: pointer;
+  font-family: var(--font-ui);
+  font-size: 9px;
+}
+
+.reminder-days > button:hover {
+  background: rgb(248 223 120 / 24%);
+}
+
+.reminder-days > button.outside {
+  color: rgb(38 41 35 / 32%);
+  background: rgb(245 241 231 / 42%);
+}
+
+.reminder-days > button.today > span:first-child {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--yellow);
+  font-weight: 800;
+}
+
+.reminder-days > button.selected {
+  position: relative;
+  z-index: 1;
+  box-shadow: inset 0 0 0 2px var(--olive);
+}
+
+.reminder-day-dots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.reminder-day-dots i {
+  width: 7px;
+  height: 7px;
+  display: block;
+  border: 1px solid rgb(38 41 35 / 12%);
+  border-radius: 50%;
+}
+
+.reminder-day-dots i.completed,
+.reminder-day-dots i.dismissed {
+  opacity: 0.38;
+}
+
+.reminder-day-dots i.overdue {
+  box-shadow: 0 0 0 1px #854040;
+}
+
+.reminder-day-agenda {
+  padding-left: 16px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-left: 1px solid var(--library-line);
+}
+
+.reminder-day-agenda > header {
+  flex: 0 0 auto;
+  padding-bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.reminder-day-agenda > header strong {
+  font-family: var(--font-display);
+  font-size: 14px;
+}
+
+.reminder-agenda-list {
+  min-height: 0;
+  overflow: auto;
+}
+
+.reminder-agenda-list article {
+  --agenda-color: var(--skribli-paper, var(--yellow));
+  padding: 10px 0 11px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  border-bottom: 1px solid var(--library-line);
+  border-left: 4px solid var(--skribli-paper, var(--yellow));
+  background: transparent !important;
+}
+
+.reminder-agenda-list article > div:first-child {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 10px;
+}
+
+.reminder-agenda-list article p {
+  grid-column: 1 / -1;
+  margin: 0;
+  overflow: hidden;
+  font-family: var(--font-hand);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reminder-status {
+  width: fit-content;
+  color: var(--library-muted);
+  font-size: 7px;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.reminder-status.overdue {
+  color: #854040;
+}
+
 @media (max-width: 820px) {
   .library-shell {
     padding: 16px;
@@ -449,6 +839,10 @@ html[data-skribly-window='library'] #root {
 
   .library-note-metadata {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .reminder-calendar-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(220px, 0.55fr);
   }
 }
 
@@ -474,6 +868,22 @@ html[data-skribly-window='library'] #root {
 
   .library-detail-header {
     flex-direction: column;
+  }
+
+  .reminder-calendar {
+    min-height: 760px;
+  }
+
+  .reminder-calendar-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(420px, 1fr) auto;
+  }
+
+  .reminder-day-agenda {
+    min-height: 240px;
+    padding: 14px 0 0;
+    border-top: 1px solid var(--library-line);
+    border-left: 0;
   }
 }
 

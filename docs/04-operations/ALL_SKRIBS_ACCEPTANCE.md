@@ -33,7 +33,7 @@ The library never becomes a floating widget, attached tab, dot, toolbar, or full
 ## Export behavior
 
 - **Export this note** sends one selected ID.
-- **Export complete backup** sends `noteIds: null` and includes every current note, including an empty collection.
+- **Export note records** sends `noteIds: null` and includes every current native text/metadata record, including an empty collection; it does not claim to export IndexedDB rich data.
 - Export is a native operation and does not require note-write or licence-write access.
 - The request accepts only a bounded request ID and optional note IDs.
 - The native result contains only the request ID, output path, or error; it never echoes note content.
