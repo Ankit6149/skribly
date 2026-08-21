@@ -10,7 +10,7 @@ export const LIBRARY_IMPORT_APPLY_RESULT_EVENT =
 export const MAX_IMPORT_FILE_BYTES = 10 * 1024 * 1024;
 
 export type ImportConflictMode = 'skip' | 'replace';
-export type ImportSourceScope = 'selected' | 'completeBackup';
+export type ImportSourceScope = 'selected' | 'allRecords';
 
 export interface ImportConflictDetail {
   noteId: string;
@@ -153,7 +153,7 @@ export function isImportPreview(value: unknown): value is ImportPreview {
     typeof value.fingerprint === 'string' &&
     value.fingerprint.startsWith('crc32:') &&
     isSafeCount(value.schemaVersion) &&
-    (value.sourceScope === 'selected' || value.sourceScope === 'completeBackup') &&
+    (value.sourceScope === 'selected' || value.sourceScope === 'allRecords') &&
     isSafeCount(value.totalCount) &&
     isSafeCount(value.activeCount) &&
     isSafeCount(value.trashCount) &&

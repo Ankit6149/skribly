@@ -13,8 +13,8 @@ import {
 const preview: ImportPreview = {
   requestId: 'preview-request',
   fingerprint: 'crc32:12345678:42',
-  schemaVersion: 1,
-  sourceScope: 'completeBackup',
+  schemaVersion: 2,
+  sourceScope: 'allRecords',
   totalCount: 5,
   activeCount: 3,
   trashCount: 2,
@@ -153,7 +153,7 @@ describe('import request creation', () => {
 
 describe('import file metadata', () => {
   it('accepts a bounded JSON file', () => {
-    expect(() => validateImportFileMetadata({ name: 'skribli-backup.json', size: 1024 })).not.toThrow();
+    expect(() => validateImportFileMetadata({ name: 'skribli-note-records.json', size: 1024 })).not.toThrow();
   });
 
   it('rejects non-JSON, empty, and oversized files', () => {

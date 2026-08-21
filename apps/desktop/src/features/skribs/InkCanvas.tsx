@@ -10,13 +10,20 @@ import {
   type InkStroke,
   type InkTool,
 } from './inkModel';
+import {
+  InkPersistenceCoordinator,
+  type InkPersistenceState,
+} from './inkPersistenceCoordinator';
 
-interface InkCanvasProps {
+export type { InkPersistenceState } from './inkPersistenceCoordinator';
+
+export interface InkCanvasProps {
   initialStrokes?: InkStroke[];
   disabled?: boolean;
   onChange?: (strokes: InkStroke[]) => Promise<void> | void;
   onSavePreview?: (blob: Blob, strokes: InkStroke[]) => Promise<void> | void;
   onBusyChange?: (busy: boolean) => void;
+  onPersistenceStateChange?: (state: InkPersistenceState) => void;
 }
 
 const INK_COLORS = [
@@ -76,15 +83,15 @@ export const InkCanvas: React.FC<InkCanvasProps> = ({
   onChange,
   onSavePreview,
   onBusyChange,
+  onPersistenceStateChange,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const activeStrokeRef = useRef<InkStroke | null>(null);
-  const persistenceChainRef = useRef<Promise<void>>(Promise.resolve());
   const pendingOperationsRef = useRef(0);
-  const [strokes, setStrokes] = useState<InkStroke[]>(() => {
-    validateInkStrokes(initialStrokes);
-    return initialStrokes;
-  });
+  const [persistenceCoordinator] = useState(() => new InkPersistenceCoordinator(initialStrokes));
+  const [strokes, setStrokes] = useState<InkStroke[]>(
+    () => persistenceCoordinator.getSnapshot().strokes
+  );
   const [tool, setTool] = useState<InkTool>('pen');
   const [color, setColor] = useState<string>(INK_COLORS[0].value);
   const [width, setWidth] = useState(4);
@@ -110,6 +117,19 @@ export const InkCanvas: React.FC<InkCanvasProps> = ({
     [onBusyChange]
   );
 
+  useEffect(() => {
+    persistenceCoordinator.setListener((snapshot) => {
+      setStrokes(snapshot.strokes);
+      if (snapshot.error) setError(snapshot.error);
+      onPersistenceStateChange?.({
+        status: snapshot.status,
+        hasUnsavedChanges: snapshot.hasUnsavedChanges,
+        error: snapshot.error,
+      });
+    });
+    return () => persistenceCoordinator.setListener();
+  }, [onPersistenceStateChange, persistenceCoordinator]);
+
   const renderStrokes = useCallback((nextStrokes: InkStroke[]) => {
     const canvas = canvasRef.current;
     const context = canvas?.getContext('2d');
@@ -124,37 +144,43 @@ export const InkCanvas: React.FC<InkCanvasProps> = ({
 
   useEffect(() => {
     validateInkStrokes(initialStrokes);
-    setStrokes(initialStrokes);
-    setClearPending(false);
-    setError(null);
-  }, [initialStrokes]);
+    if (persistenceCoordinator.acceptInitialStrokes(initialStrokes)) {
+      setClearPending(false);
+      setError(null);
+    }
+  }, [initialStrokes, persistenceCoordinator]);
 
   const persist = useCallback(
     async (nextStrokes: InkStroke[]) => {
       beginOperation();
       try {
         validateInkStrokes(nextStrokes);
-        setStrokes(nextStrokes);
         setError(null);
-        const operation = persistenceChainRef.current
-          .catch(() => undefined)
-          .then(async () => {
-            await onChange?.(nextStrokes);
-          });
-        persistenceChainRef.current = operation;
-        await operation;
+        const saved = await persistenceCoordinator.submit(nextStrokes, async (strokesToSave) => {
+          await onChange?.(strokesToSave);
+        });
+        if (!saved) {
+          setError(
+            persistenceCoordinator.getSnapshot().error ??
+              'Skribli could not save the latest drawing.'
+          );
+        }
       } catch (reason) {
         setError(reason instanceof Error ? reason.message : String(reason));
       } finally {
         endOperation();
       }
     },
-    [beginOperation, endOperation, onChange]
+    [beginOperation, endOperation, onChange, persistenceCoordinator]
   );
 
   const handlePointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => {
     if (disabled) return;
-    if (strokes.length >= MAX_INK_STROKES || countInkPoints(strokes) >= MAX_INK_POINTS) {
+    const currentStrokes = persistenceCoordinator.getSnapshot().strokes;
+    if (
+      currentStrokes.length >= MAX_INK_STROKES ||
+      countInkPoints(currentStrokes) >= MAX_INK_POINTS
+    ) {
       setError('This drawing has reached its safe local size limit. Undo a stroke to continue.');
       return;
     }
@@ -180,9 +206,10 @@ export const InkCanvas: React.FC<InkCanvasProps> = ({
   const handlePointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => {
     const activeStroke = activeStrokeRef.current;
     if (!activeStroke || disabled) return;
+    const currentStrokes = persistenceCoordinator.getSnapshot().strokes;
     if (
       activeStroke.points.length >= MAX_INK_STROKE_POINTS ||
-      countInkPoints(strokes) + activeStroke.points.length >= MAX_INK_POINTS
+      countInkPoints(currentStrokes) + activeStroke.points.length >= MAX_INK_POINTS
     ) {
       setError('This drawing has reached its safe local size limit.');
       return;
@@ -196,7 +223,7 @@ export const InkCanvas: React.FC<InkCanvasProps> = ({
     const previous = activeStroke.points.at(-1);
     if (previous && Math.hypot(point.x - previous.x, point.y - previous.y) < 0.001) return;
     activeStroke.points.push(point);
-    renderStrokes([...strokes, activeStroke]);
+    renderStrokes([...currentStrokes, activeStroke]);
   };
 
   const finishStroke = (event: React.PointerEvent<HTMLCanvasElement>) => {
@@ -206,17 +233,18 @@ export const InkCanvas: React.FC<InkCanvasProps> = ({
     const activeStroke = activeStrokeRef.current;
     activeStrokeRef.current = null;
     if (!activeStroke || disabled) return;
-    void persist([...strokes, activeStroke]);
+    void persist([...persistenceCoordinator.getSnapshot().strokes, activeStroke]);
   };
 
   const undo = () => {
-    if (strokes.length === 0 || disabled) return;
+    const currentStrokes = persistenceCoordinator.getSnapshot().strokes;
+    if (currentStrokes.length === 0 || disabled) return;
     setClearPending(false);
-    void persist(strokes.slice(0, -1));
+    void persist(currentStrokes.slice(0, -1));
   };
 
   const clear = () => {
-    if (disabled || strokes.length === 0) return;
+    if (disabled || persistenceCoordinator.getSnapshot().strokes.length === 0) return;
     if (!clearPending) {
       setClearPending(true);
       return;
@@ -227,7 +255,8 @@ export const InkCanvas: React.FC<InkCanvasProps> = ({
 
   const savePreview = async () => {
     const canvas = canvasRef.current;
-    if (!canvas || strokes.length === 0 || !onSavePreview || isSaving) return;
+    const currentStrokes = persistenceCoordinator.getSnapshot().strokes;
+    if (!canvas || currentStrokes.length === 0 || !onSavePreview || isSaving) return;
     setIsSaving(true);
     setError(null);
     beginOperation();
@@ -238,7 +267,7 @@ export const InkCanvas: React.FC<InkCanvasProps> = ({
           else reject(new Error('Skribli could not encode the drawing preview.'));
         }, 'image/png');
       });
-      await onSavePreview(blob, strokes);
+      await onSavePreview(blob, currentStrokes);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
     } finally {

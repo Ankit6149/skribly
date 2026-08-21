@@ -1,7 +1,8 @@
 use crate::core::models::SkribNote;
 use crate::desktop::library::{
-    current_time_millis, sort_notes_for_library, write_library_export, LibraryExportEnvelope,
-    LibraryExportScope, LIBRARY_WINDOW_LABEL,
+    current_time_millis, sort_notes_for_library, write_library_export,
+    LibraryExportContentCoverage, LibraryExportEnvelope, LibraryExportScope,
+    LIBRARY_EXPORT_SCHEMA_VERSION, LIBRARY_WINDOW_LABEL,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -14,7 +15,8 @@ pub const LIBRARY_IMPORT_PREVIEW_RESULT_EVENT: &str = "skribly://library-import-
 pub const LIBRARY_IMPORT_APPLY_REQUEST_EVENT: &str = "skribly://library-import-apply-request";
 pub const LIBRARY_IMPORT_APPLY_RESULT_EVENT: &str = "skribly://library-import-apply-result";
 
-const PORTABLE_IMPORT_SCHEMA_VERSION: u32 = 1;
+const MIN_PORTABLE_IMPORT_SCHEMA_VERSION: u32 = 1;
+const PORTABLE_IMPORT_SCHEMA_VERSION: u32 = LIBRARY_EXPORT_SCHEMA_VERSION;
 const MAX_IMPORT_BYTES: usize = 10 * 1024 * 1024;
 const MAX_IMPORT_NOTES: usize = 50_000;
 const MAX_IMPORT_REQUEST_ID_CHARACTERS: usize = 128;
@@ -98,6 +100,8 @@ struct PortableImportEnvelope {
     schema_version: u32,
     exported_at_ms: u64,
     scope: LibraryExportScope,
+    #[serde(default)]
+    content_coverage: Option<LibraryExportContentCoverage>,
     note_count: usize,
     notes: Vec<PortableSkribNote>,
 }
@@ -345,7 +349,7 @@ fn perform_apply<R: Runtime>(
         .join("import-backups");
     let rollback_path = write_library_export(
         &backup_directory,
-        LibraryExportScope::CompleteBackup,
+        LibraryExportScope::AllRecords,
         previous_notes.clone(),
         current_time_millis(),
     )?;
@@ -371,8 +375,9 @@ fn verify_rollback_backup(path: &Path, expected_notes: &[SkribNote]) -> Result<(
         .map_err(|error| format!("Failed to read the pre-import rollback backup: {error}"))?;
     let envelope: LibraryExportEnvelope = serde_json::from_slice(&bytes)
         .map_err(|error| format!("The pre-import rollback backup did not verify: {error}"))?;
-    if envelope.schema_version != 1
-        || envelope.scope != LibraryExportScope::CompleteBackup
+    if envelope.schema_version != LIBRARY_EXPORT_SCHEMA_VERSION
+        || envelope.scope != LibraryExportScope::AllRecords
+        || envelope.content_coverage != LibraryExportContentCoverage::default()
         || envelope.note_count != expected_notes.len()
         || envelope.notes != expected_notes
     {
@@ -476,11 +481,22 @@ fn parse_import(raw_json: &str) -> Result<ParsedImport, String> {
 
     let envelope: PortableImportEnvelope = serde_json::from_str(raw_json)
         .map_err(|error| format!("The selected file is not a valid Skribli export: {error}"))?;
-    if envelope.schema_version != PORTABLE_IMPORT_SCHEMA_VERSION {
+    if !(MIN_PORTABLE_IMPORT_SCHEMA_VERSION..=PORTABLE_IMPORT_SCHEMA_VERSION)
+        .contains(&envelope.schema_version)
+    {
         return Err(format!(
-            "Unsupported Skribli import schema {}. This build accepts schema {} only.",
-            envelope.schema_version, PORTABLE_IMPORT_SCHEMA_VERSION
+            "Unsupported Skribli import schema {}. This build accepts schemas {} through {}.",
+            envelope.schema_version,
+            MIN_PORTABLE_IMPORT_SCHEMA_VERSION,
+            PORTABLE_IMPORT_SCHEMA_VERSION
         ));
+    }
+    if envelope.schema_version >= 2
+        && envelope.content_coverage.as_ref() != Some(&LibraryExportContentCoverage::default())
+    {
+        return Err(
+            "The export does not clearly declare its note-record-only content coverage.".into(),
+        );
     }
     if envelope.note_count != envelope.notes.len() {
         return Err("The import note count does not match the file contents.".into());
@@ -611,8 +627,12 @@ fn build_preview(
     let (active_count, trash_count) = lifecycle_counts(&parsed.notes);
     let mut warnings = Vec::new();
     if parsed.source_scope == LibraryExportScope::Selected {
-        warnings.push("This file is a selected-note export, not a complete backup.".into());
+        warnings.push("This file contains selected note records only.".into());
     }
+    warnings.push(
+        "Drawings, attachments, and reminders are not included in portable note-record exports."
+            .into(),
+    );
     if plan.conflicts.len() > MAX_CONFLICT_DETAILS {
         warnings.push(format!(
             "Only the first {MAX_CONFLICT_DETAILS} conflict summaries are shown."
@@ -717,12 +737,26 @@ mod tests {
         ]))
         .expect("valid export should parse");
         assert_eq!(lifecycle_counts(&parsed.notes), (1, 1));
-        assert_eq!(parsed.schema_version, PORTABLE_IMPORT_SCHEMA_VERSION);
+        assert_eq!(parsed.schema_version, 1);
+    }
+
+    #[test]
+    fn current_schema_requires_truthful_content_coverage() {
+        let current = r#"{"schemaVersion":2,"exportedAtMs":1,"scope":"allRecords","contentCoverage":{"noteRecords":true,"drawings":false,"attachments":false,"reminders":false},"noteCount":0,"notes":[]}"#;
+        let parsed = parse_import(current).expect("current note-record export should parse");
+        assert_eq!(parsed.schema_version, 2);
+        assert_eq!(parsed.source_scope, LibraryExportScope::AllRecords);
+
+        let missing_coverage =
+            r#"{"schemaVersion":2,"exportedAtMs":1,"scope":"allRecords","noteCount":0,"notes":[]}"#;
+        assert!(parse_import(missing_coverage)
+            .expect_err("schema 2 must declare excluded rich content")
+            .contains("content coverage"));
     }
 
     #[test]
     fn rejects_future_schema_duplicate_ids_and_unknown_fields() {
-        let future = r#"{"schemaVersion":2,"exportedAtMs":1,"scope":"completeBackup","noteCount":0,"notes":[]}"#;
+        let future = r#"{"schemaVersion":3,"exportedAtMs":1,"scope":"allRecords","contentCoverage":{"noteRecords":true,"drawings":false,"attachments":false,"reminders":false},"noteCount":0,"notes":[]}"#;
         assert!(parse_import(future)
             .expect_err("future schema must fail")
             .contains("Unsupported"));
@@ -786,7 +820,7 @@ mod tests {
         sort_notes_for_library(&mut expected);
         let path = write_library_export(
             &directory,
-            LibraryExportScope::CompleteBackup,
+            LibraryExportScope::AllRecords,
             expected.clone(),
             1234,
         )
@@ -966,7 +1000,7 @@ mod tests {
         let parsed = ParsedImport {
             fingerprint: "fingerprint".into(),
             schema_version: 1,
-            source_scope: LibraryExportScope::CompleteBackup,
+            source_scope: LibraryExportScope::AllRecords,
             notes: imported,
         };
         let preview = build_preview(

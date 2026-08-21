@@ -100,9 +100,11 @@ for (const marker of requiredTrayContract) {
 }
 
 const requiredNativeExport = [
-  'LIBRARY_EXPORT_SCHEMA_VERSION: u32 = 1',
+  'LIBRARY_EXPORT_SCHEMA_VERSION: u32 = 2',
   'LibraryExportScope::Selected',
-  'LibraryExportScope::CompleteBackup',
+  'LibraryExportScope::AllRecords',
+  'LibraryExportContentCoverage',
+  '"skribli-note-records"',
   '#[serde(rename_all = "camelCase", deny_unknown_fields)]',
   'OpenOptions::new()',
   '.create_new(true)',

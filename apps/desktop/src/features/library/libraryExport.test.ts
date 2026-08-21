@@ -43,7 +43,7 @@ describe('createLibraryExportRequest', () => {
     expect(ids).toEqual(['a', 'b', 'a', '']);
   });
 
-  it('uses null to request a complete backup', () => {
+  it('uses null to request all portable note records', () => {
     expect(createLibraryExportRequest(null, () => 'request-2')).toEqual({
       requestId: 'request-2',
       noteIds: null,

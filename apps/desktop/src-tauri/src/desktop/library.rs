@@ -10,14 +10,35 @@ use tauri::{App, AppHandle, Emitter, Listener, Manager, Runtime, WindowEvent};
 pub const LIBRARY_WINDOW_LABEL: &str = "library";
 pub const LIBRARY_EXPORT_REQUEST_EVENT: &str = "skribly://library-export-request";
 pub const LIBRARY_EXPORT_RESULT_EVENT: &str = "skribly://library-export-result";
-pub const LIBRARY_EXPORT_SCHEMA_VERSION: u32 = 1;
+pub const LIBRARY_EXPORT_SCHEMA_VERSION: u32 = 2;
 const MAX_EXPORT_REQUEST_ID_CHARACTERS: usize = 128;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
 pub enum LibraryExportScope {
+    #[serde(rename = "selected")]
     Selected,
-    CompleteBackup,
+    #[serde(rename = "allRecords", alias = "completeBackup")]
+    AllRecords,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct LibraryExportContentCoverage {
+    pub note_records: bool,
+    pub drawings: bool,
+    pub attachments: bool,
+    pub reminders: bool,
+}
+
+impl Default for LibraryExportContentCoverage {
+    fn default() -> Self {
+        Self {
+            note_records: true,
+            drawings: false,
+            attachments: false,
+            reminders: false,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -26,6 +47,7 @@ pub struct LibraryExportEnvelope {
     pub schema_version: u32,
     pub exported_at_ms: u64,
     pub scope: LibraryExportScope,
+    pub content_coverage: LibraryExportContentCoverage,
     pub note_count: usize,
     pub notes: Vec<SkribNote>,
 }
@@ -161,7 +183,7 @@ pub fn select_notes_for_export(
     sort_notes_for_library(&mut all_notes);
 
     let Some(note_ids) = note_ids else {
-        return Ok((LibraryExportScope::CompleteBackup, all_notes));
+        return Ok((LibraryExportScope::AllRecords, all_notes));
     };
 
     let requested: HashSet<String> = note_ids
@@ -211,12 +233,13 @@ pub fn write_library_export(
         schema_version: LIBRARY_EXPORT_SCHEMA_VERSION,
         exported_at_ms,
         scope: scope.clone(),
+        content_coverage: LibraryExportContentCoverage::default(),
         note_count: notes.len(),
         notes,
     };
     let prefix = match scope {
         LibraryExportScope::Selected => "skribli-notes",
-        LibraryExportScope::CompleteBackup => "skribli-backup",
+        LibraryExportScope::AllRecords => "skribli-note-records",
     };
 
     for suffix in 0..1_000_u16 {
@@ -312,12 +335,12 @@ mod tests {
     }
 
     #[test]
-    fn complete_backup_is_sorted_deterministically() {
+    fn all_record_export_is_sorted_deterministically() {
         let (_, notes) = select_notes_for_export(
             vec![note("z", 2, 5), note("newest", 1, 10), note("a", 2, 5)],
             None,
         )
-        .expect("complete backup selection should succeed");
+        .expect("all-record selection should succeed");
 
         assert_eq!(
             notes.into_iter().map(|note| note.id).collect::<Vec<_>>(),
@@ -355,6 +378,10 @@ mod tests {
             serde_json::from_str(&content).expect("decode export envelope");
         assert_eq!(decoded.schema_version, LIBRARY_EXPORT_SCHEMA_VERSION);
         assert_eq!(decoded.scope, LibraryExportScope::Selected);
+        assert_eq!(
+            decoded.content_coverage,
+            LibraryExportContentCoverage::default()
+        );
         assert_eq!(decoded.note_count, 1);
         assert_eq!(decoded.notes[0].id, "a");
 
@@ -366,14 +393,14 @@ mod tests {
         let directory = temporary_directory("create-new");
         let first = write_library_export(
             &directory,
-            LibraryExportScope::CompleteBackup,
+            LibraryExportScope::AllRecords,
             vec![note("a", 1, 1)],
             5000,
         )
         .expect("first export should succeed");
         let second = write_library_export(
             &directory,
-            LibraryExportScope::CompleteBackup,
+            LibraryExportScope::AllRecords,
             vec![note("b", 2, 2)],
             5000,
         )
@@ -382,6 +409,15 @@ mod tests {
         assert_ne!(first, second);
         assert!(first.exists());
         assert!(second.exists());
+        assert!(first
+            .file_name()
+            .and_then(|name| name.to_str())
+            .is_some_and(|name| name.starts_with("skribli-note-records-")));
+        let serialized = fs::read_to_string(&first).expect("read all-record export");
+        assert!(serialized.contains(r#""scope": "allRecords""#));
+        assert!(serialized.contains(r#""drawings": false"#));
+        assert!(serialized.contains(r#""attachments": false"#));
+        assert!(serialized.contains(r#""reminders": false"#));
 
         let _ = fs::remove_dir_all(directory);
     }

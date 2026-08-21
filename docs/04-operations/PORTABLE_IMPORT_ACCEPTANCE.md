@@ -4,7 +4,7 @@ This document defines the implemented scope and required evidence for issue #133
 
 ## Product contract
 
-- All Skribs imports schema-version-1 JSON produced by the current selected-note and complete-backup exporters.
+- All Skribs imports legacy schema-version-1 note-record JSON and current schema-version-2 selected/all-record JSON. Schema 2 must explicitly declare that drawings, attachments, and reminders are excluded.
 - The user deliberately chooses one local `.json` file. Skribli does not scan folders or upload it.
 - Preview is mandatory and never mutates storage.
 - Native code validates the complete file for both preview and apply.
@@ -109,8 +109,8 @@ Tie all evidence to the exact candidate executable, exact source file hash, and 
 
 | Scenario | Required result |
 | --- | --- |
-| Choose a valid complete backup | Native preview shows correct total, active, Trash, new, duplicate, and conflict counts; no local revision changes. |
-| Choose a valid selected-note export | Preview warns that the file is not a complete backup and plans only those records. |
+| Choose a valid all-record export | Native preview shows correct total, active, Trash, new, duplicate, and conflict counts; it warns that rich local content is excluded; no local revision changes. |
+| Choose a valid selected-note export | Preview warns that the file contains selected note records only and plans only those records. |
 | Choose a non-JSON or empty file | Actionable error; no preview and no local mutation. |
 | Choose a file larger than 10 MB | Rejected before native apply; no mutation. |
 | File has unknown field/future schema/duplicate ID | Entire preview fails; no partial records appear. |

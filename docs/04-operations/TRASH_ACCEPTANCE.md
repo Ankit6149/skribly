@@ -59,7 +59,7 @@ Every native lifecycle command is executed through the persisted-mutation transa
 
 ### Complete export
 
-A complete backup includes active and trashed records. Selected exports preserve lifecycle metadata. Export remains available when mutations are blocked.
+An all-record export includes active and trashed note records and explicitly excludes drawings, attachments, and reminders. Selected exports preserve lifecycle metadata. Export remains available when mutations are blocked.
 
 ## Automated evidence
 

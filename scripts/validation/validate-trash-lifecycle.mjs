@@ -172,7 +172,7 @@ for (const forbidden of ["invoke('focus_target_window'", "invoke('set_active_tar
 
 for (const marker of [
   'let all_notes = state.coordinator.get_all_skribs();',
-  'LibraryExportScope::CompleteBackup',
+  'LibraryExportScope::AllRecords',
   'notes: Vec<SkribNote>',
 ]) {
   if (!nativeLibrary.includes(marker)) failures.push(`Lifecycle-aware export is missing: ${marker}`);

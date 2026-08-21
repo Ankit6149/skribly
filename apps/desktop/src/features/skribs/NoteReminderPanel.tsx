@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { emit } from '@tauri-apps/api/event';
 import {
   ensureReminderNotificationPermission,
@@ -62,6 +62,8 @@ export const NoteReminderPanel: React.FC<NoteReminderPanelProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [notificationPermission, setNotificationPermission] =
     useState<ReminderNotificationPermission | null>(null);
+  const operationInProgressRef = useRef(false);
+  const panelBusy = isScheduling || mutatingId !== null;
 
   const reportError = (reason: unknown) => {
     const message = reason instanceof Error ? reason.message : String(reason);
@@ -96,12 +98,13 @@ export const NoteReminderPanel: React.FC<NoteReminderPanelProps> = ({
   }, [activeReminder]);
 
   const schedule = async () => {
-    if (disabled || isScheduling) return;
+    if (disabled || operationInProgressRef.current) return;
     const dueAt = new Date(dueValue).getTime();
     if (!Number.isFinite(dueAt)) {
       reportError(new Error('Choose a valid reminder date and time.'));
       return;
     }
+    operationInProgressRef.current = true;
     setIsScheduling(true);
     onBusyChange?.(true);
     setError(null);
@@ -121,12 +124,14 @@ export const NoteReminderPanel: React.FC<NoteReminderPanelProps> = ({
       reportError(reason);
     } finally {
       setIsScheduling(false);
+      operationInProgressRef.current = false;
       onBusyChange?.(false);
     }
   };
 
   const mutate = async (id: string, action: 'complete' | 'dismiss' | 'delete') => {
-    if (disabled || mutatingId) return;
+    if (disabled || operationInProgressRef.current) return;
+    operationInProgressRef.current = true;
     setMutatingId(id);
     onBusyChange?.(true);
     setError(null);
@@ -140,6 +145,7 @@ export const NoteReminderPanel: React.FC<NoteReminderPanelProps> = ({
       reportError(reason);
     } finally {
       setMutatingId(null);
+      operationInProgressRef.current = false;
       onBusyChange?.(false);
     }
   };
@@ -160,11 +166,11 @@ export const NoteReminderPanel: React.FC<NoteReminderPanelProps> = ({
             type="datetime-local"
             value={dueValue}
             min={toLocalDateTimeValue(Date.now() + 60_000)}
-            disabled={disabled || isScheduling}
+            disabled={disabled || panelBusy}
             onChange={(event) => setDueValue(event.target.value)}
           />
         </label>
-        <button type="button" className="primary" disabled={disabled || isScheduling} onClick={() => void schedule()}>
+        <button type="button" className="primary" disabled={disabled || panelBusy} onClick={() => void schedule()}>
           {isScheduling ? 'Saving…' : activeReminder ? 'Reschedule' : 'Set reminder'}
         </button>
       </div>
@@ -198,14 +204,14 @@ export const NoteReminderPanel: React.FC<NoteReminderPanelProps> = ({
                   <>
                     <button
                       type="button"
-                      disabled={disabled || mutatingId !== null}
+                      disabled={disabled || panelBusy}
                       onClick={() => void mutate(reminder.id, 'complete')}
                     >
                       Complete
                     </button>
                     <button
                       type="button"
-                      disabled={disabled || mutatingId !== null}
+                      disabled={disabled || panelBusy}
                       onClick={() => void mutate(reminder.id, 'dismiss')}
                     >
                       Dismiss
@@ -215,7 +221,7 @@ export const NoteReminderPanel: React.FC<NoteReminderPanelProps> = ({
                 <button
                   type="button"
                   className="danger"
-                  disabled={disabled || mutatingId !== null}
+                  disabled={disabled || panelBusy}
                   onClick={() => void mutate(reminder.id, 'delete')}
                 >
                   {mutatingId === reminder.id ? 'Working…' : 'Remove'}

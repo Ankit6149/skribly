@@ -80,12 +80,12 @@ Tie all evidence to the exact candidate executable and record screenshots or vid
 | Create/edit a compact note, then return to library | Focusing or refreshing the library shows the latest durable text. |
 | Original target application closed | Note remains readable; no application is launched or guessed. |
 | Search text/process/context with mixed case and Unicode | Results are correct and deterministically ordered. |
-| Keyboard-only use | Search, result navigation, detail reading, refresh, selected export, backup export, dismiss, and hide are reachable. |
+| Keyboard-only use | Search, result navigation, detail reading, refresh, selected record export, all-record export, dismiss, and hide are reachable. |
 | 200% text scaling and minimum window size | Controls, search, list, detail, and export feedback remain visible and operable. |
 | High contrast and reduced motion | Focus and selection remain perceivable; no required information depends on motion or colour alone. |
 | Read-only or expired mode | Every note remains readable and exportable; no mutation action is offered. |
 | Selected export | Versioned JSON contains exactly the selected note and reports the path. |
-| Complete backup with zero/many notes | Versioned JSON succeeds and accurately records `noteCount`. |
+| All-record export with zero/many notes | Versioned JSON succeeds, accurately records `noteCount`, and clearly states that drawings, attachments, and reminders are excluded. |
 | Repeated export in the same millisecond | A new filename is created; existing files are unchanged. |
 | Export write/serialization failure | An error is shown and no incomplete file is presented as successful. |
 | Compact editor open while library is visible | Neither window replaces the other; library remains non-topmost and the editor lifecycle stays intact. |

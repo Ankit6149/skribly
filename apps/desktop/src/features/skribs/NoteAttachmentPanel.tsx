@@ -46,6 +46,7 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
   onBusyChange,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const operationInProgressRef = useRef(false);
   const [attachments, setAttachments] = useState<SkribAttachment[]>([]);
   const [urls, setUrls] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
@@ -53,6 +54,7 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const panelBusy = isAdding || removingId !== null;
 
   const reportError = (reason: unknown) => {
     const message = reason instanceof Error ? reason.message : String(reason);
@@ -98,7 +100,8 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
   );
 
   const addFiles = async (files: FileList | null) => {
-    if (!files || files.length === 0 || disabled || isAdding) return;
+    if (!files || files.length === 0 || disabled || operationInProgressRef.current) return;
+    operationInProgressRef.current = true;
     setIsAdding(true);
     onBusyChange?.(true);
     setError(null);
@@ -110,16 +113,18 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = '';
       setIsAdding(false);
+      operationInProgressRef.current = false;
       onBusyChange?.(false);
     }
   };
 
   const remove = async (attachmentId: string) => {
-    if (disabled || removingId) return;
+    if (disabled || operationInProgressRef.current) return;
     if (confirmRemoveId !== attachmentId) {
       setConfirmRemoveId(attachmentId);
       return;
     }
+    operationInProgressRef.current = true;
     setRemovingId(attachmentId);
     onBusyChange?.(true);
     setError(null);
@@ -131,6 +136,7 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
       reportError(reason);
     } finally {
       setRemovingId(null);
+      operationInProgressRef.current = false;
       onBusyChange?.(false);
     }
   };
@@ -145,7 +151,7 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
         <button
           type="button"
           className="primary"
-          disabled={disabled || isAdding}
+          disabled={disabled || panelBusy}
           onClick={() => fileInputRef.current?.click()}
         >
           {isAdding ? 'Adding…' : 'Add files'}
@@ -156,7 +162,7 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
           type="file"
           multiple
           accept={ACCEPTED_FILES}
-          disabled={disabled || isAdding}
+          disabled={disabled || panelBusy}
           onChange={(event) => void addFiles(event.currentTarget.files)}
         />
       </header>
@@ -209,7 +215,7 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
                   <button
                     type="button"
                     className={confirmRemoveId === attachment.id ? 'danger' : ''}
-                    disabled={disabled || removingId !== null}
+                    disabled={disabled || panelBusy}
                     onClick={() => void remove(attachment.id)}
                   >
                     {removingId === attachment.id

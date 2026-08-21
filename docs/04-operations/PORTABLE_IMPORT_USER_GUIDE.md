@@ -15,7 +15,7 @@ The preview shows:
 - new records;
 - exact duplicates that will be skipped;
 - stable-ID conflicts;
-- warnings when the file is a selected-note export rather than a complete backup.
+- warnings when the file contains selected note records rather than all portable note records.
 
 Preview is available when Skribli is read-only because it does not modify local notes.
 

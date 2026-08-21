@@ -87,7 +87,7 @@
     },
     "category": "Productivity",
     "shortDescription": "A contextual annotation layer for Windows.",
-    "longDescription": "Skribli is a local-first contextual annotation application for Windows. The current release starts with typed Skribs and is designed for handwriting, highlights, arrows, images, reminders, and richer annotations that return with their context.",
+    "longDescription": "Skribli is a local-first contextual annotation application for Windows with typed and handwritten Skribs, pastel notes, local attachments, reminders, and a calendar that return with their context.",
     "copyright": "Copyright © 2026 Ankit Bhardwaj"
   }
 }

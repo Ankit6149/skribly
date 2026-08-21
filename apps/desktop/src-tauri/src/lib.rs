@@ -74,6 +74,10 @@ impl NoteWindowRuntime {
         self.active_note_id.as_deref() == Some(note_id) && self.workspace_expanded
     }
 
+    fn workspace_is_expanded(&self) -> bool {
+        self.active_note_id.is_some() && self.workspace_expanded
+    }
+
     fn record_programmatic_placement(
         &mut self,
         note_id: &str,
@@ -530,7 +534,19 @@ fn reposition_compact_window(
         let window = app_handle
             .get_webview_window("main")
             .ok_or_else(|| "The compact editor window is unavailable.".to_string())?;
-        let metrics = position_compact_window_for_target(&window, &refreshed_target)?;
+        let workspace_expanded = state
+            .note_window_runtime
+            .lock()
+            .map(|runtime| runtime.workspace_is_expanded())
+            .unwrap_or(false);
+        let metrics = if workspace_expanded {
+            // Repositioning an expanded Draw/Files/Reminder surface must preserve the workspace
+            // dimensions. This path also records the programmatic move so it cannot overwrite
+            // the user's saved compact/dot anchor through the frontend onMoved listener.
+            position_active_note_window(&window, &state, &refreshed_target)?
+        } else {
+            position_compact_window_for_target(&window, &refreshed_target)?
+        };
         set_runtime_active_target(&state, Some(refreshed_target));
         Ok(metrics)
     }
@@ -1589,6 +1605,26 @@ mod tests {
 
         assert!(runtime.workspace_expanded_for("note-a"));
         assert!(!runtime.workspace_expanded_for("note-b"));
+    }
+
+    #[test]
+    fn reposition_layout_follows_the_active_workspace_mode() {
+        let mut runtime = NoteWindowRuntime::default();
+        let metrics = OverlayMetrics {
+            overlay_physical_x: 320,
+            overlay_physical_y: 200,
+            ..OverlayMetrics::default()
+        };
+
+        assert!(!runtime.workspace_is_expanded());
+        runtime.record_programmatic_placement("note-a", false, &metrics);
+        assert!(!runtime.workspace_is_expanded());
+
+        runtime.record_programmatic_placement("note-a", true, &metrics);
+        assert!(runtime.workspace_is_expanded());
+
+        runtime.record_programmatic_placement("note-a", false, &metrics);
+        assert!(!runtime.workspace_is_expanded());
     }
 
     #[test]
