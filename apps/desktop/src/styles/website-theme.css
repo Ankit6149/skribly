@@ -24,6 +24,8 @@
   --skribli-ink: var(--ink);
   --skribli-muted: rgb(38 41 35 / 58%);
   --skribli-line: var(--line);
+  --skribli-paper: var(--yellow);
+  --skribli-paper-deep: color-mix(in srgb, var(--skribli-paper) 78%, var(--ink));
 }
 
 body,
@@ -475,32 +477,46 @@ html[data-skribly-window="home"] #root,
 
 .skrib-color-yellow {
   --skribli-paper: var(--yellow);
-  --skribli-paper-deep: #e6c451;
   background-color: var(--yellow);
 }
 
 .skrib-color-peach {
   --skribli-paper: var(--peach);
-  --skribli-paper-deep: #efb49d;
   background-color: var(--peach);
 }
 
 .skrib-color-mint {
   --skribli-paper: var(--mint);
-  --skribli-paper-deep: #afd3b1;
   background-color: var(--mint);
 }
 
 .skrib-color-sky {
   --skribli-paper: var(--sky);
-  --skribli-paper-deep: #afc9ed;
   background-color: var(--sky);
 }
 
 .skrib-color-lavender {
   --skribli-paper: var(--lavender);
-  --skribli-paper-deep: #c9b8ec;
   background-color: var(--lavender);
+}
+
+.skrib-color-yellow,
+.skrib-color-peach,
+.skrib-color-mint,
+.skrib-color-sky,
+.skrib-color-lavender {
+  --skribli-paper-deep: color-mix(in srgb, var(--skribli-paper) 78%, var(--ink));
+  --scrollbar-track: color-mix(in srgb, var(--skribli-paper) 82%, transparent);
+  --scrollbar-thumb: color-mix(in srgb, var(--skribli-paper) 64%, var(--ink));
+  --scrollbar-thumb-hover: color-mix(in srgb, var(--skribli-paper) 48%, var(--ink));
+}
+
+.color-swatch.skrib-color-yellow,
+.color-swatch.skrib-color-peach,
+.color-swatch.skrib-color-mint,
+.color-swatch.skrib-color-sky,
+.color-swatch.skrib-color-lavender {
+  background: var(--skribli-paper);
 }
 
 /* All Skribs, search, import/export, Trash */

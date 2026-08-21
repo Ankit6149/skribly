@@ -1,12 +1,12 @@
 :root {
-  --account-ink: #24251f;
-  --account-muted: #6d6f67;
-  --account-paper: #fffdf7;
-  --account-wash: #f7f2e6;
-  --account-yellow: #f7d969;
-  --account-line: rgba(36, 37, 31, 0.12);
-  --account-ui: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
-  --account-hand: "Kalam", "Segoe Print", cursive;
+  --account-ink: var(--ink);
+  --account-muted: var(--muted);
+  --account-paper: var(--paper);
+  --account-wash: var(--paper-deep);
+  --account-yellow: var(--yellow);
+  --account-line: var(--line);
+  --account-ui: var(--font-ui);
+  --account-hand: var(--font-hand);
 }
 
 html[data-skribly-window="home"],
@@ -50,7 +50,7 @@ html[data-skribly-window="home"] #root,
 .home-hero h1 {
   margin: 0;
   max-width: 680px;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-display);
   font-weight: 600;
   letter-spacing: -0.04em;
   line-height: 1.02;

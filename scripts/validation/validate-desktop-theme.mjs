@@ -4,8 +4,10 @@ import { resolve } from 'node:path';
 const root = resolve(import.meta.dirname, '..', '..');
 const read = (path) => readFileSync(resolve(root, path), 'utf8');
 const desktopManifest = JSON.parse(read('apps/desktop/package.json'));
+const website = read('site/styles.css');
 const tokens = read('packages/design-system/src/tokens.css');
 const theme = read('apps/desktop/src/styles/website-theme.css');
+const globalStyles = read('apps/desktop/src/styles/global.css');
 const main = read('apps/desktop/src/main.tsx');
 
 const requiredDependencies = {
@@ -37,6 +39,17 @@ const requiredTokens = [
 
 for (const marker of requiredTokens) {
   if (!tokens.includes(marker)) throw new Error(`Desktop design tokens are missing ${marker}.`);
+  if (marker.startsWith('--') && !marker.startsWith('--font-') && !website.includes(marker)) {
+    throw new Error(`Desktop token ${marker} has drifted from the website palette.`);
+  }
+}
+
+for (const marker of ['--scrollbar-track:', '--scrollbar-thumb:', '--scrollbar-thumb-hover:']) {
+  if (!tokens.includes(marker)) throw new Error(`Desktop design tokens are missing ${marker}`);
+}
+
+for (const selector of ['*::-webkit-scrollbar', '*::-webkit-scrollbar-thumb', '*::-webkit-scrollbar-corner']) {
+  if (!globalStyles.includes(selector)) throw new Error(`Desktop themed scrollbars are missing ${selector}.`);
 }
 
 const requiredThemeSurfaces = [
@@ -58,6 +71,12 @@ const requiredThemeSurfaces = [
 
 for (const selector of requiredThemeSurfaces) {
   if (!theme.includes(selector)) throw new Error(`Website-aligned theme is missing ${selector}.`);
+}
+
+for (const color of ['yellow', 'peach', 'mint', 'sky', 'lavender']) {
+  if (!theme.includes(`.skrib-color-${color}`) || !theme.includes(`var(--${color})`)) {
+    throw new Error(`Desktop note surfaces are missing the website ${color} pastel.`);
+  }
 }
 
 if (!/\.composer-textarea,[\s\S]*font-family:\s*var\(--font-hand\)\s*!important/.test(theme)) {

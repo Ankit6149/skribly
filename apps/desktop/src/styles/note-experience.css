@@ -1,12 +1,12 @@
 /* Skribli uses one compact note window. Nothing remains floating after it closes. */
 :root {
-  --skribli-ui-font: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
-  --skribli-note-font: "Kalam", "Segoe Print", "Ink Free", "Bradley Hand", cursive;
-  --skribli-ink: #26271f;
-  --skribli-muted: rgba(38, 39, 31, 0.55);
-  --skribli-paper: #fff1a8;
-  --skribli-paper-deep: #f3dc78;
-  --skribli-line: rgba(38, 39, 31, 0.14);
+  --skribli-ui-font: var(--font-ui);
+  --skribli-note-font: var(--font-hand);
+  --skribli-ink: var(--ink);
+  --skribli-muted: rgb(38 41 35 / 55%);
+  --skribli-paper: var(--yellow);
+  --skribli-paper-deep: color-mix(in srgb, var(--skribli-paper) 78%, var(--ink));
+  --skribli-line: var(--line);
 }
 
 html,
@@ -353,11 +353,11 @@ body {
   cursor: not-allowed;
 }
 
-.skrib-color-yellow { --skribli-paper: #fff1a8; --skribli-paper-deep: #f3dc78; }
-.skrib-color-peach { --skribli-paper: #ffd8c8; --skribli-paper-deep: #efb49d; }
-.skrib-color-mint { --skribli-paper: #dcefdc; --skribli-paper-deep: #afd3b1; }
-.skrib-color-sky { --skribli-paper: #dceaff; --skribli-paper-deep: #afc9ed; }
-.skrib-color-lavender { --skribli-paper: #e9dfff; --skribli-paper-deep: #c9b8ec; }
+.skrib-color-yellow { --skribli-paper: var(--yellow); }
+.skrib-color-peach { --skribli-paper: var(--peach); }
+.skrib-color-mint { --skribli-paper: var(--mint); }
+.skrib-color-sky { --skribli-paper: var(--sky); }
+.skrib-color-lavender { --skribli-paper: var(--lavender); }
 
 @keyframes note-enter {
   from {

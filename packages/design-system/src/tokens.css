@@ -13,6 +13,9 @@
   --line: rgb(38 41 35 / 12%);
   --olive: #536a4f;
   --olive-soft: #e7efe4;
+  --scrollbar-track: rgb(255 253 247 / 52%);
+  --scrollbar-thumb: color-mix(in srgb, var(--olive) 52%, var(--paper));
+  --scrollbar-thumb-hover: color-mix(in srgb, var(--olive) 72%, var(--paper));
   --danger: #8b3f38;
   --danger-soft: #fff0ec;
   --font-ui: "DM Sans", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
