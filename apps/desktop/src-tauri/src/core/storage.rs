@@ -178,7 +178,6 @@ pub struct StorageService {
 
 impl StorageService {
     pub fn new(primary_path: PathBuf) -> Self {
-        let _ = license::initialize_from_skrib_path(&primary_path);
         let license_path = primary_path.with_file_name("license.json");
         Self {
             primary_path,
@@ -1364,6 +1363,17 @@ mod tests {
         assert!(!diagnostics.contains("Notes - Notepad"));
         assert!(diagnostics.contains("currentSchemaVersion"));
         assert!(diagnostics.contains("skribs.json"));
+        cleanup(&path);
+    }
+
+    #[test]
+    fn constructing_storage_does_not_claim_the_global_license_path() {
+        let path = test_path("license-initialization-order");
+        let license_path = path.with_file_name("license.json");
+
+        let _storage = StorageService::new(path.clone());
+
+        assert!(!license_path.exists());
         cleanup(&path);
     }
 

@@ -188,19 +188,25 @@ fn actual_rect(metrics: &OverlayMetrics) -> WindowRect {
     }
 }
 
-fn actual_matches_placement(metrics: &OverlayMetrics, placement: &CompactWindowPlacement) -> bool {
-    let rect = actual_rect(metrics);
+struct AppliedPlacement {
+    outer_metrics: OverlayMetrics,
+    inner_width: i32,
+    inner_height: i32,
+}
+
+fn actual_matches_placement(actual: &AppliedPlacement, placement: &CompactWindowPlacement) -> bool {
+    let rect = actual_rect(&actual.outer_metrics);
     rect_is_within_work_area(&rect, &placement.work_area)
         && (rect.x - placement.x).abs() <= FINAL_RECT_TOLERANCE_PX
         && (rect.y - placement.y).abs() <= FINAL_RECT_TOLERANCE_PX
-        && (rect.width - placement.width).abs() <= FINAL_RECT_TOLERANCE_PX
-        && (rect.height - placement.height).abs() <= FINAL_RECT_TOLERANCE_PX
+        && (actual.inner_width - placement.width).abs() <= FINAL_RECT_TOLERANCE_PX
+        && (actual.inner_height - placement.height).abs() <= FINAL_RECT_TOLERANCE_PX
 }
 
 fn apply_placement(
     window: &tauri::WebviewWindow,
     placement: &CompactWindowPlacement,
-) -> Result<OverlayMetrics, String> {
+) -> Result<AppliedPlacement, String> {
     window
         .set_size(PhysicalSize::new(
             placement.width as u32,
@@ -215,7 +221,14 @@ fn apply_placement(
     let hwnd = window
         .hwnd()
         .map_err(|error| format!("Skribli could not inspect the compact editor window: {error}"))?;
-    Ok(get_overlay_metrics(HWND(hwnd.0 as *mut _)))
+    let inner_size = window.inner_size().map_err(|error| {
+        format!("Skribli could not inspect the compact editor content size: {error}")
+    })?;
+    Ok(AppliedPlacement {
+        outer_metrics: get_overlay_metrics(HWND(hwnd.0 as *mut _)),
+        inner_width: inner_size.width as i32,
+        inner_height: inner_size.height as i32,
+    })
 }
 
 pub fn position_compact_window_for_target(
@@ -233,14 +246,14 @@ pub fn position_compact_window_for_target(
 
     let first = apply_placement(window, &placement)?;
     if actual_matches_placement(&first, &placement) {
-        return Ok(first);
+        return Ok(first.outer_metrics);
     }
 
     // A per-monitor DPI transition can resize the HWND after its first move. Apply the same
     // target-monitor physical rectangle once more after Windows has processed that transition.
     let second = apply_placement(window, &placement)?;
     if actual_matches_placement(&second, &placement) {
-        return Ok(second);
+        return Ok(second.outer_metrics);
     }
 
     Err(format!(
@@ -249,10 +262,10 @@ pub fn position_compact_window_for_target(
         placement.y,
         placement.width,
         placement.height,
-        second.overlay_physical_x,
-        second.overlay_physical_y,
-        second.overlay_physical_width,
-        second.overlay_physical_height
+        second.outer_metrics.overlay_physical_x,
+        second.outer_metrics.overlay_physical_y,
+        second.inner_width,
+        second.inner_height
     ))
 }
 
@@ -393,5 +406,29 @@ mod tests {
             calculate_compact_window_placement(&rect(0, 0, 500, 400), &rect(0, 0, 500, 400), 192)
                 .expect_err("undersized work areas must fail");
         assert!(error.contains("too small"));
+    }
+
+    #[test]
+    fn validates_requested_content_size_instead_of_decorated_outer_size() {
+        let placement = calculate_compact_window_placement(
+            &rect(0, 0, 1920, 1040),
+            &rect(100, 100, 1600, 800),
+            120,
+        )
+        .expect("placement");
+        let actual = AppliedPlacement {
+            outer_metrics: OverlayMetrics {
+                overlay_physical_x: placement.x,
+                overlay_physical_y: placement.y,
+                overlay_physical_width: placement.width + 18,
+                overlay_physical_height: placement.height + 10,
+                dpi: placement.dpi,
+                scale_factor: placement.scale_factor,
+            },
+            inner_width: placement.width,
+            inner_height: placement.height,
+        };
+
+        assert!(actual_matches_placement(&actual, &placement));
     }
 }

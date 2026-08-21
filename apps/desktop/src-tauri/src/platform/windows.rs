@@ -6,9 +6,10 @@
 use std::ffi::OsString;
 use std::os::windows::ffi::OsStringExt;
 use std::path::Path;
-use std::sync::atomic::{AtomicIsize, AtomicU64, Ordering};
-use std::sync::mpsc::Sender;
-use std::sync::OnceLock;
+use std::sync::atomic::{AtomicBool, AtomicIsize, AtomicU64, Ordering};
+use std::sync::mpsc::{sync_channel, Sender};
+use std::sync::{Arc, OnceLock};
+use std::time::{Duration, Instant};
 
 use windows::core::BOOL;
 use windows::Win32::Foundation::{CloseHandle, HANDLE, HWND, LPARAM, LRESULT, RECT, WPARAM};
@@ -22,10 +23,10 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
     RegisterHotKey, UnregisterHotKey, MOD_CONTROL, MOD_SHIFT, VK_SPACE,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    CallWindowProcW, EnumWindows, GetClassNameW, GetForegroundWindow, GetWindowLongPtrW,
-    GetWindowRect, GetWindowTextW, GetWindowThreadProcessId, IsIconic, IsWindow, IsWindowVisible,
-    SetWindowLongPtrW, GWLP_WNDPROC, HTCLIENT, WINEVENT_OUTOFCONTEXT, WINEVENT_SKIPOWNPROCESS,
-    WM_HOTKEY, WM_NCHITTEST, WNDPROC,
+    CallWindowProcW, EnumWindows, GetClassNameW, GetForegroundWindow, GetMessageW,
+    GetWindowLongPtrW, GetWindowRect, GetWindowTextW, GetWindowThreadProcessId, IsIconic, IsWindow,
+    IsWindowVisible, SetWindowLongPtrW, GWLP_WNDPROC, HTCLIENT, MSG, WINEVENT_OUTOFCONTEXT,
+    WINEVENT_SKIPOWNPROCESS, WM_HOTKEY, WM_NCHITTEST, WNDPROC,
 };
 
 use crate::core::coordinator::Coordinator;
@@ -39,7 +40,6 @@ pub use super::windows_events::{
 
 static ORIGINAL_WNDPROC: AtomicIsize = AtomicIsize::new(0);
 static GLOBAL_COORDINATOR: OnceLock<Coordinator> = OnceLock::new();
-static HOTKEY_SENDER: OnceLock<Sender<i32>> = OnceLock::new();
 static ACTIVE_WINEVENT_HOOKS: std::sync::Mutex<Vec<isize>> = std::sync::Mutex::new(Vec::new());
 static ENUMERATION_COUNT: AtomicU64 = AtomicU64::new(0);
 
@@ -138,29 +138,65 @@ pub fn reconstruct_hwnd(hwnd_val: isize) -> Option<HWND> {
     }
 }
 
-/// Register Win32 global hotkey for Ctrl + Shift + Space.
-pub fn register_global_hotkey(hwnd: HWND, hotkey_id: i32) -> Result<(), String> {
-    unsafe {
-        RegisterHotKey(
-            Some(hwnd),
-            hotkey_id,
-            MOD_CONTROL | MOD_SHIFT,
-            VK_SPACE.0 as u32,
-        )
-        .map_err(|e| format!("Failed to register Ctrl+Shift+Space global hotkey: {e}"))
-    }
+fn is_expected_hotkey_message(message: &MSG, hotkey_id: i32) -> bool {
+    message.message == WM_HOTKEY && message.wParam.0 as i32 == hotkey_id
 }
 
-/// Unregister Win32 global hotkey.
-pub fn unregister_global_hotkey(hwnd: HWND, hotkey_id: i32) {
-    unsafe {
-        let _ = UnregisterHotKey(Some(hwnd), hotkey_id);
-    }
-}
+/// Own the global shortcut on a dedicated native message thread.
+///
+/// WebView window procedures can be replaced during a show/hide lifecycle. A
+/// thread-owned hotkey stays reliable regardless of compact-window visibility.
+pub fn start_global_hotkey_listener(
+    sender: Sender<i32>,
+    running: Arc<AtomicBool>,
+    hotkey_id: i32,
+) -> Result<(), String> {
+    let (ready_sender, ready_receiver) = sync_channel::<Result<(), String>>(1);
 
-/// Install sender channel for native global hotkey notifications.
-pub fn install_hotkey_sender(sender: Sender<i32>) {
-    let _ = HOTKEY_SENDER.set(sender);
+    std::thread::Builder::new()
+        .name("skribli-global-hotkey".to_string())
+        .spawn(move || {
+            let registration = unsafe {
+                RegisterHotKey(None, hotkey_id, MOD_CONTROL | MOD_SHIFT, VK_SPACE.0 as u32).map_err(
+                    |error| format!("Failed to register Ctrl+Shift+Space global hotkey: {error}"),
+                )
+            };
+
+            if let Err(message) = registration {
+                let _ = ready_sender.send(Err(message));
+                return;
+            }
+            let _ = ready_sender.send(Ok(()));
+
+            let mut last_forwarded: Option<Instant> = None;
+            while running.load(Ordering::Relaxed) {
+                let mut message = MSG::default();
+                let result = unsafe { GetMessageW(&mut message, None, WM_HOTKEY, WM_HOTKEY) };
+                if result.0 <= 0 {
+                    break;
+                }
+                if !is_expected_hotkey_message(&message, hotkey_id) {
+                    continue;
+                }
+                let outside_debounce =
+                    last_forwarded.is_none_or(|last| last.elapsed() >= Duration::from_millis(300));
+                if outside_debounce {
+                    last_forwarded = Some(Instant::now());
+                    if sender.send(hotkey_id).is_err() {
+                        break;
+                    }
+                }
+            }
+
+            unsafe {
+                let _ = UnregisterHotKey(None, hotkey_id);
+            }
+        })
+        .map_err(|error| format!("Failed to start the global-hotkey listener: {error}"))?;
+
+    ready_receiver
+        .recv_timeout(Duration::from_secs(2))
+        .map_err(|_| "The global-hotkey listener did not start in time.".to_string())?
 }
 
 /// Calculate hit-testing intersection between physical cursor and client DIP rectangles.
@@ -205,30 +241,13 @@ pub fn check_hit_test_interactive(hwnd: HWND, px: i32, py: i32, rects: &[HitTest
     }
 }
 
-/// Custom WndProc subclass function intercepting WM_HOTKEY and keeping the compact window interactive.
+/// Custom WndProc subclass function keeping the compact window interactive.
 unsafe extern "system" fn overlay_subclass_proc(
     hwnd: HWND,
     msg: u32,
     wparam: WPARAM,
     lparam: LPARAM,
 ) -> LRESULT {
-    if msg == WM_HOTKEY {
-        let hotkey_id = wparam.0 as i32;
-        static LAST_HOTKEY_MS: AtomicU64 = AtomicU64::new(0);
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_millis() as u64;
-        let last = LAST_HOTKEY_MS.load(Ordering::Relaxed);
-        if now > last + 300 {
-            LAST_HOTKEY_MS.store(now, Ordering::Relaxed);
-            if let Some(sender) = HOTKEY_SENDER.get() {
-                let _ = sender.send(hotkey_id);
-            }
-        }
-        return LRESULT(0);
-    }
-
     if msg == WM_NCHITTEST {
         return LRESULT(HTCLIENT as isize);
     }
@@ -553,6 +572,22 @@ mod tests {
     #[test]
     fn test_hwnd_reconstruction() {
         assert_eq!(reconstruct_hwnd(0), None);
+    }
+
+    #[test]
+    fn thread_hotkey_filter_accepts_only_the_registered_command() {
+        let mut expected = MSG::default();
+        expected.message = WM_HOTKEY;
+        expected.wParam = WPARAM(0x534B);
+        assert!(is_expected_hotkey_message(&expected, 0x534B));
+
+        let mut wrong_id = expected;
+        wrong_id.wParam = WPARAM(0x534C);
+        assert!(!is_expected_hotkey_message(&wrong_id, 0x534B));
+
+        let mut wrong_message = expected;
+        wrong_message.message = WM_NCHITTEST;
+        assert!(!is_expected_hotkey_message(&wrong_message, 0x534B));
     }
 
     #[test]

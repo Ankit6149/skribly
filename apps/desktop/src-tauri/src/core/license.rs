@@ -15,6 +15,28 @@ const PRODUCT_ID: &str = "skribly-personal-windows";
 
 static LICENSE_PATH: OnceLock<PathBuf> = OnceLock::new();
 
+fn bind_license_path(
+    slot: &OnceLock<PathBuf>,
+    requested_path: PathBuf,
+) -> Result<&PathBuf, String> {
+    if slot.get().is_none() {
+        // Another initializer may win between get() and set(); validate the winner below.
+        let _ = slot.set(requested_path.clone());
+    }
+
+    let active_path = slot
+        .get()
+        .ok_or_else(|| "Licence storage could not be initialized.".to_string())?;
+    if active_path != &requested_path {
+        return Err(format!(
+            "Licence storage was already initialized at a different path (active: {}, requested: {}).",
+            active_path.display(),
+            requested_path.display()
+        ));
+    }
+    Ok(active_path)
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum LicenseMode {
@@ -437,8 +459,7 @@ pub fn deactivate(path: &Path) -> Result<LicenseStatus, String> {
 
 pub fn initialize_from_skrib_path(skrib_path: &Path) -> Result<LicenseStatus, String> {
     let path = skrib_path.with_file_name("license.json");
-    let _ = LICENSE_PATH.set(path.clone());
-    current_status(&path)
+    current_status(bind_license_path(&LICENSE_PATH, path)?)
 }
 
 pub fn current_global_status() -> Result<LicenseStatus, String> {
@@ -576,5 +597,25 @@ mod tests {
     fn trial_offline_window_cannot_extend_past_trial_expiry() {
         let (token, key) = signed_trial_token("skd_test", 1_000, 10_000, 10_001);
         assert!(verify_activation_token_with_key(&token, "skd_test", 1_000, &key).is_err());
+    }
+
+    #[test]
+    fn licence_storage_path_is_idempotent_but_cannot_be_rebound() {
+        let slot = OnceLock::new();
+        let durable = PathBuf::from("durable").join("license.json");
+        let temporary = PathBuf::from("temporary").join("license.json");
+
+        assert_eq!(
+            bind_license_path(&slot, durable.clone()).expect("first path should bind"),
+            &durable
+        );
+        assert_eq!(
+            bind_license_path(&slot, durable.clone()).expect("same path should be idempotent"),
+            &durable
+        );
+
+        let error = bind_license_path(&slot, temporary)
+            .expect_err("a second storage location must fail closed");
+        assert!(error.contains("already initialized at a different path"));
     }
 }

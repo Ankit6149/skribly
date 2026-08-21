@@ -20,12 +20,11 @@ use note_lifecycle::{created_open_request, reopened_open_request};
 
 #[cfg(target_os = "windows")]
 use platform::windows::{
-    get_overlay_metrics as query_overlay_metrics, inspect_target_window, install_hotkey_sender,
-    install_overlay_subclass, install_winevent_hooks, list_candidate_target_windows,
-    reconstruct_hwnd, register_global_hotkey, set_dpi_awareness, uninstall_overlay_subclass,
-    uninstall_winevent_hooks, unregister_global_hotkey, EVENT_OBJECT_DESTROY,
-    EVENT_OBJECT_LOCATIONCHANGE, EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_MINIMIZEEND,
-    EVENT_SYSTEM_MINIMIZESTART,
+    get_overlay_metrics as query_overlay_metrics, inspect_target_window, install_overlay_subclass,
+    install_winevent_hooks, list_candidate_target_windows, reconstruct_hwnd, set_dpi_awareness,
+    start_global_hotkey_listener, uninstall_overlay_subclass, uninstall_winevent_hooks,
+    EVENT_OBJECT_DESTROY, EVENT_OBJECT_LOCATIONCHANGE, EVENT_SYSTEM_FOREGROUND,
+    EVENT_SYSTEM_MINIMIZEEND, EVENT_SYSTEM_MINIMIZESTART,
 };
 #[cfg(target_os = "windows")]
 use platform::windows_events::{WinEventPipeline, WIN_EVENT_QUEUE_CAPACITY};
@@ -320,10 +319,7 @@ fn initialize_native_overlay(
 
         install_overlay_subclass(win_hwnd, state.coordinator.clone())?;
 
-        unregister_global_hotkey(win_hwnd, GLOBAL_HOTKEY_ID);
-        register_global_hotkey(win_hwnd, GLOBAL_HOTKEY_ID)?;
         if !install_winevent_hooks(state.win_event_pipeline.clone()) {
-            unregister_global_hotkey(win_hwnd, GLOBAL_HOTKEY_ID);
             return Err("Failed to install required Windows event hooks".into());
         }
 
@@ -335,7 +331,6 @@ fn initialize_native_overlay(
         Err(message) => {
             if let Ok(hwnd) = window.hwnd() {
                 let win_hwnd = windows::Win32::Foundation::HWND(hwnd.0 as *mut _);
-                unregister_global_hotkey(win_hwnd, GLOBAL_HOTKEY_ID);
                 uninstall_overlay_subclass(win_hwnd);
             }
             uninstall_winevent_hooks();
@@ -737,6 +732,8 @@ pub fn run() {
             let app_handle = app.handle().clone();
             let data_dir = app.path().app_data_dir()?;
             let storage_path = data_dir.join("skribs.json");
+            license::initialize_from_skrib_path(&storage_path)
+                .map_err(std::io::Error::other)?;
             let mut storage_service = storage::StorageService::new(storage_path);
             let loaded = storage_service.load();
             {
@@ -768,11 +765,20 @@ pub fn run() {
 
             #[cfg(target_os = "windows")]
             {
+                let hotkey_result = start_global_hotkey_listener(
+                    hotkey_sender,
+                    running_flag.clone(),
+                    GLOBAL_HOTKEY_ID,
+                );
                 if let Some(ref window) = main_window {
                     if window.hwnd().is_ok() {
-                        install_hotkey_sender(hotkey_sender);
                         let state = app.state::<AppState>();
                         initialize_native_overlay(&app_handle, &state, window);
+                        if let Err(message) = hotkey_result {
+                            let status = OverlayInitializationStatus::Failed(message);
+                            state.set_init_status(status.clone());
+                            let _ = app_handle.emit("skribly://overlay-init-status", status);
+                        }
                     }
                 }
             }
@@ -825,12 +831,15 @@ pub fn run() {
                         };
 
                         #[cfg(target_os = "windows")]
-                        if let Err(message) = position_compact_window_for_target(&window, &target) {
-                            let _ = app_handle_hk.emit(
-                                "skribly://hotkey-error",
-                                format!("Skribli could not place the compact editor safely: {message}"),
-                            );
-                            continue;
+                        {
+                            if let Err(message) = position_compact_window_for_target(&window, &target)
+                            {
+                                let _ = app_handle_hk.emit(
+                                    "skribly://hotkey-error",
+                                    format!("Skribli could not place the compact editor safely: {message}"),
+                                );
+                                continue;
+                            }
                         }
 
                         #[cfg(target_os = "windows")]
@@ -1102,7 +1111,6 @@ pub fn run() {
                 if let Some(window) = app_handle.get_webview_window("main") {
                     if let Ok(hwnd) = window.hwnd() {
                         let win_hwnd = windows::Win32::Foundation::HWND(hwnd.0 as *mut _);
-                        unregister_global_hotkey(win_hwnd, GLOBAL_HOTKEY_ID);
                         uninstall_overlay_subclass(win_hwnd);
                         uninstall_winevent_hooks();
                     }
