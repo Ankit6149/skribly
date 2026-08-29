@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { LibraryHost } from './features/library/LibraryHost';
 import { OverlayHost } from './features/overlay/OverlayHost';
 import { HomeHost } from './features/account/HomeHost';
+import { ContextRail } from './features/rail/ContextRail';
 import { useLicenseStore } from './stores/licenseStore';
 
 export function App() {
@@ -10,6 +11,7 @@ export function App() {
   const windowLabel = getCurrentWindow().label;
   const isLibraryWindow = windowLabel === 'library';
   const isHomeWindow = windowLabel === 'home';
+  const isRailWindow = windowLabel === 'rail';
 
   useEffect(() => {
     void initWriteStatus();
@@ -25,10 +27,24 @@ export function App() {
   return (
     <main
       className={
-        isLibraryWindow ? 'app-library-root' : isHomeWindow ? 'app-home-root' : 'app-overlay-root'
+        isLibraryWindow
+          ? 'app-library-root'
+          : isHomeWindow
+            ? 'app-home-root'
+            : isRailWindow
+              ? 'app-rail-root'
+              : 'app-overlay-root'
       }
     >
-      {isLibraryWindow ? <LibraryHost /> : isHomeWindow ? <HomeHost /> : <OverlayHost />}
+      {isLibraryWindow ? (
+        <LibraryHost />
+      ) : isHomeWindow ? (
+        <HomeHost />
+      ) : isRailWindow ? (
+        <ContextRail />
+      ) : (
+        <OverlayHost />
+      )}
     </main>
   );
 }

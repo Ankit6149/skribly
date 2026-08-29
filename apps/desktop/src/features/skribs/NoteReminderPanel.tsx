@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { emit } from '@tauri-apps/api/event';
+import { CalendarClock, ChevronDown, ChevronLeft, ChevronRight, Repeat2 } from 'lucide-react';
 import {
   ensureReminderNotificationPermission,
   type ReminderNotificationPermission,
@@ -11,6 +12,7 @@ import {
   listReminders,
   rescheduleReminder,
   scheduleReminder,
+  type ReminderRepeat,
   type ReminderWithStatus,
 } from '../../lib/reminderStore';
 import {
@@ -64,6 +66,7 @@ export const NoteReminderPanel: React.FC<NoteReminderPanelProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [mutatingId, setMutatingId] = useState<string | null>(null);
   const [isScheduling, setIsScheduling] = useState(false);
+  const [repeat, setRepeat] = useState<ReminderRepeat>('none');
   const [error, setError] = useState<string | null>(null);
   const [notificationPermission, setNotificationPermission] =
     useState<ReminderNotificationPermission | null>(null);
@@ -106,6 +109,7 @@ export const NoteReminderPanel: React.FC<NoteReminderPanelProps> = ({
       time: toLocalTimeValue(activeReminder.dueAt),
     });
     setCalendarMonth({ year: date.getFullYear(), month: date.getMonth() });
+    setRepeat(activeReminder.repeat ?? 'none');
   }, [activeReminder]);
 
   const calendarDays = useMemo(
@@ -166,8 +170,8 @@ export const NoteReminderPanel: React.FC<NoteReminderPanelProps> = ({
         // Scheduling remains local and usable even if Windows permission lookup fails.
       }
       setNotificationPermission(permission);
-      if (activeReminder) await rescheduleReminder(activeReminder.id, dueAt);
-      else await scheduleReminder({ noteId, title: reminderTitle(noteText), dueAt });
+      if (activeReminder) await rescheduleReminder(activeReminder.id, dueAt, repeat);
+      else await scheduleReminder({ noteId, title: reminderTitle(noteText), dueAt, repeat });
       await refresh();
       void emit('skribly://reminders-updated', { noteId }).catch(() => undefined);
     } catch (reason) {
@@ -204,7 +208,7 @@ export const NoteReminderPanel: React.FC<NoteReminderPanelProps> = ({
     <section className="note-reminder-panel" aria-labelledby="note-reminder-title">
       <header className="note-panel-heading">
         <div>
-          <strong id="note-reminder-title">Set a reminder</strong>
+          <strong id="note-reminder-title"><CalendarClock size={17} aria-hidden="true" /> Set a reminder</strong>
           <span>Private to this device · visible in Skribli Calendar</span>
         </div>
       </header>
@@ -220,9 +224,9 @@ export const NoteReminderPanel: React.FC<NoteReminderPanelProps> = ({
         <div className="note-reminder-picker">
           <div className="note-reminder-calendar">
             <div className="note-reminder-calendar-nav">
-              <button type="button" aria-label="Previous month" disabled={disabled || panelBusy} onClick={() => moveCalendarMonth(-1)}>‹</button>
+              <button type="button" aria-label="Previous month" disabled={disabled || panelBusy} onClick={() => moveCalendarMonth(-1)}><ChevronLeft size={16} aria-hidden="true" /></button>
               <strong aria-live="polite">{calendarTitle}</strong>
-              <button type="button" aria-label="Next month" disabled={disabled || panelBusy} onClick={() => moveCalendarMonth(1)}>›</button>
+              <button type="button" aria-label="Next month" disabled={disabled || panelBusy} onClick={() => moveCalendarMonth(1)}><ChevronRight size={16} aria-hidden="true" /></button>
             </div>
             <div className="note-reminder-weekdays" aria-hidden="true">
               {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map((day) => <span key={day}>{day}</span>)}
@@ -248,7 +252,7 @@ export const NoteReminderPanel: React.FC<NoteReminderPanelProps> = ({
 
           <div className="note-reminder-time">
             <span className="note-reminder-time-kicker">Time</span>
-            <label>
+            <label className="note-reminder-select-field">
               <span className="sr-only">Reminder time</span>
               <select
                 value={dueSelection.time}
@@ -258,6 +262,24 @@ export const NoteReminderPanel: React.FC<NoteReminderPanelProps> = ({
               >
                 {timeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
               </select>
+              <ChevronDown size={14} aria-hidden="true" />
+            </label>
+            <label className="note-reminder-select-field repeat-field">
+              <span className="sr-only">Repeat reminder</span>
+              <Repeat2 size={14} aria-hidden="true" />
+              <select
+                value={repeat}
+                disabled={disabled || panelBusy}
+                aria-label="Repeat reminder"
+                onChange={(event) => setRepeat(event.target.value as ReminderRepeat)}
+              >
+                <option value="none">Does not repeat</option>
+                <option value="daily">Every day</option>
+                <option value="weekdays">Weekdays</option>
+                <option value="weekly">Every week</option>
+                <option value="monthly">Every month</option>
+              </select>
+              <ChevronDown size={14} aria-hidden="true" />
             </label>
             <span className="note-reminder-selected-date">
               {new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric' }).format(
@@ -294,6 +316,9 @@ export const NoteReminderPanel: React.FC<NoteReminderPanelProps> = ({
               <div>
                 <span className="note-reminder-state">{reminder.status}</span>
                 <strong>{formatReminderTime(reminder.dueAt)}</strong>
+                {(reminder.repeat ?? 'none') !== 'none' && (
+                  <small className="note-reminder-repeat">Repeats {reminder.repeat}</small>
+                )}
                 <small>{reminder.title || 'Skribli reminder'}</small>
               </div>
               <div className="note-reminder-actions">

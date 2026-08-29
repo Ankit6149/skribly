@@ -1006,6 +1006,24 @@ html[data-skribly-window="library"] #root,
   box-shadow: none;
 }
 
+.home-command-card .home-rail-link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  font: 750 10px/1.2 var(--font-ui);
+  text-decoration: underline;
+  text-decoration-color: rgb(38 41 35 / 28%);
+  text-underline-offset: 3px;
+}
+
+.home-command-card .home-rail-link:hover,
+.home-command-card .home-rail-link:focus-visible {
+  text-decoration-color: currentColor;
+  outline: 0;
+}
+
 .home-overview-grid {
   margin-top: 14px;
   display: grid;

@@ -5,7 +5,7 @@
 > Further annotations, browser integration, macOS, revision history, and sync are tracked under [issue #46](https://github.com/Ankit6149/skribly/issues/46) and must not be treated as implemented or approved release scope.
 
 **Product:** Skribli  
-**Current release target:** account-connected, local-content Windows contextual Skribs with typing, drawing, local attachments, and one-time reminders
+**Current release target:** account-connected, local-content Windows contextual Skribs with unified typing/drawing, local attachments, and repeating reminders
 **Future platforms/capabilities:** separate gated roadmaps  
 **Distribution:** direct installer after signed release and runtime acceptance  
 **Business model:** one server-owned seven-day free trial for each account/device; payments remain deferred
@@ -14,18 +14,18 @@
 
 When a user notices something worth remembering inside an application, webpage, file, folder, or screen context, Skribli should let them capture it quickly and restore it safely when the intended context returns.
 
-For the current Windows MVP, an active contextual Skrib can contain typed text, editable drawing strokes, approved local attachments, and a one-time local reminder. It is edited through a compact window that can temporarily expand for richer tools, collapse to one movable dot, and be recovered through a non-floating library and calendar surface. This implementation slice must not redefine the product as merely a notes app.
+For the current Windows MVP, an active contextual Skrib can contain typed text, editable drawing strokes over that text, approved local attachments, and a local reminder with an optional repeat rule. It is edited through one resizable note canvas, can collapse to one movable dot, and can be recovered through the My Skribs rail or the non-floating library/calendar surface. This implementation slice must not redefine the product as merely a notes app.
 
 ## 2. Current Windows MVP objects
 
 The supported contextual Skrib has two coordinated local persistence parts:
 
 - Rust-owned typed text, colour, context, position, and lifecycle metadata in the authoritative versioned JSON store;
-- WebView-owned editable pen/highlighter/eraser strokes, approved image/video/document attachments, and one-time reminder state in local IndexedDB.
+- WebView-owned editable pen/highlighter/eraser strokes, approved image/video/document attachments, note text-size preferences, and repeating reminder state in local IndexedDB.
 
 Each newly created Skrib rotates through the website's exact yellow, peach, mint, sky, and lavender pastels. The user can change the active Skrib to any of those five colours. Only one native editor or collapsed dot can be active on screen at a time in this release; the library still preserves all saved records.
 
-Arrows, shapes, pins, labels, checklists, recurring reminders, screenshot pins, and richer screen/application/page/file/folder contexts require separate acceptance work.
+Arrows, shapes, pins, labels, checklists, screenshot pins, and richer closed page/file/folder context reconstruction require separate acceptance work.
 
 The exact fields, one-versus-many behavior, create/open semantics, close behavior, archive/trash rules, and context identity are decided and implemented through #20, #14, #18, #21, and #60 where applicable.
 
@@ -37,12 +37,12 @@ The current intended flow is:
 2. The user invokes the configured global shortcut.
 3. Skribli captures a supported foreground context before taking focus.
 4. A compact editor opens near the target on the correct display.
-5. The user types, draws with a touchpad/touch/pen, attaches an approved local file, or schedules one reminder. Drawing, Files, and Reminder use a bounded expanded workspace rather than a full-screen surface.
+5. The user types and draws on the same canvas, selects and moves strokes, attaches an approved local file through Add, or schedules a reminder with an optional repeat rule.
 6. New notes receive the next pastel in the five-colour rotation, and the user can choose another approved pastel.
 7. The application reports truthful saving/saved/error state for the Rust-owned note record and clear local feedback for rich content.
 8. Done/Close/Escape collapses the editor to a movable dot only after the latest typed draft is durable, or keeps it open with recovery when native persistence fails.
 9. Clicking or moving the dot restores or repositions the same active Skrib; editor and dot positions persist and are clamped to the target monitor's work area.
-10. The user can later recover every note through the non-floating All Skribs library, with linked reminders also visible in its local calendar.
+10. The user can preview grouped notes through My Skribs or recover every note through the non-floating All Skribs library, with linked reminders also visible in its local calendar.
 
 This flow must not require a permanently interactive full-screen overlay. The current release may keep the one active contextual note visible as a compact movable dot.
 
@@ -58,7 +58,7 @@ This flow must not require a permanently interactive full-screen overlay. The cu
 
 ## 5. Current editing and lifecycle behavior
 
-The implemented Windows foundation creates one note for zero active context matches, reopens the deterministic existing match, serializes/coalesces draft writes, flushes before collapse, and moves saved notes into reversible Trash. A note that has drawing, attachments, or a reminder is retained even when its typed text is empty. Restore preserves the same native record; permanent deletion exists only inside Trash after note-specific confirmation and initiates local rich-content/reminder cleanup.
+The implemented Windows foundation creates a fresh note on every Ctrl + Shift + Space press, explicitly reopens a selected saved note from My Skribs when its live context is available, serializes/coalesces draft writes, flushes before collapse, and moves saved notes into reversible Trash. A note that has drawing, attachments, or a reminder is retained even when its typed text is empty. Restore preserves the same native record; permanent deletion exists only inside Trash after note-specific confirmation and initiates local rich-content/reminder cleanup.
 
 Parent #20 remains open for archive, broader context/lifecycle consistency, supported-field and appearance decisions, Settings/privacy entry points, usability evidence, and exact release-candidate validation.
 

@@ -39,14 +39,14 @@ for (const marker of [
   '--compact-surface-logical-height: 360px',
   '--compact-surface-gutter: 4px',
   '--collapsed-dot-surface-size: 44px',
-  '--collapsed-dot-diameter: 32px',
-  '--collapsed-dot-bubble-left: 4px',
-  '--collapsed-dot-bubble-top: 8px',
-  '--collapsed-dot-open-size: 22px',
-  '--collapsed-dot-open-left: 9px',
-  '--collapsed-dot-open-top: 13px',
-  '--collapsed-dot-open-notch-width: 3px',
-  '--collapsed-dot-open-notch-height: 2px',
+  '--collapsed-dot-diameter: 30px',
+  '--collapsed-dot-bubble-left: 5px',
+  '--collapsed-dot-bubble-top: 9px',
+  '--collapsed-dot-open-size: 20px',
+  '--collapsed-dot-open-left: 10px',
+  '--collapsed-dot-open-top: 14px',
+  '--collapsed-dot-open-notch-width: 2px',
+  '--collapsed-dot-open-notch-height: 1px',
   '--collapsed-dot-dismiss-width: 12px',
   '--collapsed-dot-dismiss-height: 12px',
   '--collapsed-dot-dismiss-left: 28px',
@@ -205,11 +205,11 @@ for (const item of [bubble, reopenControl, dismissControl]) {
   }
 }
 if (
-  bubble.x !== 4 || bubble.y !== 8 || bubble.width !== 32 || bubble.height !== 32 ||
+  bubble.x !== 5 || bubble.y !== 9 || bubble.width !== 30 || bubble.height !== 30 ||
   dismissControl.x !== 28 || dismissControl.y !== 3 ||
   dismissControl.width !== 12 || dismissControl.height !== 12
 ) {
-  failures.push('The collapsed notification geometry must retain its 32px bubble and 12px close badge coordinates.');
+  failures.push('The collapsed notification geometry must retain its crisp 30px bubble and 12px close badge coordinates.');
 }
 
 const bubbleRadius = bubble.width / 2;
@@ -312,5 +312,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  'Compact surfaces validated: shaped 420x360 editor, 44px notification dot with 32px pastel bubble and 12px close badge, non-overlapping controls, and no empty visible fallback.'
+  'Compact surfaces validated: shaped 420x360 editor, 44px notification surface with a crisp 30px pastel bubble and 12px close badge, non-overlapping controls, and no empty visible fallback.'
 );

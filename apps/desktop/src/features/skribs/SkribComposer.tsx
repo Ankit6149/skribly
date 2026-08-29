@@ -2,13 +2,16 @@ import React, { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useSt
 import { invoke } from '@tauri-apps/api/core';
 import { emit } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { Bell, Maximize2, Paperclip, PenLine, Type, X } from 'lucide-react';
 import { OverlayMetrics, SkribNote, TargetWindowInfo } from '../../lib/geometry';
 import {
   addInkToNote,
   getInkForNote,
   getRichContent,
   replaceInkForNote,
+  updateNoteViewPreferences,
   type InkStroke,
+  type SkribTextSize,
 } from '../../lib/richContentStore';
 import { dismissReminder, listReminders } from '../../lib/reminderStore';
 import { useLicenseStore } from '../../stores/licenseStore';
@@ -31,7 +34,8 @@ import { NoteAttachmentPanel } from './NoteAttachmentPanel';
 import { NoteReminderPanel } from './NoteReminderPanel';
 import { discardSkribDraft, persistSkribText, stageSkribDraft } from './textPersistence';
 
-type ComposerWorkspace = 'type' | 'write' | 'attachments' | 'reminder';
+type ComposerPanel = 'reminder' | null;
+type NoteSurfaceSize = 'compact' | 'medium' | 'large';
 
 const NOTE_COLORS = ['yellow', 'peach', 'mint', 'sky', 'lavender'] as const;
 
@@ -78,8 +82,15 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
   const [diagnosticsPath, setDiagnosticsPath] = useState<string | null>(null);
   const [isFinishing, setIsFinishing] = useState(false);
   const [isRepositioning, setIsRepositioning] = useState(false);
-  const [workspace, setWorkspace] = useState<ComposerWorkspace>('type');
-  const [isChangingWorkspace, setIsChangingWorkspace] = useState(false);
+  const [activePanel, setActivePanel] = useState<ComposerPanel>(null);
+  const [drawingEnabled, setDrawingEnabled] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
+  const [surfaceSize, setSurfaceSize] = useState<NoteSurfaceSize>(() =>
+    note.width >= 680 ? 'large' : note.width >= 500 ? 'medium' : 'compact'
+  );
+  const [textSize, setTextSize] = useState<SkribTextSize>('medium');
+  const [attachmentPickerRequest, setAttachmentPickerRequest] = useState(0);
+  const [attachmentCount, setAttachmentCount] = useState(0);
   const [inkStrokes, setInkStrokes] = useState<InkStroke[]>([]);
   const [isInkLoading, setIsInkLoading] = useState(true);
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
@@ -145,7 +156,10 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
     setSaveSnapshot(saveController.getSnapshot());
     setComposerError(null);
     setDiagnosticsPath(null);
-    setWorkspace('type');
+    setActivePanel(null);
+    setDrawingEnabled(false);
+    setSurfaceSize(note.width >= 680 ? 'large' : note.width >= 500 ? 'medium' : 'compact');
+    setAttachmentCount(0);
     richOperationsInProgress.current.clear();
     setRichOperationCount(0);
     const cleanInkState: InkPersistenceState = {
@@ -161,7 +175,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
       setSaveSnapshot(snapshot);
       setText(snapshot.draft);
     });
-  }, [saveController]);
+  }, [note.width, saveController]);
 
   useEffect(() => {
     saveController.acceptCommittedText(note.text);
@@ -172,9 +186,13 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
   useEffect(() => {
     let cancelled = false;
     setIsInkLoading(true);
-    void getInkForNote(note.id)
-      .then((document) => {
-        if (!cancelled) setInkStrokes(document.strokes);
+    void Promise.all([getInkForNote(note.id), getRichContent(note.id)])
+      .then(([document, richContent]) => {
+        if (!cancelled) {
+          setInkStrokes(document.strokes);
+          setTextSize(richContent.view?.textSize ?? 'medium');
+          setAttachmentCount(richContent.attachments.length);
+        }
       })
       .catch((reason) => {
         if (!cancelled) {
@@ -208,19 +226,19 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
     }
   }, []);
 
-  const changeWorkspace = useCallback(
-    async (nextWorkspace: ComposerWorkspace) => {
-      if (nextWorkspace === workspace || isChangingWorkspace) return;
-      setIsChangingWorkspace(true);
+  const changeSurfaceSize = useCallback(
+    async (nextSize: NoteSurfaceSize) => {
+      if (nextSize === surfaceSize || isResizing) return;
+      setIsResizing(true);
       setComposerError(null);
       try {
         if (isTauriAvailable) {
-          await invoke('set_skrib_workspace_mode', {
+          await invoke('set_skrib_window_size', {
             id: note.id,
-            expanded: nextWorkspace !== 'type',
+            size: nextSize,
           });
         }
-        setWorkspace(nextWorkspace);
+        setSurfaceSize(nextSize);
       } catch (reason) {
         setComposerError(
           `Skribli could not resize the editor safely: ${
@@ -228,10 +246,24 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
           }`
         );
       } finally {
-        setIsChangingWorkspace(false);
+        setIsResizing(false);
       }
     },
-    [isChangingWorkspace, isTauriAvailable, note.id, workspace]
+    [isResizing, isTauriAvailable, note.id, surfaceSize]
+  );
+
+  const changeTextSize = useCallback(
+    async (nextSize: SkribTextSize) => {
+      setTextSize(nextSize);
+      try {
+        await updateNoteViewPreferences(note.id, { textSize: nextSize });
+      } catch (reason) {
+        setComposerError(
+          `Skribli could not save the text size: ${reason instanceof Error ? reason.message : String(reason)}`
+        );
+      }
+    },
+    [note.id]
   );
 
   const hasPersistedExtras = useCallback(async () => {
@@ -602,7 +634,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
               aria-label={storageWritable ? 'Save and collapse this Skrib' : 'Storage recovery required'}
               title={storageWritable ? 'Save and collapse' : 'Storage recovery required'}
             >
-              ✕
+              <X size={15} aria-hidden="true" />
             </button>
           </div>
         </header>
@@ -639,37 +671,85 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
           </div>
         )}
 
-        <nav className="composer-workspace-tabs" aria-label="Skrib editor tools">
-          {(
-            [
-              ['type', 'Text'],
-              ['write', 'Draw'],
-              ['attachments', 'Files'],
-              ['reminder', 'Reminder'],
-            ] as const
-          ).map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              className={workspace === value ? 'active' : ''}
-              aria-current={workspace === value ? 'page' : undefined}
-              disabled={
-                isChangingWorkspace || isFinishing || hasPendingRichOperation || hasUnsavedInk
-              }
-              onClick={() => void changeWorkspace(value)}
+        <div className="composer-command-bar" aria-label="Skrib tools">
+          <button
+            type="button"
+            className="composer-tool-button primary-tool"
+            aria-label="Attach a photo, video, or document"
+            title="Attach anything"
+            disabled={!canWrite || isFinishing || hasPendingRichOperation}
+            onClick={() => setAttachmentPickerRequest((request) => request + 1)}
+          >
+            <Paperclip size={15} aria-hidden="true" />
+            <span>Add</span>
+          </button>
+          <button
+            type="button"
+            className={`composer-tool-button ${drawingEnabled ? 'active' : ''}`}
+            aria-pressed={drawingEnabled}
+            title="Draw over your text"
+            disabled={!canWrite || isFinishing || isInkLoading}
+            onClick={() => {
+              setDrawingEnabled((enabled) => !enabled);
+              setActivePanel(null);
+            }}
+          >
+            <PenLine size={15} aria-hidden="true" />
+            <span>Draw</span>
+          </button>
+          <button
+            type="button"
+            className={`composer-tool-button ${activePanel === 'reminder' ? 'active' : ''}`}
+            aria-expanded={activePanel === 'reminder'}
+            title="Set a reminder or repeating task"
+            disabled={!canWrite || isFinishing || hasPendingRichOperation}
+            onClick={() => {
+              setDrawingEnabled(false);
+              setActivePanel((panel) => panel === 'reminder' ? null : 'reminder');
+            }}
+          >
+            <Bell size={15} aria-hidden="true" />
+            <span>Remind</span>
+          </button>
+          <span className="composer-tool-divider" aria-hidden="true" />
+          <label className="composer-tool-select" title="Text size">
+            <Type size={14} aria-hidden="true" />
+            <span className="sr-only">Text size</span>
+            <select
+              value={textSize}
+              disabled={!canWrite || isFinishing}
+              onChange={(event) => void changeTextSize(event.target.value as SkribTextSize)}
             >
-              {label}
-            </button>
-          ))}
-        </nav>
+              <option value="small">Small text</option>
+              <option value="medium">Medium text</option>
+              <option value="large">Large text</option>
+            </select>
+          </label>
+          <label className="composer-tool-select surface-size-select" title="Note size">
+            <Maximize2 size={14} aria-hidden="true" />
+            <span className="sr-only">Note size</span>
+            <select
+              value={surfaceSize}
+              disabled={isResizing || isFinishing || hasPendingRichOperation || hasUnsavedInk}
+              onChange={(event) => void changeSurfaceSize(event.target.value as NoteSurfaceSize)}
+            >
+              <option value="compact">Compact note</option>
+              <option value="medium">Medium note</option>
+              <option value="large">Large note</option>
+            </select>
+          </label>
+        </div>
 
-        <div className={`composer-workspace composer-workspace-${workspace}`}>
-          {workspace === 'type' && (
+        <div className="composer-unified-workspace">
+          <div
+            className={`composer-unified-canvas ${drawingEnabled ? 'drawing' : 'typing'}`}
+            data-text-size={textSize}
+          >
             <textarea
               className="composer-textarea"
               value={text}
               autoFocus={canWrite}
-              readOnly={!canWrite}
+              readOnly={!canWrite || drawingEnabled}
               placeholder="Write the thought before it disappears…"
               spellCheck
               aria-describedby={textareaDescription}
@@ -686,37 +766,45 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
                 });
               }}
             />
-          )}
-          {workspace === 'write' &&
-            (isInkLoading ? (
-              <div className="composer-workspace-loading" role="status">Opening drawing…</div>
-            ) : (
-              <InkCanvas
-                initialStrokes={inkStrokes}
+            {!isInkLoading && (
+              <div className={`composer-ink-layer ${drawingEnabled ? 'active' : ''}`}>
+                <InkCanvas
+                  variant="overlay"
+                  initialStrokes={inkStrokes}
+                  disabled={!canWrite || isFinishing || deleteConfirmation === 'confirming'}
+                  onChange={persistInk}
+                  onSavePreview={saveInkPreview}
+                  onBusyChange={handleInkBusy}
+                  onPersistenceStateChange={handleInkPersistenceState}
+                />
+              </div>
+            )}
+          </div>
+
+          <NoteAttachmentPanel
+            noteId={note.id}
+            compact
+            pickerRequest={attachmentPickerRequest}
+            disabled={!canWrite || isFinishing || deleteConfirmation === 'confirming'}
+            onError={setComposerError}
+            onBusyChange={handleAttachmentsBusy}
+            onCountChange={setAttachmentCount}
+          />
+
+          {activePanel === 'reminder' && (
+            <div className="composer-inline-panel">
+              <NoteReminderPanel
+                noteId={note.id}
+                noteText={text}
                 disabled={!canWrite || isFinishing || deleteConfirmation === 'confirming'}
-                onChange={persistInk}
-                onSavePreview={saveInkPreview}
-                onBusyChange={handleInkBusy}
-                onPersistenceStateChange={handleInkPersistenceState}
+                onError={setComposerError}
+                onBusyChange={handleReminderBusy}
               />
-            ))}
-          {workspace === 'attachments' && (
-            <NoteAttachmentPanel
-              noteId={note.id}
-              disabled={!canWrite || isFinishing || deleteConfirmation === 'confirming'}
-              onError={setComposerError}
-              onBusyChange={handleAttachmentsBusy}
-            />
+            </div>
           )}
-          {workspace === 'reminder' && (
-            <NoteReminderPanel
-              noteId={note.id}
-              noteText={text}
-              disabled={!canWrite || isFinishing || deleteConfirmation === 'confirming'}
-              onError={setComposerError}
-              onBusyChange={handleReminderBusy}
-            />
-          )}
+          <span className="sr-only" aria-live="polite">
+            {attachmentCount.toLocaleString()} attached files
+          </span>
         </div>
 
         <footer className="composer-footer">

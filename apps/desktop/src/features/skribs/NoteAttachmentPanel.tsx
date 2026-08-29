@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { emit } from '@tauri-apps/api/event';
+import { FileText, Image, Paperclip, Play, Trash2 } from 'lucide-react';
 import {
   addFilesToNote,
   createAttachmentObjectUrl,
@@ -13,8 +14,11 @@ import {
 interface NoteAttachmentPanelProps {
   noteId: string;
   disabled?: boolean;
+  compact?: boolean;
+  pickerRequest?: number;
   onError?: (message: string) => void;
   onBusyChange?: (busy: boolean) => void;
+  onCountChange?: (count: number) => void;
 }
 
 const ACCEPTED_FILES = [
@@ -42,10 +46,14 @@ const ACCEPTED_FILES = [
 export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
   noteId,
   disabled = false,
+  compact = false,
+  pickerRequest = 0,
   onError,
   onBusyChange,
+  onCountChange,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const lastPickerRequestRef = useRef(pickerRequest);
   const operationInProgressRef = useRef(false);
   const [attachments, setAttachments] = useState<SkribAttachment[]>([]);
   const [urls, setUrls] = useState<Record<string, string>>({});
@@ -99,6 +107,16 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
     [attachments]
   );
 
+  useEffect(() => {
+    onCountChange?.(attachments.length);
+  }, [attachments.length, onCountChange]);
+
+  useEffect(() => {
+    if (pickerRequest === lastPickerRequestRef.current) return;
+    lastPickerRequestRef.current = pickerRequest;
+    if (!disabled && !panelBusy) fileInputRef.current?.click();
+  }, [disabled, panelBusy, pickerRequest]);
+
   const addFiles = async (files: FileList | null) => {
     if (!files || files.length === 0 || disabled || operationInProgressRef.current) return;
     operationInProgressRef.current = true;
@@ -141,6 +159,74 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
     }
   };
 
+  const hiddenPicker = (
+    <input
+      ref={fileInputRef}
+      className="sr-only"
+      type="file"
+      multiple
+      accept={ACCEPTED_FILES}
+      disabled={disabled || panelBusy}
+      onChange={(event) => void addFiles(event.currentTarget.files)}
+    />
+  );
+
+  if (compact) {
+    return (
+      <section
+        className="note-attachment-strip"
+        data-empty={attachments.length === 0 && !isLoading}
+        aria-label="Attached files"
+      >
+        {hiddenPicker}
+        {isLoading ? (
+          <span className="attachment-strip-status" role="status">Reading attachments…</span>
+        ) : attachments.length > 0 ? (
+          <div className="attachment-chips">
+            {attachments.map((attachment) => {
+              const url = urls[attachment.id];
+              const Icon =
+                attachment.kind === 'image' || attachment.kind === 'ink'
+                  ? Image
+                  : attachment.kind === 'video'
+                    ? Play
+                    : FileText;
+              return (
+                <article key={attachment.id} className="attachment-chip">
+                  <span className="attachment-chip-icon" aria-hidden="true"><Icon size={14} /></span>
+                  <div className="attachment-chip-copy">
+                    {url ? (
+                      <a href={url} download={attachment.name} title={attachment.name}>{attachment.name}</a>
+                    ) : (
+                      <strong title={attachment.name}>{attachment.name}</strong>
+                    )}
+                    <small>{formatAttachmentSize(attachment.size)}</small>
+                  </div>
+                  <button
+                    type="button"
+                    className={confirmRemoveId === attachment.id ? 'confirm' : ''}
+                    disabled={disabled || panelBusy}
+                    aria-label={
+                      confirmRemoveId === attachment.id
+                        ? `Confirm removing ${attachment.name}`
+                        : `Remove ${attachment.name}`
+                    }
+                    onClick={() => void remove(attachment.id)}
+                  >
+                    <Trash2 size={13} aria-hidden="true" />
+                  </button>
+                </article>
+              );
+            })}
+          </div>
+        ) : (
+          <span className="attachment-strip-empty"><Paperclip size={13} aria-hidden="true" /> Add a photo, video, or document</span>
+        )}
+        {error && <div className="note-panel-error" role="alert">{error}</div>}
+      </section>
+    );
+  }
+
   return (
     <section className="note-attachment-panel" aria-labelledby="note-attachments-title">
       <header className="note-panel-heading">
@@ -156,15 +242,7 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
         >
           {isAdding ? 'Adding…' : 'Add files'}
         </button>
-        <input
-          ref={fileInputRef}
-          className="sr-only"
-          type="file"
-          multiple
-          accept={ACCEPTED_FILES}
-          disabled={disabled || panelBusy}
-          onChange={(event) => void addFiles(event.currentTarget.files)}
-        />
+        {hiddenPicker}
       </header>
 
       <div className="note-attachment-summary" role="status" aria-live="polite">
@@ -189,17 +267,17 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
               <article key={attachment.id} className={`note-attachment ${attachment.kind}`}>
                 <div className="note-attachment-preview">
                   {attachment.kind === 'image' || attachment.kind === 'ink' ? (
-                    url ? <img src={url} alt="" /> : <span aria-hidden="true">IMG</span>
+                    url ? <img src={url} alt="" /> : <Image size={20} aria-hidden="true" />
                   ) : attachment.kind === 'video' ? (
                     url ? (
                       <video controls preload="metadata" aria-label={attachment.name}>
                         <source src={url} type={attachment.mimeType} />
                       </video>
                     ) : (
-                      <span aria-hidden="true">VID</span>
+                      <Play size={20} aria-hidden="true" />
                     )
                   ) : (
-                    <span aria-hidden="true">DOC</span>
+                    <FileText size={20} aria-hidden="true" />
                   )}
                 </div>
                 <div className="note-attachment-copy">

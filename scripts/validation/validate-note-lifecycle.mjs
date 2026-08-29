@@ -25,9 +25,9 @@ const compactNativeLifecycle = nativeLifecycle.replace(/\s+/g, '');
 
 const requiredNativeContract = [
   'mod note_lifecycle;',
-  'created_open_request',
+  'shortcut_open_request',
   'reopened_open_request',
-  'let open_request = if let Some(request)',
+  'let open_request = shortcut_open_request(note_id);',
   'skribly://open-note-request',
 ];
 for (const claim of requiredNativeContract) {
@@ -48,6 +48,7 @@ const requiredSelectionRules = [
   'zero_matches_require_creation',
   'many_matches_reopen_the_most_recent_note',
   'ties_are_stable_across_hash_map_iteration_order',
+  'global_shortcut_always_describes_a_fresh_note',
 ];
 for (const claim of requiredSelectionRules) {
   if (!compactNativeLifecycle.includes(claim.replace(/\s+/g, ''))) {
@@ -127,7 +128,7 @@ for (const claim of requiredUserClarity) {
 }
 
 const requiredAdrClaims = [
-  'one active text note per captured application context',
+  'Every valid `Ctrl+Shift+Space` press creates a fresh note',
   'updated_at` descending',
   'The request intentionally excludes application titles',
   'Issue #20 remains open',

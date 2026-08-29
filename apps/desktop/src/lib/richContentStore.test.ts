@@ -114,6 +114,20 @@ describe('rich content attachment validation', () => {
 });
 
 describe('rich content repository', () => {
+  it('persists text-size preferences without dropping typed attachments or ink', async () => {
+    const persistence = createMemoryRichContentPersistence();
+    const repository = createRichContentRepository(persistence, { now: () => 42 });
+    await repository.addFiles('note-view', [attachmentFile('brief.pdf', 'application/pdf', 4)]);
+    await repository.replaceInk('note-view', [stroke()]);
+    await repository.updateView('note-view', { textSize: 'large' });
+
+    const restarted = createRichContentRepository(persistence);
+    const stored = await restarted.get('note-view');
+    expect(stored.view).toEqual({ textSize: 'large' });
+    expect(stored.attachments).toHaveLength(1);
+    expect(stored.inkDocument?.strokes).toEqual([stroke()]);
+  });
+
   it('persists typed attachments locally', async () => {
     const persistence = createMemoryRichContentPersistence();
     const repository = createRichContentRepository(persistence, {

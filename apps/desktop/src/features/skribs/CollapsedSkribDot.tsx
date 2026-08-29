@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { X } from 'lucide-react';
 import type { SkribNote } from '../../lib/geometry';
 import { useSkribStore } from '../../stores/skribStore';
 
@@ -122,7 +123,7 @@ export const CollapsedSkribDot: React.FC<CollapsedSkribDotProps> = ({ note }) =>
           aria-label="Hide this floating Skrib"
           title={error?.action === 'dismiss' ? error.message : 'Hide this floating Skrib'}
         >
-          <span aria-hidden="true">×</span>
+          <X size={9} strokeWidth={2.4} aria-hidden="true" />
         </button>
       </section>
       {error && (

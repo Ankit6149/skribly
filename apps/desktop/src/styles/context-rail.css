@@ -1,0 +1,218 @@
+html[data-skribly-window='rail'],
+html[data-skribly-window='rail'] body,
+html[data-skribly-window='rail'] #root,
+.app-rail-root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: transparent !important;
+}
+
+.context-rail {
+  width: calc(100% - 12px);
+  height: calc(100% - 12px);
+  margin: 6px;
+  overflow: hidden;
+  border: 1px solid rgba(38, 41, 35, 0.18);
+  border-radius: 18px 18px 28px 18px;
+  background: color-mix(in srgb, var(--paper) 94%, var(--mint));
+  box-shadow: 0 12px 34px rgba(38, 41, 35, 0.2);
+  color: var(--ink);
+  font-family: var(--font-ui);
+}
+
+.context-rail.collapsed {
+  border-radius: 18px;
+}
+
+.context-rail-header {
+  min-height: 52px;
+  padding: 0 10px 0 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 1px solid rgba(38, 41, 35, 0.11);
+  cursor: grab;
+}
+
+.context-rail.collapsed .context-rail-header {
+  border-bottom: 0;
+}
+
+.context-rail-header > div:first-child {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.context-rail-header strong {
+  font-family: var(--font-display);
+  font-size: 14px;
+}
+
+.context-rail-header span {
+  color: rgb(38 41 35 / 56%);
+  font-size: 8px;
+}
+
+.context-rail-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.context-rail-actions button {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: rgb(38 41 35 / 66%);
+  cursor: pointer;
+}
+
+.context-rail-actions button:hover,
+.context-rail-actions button:focus-visible {
+  background: rgba(38, 41, 35, 0.08);
+  color: var(--ink);
+  outline: 0;
+}
+
+.context-rail-body {
+  height: calc(100% - 53px);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+  scrollbar-color: color-mix(in srgb, var(--ink) 28%, transparent) transparent;
+  scrollbar-width: thin;
+}
+
+.context-rail-groups {
+  display: grid;
+  gap: 6px;
+}
+
+.context-rail-group {
+  min-height: 42px;
+  padding: 7px 9px;
+  display: grid;
+  grid-template-columns: minmax(90px, 0.7fr) minmax(0, 1.3fr);
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid rgba(38, 41, 35, 0.09);
+}
+
+.context-rail-group > header {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.context-rail-group > header strong {
+  overflow: hidden;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.context-rail-group > header span {
+  min-width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--lavender);
+  font-size: 8px;
+  font-weight: 800;
+}
+
+.context-rail-dots {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.context-note-dot {
+  width: 21px;
+  height: 21px;
+  padding: 0;
+  border: 1px solid rgba(38, 41, 35, 0.28);
+  border-radius: 50%;
+  background: var(--skribli-paper);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.context-note-dot:hover,
+.context-note-dot.active {
+  transform: translateY(-1px) scale(1.08);
+  box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--ink);
+}
+
+.context-rail-preview {
+  min-height: 126px;
+  padding: 13px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  border: 1px solid rgba(38, 41, 35, 0.13);
+  border-radius: 14px 14px 24px 14px;
+  background: var(--skribli-paper);
+}
+
+.context-rail-preview > span {
+  overflow: hidden;
+  color: rgb(38 41 35 / 58%);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.context-rail-preview p {
+  max-height: 78px;
+  margin: 0;
+  overflow: hidden;
+  color: var(--ink);
+  font-family: var(--font-hand);
+  font-size: 17px;
+  line-height: 1.35;
+  white-space: pre-wrap;
+}
+
+.context-rail-preview button {
+  width: fit-content;
+  min-height: 30px;
+  padding: 0 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--ink);
+  color: var(--paper);
+  cursor: pointer;
+  font: 750 9px/1 var(--font-ui);
+}
+
+.context-rail-message,
+.context-rail-empty {
+  padding: 12px;
+  border: 1px solid rgba(38, 41, 35, 0.11);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.36);
+  color: rgb(38 41 35 / 62%);
+  font-size: 9px;
+  line-height: 1.45;
+}

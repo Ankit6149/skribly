@@ -1,4 +1,7 @@
 export type ReminderStatus = 'upcoming' | 'overdue' | 'completed' | 'dismissed';
+export type ReminderRepeat = 'none' | 'daily' | 'weekdays' | 'weekly' | 'monthly';
+
+const REMINDER_REPEAT_VALUES = new Set<ReminderRepeat>(['none', 'daily', 'weekdays', 'weekly', 'monthly']);
 
 export interface SkribReminder {
   id: string;
@@ -10,6 +13,10 @@ export interface SkribReminder {
   completedAt: number | null;
   dismissedAt: number | null;
   notifiedAt: number | null;
+  /** Missing on reminders created before repeat support; those records are treated as non-repeating. */
+  repeat?: ReminderRepeat;
+  /** Preserves dates such as the 31st when a monthly occurrence lands in a shorter month. */
+  repeatAnchorDay?: number;
 }
 
 export interface ReminderWithStatus extends SkribReminder {
@@ -29,6 +36,7 @@ export interface ScheduleReminderInput {
   noteId: string;
   title?: string;
   dueAt: number;
+  repeat?: ReminderRepeat;
 }
 
 export interface ReminderPersistence {
@@ -62,8 +70,116 @@ function defaultCreateId(): string {
 }
 
 function validateTimestamp(value: number, label: string): number {
-  if (!Number.isSafeInteger(value) || value < 0) throw new Error(`${label} must be a valid date and time.`);
+  if (!Number.isSafeInteger(value) || value < 0 || Number.isNaN(new Date(value).getTime())) {
+    throw new Error(`${label} must be a valid date and time.`);
+  }
   return value;
+}
+
+function validateRepeat(value: ReminderRepeat | undefined): ReminderRepeat {
+  const repeat = value ?? 'none';
+  if (!REMINDER_REPEAT_VALUES.has(repeat)) throw new Error('Choose a valid reminder repeat option.');
+  return repeat;
+}
+
+function normalizedRepeat(reminder: Pick<SkribReminder, 'repeat'>): ReminderRepeat {
+  return REMINDER_REPEAT_VALUES.has(reminder.repeat as ReminderRepeat) ? (reminder.repeat as ReminderRepeat) : 'none';
+}
+
+function normalizedAnchorDay(reminder: Pick<SkribReminder, 'dueAt' | 'repeatAnchorDay'>): number {
+  const fallback = new Date(reminder.dueAt).getDate();
+  return Number.isInteger(reminder.repeatAnchorDay) && reminder.repeatAnchorDay! >= 1 && reminder.repeatAnchorDay! <= 31
+    ? reminder.repeatAnchorDay!
+    : fallback;
+}
+
+function normalizeStoredReminder(reminder: SkribReminder): SkribReminder {
+  const repeat = normalizedRepeat(reminder);
+  const { repeatAnchorDay: _storedAnchorDay, ...base } = reminder;
+  return {
+    ...base,
+    repeat,
+    ...(repeat === 'monthly' ? { repeatAnchorDay: normalizedAnchorDay(reminder) } : {}),
+  };
+}
+
+function localCalendarOrdinal(date: Date): number {
+  return Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / (24 * 60 * 60 * 1000);
+}
+
+function addLocalDays(timestamp: number, days: number): number {
+  const date = new Date(timestamp);
+  date.setDate(date.getDate() + days);
+  return date.getTime();
+}
+
+function addLocalMonths(timestamp: number, months: number, anchorDay: number): number {
+  const source = new Date(timestamp);
+  const target = new Date(source);
+  target.setDate(1);
+  target.setMonth(target.getMonth() + months);
+  const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
+  target.setDate(Math.min(anchorDay, lastDay));
+  return target.getTime();
+}
+
+function nextWeekday(timestamp: number): number {
+  let candidate = addLocalDays(timestamp, 1);
+  while (new Date(candidate).getDay() === 0 || new Date(candidate).getDay() === 6) {
+    candidate = addLocalDays(candidate, 1);
+  }
+  return candidate;
+}
+
+/**
+ * Finds the first recurrence strictly after `after` using the device's local calendar.
+ * Calendar arithmetic preserves the chosen wall-clock time across daylight-saving changes.
+ */
+export function nextRecurringDueAt(
+  dueAt: number,
+  repeat: Exclude<ReminderRepeat, 'none'>,
+  after: number,
+  monthlyAnchorDay = new Date(dueAt).getDate()
+): number {
+  validateTimestamp(dueAt, 'Reminder time');
+  validateTimestamp(after, 'Reminder completion time');
+  if (repeat === ('none' as ReminderRepeat) || !REMINDER_REPEAT_VALUES.has(repeat)) {
+    throw new Error('A repeating reminder needs a valid repeat option.');
+  }
+
+  if (repeat === 'weekdays') {
+    let candidate = nextWeekday(dueAt);
+    if (candidate <= after) {
+      const calendarDays = localCalendarOrdinal(new Date(after)) - localCalendarOrdinal(new Date(candidate));
+      candidate = addLocalDays(candidate, Math.max(0, Math.floor(calendarDays / 7)) * 7);
+      while (candidate <= after) candidate = nextWeekday(candidate);
+    }
+    return candidate;
+  }
+
+  if (repeat === 'monthly') {
+    const anchorDay = Math.min(31, Math.max(1, Math.trunc(monthlyAnchorDay)));
+    let candidate = addLocalMonths(dueAt, 1, anchorDay);
+    if (candidate <= after) {
+      const candidateDate = new Date(candidate);
+      const afterDate = new Date(after);
+      const monthDifference =
+        (afterDate.getFullYear() - candidateDate.getFullYear()) * 12 + afterDate.getMonth() - candidateDate.getMonth();
+      candidate = addLocalMonths(candidate, Math.max(0, monthDifference), anchorDay);
+      while (candidate <= after) candidate = addLocalMonths(candidate, 1, anchorDay);
+    }
+    return candidate;
+  }
+
+  const intervalDays = repeat === 'weekly' ? 7 : 1;
+  let candidate = addLocalDays(dueAt, intervalDays);
+  if (candidate <= after) {
+    const calendarDays = localCalendarOrdinal(new Date(after)) - localCalendarOrdinal(new Date(candidate));
+    const intervalCount = Math.max(0, Math.floor(calendarDays / intervalDays));
+    candidate = addLocalDays(candidate, intervalCount * intervalDays);
+    while (candidate <= after) candidate = addLocalDays(candidate, intervalDays);
+  }
+  return candidate;
 }
 
 function validateNoteId(noteId: string): string {
@@ -255,7 +371,7 @@ export function createIndexedDbReminderPersistence(): ReminderPersistence {
 }
 
 export function createMemoryReminderPersistence(initial: SkribReminder[] = []): ReminderPersistence {
-  const reminders = new Map(initial.map((reminder) => [reminder.id, reminder]));
+  const reminders = new Map(initial.map((reminder) => [reminder.id, normalizeStoredReminder(reminder)]));
   let lastCheckedAt: number | null = null;
   return {
     get: async (id) => reminders.get(id),
@@ -281,11 +397,17 @@ export function createMemoryReminderPersistence(initial: SkribReminder[] = []): 
 export function createReminderStore(persistence: ReminderPersistence, options: ReminderStoreOptions = {}) {
   const now = options.now ?? Date.now;
   const createId = options.createId ?? defaultCreateId;
+  const read = async (id: string): Promise<SkribReminder | undefined> => {
+    const reminder = await persistence.get(id);
+    return reminder ? normalizeStoredReminder(reminder) : undefined;
+  };
+  const readAll = async (): Promise<SkribReminder[]> => (await persistence.list()).map(normalizeStoredReminder);
 
   const schedule = async (input: ScheduleReminderInput): Promise<SkribReminder> => {
     const currentTime = now();
     const dueAt = validateTimestamp(input.dueAt, 'Reminder time');
     if (dueAt <= currentTime) throw new Error('Choose a reminder time in the future.');
+    const repeat = validateRepeat(input.repeat);
     const reminder: SkribReminder = {
       id: createId(),
       noteId: validateNoteId(input.noteId),
@@ -296,51 +418,89 @@ export function createReminderStore(persistence: ReminderPersistence, options: R
       completedAt: null,
       dismissedAt: null,
       notifiedAt: null,
+      repeat,
+      ...(repeat === 'monthly' ? { repeatAnchorDay: new Date(dueAt).getDate() } : {}),
     };
     await persistence.put(reminder);
     return reminder;
   };
 
   const get = async (id: string, at = now()): Promise<ReminderWithStatus | null> => {
-    const reminder = await persistence.get(id);
+    const reminder = await read(id);
     return reminder ? withStatus(reminder, at) : null;
   };
 
   const list = async (at = now()): Promise<ReminderWithStatus[]> =>
-    (await persistence.list()).sort(compareReminders).map((reminder) => withStatus(reminder, at));
+    (await readAll()).sort(compareReminders).map((reminder) => withStatus(reminder, at));
 
-  const reschedule = async (id: string, dueAt: number): Promise<SkribReminder> => {
-    const reminder = await persistence.get(id);
+  const reschedule = async (id: string, dueAt: number, repeatOverride?: ReminderRepeat): Promise<SkribReminder> => {
+    const reminder = await read(id);
     if (!reminder) throw new Error('This reminder no longer exists.');
     const currentTime = now();
     validateTimestamp(dueAt, 'Reminder time');
     if (dueAt <= currentTime) throw new Error('Choose a reminder time in the future.');
+    const repeat = repeatOverride === undefined ? normalizedRepeat(reminder) : validateRepeat(repeatOverride);
+    const { repeatAnchorDay: _storedAnchorDay, ...base } = reminder;
     const updated: SkribReminder = {
-      ...reminder,
+      ...base,
       dueAt,
       updatedAt: currentTime,
       completedAt: null,
       dismissedAt: null,
       notifiedAt: null,
+      repeat,
+      ...(repeat === 'monthly' ? { repeatAnchorDay: new Date(dueAt).getDate() } : {}),
     };
     await persistence.put(updated);
     return updated;
   };
 
   const complete = async (id: string): Promise<SkribReminder> => {
-    const reminder = await persistence.get(id);
+    const reminder = await read(id);
     if (!reminder) throw new Error('This reminder no longer exists.');
     const completedAt = now();
-    const updated = { ...reminder, completedAt, dismissedAt: null, updatedAt: completedAt };
+    const repeat = normalizedRepeat(reminder);
+    const updated: SkribReminder =
+      repeat === 'none'
+        ? { ...reminder, completedAt, dismissedAt: null, updatedAt: completedAt }
+        : {
+            ...reminder,
+            dueAt: nextRecurringDueAt(
+              reminder.dueAt,
+              repeat,
+              Math.max(completedAt, reminder.dueAt),
+              normalizedAnchorDay(reminder)
+            ),
+            completedAt: null,
+            dismissedAt: null,
+            notifiedAt: null,
+            updatedAt: completedAt,
+          };
     await persistence.put(updated);
     return updated;
   };
 
   const dismiss = async (id: string): Promise<SkribReminder> => {
-    const reminder = await persistence.get(id);
+    const reminder = await read(id);
     if (!reminder) throw new Error('This reminder no longer exists.');
     const dismissedAt = now();
-    const updated = { ...reminder, completedAt: null, dismissedAt, updatedAt: dismissedAt };
+    const repeat = normalizedRepeat(reminder);
+    const updated: SkribReminder =
+      repeat === 'none'
+        ? { ...reminder, completedAt: null, dismissedAt, updatedAt: dismissedAt }
+        : {
+            ...reminder,
+            dueAt: nextRecurringDueAt(
+              reminder.dueAt,
+              repeat,
+              Math.max(dismissedAt, reminder.dueAt),
+              normalizedAnchorDay(reminder)
+            ),
+            completedAt: null,
+            dismissedAt: null,
+            notifiedAt: null,
+            updatedAt: dismissedAt,
+          };
     await persistence.put(updated);
     return updated;
   };
@@ -348,7 +508,7 @@ export function createReminderStore(persistence: ReminderPersistence, options: R
   const claimDue = async (at = now()): Promise<ClaimedReminder[]> => {
     validateTimestamp(at, 'Reminder check time');
     const lastCheckedAt = await persistence.getLastCheckedAt();
-    const due = (await persistence.list())
+    const due = (await readAll())
       .filter(
         (reminder) =>
           reminder.completedAt === null &&
@@ -372,7 +532,7 @@ export function createReminderStore(persistence: ReminderPersistence, options: R
   };
 
   const calendar = async (at = now(), timeZone = getLocalTimeZone()): Promise<CalendarReminderGroup[]> =>
-    groupRemindersByCalendarDay(await persistence.list(), at, timeZone);
+    groupRemindersByCalendarDay(await readAll(), at, timeZone);
 
   return {
     schedule,

@@ -445,8 +445,17 @@ for (const claim of requiredTrayGuide) {
   }
 }
 
+const homeConfiguredVisible = tauriConfig.app?.windows?.some(
+  (window) => window.label === 'home' && window.visible === true
+);
+const homeShownOnNormalLaunch = tauriConfig.app?.windows?.some(
+  (window) => window.label === 'home' && window.visible === false
+) && nativeEntry.includes('if background_launch')
+  && nativeEntry.includes('home_window.show()')
+  && nativeEntry.includes('home_window.set_focus()');
+
 const requiredAccountFirstRuntime = [
-  [tauriConfig.app?.windows?.some((window) => window.label === 'home' && window.visible === true), 'a visible Home window'],
+  [homeConfiguredVisible || homeShownOnNormalLaunch, 'a visible Home window on normal launch and a quiet background startup'],
   [accountClient.includes('protectedSessionStorage'), 'protected session adapter'],
   [accountNative.includes('CryptProtectData'), 'Windows user-scoped session protection'],
   [accountNative.includes('MachineGuid'), 'stable privacy-minimized device claim'],

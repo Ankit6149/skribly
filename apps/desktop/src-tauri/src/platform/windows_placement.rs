@@ -413,7 +413,7 @@ pub fn calculate_saved_note_window_placement(
     } else {
         note.width.round().clamp(
             COMPACT_WINDOW_MIN_LOGICAL_WIDTH as f64,
-            COMPACT_WINDOW_LOGICAL_WIDTH as f64,
+            WORKSPACE_LOGICAL_WIDTH as f64,
         ) as i32
     };
     let logical_height = if collapsed {
@@ -421,7 +421,7 @@ pub fn calculate_saved_note_window_placement(
     } else {
         note.height.round().clamp(
             COMPACT_WINDOW_MIN_LOGICAL_HEIGHT as f64,
-            COMPACT_WINDOW_LOGICAL_HEIGHT as f64,
+            WORKSPACE_LOGICAL_HEIGHT as f64,
         ) as i32
     };
     let width = logical_to_physical(logical_width, scale_factor);

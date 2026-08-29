@@ -8,6 +8,7 @@ use tauri::{
 const TRAY_ID: &str = "skribly-tray";
 const OPEN_SKRIBLI_ID: &str = "open-skribli";
 const ALL_SKRIBS_ID: &str = "all-skribs";
+const NOTE_RAIL_ID: &str = "note-rail";
 const QUICK_GUIDE_ID: &str = "quick-guide";
 const QUIT_ID: &str = "quit";
 
@@ -15,6 +16,7 @@ const QUIT_ID: &str = "quit";
 enum TrayAction {
     OpenSkribli,
     OpenAllSkribs,
+    OpenNoteRail,
     ShowQuickGuide,
     Quit,
     Ignore,
@@ -24,6 +26,7 @@ fn classify_tray_action(id: &str) -> TrayAction {
     match id {
         OPEN_SKRIBLI_ID => TrayAction::OpenSkribli,
         ALL_SKRIBS_ID => TrayAction::OpenAllSkribs,
+        NOTE_RAIL_ID => TrayAction::OpenNoteRail,
         QUICK_GUIDE_ID => TrayAction::ShowQuickGuide,
         QUIT_ID => TrayAction::Quit,
         _ => TrayAction::Ignore,
@@ -41,9 +44,13 @@ pub fn install_tray<R: Runtime>(app: &App<R>) -> tauri::Result<()> {
 
     let open_skribli = MenuItem::with_id(app, OPEN_SKRIBLI_ID, "Open Skribli", true, None::<&str>)?;
     let all_skribs = MenuItem::with_id(app, ALL_SKRIBS_ID, "All Skribs", true, None::<&str>)?;
+    let note_rail = MenuItem::with_id(app, NOTE_RAIL_ID, "My Skribs rail", true, None::<&str>)?;
     let quick_guide = MenuItem::with_id(app, QUICK_GUIDE_ID, "Quick guide", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, QUIT_ID, "Quit Skribli", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&open_skribli, &all_skribs, &quick_guide, &quit])?;
+    let menu = Menu::with_items(
+        app,
+        &[&open_skribli, &note_rail, &all_skribs, &quick_guide, &quit],
+    )?;
 
     TrayIconBuilder::with_id(TRAY_ID)
         .icon(tauri::include_image!("icons/icon.png"))
@@ -70,6 +77,12 @@ pub fn install_tray<R: Runtime>(app: &App<R>) -> tauri::Result<()> {
                 TrayAction::OpenAllSkribs => {
                     if let Some(window) = app.get_webview_window(LIBRARY_WINDOW_LABEL) {
                         let _ = window.unminimize();
+                        let _ = window.show();
+                        let _ = window.set_focus();
+                    }
+                }
+                TrayAction::OpenNoteRail => {
+                    if let Some(window) = app.get_webview_window("rail") {
                         let _ = window.show();
                         let _ = window.set_focus();
                     }
@@ -105,6 +118,7 @@ mod tests {
             classify_tray_action(ALL_SKRIBS_ID),
             TrayAction::OpenAllSkribs
         );
+        assert_eq!(classify_tray_action(NOTE_RAIL_ID), TrayAction::OpenNoteRail);
         assert_eq!(
             classify_tray_action(QUICK_GUIDE_ID),
             TrayAction::ShowQuickGuide

@@ -5,6 +5,7 @@ import {
   createReminderStore,
   getReminderStatus,
   groupRemindersByCalendarDay,
+  nextRecurringDueAt,
   type SkribReminder,
 } from './reminderStore';
 
@@ -27,6 +28,41 @@ function reminder(overrides: Partial<SkribReminder> = {}): SkribReminder {
 }
 
 describe('reminder state', () => {
+  it('advances recurring reminders instead of completing the entire series', async () => {
+    let currentTime = BASE_TIME;
+    const persistence = createMemoryReminderPersistence();
+    const store = createReminderStore(persistence, {
+      now: () => currentTime,
+      createId: () => 'daily-reminder',
+    });
+    const created = await store.schedule({
+      noteId: 'note-1',
+      dueAt: BASE_TIME + HOUR,
+      repeat: 'daily',
+    });
+    currentTime = BASE_TIME + 2 * HOUR;
+    const advanced = await store.complete(created.id);
+    expect(advanced).toMatchObject({
+      repeat: 'daily',
+      completedAt: null,
+      dismissedAt: null,
+      notifiedAt: null,
+    });
+    expect(advanced.dueAt).toBeGreaterThan(currentTime);
+  });
+
+  it('uses local calendar rules for weekdays and month-end repeats', () => {
+    const friday = new Date(2026, 7, 28, 9, 30).getTime();
+    const monday = nextRecurringDueAt(friday, 'weekdays', friday);
+    expect(new Date(monday).getDay()).toBe(1);
+    expect(new Date(monday).getHours()).toBe(9);
+
+    const january31 = new Date(2027, 0, 31, 8, 15).getTime();
+    const february = nextRecurringDueAt(january31, 'monthly', january31, 31);
+    expect(new Date(february).getMonth()).toBe(1);
+    expect(new Date(february).getDate()).toBe(28);
+  });
+
   it('derives upcoming, overdue, completed, and dismissed states', () => {
     expect(getReminderStatus(reminder(), BASE_TIME)).toBe('upcoming');
     expect(getReminderStatus(reminder(), BASE_TIME + 2 * HOUR)).toBe('overdue');

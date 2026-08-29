@@ -31,13 +31,16 @@
           <h2>Implemented foundations</h2>
           <ul>
             <li>A compact pastel note editor opened with Ctrl + Shift + Space.</li>
-            <li>Vector pen, highlighter, and eraser input with mouse, touchpad, touch, or pen.</li>
+            <li>One shared text-and-ink canvas with vector pen, highlighter, eraser, select, and stroke movement using mouse, touchpad, touch, or pen.</li>
             <li>Local image, video, and document attachments with bounded storage quotas.</li>
-            <li>One-time local reminders, Windows notifications while Skribli runs, and a calendar view.</li>
+            <li>Local reminders with daily, weekday, weekly, and monthly repeats, Windows notifications while Skribli runs, and a calendar view.</li>
+            <li>Compact, medium, and large note surfaces with saved handwriting text size.</li>
+            <li>A grouped My Skribs rail for direct reading and reopening an exact live application window.</li>
+            <li>Launch at Windows sign-in so the global shortcut is available without manually opening the dashboard.</li>
             <li>Done folds the saved active note into one movable pastel dot.</li>
             <li>The open note uses a shaped rounded Windows surface, while the smaller 40px dot uses a circular native region so transparent corners do not cover other applications.</li>
             <li>Fail-closed foreground target capture and process/window revalidation.</li>
-            <li>Deterministic native create-versus-reopen requests.</li>
+            <li>A deterministic shortcut contract: every Ctrl + Shift + Space press creates a fresh pastel Skrib.</li>
             <li>Ordered local saves with dirty, saving, saved, failed, and retry states.</li>
             <li>Crash-safe schema-v3 local storage with schema-v1/v2 migration and recovery generations.</li>
             <li>A normal non-floating All Skribs window for active-note and Trash search, reading, and versioned JSON export.</li>
@@ -53,13 +56,13 @@
           <ol>
             <li>Focus a supported Windows application.</li>
             <li>Press Ctrl + Shift + Space.</li>
-            <li>Skribli creates or reopens the deterministic contextual note.</li>
-            <li>Write in the compact editor.</li>
+            <li>Skribli creates a fresh contextual note.</li>
+            <li>Type, draw over the text, attach a local file, resize the note, or set a repeating reminder.</li>
             <li>Choose Done, Escape, Ctrl+Enter, or close.</li>
             <li>Skribli waits for text and rich content to save, then folds the active note into a movable dot.</li>
             <li>Choose Delete only when needed; the note moves to local Trash and can be restored from All Skribs.</li>
           </ol>
-          <p>The current v0 shows one active note or collapsed dot at a time. Multiple simultaneous note windows, attached tabs, checklists, screenshot pins, cloud sync, and a full-screen interactive overlay are not included.</p>
+          <p>The current v0 shows one active note or collapsed dot at a time, while My Skribs groups every saved note by application. Multiple simultaneous note windows, attached tabs, checklists, screenshot pins, cloud sync, and a full-screen interactive overlay are not included.</p>
         </section>
 
         <section>

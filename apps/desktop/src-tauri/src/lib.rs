@@ -16,7 +16,7 @@ use core::models::{
 };
 use core::storage;
 use core::{account, license};
-use note_lifecycle::{created_open_request, reopened_open_request};
+use note_lifecycle::{reopened_open_request, shortcut_open_request};
 
 #[cfg(target_os = "windows")]
 use platform::windows::{
@@ -110,12 +110,22 @@ impl NoteWindowRuntime {
         self.hide_collapsed_window(note, target, false);
     }
 
-    fn hide_collapsed_until_context_returns(
+    fn hide_active_note_until_context_returns(
         &mut self,
         note: &SkribNote,
         target: &TargetWindowInfo,
     ) {
-        self.hide_collapsed_window(note, target, true);
+        self.active_note_id = Some(note.id.clone());
+        self.workspace_expanded =
+            !note.collapsed && note.width > COMPACT_WINDOW_LOGICAL_WIDTH as f64;
+        self.pending_programmatic_placement = None;
+        self.dismissed_collapsed_window = Some(DismissedCollapsedWindow {
+            note_id: note.id.clone(),
+            target_hwnd: target.hwnd_val,
+            target_process_name: target.process_name.clone(),
+            target_title: target.title.clone(),
+            armed: true,
+        });
     }
 
     fn hide_collapsed_window(&mut self, note: &SkribNote, target: &TargetWindowInfo, armed: bool) {
@@ -461,7 +471,6 @@ fn dismissed_collapsed_target_matches(
     target: &TargetWindowInfo,
 ) -> bool {
     note.id == dismissed.note_id
-        && note.collapsed
         && note.deleted_at.is_none()
         && target.is_focused
         && !dismissed.target_title.trim().is_empty()
@@ -546,6 +555,30 @@ fn collapsed_dot_should_hide_for_context(
     !exact_linked_context
 }
 
+#[cfg(target_os = "windows")]
+fn active_note_should_hide_for_context(
+    event_type: u32,
+    note: &SkribNote,
+    linked_target: &TargetWindowInfo,
+    candidate: &TargetWindowInfo,
+) -> bool {
+    if note.collapsed {
+        return collapsed_dot_should_hide_for_context(event_type, note, linked_target, candidate);
+    }
+    if note.deleted_at.is_some() || !candidate.is_focused {
+        return false;
+    }
+    let relevant_event = event_type == EVENT_SYSTEM_FOREGROUND
+        || (event_type == EVENT_OBJECT_NAMECHANGE && candidate.hwnd_val == linked_target.hwnd_val);
+    if !relevant_event {
+        return false;
+    }
+    let exact_linked_context = candidate.hwnd_val == linked_target.hwnd_val
+        && refreshed_target_preserves_identity(linked_target, candidate)
+        && candidate.match_score(&note.target_process_name, &note.target_title) >= 75;
+    !exact_linked_context
+}
+
 fn refreshed_target_preserves_identity(
     active: &TargetWindowInfo,
     refreshed: &TargetWindowInfo,
@@ -582,7 +615,7 @@ fn restore_dismissed_collapsed_window_for_target(
         clear_dismissed_lifecycle_if_current(state, generation, &dismissed);
         return Ok(false);
     };
-    if !note.collapsed || note.deleted_at.is_some() {
+    if note.deleted_at.is_some() {
         clear_dismissed_lifecycle_if_current(state, generation, &dismissed);
         return Ok(false);
     }
@@ -593,7 +626,7 @@ fn restore_dismissed_collapsed_window_for_target(
     let window = app_handle
         .get_webview_window("main")
         .ok_or_else(|| "The collapsed Skrib window is unavailable.".to_string())?;
-    let metrics = position_note_window_for_target(&window, target, &note, true)?;
+    let metrics = position_note_window_for_target(&window, target, &note, note.collapsed)?;
     window
         .show()
         .map_err(|error| format!("Skribli could not restore the collapsed note: {error}"))?;
@@ -619,7 +652,11 @@ fn restore_dismissed_collapsed_window_for_target(
     ) {
         return Ok(false);
     }
-    runtime.record_programmatic_placement(&note.id, false, &metrics);
+    runtime.record_programmatic_placement(
+        &note.id,
+        !note.collapsed && note.width > COMPACT_WINDOW_LOGICAL_WIDTH as f64,
+        &metrics,
+    );
     drop(runtime);
     set_runtime_active_target_unchecked(state, Some(target.clone()));
     Ok(true)
@@ -693,7 +730,7 @@ fn arm_dismissed_lifecycle_if_current(
 }
 
 #[cfg(target_os = "windows")]
-fn hide_collapsed_dot_for_unrelated_context(
+fn hide_active_note_for_unrelated_context(
     app_handle: &AppHandle,
     state: &AppState,
     event_type: u32,
@@ -713,17 +750,17 @@ fn hide_collapsed_dot_for_unrelated_context(
     let Some(note) = note_id.and_then(|id| state.coordinator.get_skrib(&id)) else {
         return Ok(false);
     };
-    if !collapsed_dot_should_hide_for_context(event_type, &note, &linked_target, candidate) {
+    if !active_note_should_hide_for_context(event_type, &note, &linked_target, candidate) {
         return Ok(false);
     }
 
     let generation = begin_native_lifecycle_action(state)?;
     let window = app_handle
         .get_webview_window("main")
-        .ok_or_else(|| "The collapsed Skrib window is unavailable.".to_string())?;
+        .ok_or_else(|| "The Skrib window is unavailable.".to_string())?;
     window
         .hide()
-        .map_err(|error| format!("Skribli could not hide the inactive collapsed note: {error}"))?;
+        .map_err(|error| format!("Skribli could not hide the inactive note: {error}"))?;
     let _ = restore_standard_window_surface(&window);
 
     let _commit_guard = state
@@ -746,7 +783,7 @@ fn hide_collapsed_dot_for_unrelated_context(
     ) {
         return Ok(false);
     }
-    runtime.hide_collapsed_until_context_returns(&note, &linked_target);
+    runtime.hide_active_note_until_context_returns(&note, &linked_target);
     Ok(true)
 }
 
@@ -1644,6 +1681,78 @@ fn set_skrib_workspace_mode(
     }
 }
 
+fn note_surface_dimensions(size: &str) -> Result<(f64, f64), String> {
+    match size {
+        "compact" => Ok((420.0, 360.0)),
+        "medium" => Ok((560.0, 480.0)),
+        "large" => Ok((760.0, 620.0)),
+        _ => Err("Choose compact, medium, or large for the Skrib size.".into()),
+    }
+}
+
+#[tauri::command]
+fn set_skrib_window_size(
+    app_handle: AppHandle,
+    state: State<'_, AppState>,
+    id: String,
+    size: String,
+) -> Result<OverlayMetrics, String> {
+    let (width, height) = note_surface_dimensions(&size)?;
+    let note = state
+        .coordinator
+        .get_skrib(&id)
+        .ok_or_else(|| "Skrib note was not found or is not writable".to_string())?;
+    if note.collapsed || note.deleted_at.is_some() {
+        return Err("Expand this Skrib before changing its size.".into());
+    }
+    let target = state
+        .coordinator
+        .get_active_target()
+        .ok_or_else(|| "Skribli no longer has an active target application.".to_string())?;
+    let window = app_handle
+        .get_webview_window("main")
+        .ok_or_else(|| "The Skrib window is unavailable.".to_string())?;
+    let mut resized_note = note.clone();
+    resized_note.width = width;
+    resized_note.height = height;
+
+    #[cfg(target_os = "windows")]
+    {
+        let _operation_guard = state.native_window_operation_gate.lock()?;
+        let generation = begin_native_lifecycle_action(&state)?;
+        let metrics = position_note_window_for_target(&window, &target, &resized_note, false)?;
+        run_persisted_mutation(&state, |coordinator| {
+            coordinator
+                .update_skrib_position(&id, resized_note.rel_x, resized_note.rel_y, width, height)
+                .then_some(())
+                .ok_or_else(|| "Skribli could not save the requested note size.".to_string())
+        })?;
+        let _commit_guard = state
+            .native_lifecycle_commit_lock
+            .lock()
+            .map_err(|_| "The native window lifecycle lock is unavailable.".to_string())?;
+        let current_target = state.coordinator.get_active_target();
+        if lifecycle_snapshot_can_clear_target(
+            generation,
+            state.native_lifecycle_generation.load(Ordering::Acquire),
+            target.hwnd_val,
+            current_target.as_ref(),
+        ) {
+            state
+                .note_window_runtime
+                .lock()
+                .map_err(|_| "The native note window state is unavailable.".to_string())?
+                .record_programmatic_placement(&id, size != "compact", &metrics);
+        }
+        Ok(metrics)
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = (window, target, resized_note, width, height);
+        Err("Resizable Skribs are currently available on Windows only.".into())
+    }
+}
+
 fn lifecycle_timestamp_seconds() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -1881,6 +1990,7 @@ pub fn run() {
         set_dpi_awareness();
     }
 
+    let background_launch = desktop::startup::is_background_launch(std::env::args_os());
     let (hotkey_sender, hotkey_receiver): (std::sync::mpsc::Sender<i32>, Receiver<i32>) = channel();
 
     let coordinator = Coordinator::new();
@@ -1925,6 +2035,7 @@ pub fn run() {
             dismiss_collapsed_skrib_window,
             save_skrib_window_position,
             set_skrib_workspace_mode,
+            set_skrib_window_size,
             trash_skrib_note,
             discard_empty_skrib_note,
             restore_skrib_note,
@@ -1942,6 +2053,23 @@ pub fn run() {
         ])
         .setup(move |app| {
             let app_handle = app.handle().clone();
+            #[cfg(target_os = "windows")]
+            if let Err(message) = desktop::startup::register_launch_at_login() {
+                // Registration failure must not stop local notes or the current-session shortcut.
+                // Keep the message available to diagnostics without showing an intrusive dialog at
+                // login, when this process may intentionally have no visible window.
+                eprintln!("{message}");
+            }
+
+            if let Some(home_window) = app.get_webview_window("home") {
+                if background_launch {
+                    let _ = home_window.hide();
+                } else {
+                    let _ = home_window.show();
+                    let _ = home_window.set_focus();
+                }
+            }
+
             let data_dir = app.path().app_data_dir()?;
             let storage_path = data_dir.join("skribs.json");
             license::initialize_from_skrib_path(&storage_path)
@@ -2069,132 +2197,66 @@ pub fn run() {
                             }
                         };
                         #[cfg(target_os = "windows")]
-                        let native_open_current: bool;
-                        let existing_notes = coordinator_hk.get_skribs_for_target(&target);
-                        let open_request = if let Some(request) =
-                            reopened_open_request(existing_notes)
-                        {
-                            let Some(note) = coordinator_hk.get_skrib(&request.note_id) else {
-                                let _ = app_handle_hk.emit(
-                                    "skribly://hotkey-error",
-                                    "The saved Skrib could not be loaded. Open All Skribs to recover it.",
-                                );
-                                continue;
+                        let initial_metrics =
+                            match position_compact_window_for_target(&window, &target) {
+                                Ok(metrics) => metrics,
+                                Err(message) => {
+                                    let _ = app_handle_hk.emit(
+                                        "skribly://hotkey-error",
+                                        format!("Skribli could not place the compact editor safely: {message}"),
+                                    );
+                                    continue;
+                                }
                             };
-                            #[cfg(target_os = "windows")]
-                            let restored_metrics =
-                                match position_note_window_for_target(&window, &target, &note, false)
-                                {
-                                    Ok(metrics) => metrics,
-                                    Err(message) => {
-                                        let _ = app_handle_hk.emit(
-                                            "skribly://hotkey-error",
-                                            format!("Skribli could not restore the saved note position: {message}"),
-                                        );
-                                        continue;
-                                    }
-                                };
-                            if note.collapsed
-                                && run_persisted_mutation(&state_hk, |coordinator| {
-                                    coordinator
-                                        .set_skrib_collapsed(&request.note_id, false)
-                                        .then_some(())
-                                        .ok_or_else(|| {
-                                            "The saved Skrib could not be expanded.".to_string()
-                                        })
-                                })
-                                .is_err()
-                            {
-                                let _ = app_handle_hk.emit(
-                                    "skribly://storage-error",
-                                    "The saved Skrib could not be expanded safely.",
-                                );
-                                continue;
-                            }
-                            #[cfg(target_os = "windows")]
-                            {
-                                native_open_current = record_note_placement_if_current(
-                                    &state_hk,
-                                    lifecycle_generation,
-                                    target.hwnd_val,
-                                    &request.note_id,
-                                    false,
-                                    &restored_metrics,
-                                )
-                                .unwrap_or(false);
-                            }
-                            request
-                        } else {
-                            // Only a brand-new note needs the generic near-target placement.
-                            // Existing notes go directly to their saved DPI-aware placement above,
-                            // avoiding a redundant resize/move/region update and native wait.
-                            #[cfg(target_os = "windows")]
-                            let initial_metrics =
-                                match position_compact_window_for_target(&window, &target) {
-                                    Ok(metrics) => metrics,
-                                    Err(message) => {
-                                        let _ = app_handle_hk.emit(
-                                            "skribly://hotkey-error",
-                                            format!("Skribli could not place the compact editor safely: {message}"),
-                                        );
-                                        continue;
-                                    }
-                                };
-                            #[cfg(not(target_os = "windows"))]
-                            let initial_metrics = OverlayMetrics::default();
-                            let timestamp = std::time::SystemTime::now()
-                                .duration_since(std::time::UNIX_EPOCH)
-                                .unwrap_or_default()
-                                .as_millis();
-                            let note_id = format!("skrib-hotkey-{timestamp}");
-                            let (rel_x, rel_y) = relative_note_position(
-                                &target,
-                                initial_metrics.overlay_physical_x,
-                                initial_metrics.overlay_physical_y,
-                            );
-                            let new_note = SkribNote {
-                                id: note_id.clone(),
-                                target_process_name: target.process_name.clone(),
-                                target_title: target.title.clone(),
-                                rel_x,
-                                rel_y,
-                                width: COMPACT_WINDOW_LOGICAL_WIDTH as f64,
-                                height: COMPACT_WINDOW_LOGICAL_HEIGHT as f64,
-                                text: String::new(),
-                                color: next_note_color(&coordinator_hk.get_all_skribs()),
-                                collapsed: false,
-                                created_at: (timestamp / 1000) as u64,
-                                updated_at: (timestamp / 1000) as u64,
-                                deleted_at: None,
-                            };
-                            if let Err(message) =
-                                run_persisted_mutation(&state_hk, |coordinator| {
-                                    coordinator
-                                        .upsert_skrib(new_note)
-                                        .then_some(())
-                                        .ok_or_else(|| {
-                                            "The new note did not pass native validation."
-                                                .to_string()
-                                        })
-                                })
-                            {
-                                let _ = app_handle_hk.emit("skribly://storage-error", message);
-                                continue;
-                            }
-                            #[cfg(target_os = "windows")]
-                            {
-                                native_open_current = record_note_placement_if_current(
-                                    &state_hk,
-                                    lifecycle_generation,
-                                    target.hwnd_val,
-                                    &note_id,
-                                    false,
-                                    &initial_metrics,
-                                )
-                                .unwrap_or(false);
-                            }
-                            created_open_request(note_id)
+                        #[cfg(not(target_os = "windows"))]
+                        let initial_metrics = OverlayMetrics::default();
+                        let timestamp = std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .unwrap_or_default()
+                            .as_millis();
+                        let note_id = format!("skrib-hotkey-{timestamp}");
+                        let (rel_x, rel_y) = relative_note_position(
+                            &target,
+                            initial_metrics.overlay_physical_x,
+                            initial_metrics.overlay_physical_y,
+                        );
+                        let new_note = SkribNote {
+                            id: note_id.clone(),
+                            target_process_name: target.process_name.clone(),
+                            target_title: target.title.clone(),
+                            rel_x,
+                            rel_y,
+                            width: COMPACT_WINDOW_LOGICAL_WIDTH as f64,
+                            height: COMPACT_WINDOW_LOGICAL_HEIGHT as f64,
+                            text: String::new(),
+                            color: next_note_color(&coordinator_hk.get_all_skribs()),
+                            collapsed: false,
+                            created_at: (timestamp / 1000) as u64,
+                            updated_at: (timestamp / 1000) as u64,
+                            deleted_at: None,
                         };
+                        if let Err(message) = run_persisted_mutation(&state_hk, |coordinator| {
+                            coordinator
+                                .upsert_skrib(new_note)
+                                .then_some(())
+                                .ok_or_else(|| {
+                                    "The new note did not pass native validation.".to_string()
+                                })
+                        }) {
+                            let _ = app_handle_hk.emit("skribly://storage-error", message);
+                            continue;
+                        }
+                        #[cfg(target_os = "windows")]
+                        let native_open_current = record_note_placement_if_current(
+                            &state_hk,
+                            lifecycle_generation,
+                            target.hwnd_val,
+                            &note_id,
+                            false,
+                            &initial_metrics,
+                        )
+                        .unwrap_or(false);
+                        let open_request = shortcut_open_request(note_id);
 
                         #[cfg(target_os = "windows")]
                         if !native_open_current
@@ -2354,7 +2416,7 @@ pub fn run() {
                                 if let Some(candidate) = reconstruct_hwnd(notice.hwnd_val)
                                     .and_then(inspect_target_window)
                                 {
-                                    match hide_collapsed_dot_for_unrelated_context(
+                                    match hide_active_note_for_unrelated_context(
                                         &app_handle_ev,
                                         &state_ev,
                                         notice.event_type,
@@ -2374,7 +2436,7 @@ pub fn run() {
                                         Err(message) => {
                                             let _ = app_handle_ev.emit(
                                                 "skribly://hotkey-error",
-                                                format!("Skribli could not hide the inactive collapsed note: {message}"),
+                                                format!("Skribli could not hide the inactive note: {message}"),
                                             );
                                         }
                                     }
@@ -2986,7 +3048,7 @@ mod tests {
         ));
 
         let mut runtime = NoteWindowRuntime::default();
-        runtime.hide_collapsed_until_context_returns(&note, &linked);
+        runtime.hide_active_note_until_context_returns(&note, &linked);
         let hidden = runtime
             .dismissed_collapsed_window()
             .expect("context-hidden dot");
@@ -3002,6 +3064,18 @@ mod tests {
             &note,
             &linked,
             &unrelated,
+        ));
+        assert!(active_note_should_hide_for_context(
+            EVENT_SYSTEM_FOREGROUND,
+            &note,
+            &linked,
+            &unrelated,
+        ));
+        assert!(!active_note_should_hide_for_context(
+            EVENT_SYSTEM_FOREGROUND,
+            &note,
+            &linked,
+            &linked,
         ));
     }
 
@@ -3371,5 +3445,13 @@ mod tests {
         assert!(app_state.storage_health().error.is_some());
         assert!(!app_state.storage_health().writable);
         let _ = std::fs::remove_dir_all(&directory);
+    }
+
+    #[test]
+    fn note_surface_sizes_are_bounded_product_presets() {
+        assert_eq!(note_surface_dimensions("compact"), Ok((420.0, 360.0)));
+        assert_eq!(note_surface_dimensions("medium"), Ok((560.0, 480.0)));
+        assert_eq!(note_surface_dimensions("large"), Ok((760.0, 620.0)));
+        assert!(note_surface_dimensions("fullscreen").is_err());
     }
 }

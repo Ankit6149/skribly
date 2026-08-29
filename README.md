@@ -18,7 +18,7 @@ The active compact-note flow is:
 1. Focus a supported Windows application.
 2. Press **Ctrl + Shift + Space**.
 3. Skribli captures the foreground target once, clears any previous runtime target, and revalidates the exact HWND and process identity before using it.
-4. A compact note editor opens inside that target monitor’s usable work area.
+4. A compact note editor opens inside that target monitor’s usable work area. Every shortcut press creates a fresh Skrib; saved notes remain available from My Skribs and All Skribs.
 5. Type while Skribli reports truthful **Unsaved**, **Saving**, **Saved**, or **Save failed** state.
 6. Choose **Done**, press **Escape**, or press **Ctrl + Enter**.
 7. Skribli collapses the saved note into a movable pastel dot only after the latest draft is durable. If persistence fails, the editor remains open so the draft is not silently lost.
@@ -31,7 +31,7 @@ Windows accessibility events use bounded, non-blocking delivery with callback-si
 
 The current build leaves one movable collapsed dot for the active Skrib. It does **not** create an attached tab, permanent toolbar, or full-screen interactive overlay.
 
-The create/reopen decision is deterministic, All Skribs recovery is available, ordinary deletion is reversible through Trash, and portable JSON import requires a non-mutating preview before one atomic apply. Rich attachments, ink, and reminders are device-local and are not yet included in that portable JSON path. Durable versioned context identity, archive/indexing, rich-data portability, physical Windows acceptance, installer lifecycle, and signed release evidence remain tracked in the production-readiness backlog.
+Shortcut creation is deterministic and always new, while My Skribs and All Skribs provide explicit saved-note recovery; ordinary deletion is reversible through Trash, and portable JSON import requires a non-mutating preview before one atomic apply. Rich attachments, ink, and reminders are device-local and are not yet included in that portable JSON path. Durable versioned context identity, archive/indexing, rich-data portability, physical Windows acceptance, installer lifecycle, and signed release evidence remain tracked in the production-readiness backlog.
 
 ## Implemented foundations
 
@@ -39,9 +39,12 @@ The create/reopen decision is deterministic, All Skribs recovery is available, o
 - Compact fully interactive note window rather than a screen-blocking overlay.
 - Movable saved-note collapse dot with target-relative, monitor-safe position restoration; the current single-window runtime shows one active note or dot at a time.
 - Five exact website pastels with automatic new-note rotation and per-note color selection.
-- Bounded Draw workspace with pen, highlighter, eraser, width/color controls, undo, and editable vector-stroke persistence.
+- One unified text-and-ink canvas with pen, highlighter, eraser, select-and-move, width/color controls, undo, and editable vector-stroke persistence.
 - Safe device-local image, video, and document attachments with preview and quota enforcement.
-- Device-local one-time reminders, Calendar view, and permission-gated Windows notifications.
+- Device-local reminders with daily, weekday, weekly, and monthly repeat rules, Calendar view, and permission-gated Windows notifications.
+- Compact, medium, and large note sizes plus persisted small, medium, and large handwriting text.
+- A grouped, collapsible My Skribs rail that previews notes by application and restores a live matching window context when it is still open.
+- Windows launch-at-login so the global shortcut is available after sign-in without manually opening the dashboard.
 - A visible, decorated Home window that opens on every normal launch and remains recoverable after setup failures.
 - Mandatory email/password account setup with verified-email state, secure Windows DPAPI session storage, and explicit optional product-update consent.
 - Server-owned seven-day trial records joined across verified account and privacy-minimized stable device claim.
@@ -91,14 +94,14 @@ An issue must remain open when only part of its acceptance criteria has been imp
 ### Current release target
 
 - Windows desktop only.
-- Typed or handwritten contextual Skribs with local attachments and one-time reminders through a compact or moderately expanded editor.
+- Typed and handwritten contextual Skribs on one canvas with local attachments and repeating reminders through a resizable editor.
 - Mandatory verified account for trial/write access; Skrib content itself remains local.
 
 ### Deferred and unavailable in the current build
 
 - macOS support;
 - browser URL or DOM-element anchoring;
-- arrow, shape, pin, checklist, screenshot, recurring-reminder, and rich attachment portability tools;
+- arrow, shape, pin, checklist, screenshot, and rich attachment portability tools;
 - cloud sync, collaboration, mobile apps, AI, OCR, plugins, and a marketplace.
 
 Deferred capabilities are tracked under [issue #46](https://github.com/Ankit6149/skribly/issues/46). Their placeholder code or documentation must not be interpreted as released support.

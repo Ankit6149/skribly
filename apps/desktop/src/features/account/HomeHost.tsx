@@ -22,6 +22,13 @@ async function openLibrary(view: 'notes' | 'calendar' = 'notes'): Promise<void> 
   await emit('skribly://library-view', { view });
 }
 
+async function openNoteRail(): Promise<void> {
+  const rail = await Window.getByLabel('rail');
+  if (!rail) throw new Error('My Skribs rail is unavailable. Restart Skribli and try again.');
+  await rail.show();
+  await rail.setFocus();
+}
+
 const BusySurface: React.FC<{ label: string }> = ({ label }) => (
   <div className="account-page account-page-centered" role="status" aria-live="polite">
     <img className="account-mark" src={skriblyMarkUrl} alt="" />
@@ -316,6 +323,13 @@ const HomeSurface: React.FC<{ onShowGuide: () => void }> = ({ onShowGuide }) => 
               onClick={() => void getCurrentWindow().hide()}
             >
               {entitlement?.canWrite ? 'Hide Skribli and start' : 'Writing is unavailable'}
+            </button>
+            <button
+              className="home-rail-link"
+              type="button"
+              onClick={() => void openNoteRail().catch((reason) => setActionError(reason instanceof Error ? reason.message : String(reason)))}
+            >
+              Open My Skribs rail
             </button>
           </div>
         </section>

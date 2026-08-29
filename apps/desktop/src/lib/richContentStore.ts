@@ -31,10 +31,17 @@ export interface SkribAttachment {
   kind: SkribAttachmentKind;
 }
 
+export type SkribTextSize = 'small' | 'medium' | 'large';
+
+export interface SkribViewPreferences {
+  textSize: SkribTextSize;
+}
+
 export interface StoredRichContent {
   noteId: string;
   attachments: SkribAttachment[];
   inkDocument?: SkribInkDocument;
+  view?: SkribViewPreferences;
   updatedAt: number;
 }
 
@@ -394,6 +401,13 @@ function migrateAttachment(attachment: SkribAttachment): SkribAttachment {
   return { ...attachment, kind };
 }
 
+function normalizeViewPreferences(view?: Partial<SkribViewPreferences>): SkribViewPreferences {
+  return {
+    textSize:
+      view?.textSize === 'small' || view?.textSize === 'large' ? view.textSize : 'medium',
+  };
+}
+
 export function createRichContentRepository(
   persistence: RichContentPersistence,
   options: RichContentRepositoryOptions = {}
@@ -418,8 +432,19 @@ export function createRichContentRepository(
 
   const get = async (noteId: string): Promise<StoredRichContent> => {
     const stored = await persistence.get(noteId);
-    if (!stored) return { noteId, attachments: [], updatedAt: 0 };
-    return { ...stored, attachments: stored.attachments.map(migrateAttachment) };
+    if (!stored) {
+      return {
+        noteId,
+        attachments: [],
+        view: normalizeViewPreferences(),
+        updatedAt: 0,
+      };
+    }
+    return {
+      ...stored,
+      attachments: stored.attachments.map(migrateAttachment),
+      view: normalizeViewPreferences(stored.view),
+    };
   };
 
   const addFiles = (noteId: string, files: File[]): Promise<SkribAttachment[]> => mutate(noteId, async () => {
@@ -467,7 +492,11 @@ export function createRichContentRepository(
   const replaceInk = (noteId: string, strokes: ReadonlyArray<InkStroke>): Promise<SkribInkDocument> => mutate(noteId, async () => {
     const content = await get(noteId);
     const inkDocument = validateInkDocument(strokes, now());
-    if (inkDocument.strokes.length === 0 && content.attachments.length === 0) {
+    if (
+      inkDocument.strokes.length === 0 &&
+      content.attachments.length === 0 &&
+      normalizeViewPreferences(content.view).textSize === 'medium'
+    ) {
       await persistence.delete(noteId);
       return inkDocument;
     }
@@ -484,12 +513,27 @@ export function createRichContentRepository(
     const content = await get(noteId);
     const attachments = content.attachments.filter((item) => item.id !== attachmentId);
     if (attachments.length === content.attachments.length) return attachments;
-    if (attachments.length === 0 && !content.inkDocument?.strokes.length) {
+    if (
+      attachments.length === 0 &&
+      !content.inkDocument?.strokes.length &&
+      normalizeViewPreferences(content.view).textSize === 'medium'
+    ) {
       await persistence.delete(noteId);
       return [];
     }
     await persistence.put({ ...content, noteId, attachments, updatedAt: now() });
     return attachments;
+  });
+
+  const updateView = (
+    noteId: string,
+    view: Partial<SkribViewPreferences>
+  ): Promise<SkribViewPreferences> => mutate(noteId, async () => {
+    const content = await get(noteId);
+    const nextView = normalizeViewPreferences({ ...content.view, ...view });
+    const updatedAt = now();
+    await persistence.put({ ...content, noteId, view: nextView, updatedAt });
+    return nextView;
   });
 
   const deleteIfOrphaned = (noteId: string): Promise<boolean> => mutate(noteId, async () => {
@@ -520,6 +564,7 @@ export function createRichContentRepository(
     addInk,
     replaceInk,
     getInk,
+    updateView,
     removeAttachment,
     delete: deleteContent,
     deleteIfOrphaned,
@@ -536,6 +581,7 @@ export const addFilesToNote = defaultRepository.addFiles;
 export const addInkToNote = defaultRepository.addInk;
 export const replaceInkForNote = defaultRepository.replaceInk;
 export const getInkForNote = defaultRepository.getInk;
+export const updateNoteViewPreferences = defaultRepository.updateView;
 export const removeAttachmentFromNote = defaultRepository.removeAttachment;
 export const deleteOrphanedRichContent = defaultRepository.deleteOrphans;
 

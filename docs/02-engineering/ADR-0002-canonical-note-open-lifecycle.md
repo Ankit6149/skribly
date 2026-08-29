@@ -9,11 +9,11 @@
 
 The native shortcut path can create or return contextual notes, but the React host previously inferred which note to open by comparing note arrays and selecting either a newly observed ID or the latest updated item. That coupled user-visible behavior to collection timing and unordered native storage. With legacy duplicate notes, two equivalent payloads could open different notes.
 
-The Windows MVP needs one predictable answer when the user presses `Ctrl+Shift+Space`.
+The Windows MVP needs one predictable answer when the user presses `Ctrl+Shift+Space`, while keeping older notes discoverable without making the shortcut reopen them unexpectedly.
 
 ## Decision
 
-The current MVP uses one active text note per captured application context.
+Every valid `Ctrl+Shift+Space` press creates a fresh note for the captured application context. Older notes remain available through My Skribs and All Skribs, where an explicit open action may select and reopen a saved note.
 
 The native shortcut path owns the opening decision and emits a privacy-safe `OpenNoteRequest` only after capture, placement, and any required note creation have succeeded.
 
@@ -28,12 +28,8 @@ capture + revalidate exact HWND/process
         |
 position compact editor safely
         |
-find matching notes
-   /          |             \
-zero          one          legacy many
- |             |                |
-create       reopen       deterministic select
- |             |                |
+create a fresh contextual note
+        |
    emit OverlayStatePayload
               |
    emit OpenNoteRequest
@@ -59,13 +55,13 @@ OpenNoteRequest {
 
 The request intentionally excludes application titles, process names, paths, note text, geometry, and other user content.
 
-### Zero, one, and many matches
+### Shortcut creation and explicit reopen
 
-- **Zero:** create one empty note, persist it, then emit `created` with the new ID and `matchingNoteCount = 0`.
-- **One:** emit `reopened` with that ID and `matchingNoteCount = 1`.
-- **Legacy many:** choose by `updated_at` descending, then `created_at` descending, then ID ascending. Emit `reopened` and the original match count.
+- **Global shortcut:** create one empty note, persist it, then emit `created` with the new ID and `matchingNoteCount = 0`, regardless of existing notes in that context.
+- **Explicit saved-note open:** reopen the selected note from My Skribs or All Skribs.
+- **Compatibility selection:** when a contextual action needs one note from several legacy matches, choose by `updated_at` descending, then `created_at` descending, then ID ascending.
 
-The many-match path is compatibility behavior, not approval for creating multiple notes per context in the current MVP. Library cleanup and duplicate-resolution UX remain parent work.
+The deterministic many-match selector is compatibility behavior for explicit contextual actions. It does not control shortcut creation.
 
 ## User-visible behavior
 
@@ -86,7 +82,7 @@ The many-match path is compatibility behavior, not approval for creating multipl
 
 ### Trade-offs
 
-- One shortcut does not create a second note for the same context in this MVP.
+- Contexts can contain several intentional notes, so retrieval and grouping remain first-class UI concerns.
 - Duplicate cleanup, titles, archive/trash, and the All Skribs recovery surface remain separate work.
 - Application/document identity is still constrained by the context work tracked in #18.
 
@@ -94,12 +90,12 @@ The many-match path is compatibility behavior, not approval for creating multipl
 
 - **React array-difference detection:** timing-dependent and unable to distinguish unrelated context changes.
 - **Use the first native collection item:** map iteration order is not a product contract.
-- **Always create a note:** creates duplicates and makes retrieval unclear.
+- **Reopen the most recent note from the shortcut:** makes a creation gesture overwrite or surface an older thought unexpectedly.
 - **Send titles or text in the request:** unnecessary and expands the privacy surface.
 
 ## Verification
 
-- Native zero/one/many/tie tests.
+- Native fresh-shortcut plus explicit zero/one/many/tie selection tests.
 - Frontend shape-validation and exact-ID selection tests.
 - Product-truth validation rejecting the old `knownNoteIds`/latest-array heuristic.
 - Complete CI matrix before merge.

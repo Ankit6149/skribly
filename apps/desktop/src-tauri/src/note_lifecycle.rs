@@ -23,6 +23,12 @@ pub fn created_open_request(note_id: String) -> OpenNoteRequest {
     }
 }
 
+/// The global shortcut is a creation gesture. Existing contextual notes remain available through
+/// the note library, but they must never change what Ctrl+Shift+Space opens.
+pub fn shortcut_open_request(note_id: String) -> OpenNoteRequest {
+    created_open_request(note_id)
+}
+
 pub fn reopened_open_request(mut notes: Vec<SkribNote>) -> Option<OpenNoteRequest> {
     let matching_note_count = notes.len();
     notes.sort_by(|left, right| {
@@ -111,6 +117,18 @@ mod tests {
             OpenNoteRequest {
                 action: OpenNoteAction::Created,
                 note_id: "new-note".into(),
+                matching_note_count: 0,
+            }
+        );
+    }
+
+    #[test]
+    fn global_shortcut_always_describes_a_fresh_note() {
+        assert_eq!(
+            shortcut_open_request("shortcut-note".into()),
+            OpenNoteRequest {
+                action: OpenNoteAction::Created,
+                note_id: "shortcut-note".into(),
                 matching_note_count: 0,
             }
         );

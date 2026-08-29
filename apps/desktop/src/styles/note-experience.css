@@ -11,14 +11,14 @@
   --compact-surface-logical-height: 360px;
   --compact-surface-gutter: 4px;
   --collapsed-dot-surface-size: 44px;
-  --collapsed-dot-diameter: 32px;
-  --collapsed-dot-bubble-left: 4px;
-  --collapsed-dot-bubble-top: 8px;
-  --collapsed-dot-open-size: 22px;
-  --collapsed-dot-open-left: 9px;
-  --collapsed-dot-open-top: 13px;
-  --collapsed-dot-open-notch-width: 3px;
-  --collapsed-dot-open-notch-height: 2px;
+  --collapsed-dot-diameter: 30px;
+  --collapsed-dot-bubble-left: 5px;
+  --collapsed-dot-bubble-top: 9px;
+  --collapsed-dot-open-size: 20px;
+  --collapsed-dot-open-left: 10px;
+  --collapsed-dot-open-top: 14px;
+  --collapsed-dot-open-notch-width: 2px;
+  --collapsed-dot-open-notch-height: 1px;
   --collapsed-dot-dismiss-width: 12px;
   --collapsed-dot-dismiss-height: 12px;
   --collapsed-dot-dismiss-left: 28px;
@@ -417,11 +417,20 @@ body {
   height: var(--collapsed-dot-diameter);
   border-radius: 50%;
   background: var(--skribli-paper);
+  border: 1px solid rgba(38, 39, 31, 0.36);
   box-shadow:
-    inset 0 0 0 1px rgba(38, 39, 31, 0.08),
-    0 2px 4px rgba(38, 39, 31, 0.18);
+    inset 0 1px 0 rgba(255, 255, 255, 0.48),
+    0 2px 5px rgba(38, 39, 31, 0.2);
   transform: translateZ(0);
-  transition: filter 150ms ease, opacity 150ms ease;
+  transition: filter 150ms ease, opacity 150ms ease, transform 150ms ease, box-shadow 150ms ease;
+}
+
+.collapsed-skrib-dot:hover .collapsed-skrib-bubble {
+  filter: saturate(1.05) brightness(1.02);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.54),
+    0 4px 9px rgba(38, 39, 31, 0.24);
+  transform: scale(1.04) translateZ(0);
 }
 
 .collapsed-skrib-drag-zone {
@@ -436,30 +445,30 @@ body {
 }
 
 .collapsed-skrib-drag-top {
-  top: 8px;
-  left: 4px;
-  width: 24px;
+  top: 9px;
+  left: 7px;
+  width: 21px;
   height: 5px;
 }
 
 .collapsed-skrib-drag-left {
-  top: 13px;
-  left: 4px;
-  width: 5px;
-  height: 22px;
-}
-
-.collapsed-skrib-drag-right {
-  top: 15px;
-  left: 31px;
+  top: 14px;
+  left: 5px;
   width: 5px;
   height: 20px;
 }
 
+.collapsed-skrib-drag-right {
+  top: 15px;
+  left: 30px;
+  width: 5px;
+  height: 19px;
+}
+
 .collapsed-skrib-drag-bottom {
-  top: 35px;
-  left: 4px;
-  width: 32px;
+  top: 34px;
+  left: 5px;
+  width: 30px;
   height: 5px;
 }
 
@@ -485,13 +494,17 @@ body {
     100% 100%,
     0 100%
   );
-  transition: background 130ms ease, box-shadow 130ms ease;
+  transition: background 130ms ease, box-shadow 130ms ease, transform 100ms ease;
 }
 
 .collapsed-skrib-open:hover:not(:disabled),
 .collapsed-skrib-open:focus-visible {
   background: rgba(255, 255, 255, 0.18);
   box-shadow: inset 0 0 0 1px rgba(38, 41, 35, 0.22);
+}
+
+.collapsed-skrib-open:active:not(:disabled) {
+  transform: scale(0.92);
 }
 
 .collapsed-skrib-open:focus-visible {
@@ -517,13 +530,15 @@ body {
     0 1px 3px rgba(38, 39, 31, 0.2);
   color: rgba(38, 39, 31, 0.82);
   cursor: pointer;
-  font: 700 9px/1 'DM Sans', sans-serif;
+  font: 700 9px/1 var(--skribli-ui-font);
   touch-action: manipulation;
+  transition: background 120ms ease, color 120ms ease, transform 120ms ease;
 }
 
 .collapsed-skrib-dismiss:hover:not(:disabled) {
   background: #fff;
   color: var(--skribli-ink);
+  transform: scale(1.08);
 }
 
 .collapsed-skrib-dismiss:focus-visible {
@@ -677,6 +692,309 @@ body {
 
 .composer-color-popover .color-swatch.active {
   box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--olive);
+}
+
+.composer-command-bar {
+  position: relative;
+  z-index: 10;
+  min-height: 42px;
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  border-bottom: 1px dashed var(--skribli-line);
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.composer-tool-button,
+.composer-tool-select {
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgba(38, 41, 35, 0.12);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.38);
+  color: var(--skribli-ink);
+  font-family: var(--skribli-ui-font);
+  font-size: 9px;
+  font-weight: 750;
+}
+
+.composer-tool-button {
+  padding: 0 9px;
+  cursor: pointer;
+}
+
+.composer-tool-button.primary-tool,
+.composer-tool-button.active {
+  border-color: rgba(38, 41, 35, 0.74);
+  background: var(--skribli-ink);
+  color: var(--paper);
+}
+
+.composer-tool-button:hover:not(:disabled),
+.composer-tool-select:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(38, 41, 35, 0.1);
+}
+
+.composer-tool-button:focus-visible,
+.composer-tool-select:focus-within {
+  outline: 2px solid var(--olive);
+  outline-offset: 1px;
+}
+
+.composer-tool-button:disabled,
+.composer-tool-select:has(select:disabled) {
+  cursor: not-allowed;
+  opacity: 0.46;
+}
+
+.composer-tool-divider {
+  width: 1px;
+  height: 20px;
+  margin: 0 2px;
+  background: rgba(38, 41, 35, 0.14);
+}
+
+.composer-tool-select {
+  padding-left: 8px;
+}
+
+.composer-tool-select select {
+  min-width: 0;
+  max-width: 88px;
+  min-height: 28px;
+  padding: 0 22px 0 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+}
+
+.surface-size-select {
+  margin-left: auto;
+}
+
+.composer-unified-workspace {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.composer-unified-canvas {
+  position: relative;
+  min-width: 0;
+  min-height: 150px;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+.composer-unified-canvas .composer-textarea {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+}
+
+.composer-unified-canvas[data-text-size='small'] .composer-textarea {
+  font-size: 16px;
+}
+
+.composer-unified-canvas[data-text-size='large'] .composer-textarea {
+  font-size: 23px;
+  line-height: 1.48;
+}
+
+.composer-unified-canvas.drawing .composer-textarea {
+  caret-color: transparent;
+  user-select: none;
+}
+
+.composer-ink-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.composer-ink-layer.active {
+  pointer-events: auto;
+}
+
+.ink-editor-overlay {
+  position: absolute;
+  inset: 0;
+  padding: 0;
+  overflow: hidden;
+  pointer-events: inherit;
+}
+
+.ink-editor-overlay .ink-editor-toolbar {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  left: 8px;
+  z-index: 3;
+  min-height: 40px;
+  margin: 0;
+  padding: 5px 7px;
+  gap: 5px;
+  border: 1px solid rgba(38, 41, 35, 0.14);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--skribli-paper) 74%, white);
+  box-shadow: 0 8px 20px rgba(38, 41, 35, 0.13);
+  backdrop-filter: blur(10px);
+}
+
+.composer-ink-layer:not(.active) .ink-editor-toolbar,
+.composer-ink-layer:not(.active) .ink-editor-status,
+.composer-ink-layer:not(.active) .ink-editor-error {
+  display: none;
+}
+
+.ink-editor-overlay .ink-canvas-frame {
+  position: absolute;
+  inset: 0;
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.ink-editor-overlay .ink-canvas {
+  min-height: 0;
+  cursor: crosshair;
+}
+
+.ink-editor-overlay .ink-canvas[data-interaction='select'] {
+  cursor: grab;
+}
+
+.ink-editor-overlay .ink-canvas[data-interaction='select']:active {
+  cursor: grabbing;
+}
+
+.ink-editor-overlay .ink-editor-status {
+  position: absolute;
+  right: 12px;
+  bottom: 7px;
+  left: 12px;
+  z-index: 3;
+  padding: 0;
+  pointer-events: none;
+}
+
+.ink-editor-toolbar button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+.note-attachment-strip {
+  min-height: 42px;
+  padding: 6px 10px;
+  flex: 0 0 auto;
+  overflow-x: auto;
+  border-top: 1px dashed var(--skribli-line);
+  scrollbar-color: color-mix(in srgb, var(--skribli-ink) 28%, transparent) transparent;
+  scrollbar-width: thin;
+}
+
+.note-attachment-strip[data-empty='true'] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+}
+
+.attachment-chips {
+  display: flex;
+  gap: 7px;
+}
+
+.attachment-chip {
+  width: min(230px, 72vw);
+  min-width: 160px;
+  min-height: 34px;
+  padding: 4px 4px 4px 7px;
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) 28px;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid rgba(38, 41, 35, 0.13);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.38);
+}
+
+.attachment-chip-icon {
+  display: grid;
+  place-items: center;
+  color: var(--olive);
+}
+
+.attachment-chip-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.attachment-chip-copy a,
+.attachment-chip-copy strong {
+  overflow: hidden;
+  color: var(--skribli-ink);
+  font-size: 9px;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.attachment-chip-copy small {
+  color: var(--skribli-muted);
+  font-size: 7px;
+}
+
+.attachment-chip button {
+  width: 27px;
+  height: 27px;
+  display: grid;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--skribli-muted);
+  cursor: pointer;
+}
+
+.attachment-chip button:hover,
+.attachment-chip button.confirm {
+  background: rgba(133, 64, 64, 0.1);
+  color: #854040;
+}
+
+.composer-inline-panel {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  overflow: auto;
+  background: color-mix(in srgb, var(--skribli-paper) 89%, white);
+  backdrop-filter: blur(12px);
+  scrollbar-color: color-mix(in srgb, var(--skribli-ink) 28%, transparent) transparent;
+  scrollbar-width: thin;
 }
 
 .composer-workspace-tabs {
@@ -931,6 +1249,9 @@ body {
 }
 
 .note-panel-heading strong {
+  display: flex;
+  align-items: center;
+  gap: 7px;
   font-family: var(--font-display);
   font-size: 16px;
 }
@@ -1185,14 +1506,26 @@ body {
   position: relative;
 }
 
-.note-reminder-time label::after {
+.note-reminder-select-field > svg:last-child {
   position: absolute;
   top: 50%;
-  right: 10px;
+  right: 9px;
   color: var(--skribli-muted);
-  content: '⌄';
   pointer-events: none;
-  transform: translateY(-55%);
+  transform: translateY(-50%);
+}
+
+.note-reminder-select-field.repeat-field > svg:first-of-type {
+  position: absolute;
+  top: 50%;
+  left: 9px;
+  color: var(--olive);
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.note-reminder-select-field.repeat-field select {
+  padding-left: 29px;
 }
 
 .note-reminder-time select {
