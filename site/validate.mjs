@@ -30,6 +30,10 @@ const requiredFiles = [
   'assets/skribli-v0-windows.enc',
   'assets/skribly-note-mark-v2.svg',
   'assets/skribly-social-card-v2.svg',
+  'assets/phosphor/regular/style.css',
+  'assets/phosphor/regular/Phosphor.woff2',
+  'assets/phosphor/fill/style.css',
+  'assets/phosphor/fill/Phosphor-Fill.woff2',
 ];
 
 const failures = [];
