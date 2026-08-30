@@ -701,17 +701,21 @@ body {
   padding: 6px 12px;
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
+  overflow: hidden;
   border-bottom: 1px dashed var(--skribli-line);
   background: rgba(255, 255, 255, 0.15);
 }
 
 .composer-tool-button,
 .composer-tool-select {
+  position: relative;
+  width: 32px;
+  min-width: 32px;
   min-height: 30px;
   display: inline-flex;
+  justify-content: center;
   align-items: center;
-  gap: 6px;
   border: 1px solid rgba(38, 41, 35, 0.12);
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.38);
@@ -722,7 +726,7 @@ body {
 }
 
 .composer-tool-button {
-  padding: 0 9px;
+  padding: 0;
   cursor: pointer;
 }
 
@@ -751,32 +755,29 @@ body {
   opacity: 0.46;
 }
 
-.composer-tool-divider {
-  width: 1px;
-  height: 20px;
-  margin: 0 2px;
-  background: rgba(38, 41, 35, 0.14);
-}
-
 .composer-tool-select {
-  padding-left: 8px;
+  padding: 0;
+  cursor: pointer;
 }
 
 .composer-tool-select select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
   min-width: 0;
-  max-width: 88px;
-  min-height: 28px;
-  padding: 0 22px 0 0;
+  min-height: 100%;
+  padding: 0;
   border: 0;
   outline: 0;
   background: transparent;
   color: inherit;
   cursor: pointer;
   font: inherit;
+  opacity: 0;
 }
 
 .surface-size-select {
-  margin-left: auto;
+  margin-left: 0;
 }
 
 .composer-unified-workspace {

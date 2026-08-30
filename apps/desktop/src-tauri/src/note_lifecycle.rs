@@ -15,18 +15,18 @@ pub struct OpenNoteRequest {
     pub matching_note_count: usize,
 }
 
-pub fn created_open_request(note_id: String) -> OpenNoteRequest {
+pub fn created_open_request(note_id: String, matching_note_count: usize) -> OpenNoteRequest {
     OpenNoteRequest {
         action: OpenNoteAction::Created,
         note_id,
-        matching_note_count: 0,
+        matching_note_count,
     }
 }
 
 /// The global shortcut is a creation gesture. Existing contextual notes remain available through
 /// the note library, but they must never change what Ctrl+Shift+Space opens.
-pub fn shortcut_open_request(note_id: String) -> OpenNoteRequest {
-    created_open_request(note_id)
+pub fn shortcut_open_request(note_id: String, matching_note_count: usize) -> OpenNoteRequest {
+    created_open_request(note_id, matching_note_count)
 }
 
 pub fn reopened_open_request(mut notes: Vec<SkribNote>) -> Option<OpenNoteRequest> {
@@ -111,13 +111,13 @@ mod tests {
     }
 
     #[test]
-    fn created_request_records_zero_previous_matches() {
+    fn created_request_records_the_current_context_count() {
         assert_eq!(
-            created_open_request("new-note".into()),
+            created_open_request("new-note".into(), 1),
             OpenNoteRequest {
                 action: OpenNoteAction::Created,
                 note_id: "new-note".into(),
-                matching_note_count: 0,
+                matching_note_count: 1,
             }
         );
     }
@@ -125,11 +125,11 @@ mod tests {
     #[test]
     fn global_shortcut_always_describes_a_fresh_note() {
         assert_eq!(
-            shortcut_open_request("shortcut-note".into()),
+            shortcut_open_request("shortcut-note".into(), 4),
             OpenNoteRequest {
                 action: OpenNoteAction::Created,
                 note_id: "shortcut-note".into(),
-                matching_note_count: 0,
+                matching_note_count: 4,
             }
         );
     }

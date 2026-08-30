@@ -320,10 +320,34 @@ html[data-skribly-window='library'] #root {
 
 .library-detail {
   padding: 22px;
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-  overflow: auto;
+  display: block;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.library-detail::-webkit-scrollbar {
+  width: 9px;
+}
+
+.library-detail::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.library-detail::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--library-ink) 24%, transparent);
+  background-clip: padding-box;
+}
+
+.library-detail > * {
+  min-width: 0;
+}
+
+.library-detail > * + * {
+  margin-top: 18px;
 }
 
 .library-detail-header {
@@ -346,8 +370,9 @@ html[data-skribly-window='library'] #root {
 }
 
 .library-note-paper {
-  min-height: 220px;
+  min-height: 0;
   padding: 26px 28px;
+  overflow: visible;
   border: 1px solid rgba(36, 39, 32, 0.12);
   border-radius: 17px 17px 30px 17px;
   background:
@@ -361,8 +386,8 @@ html[data-skribly-window='library'] #root {
   margin: 0;
   color: var(--library-ink);
   font-family: var(--font-hand);
-  font-size: 17px;
-  line-height: 1.65;
+  font-size: clamp(15px, 1.7vw, 19px) !important;
+  line-height: 1.55 !important;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
   user-select: text;
@@ -445,6 +470,7 @@ html[data-skribly-window='library'] #root {
 .skrib-color-lavender { background-color: var(--lavender); }
 
 .library-rich-content {
+  min-width: 0;
   display: grid;
   gap: 14px;
 }

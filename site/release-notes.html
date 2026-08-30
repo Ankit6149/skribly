@@ -35,7 +35,9 @@
             <li>Local image, video, and document attachments with bounded storage quotas.</li>
             <li>Local reminders with daily, weekday, weekly, and monthly repeats, Windows notifications while Skribli runs, and a calendar view.</li>
             <li>Compact, medium, and large note surfaces with saved handwriting text size.</li>
-            <li>A grouped My Skribs rail for direct reading and reopening an exact live application window.</li>
+            <li>A small right-side My Skribs pill that expands into a compact Here/All rail for reading saved notes and reopening an exact live application window.</li>
+            <li>A durable native-to-editor opening handshake so Ctrl + Shift + Space cannot be lost while the note window is starting.</li>
+            <li>An icon-first compact toolbar that keeps attachment, drawing, reminder, text-size, and note-size controls visible without clipping.</li>
             <li>Launch at Windows sign-in so the global shortcut is available without manually opening the dashboard.</li>
             <li>Done folds the saved active note into one movable pastel dot.</li>
             <li>The open note uses a shaped rounded Windows surface, while the smaller 40px dot uses a circular native region so transparent corners do not cover other applications.</li>
@@ -43,7 +45,7 @@
             <li>A deterministic shortcut contract: every Ctrl + Shift + Space press creates a fresh pastel Skrib.</li>
             <li>Ordered local saves with dirty, saving, saved, failed, and retry states.</li>
             <li>Crash-safe schema-v3 local storage with schema-v1/v2 migration and recovery generations.</li>
-            <li>A normal non-floating All Skribs window for active-note and Trash search, reading, and versioned JSON export.</li>
+            <li>A normal non-floating All Skribs window with bounded long-note reading, active-note and Trash search, and versioned JSON export.</li>
             <li>Reversible 30-day local Trash, same-record restore, and separately confirmed permanent deletion.</li>
             <li>Portable JSON import with mandatory preview, exact-duplicate handling, stable-ID conflict choices, revision locking, and a verified rollback backup before apply.</li>
             <li>Target-monitor work-area placement, bounded Windows event delivery, and single-instance routing.</li>
@@ -56,13 +58,13 @@
           <ol>
             <li>Focus a supported Windows application.</li>
             <li>Press Ctrl + Shift + Space.</li>
-            <li>Skribli creates a fresh contextual note.</li>
+            <li>Skribli creates a fresh pastel contextual note and keeps older notes available from the nearby Here rail.</li>
             <li>Type, draw over the text, attach a local file, resize the note, or set a repeating reminder.</li>
             <li>Choose Done, Escape, Ctrl+Enter, or close.</li>
             <li>Skribli waits for text and rich content to save, then folds the active note into a movable dot.</li>
             <li>Choose Delete only when needed; the note moves to local Trash and can be restored from All Skribs.</li>
           </ol>
-          <p>The current v0 shows one active note or collapsed dot at a time, while My Skribs groups every saved note by application. Multiple simultaneous note windows, attached tabs, checklists, screenshot pins, cloud sync, and a full-screen interactive overlay are not included.</p>
+          <p>The current v0 shows one active note or collapsed dot at a time. The small My Skribs pill stays available on the desktop, switches to the current application when that context contains multiple notes, and expands only when needed. Multiple simultaneous note windows, attached tabs, checklists, screenshot pins, cloud sync, and a full-screen interactive overlay are not included.</p>
         </section>
 
         <section>

@@ -681,7 +681,6 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
             onClick={() => setAttachmentPickerRequest((request) => request + 1)}
           >
             <Paperclip size={15} aria-hidden="true" />
-            <span>Add</span>
           </button>
           <button
             type="button"
@@ -695,7 +694,6 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
             }}
           >
             <PenLine size={15} aria-hidden="true" />
-            <span>Draw</span>
           </button>
           <button
             type="button"
@@ -709,13 +707,12 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
             }}
           >
             <Bell size={15} aria-hidden="true" />
-            <span>Remind</span>
           </button>
-          <span className="composer-tool-divider" aria-hidden="true" />
-          <label className="composer-tool-select" title="Text size">
+          <label className="composer-tool-select" title={`Text size: ${textSize}`}>
             <Type size={14} aria-hidden="true" />
             <span className="sr-only">Text size</span>
             <select
+              aria-label="Text size"
               value={textSize}
               disabled={!canWrite || isFinishing}
               onChange={(event) => void changeTextSize(event.target.value as SkribTextSize)}
@@ -725,10 +722,11 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
               <option value="large">Large text</option>
             </select>
           </label>
-          <label className="composer-tool-select surface-size-select" title="Note size">
+          <label className="composer-tool-select surface-size-select" title={`Note size: ${surfaceSize}`}>
             <Maximize2 size={14} aria-hidden="true" />
             <span className="sr-only">Note size</span>
             <select
+              aria-label="Note size"
               value={surfaceSize}
               disabled={isResizing || isFinishing || hasPendingRichOperation || hasUnsavedInk}
               onChange={(event) => void changeSurfaceSize(event.target.value as NoteSurfaceSize)}

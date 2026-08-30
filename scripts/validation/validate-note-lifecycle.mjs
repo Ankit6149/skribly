@@ -22,16 +22,21 @@ const adr = await read('docs/02-engineering/ADR-0002-canonical-note-open-lifecyc
 // Rustfmt may wrap method chains across lines. These structural checks should
 // validate the ordering rule, not fail merely because its formatting changed.
 const compactNativeLifecycle = nativeLifecycle.replace(/\s+/g, '');
+const compactNativeEntry = nativeEntry.replace(/\s+/g, '');
+const compactOverlayHost = overlayHost.replace(/\s+/g, '');
 
 const requiredNativeContract = [
   'mod note_lifecycle;',
   'shortcut_open_request',
   'reopened_open_request',
-  'let open_request = shortcut_open_request(note_id);',
+  'letopen_request=shortcut_open_request(note_id,matching_note_count);',
+  'runtime.record_open_request(open_request.clone());',
+  'get_pending_open_note_request',
+  'acknowledge_open_note_request',
   'skribly://open-note-request',
 ];
 for (const claim of requiredNativeContract) {
-  if (!nativeEntry.includes(claim)) {
+  if (!compactNativeEntry.includes(claim.replace(/\s+/g, ''))) {
     failures.push(`Native shortcut opening is missing: ${claim}`);
   }
 }
@@ -59,12 +64,14 @@ for (const claim of requiredSelectionRules) {
 const requiredFrontendContract = [
   "listen<unknown>('skribly://open-note-request'",
   'isOpenNoteRequest(event.payload)',
+  "invoke<unknown>('get_pending_open_note_request')",
   'selectRequestedNote(openNoteRequest, skribs)',
   'openComposer(requestedNote.id',
-  "setComposerOpenAction(openNoteRequest.action)",
+  'setComposerOpenAction(request.action)',
+  "invoke('acknowledge_open_note_request', { noteId: request.noteId })",
 ];
 for (const claim of requiredFrontendContract) {
-  if (!overlayHost.includes(claim)) {
+  if (!compactOverlayHost.includes(claim.replace(/\s+/g, ''))) {
     failures.push(`Frontend explicit-open handling is missing: ${claim}`);
   }
 }

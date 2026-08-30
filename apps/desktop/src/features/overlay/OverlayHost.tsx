@@ -1,3 +1,4 @@
+import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import React, { useEffect, useState } from 'react';
@@ -70,10 +71,6 @@ export const OverlayHost: React.FC = () => {
   });
 
   useEffect(() => {
-    void initTauri();
-  }, [initTauri]);
-
-  useEffect(() => {
     let disposed = false;
     const unlistenCallbacks: Array<() => void> = [];
 
@@ -94,6 +91,14 @@ export const OverlayHost: React.FC = () => {
         callbacks.forEach((unlisten) => unlisten());
       } else {
         unlistenCallbacks.push(...callbacks);
+        void initTauri()
+          .then(async () => {
+            const pending = await invoke<unknown>('get_pending_open_note_request');
+            if (!disposed && isOpenNoteRequest(pending)) {
+              setOpenNoteRequest(pending);
+            }
+          })
+          .catch(() => undefined);
       }
     });
 
@@ -101,7 +106,7 @@ export const OverlayHost: React.FC = () => {
       disposed = true;
       unlistenCallbacks.forEach((unlisten) => unlisten());
     };
-  }, []);
+  }, [initTauri]);
 
   useEffect(() => {
     const requestedNote = selectRequestedNote(openNoteRequest, skribs);
@@ -109,10 +114,14 @@ export const OverlayHost: React.FC = () => {
 
     // The native clear event arrives before this request. Keep the recovery surface mounted
     // until the replacement composer is ready so the transparent overlay never renders empty.
-    setComposerOpenAction(openNoteRequest.action);
+    const request = openNoteRequest;
+    setComposerOpenAction(request.action);
     setCaptureError(null);
     openComposer(requestedNote.id, 'type');
     setOpenNoteRequest(null);
+    void invoke('acknowledge_open_note_request', { noteId: request.noteId }).catch(
+      () => undefined
+    );
   }, [openComposer, openNoteRequest, skribs]);
 
   useEffect(() => {

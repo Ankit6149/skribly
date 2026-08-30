@@ -20,9 +20,12 @@ Add-Type -AssemblyName System.Drawing
 if (-not ('SkribliWindowCapture' -as [type])) {
   Add-Type @'
 using System;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 
 public static class SkribliWindowCapture {
+  public delegate bool EnumWindowsCallback(IntPtr window, IntPtr parameter);
+
   [StructLayout(LayoutKind.Sequential)]
   public struct Rect { public int Left; public int Top; public int Right; public int Bottom; }
 
@@ -45,6 +48,15 @@ public static class SkribliWindowCapture {
   public static extern bool PrintWindow(IntPtr window, IntPtr deviceContext, uint flags);
 
   [DllImport("user32.dll")]
+  public static extern bool EnumWindows(EnumWindowsCallback callback, IntPtr parameter);
+
+  [DllImport("user32.dll")]
+  public static extern uint GetWindowThreadProcessId(IntPtr window, out uint processId);
+
+  [DllImport("user32.dll")]
+  public static extern bool IsWindowVisible(IntPtr window);
+
+  [DllImport("user32.dll")]
   public static extern IntPtr SetThreadDpiAwarenessContext(IntPtr dpiContext);
 
   public static IntPtr EnablePerMonitorDpiAwareness() {
@@ -64,6 +76,17 @@ public static class SkribliWindowCapture {
       Right = origin.X + width,
       Bottom = origin.Y + height
     };
+  }
+
+  public static IntPtr[] GetVisibleProcessWindows(int processId) {
+    List<IntPtr> windows = new List<IntPtr>();
+    EnumWindows(delegate(IntPtr window, IntPtr parameter) {
+      uint ownerProcessId;
+      GetWindowThreadProcessId(window, out ownerProcessId);
+      if (ownerProcessId == (uint)processId && IsWindowVisible(window)) windows.Add(window);
+      return true;
+    }, IntPtr.Zero);
+    return windows.ToArray();
   }
 }
 '@
@@ -113,18 +136,38 @@ function Get-InstalledWindowEvidence {
   )
 
   $deadline = [DateTime]::UtcNow.AddSeconds(12)
+  $windowHandle = [IntPtr]::Zero
+  $clientRectangle = $null
   do {
     $Process.Refresh()
     if ($Process.HasExited) {
       throw "The installed Skribli process exited before its window became available with exit code $($Process.ExitCode)."
     }
-    if ($Process.MainWindowHandle -ne [IntPtr]::Zero) { break }
+    $candidates = @([SkribliWindowCapture]::GetVisibleProcessWindows($Process.Id))
+    $largest = @(
+      $candidates | ForEach-Object {
+        $rectangle = [SkribliWindowCapture]::GetClientScreenRect($_)
+        $candidateWidth = $rectangle.Right - $rectangle.Left
+        $candidateHeight = $rectangle.Bottom - $rectangle.Top
+        [pscustomobject]@{
+          handle = $_
+          rectangle = $rectangle
+          width = $candidateWidth
+          height = $candidateHeight
+          area = $candidateWidth * $candidateHeight
+        }
+      } | Where-Object { $_.width -ge 320 -and $_.height -ge 240 } | Sort-Object area -Descending
+    ) | Select-Object -First 1
+    if ($null -ne $largest) {
+      $windowHandle = $largest.handle
+      $clientRectangle = $largest.rectangle
+      break
+    }
     Start-Sleep -Milliseconds 250
   } while ([DateTime]::UtcNow -lt $deadline)
 
-  $windowHandle = $Process.MainWindowHandle
   if ($windowHandle -eq [IntPtr]::Zero) {
-    throw 'The installed Skribli process did not create a visible main window within 12 seconds.'
+    throw 'The installed Skribli process did not create a usable visible application window within 12 seconds.'
   }
 
   [void][SkribliWindowCapture]::ShowWindowAsync($windowHandle, 9)

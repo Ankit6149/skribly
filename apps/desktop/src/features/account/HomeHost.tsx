@@ -1,3 +1,4 @@
+import { invoke } from '@tauri-apps/api/core';
 import { emit, listen } from '@tauri-apps/api/event';
 import { getCurrentWindow, Window } from '@tauri-apps/api/window';
 import React, { useEffect, useMemo, useState } from 'react';
@@ -23,10 +24,7 @@ async function openLibrary(view: 'notes' | 'calendar' = 'notes'): Promise<void> 
 }
 
 async function openNoteRail(): Promise<void> {
-  const rail = await Window.getByLabel('rail');
-  if (!rail) throw new Error('My Skribs rail is unavailable. Restart Skribli and try again.');
-  await rail.show();
-  await rail.setFocus();
+  await invoke('show_global_note_rail');
 }
 
 const BusySurface: React.FC<{ label: string }> = ({ label }) => (

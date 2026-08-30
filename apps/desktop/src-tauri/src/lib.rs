@@ -7,7 +7,7 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::{channel, Receiver};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Duration;
-use tauri::{AppHandle, Emitter, Manager, RunEvent, State};
+use tauri::{AppHandle, Emitter, LogicalSize, Manager, PhysicalPosition, RunEvent, State};
 
 use core::coordinator::{Coordinator, MatchResult};
 use core::models::{
@@ -16,7 +16,7 @@ use core::models::{
 };
 use core::storage;
 use core::{account, license};
-use note_lifecycle::{reopened_open_request, shortcut_open_request};
+use note_lifecycle::{reopened_open_request, shortcut_open_request, OpenNoteRequest};
 
 #[cfg(target_os = "windows")]
 use platform::windows::{
@@ -73,6 +73,7 @@ pub(crate) struct NoteWindowRuntime {
     workspace_expanded: bool,
     pending_programmatic_placement: Option<ProgrammaticNotePlacement>,
     dismissed_collapsed_window: Option<DismissedCollapsedWindow>,
+    pending_open_request: Option<OpenNoteRequest>,
 }
 
 #[derive(Debug, Default)]
@@ -104,6 +105,7 @@ impl NoteWindowRuntime {
         self.workspace_expanded = false;
         self.pending_programmatic_placement = None;
         self.dismissed_collapsed_window = None;
+        self.pending_open_request = None;
     }
 
     fn dismiss_collapsed_window(&mut self, note: &SkribNote, target: &TargetWindowInfo) {
@@ -170,6 +172,27 @@ impl NoteWindowRuntime {
             physical_x: metrics.overlay_physical_x,
             physical_y: metrics.overlay_physical_y,
         });
+    }
+
+    fn record_open_request(&mut self, request: OpenNoteRequest) {
+        self.pending_open_request = Some(request);
+    }
+
+    fn pending_open_request(&self) -> Option<OpenNoteRequest> {
+        self.pending_open_request.clone()
+    }
+
+    fn acknowledge_open_request(&mut self, note_id: &str) -> bool {
+        if self
+            .pending_open_request
+            .as_ref()
+            .is_some_and(|request| request.note_id == note_id)
+        {
+            self.pending_open_request = None;
+            true
+        } else {
+            false
+        }
     }
 
     fn should_ignore_position_save(
@@ -356,6 +379,132 @@ fn hide_main_note_window(app_handle: &AppHandle) {
         #[cfg(target_os = "windows")]
         let _ = restore_standard_window_surface(&window);
     }
+    let _ = show_global_note_rail(app_handle.clone());
+}
+
+#[tauri::command]
+fn show_global_note_rail(app_handle: AppHandle) -> Result<(), String> {
+    let rail = app_handle
+        .get_webview_window("rail")
+        .ok_or_else(|| "My Skribs rail is unavailable.".to_string())?;
+    let width = 72.0;
+    let height = 54.0;
+    rail.set_always_on_top(false)
+        .map_err(|error| format!("Skribli could not dock the desktop note pill: {error}"))?;
+    rail.set_size(LogicalSize::new(width, height))
+        .map_err(|error| format!("Skribli could not size the desktop note pill: {error}"))?;
+
+    if let Some(monitor) = rail
+        .primary_monitor()
+        .map_err(|error| format!("Skribli could not read the desktop work area: {error}"))?
+    {
+        let work_area = monitor.work_area();
+        let scale = monitor.scale_factor();
+        let rail_width = (width * scale).round() as i32;
+        let rail_height = (height * scale).round() as i32;
+        let margin = (16.0 * scale).round() as i32;
+        let x = work_area
+            .position
+            .x
+            .saturating_add(work_area.size.width as i32)
+            .saturating_sub(rail_width)
+            .saturating_sub(margin);
+        let y = work_area
+            .position
+            .y
+            .saturating_add((work_area.size.height as i32 - rail_height).max(0) / 2);
+        rail.set_position(PhysicalPosition::new(x, y))
+            .map_err(|error| format!("Skribli could not place the desktop note pill: {error}"))?;
+    }
+
+    let _ = app_handle.emit("skribly://global-rail-refresh", ());
+    rail.show()
+        .map_err(|error| format!("Skribli could not show the desktop note pill: {error}"))?;
+    Ok(())
+}
+
+fn context_rail_notes_for_active_target(state: &AppState) -> Vec<SkribNote> {
+    state
+        .coordinator
+        .get_active_target()
+        .map(|target| {
+            state
+                .coordinator
+                .get_skribs_for_target(&target)
+                .into_iter()
+                .filter(|note| note.deleted_at.is_none())
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn show_context_rail_for_target(
+    app_handle: &AppHandle,
+    state: &AppState,
+    target: &TargetWindowInfo,
+) -> Result<bool, String> {
+    let note_count = state
+        .coordinator
+        .get_skribs_for_target(target)
+        .into_iter()
+        .filter(|note| note.deleted_at.is_none())
+        .count();
+    let Some(rail) = app_handle.get_webview_window("rail") else {
+        return Ok(false);
+    };
+    if note_count < 2 {
+        let _ = rail.hide();
+        return Ok(false);
+    }
+
+    let width = 72.0;
+    let height = 54.0;
+    rail.set_always_on_top(true)
+        .map_err(|error| format!("Skribli could not attach the note rail to this app: {error}"))?;
+    rail.set_size(LogicalSize::new(width, height))
+        .map_err(|error| format!("Skribli could not size the note rail: {error}"))?;
+
+    if let Some(note_window) = app_handle.get_webview_window("main") {
+        if let (Ok(note_position), Ok(note_size)) =
+            (note_window.outer_position(), note_window.outer_size())
+        {
+            let scale = if target.scale_factor.is_finite() && target.scale_factor > 0.0 {
+                target.scale_factor
+            } else {
+                1.0
+            };
+            let rail_width = (width * scale).round() as i32;
+            let rail_height = (height * scale).round() as i32;
+            let gap = (8.0 * scale).round() as i32;
+            let target_right = target.bounds.x.saturating_add(target.bounds.width);
+            let target_bottom = target.bounds.y.saturating_add(target.bounds.height);
+            let max_x = target_right.saturating_sub(rail_width).max(target.bounds.x);
+            let max_y = target_bottom
+                .saturating_sub(rail_height)
+                .max(target.bounds.y);
+            let right_x = note_position
+                .x
+                .saturating_add(note_size.width as i32)
+                .saturating_add(gap);
+            let x = if right_x.saturating_add(rail_width) <= target_right {
+                right_x
+            } else {
+                note_position
+                    .x
+                    .saturating_sub(rail_width)
+                    .saturating_sub(gap)
+            }
+            .clamp(target.bounds.x, max_x);
+            let y = note_position.y.clamp(target.bounds.y, max_y);
+            rail.set_position(PhysicalPosition::new(x, y))
+                .map_err(|error| format!("Skribli could not place the note rail: {error}"))?;
+        }
+    }
+
+    let _ = app_handle.emit("skribly://context-rail-refresh", note_count);
+    rail.show()
+        .map_err(|error| format!("Skribli could not show the note rail: {error}"))?;
+    Ok(true)
 }
 
 fn hide_main_note_window_as_lifecycle_action(app_handle: &AppHandle, state: &AppState) {
@@ -659,6 +808,7 @@ fn restore_dismissed_collapsed_window_for_target(
     );
     drop(runtime);
     set_runtime_active_target_unchecked(state, Some(target.clone()));
+    let _ = show_context_rail_for_target(app_handle, state, target);
     Ok(true)
 }
 
@@ -761,6 +911,7 @@ fn hide_active_note_for_unrelated_context(
     window
         .hide()
         .map_err(|error| format!("Skribli could not hide the inactive note: {error}"))?;
+    let _ = show_global_note_rail(app_handle.clone());
     let _ = restore_standard_window_surface(&window);
 
     let _commit_guard = state
@@ -1366,6 +1517,127 @@ fn update_skrib_color(
 }
 
 #[tauri::command]
+fn get_pending_open_note_request(
+    state: State<'_, AppState>,
+) -> Result<Option<OpenNoteRequest>, String> {
+    state
+        .note_window_runtime
+        .lock()
+        .map(|runtime| runtime.pending_open_request())
+        .map_err(|_| "The native note window state is unavailable.".to_string())
+}
+
+#[tauri::command]
+fn acknowledge_open_note_request(
+    state: State<'_, AppState>,
+    note_id: String,
+) -> Result<bool, String> {
+    state
+        .note_window_runtime
+        .lock()
+        .map(|mut runtime| runtime.acknowledge_open_request(&note_id))
+        .map_err(|_| "The native note window state is unavailable.".to_string())
+}
+
+#[tauri::command]
+fn get_context_rail_notes(state: State<'_, AppState>) -> Vec<SkribNote> {
+    context_rail_notes_for_active_target(&state)
+}
+
+#[tauri::command]
+fn set_context_rail_expanded(
+    app_handle: AppHandle,
+    state: State<'_, AppState>,
+    expanded: bool,
+    contextual: bool,
+    note_count: usize,
+) -> Result<(), String> {
+    let target =
+        if contextual {
+            Some(state.coordinator.get_active_target().ok_or_else(|| {
+                "Skribli does not have an active application context.".to_string()
+            })?)
+        } else {
+            None
+        };
+    let rail = app_handle
+        .get_webview_window("rail")
+        .ok_or_else(|| "My Skribs rail is unavailable.".to_string())?;
+    let (width, height) = if expanded {
+        (304.0, (210 + note_count.min(4) * 48).min(402) as f64)
+    } else {
+        (72.0, 54.0)
+    };
+    rail.set_always_on_top(contextual)
+        .map_err(|error| format!("Skribli could not update the note rail layer: {error}"))?;
+    rail.set_size(LogicalSize::new(width, height))
+        .map_err(|error| format!("Skribli could not resize the note rail: {error}"))?;
+
+    if let (Some(target), Some(note_window)) =
+        (target.as_ref(), app_handle.get_webview_window("main"))
+    {
+        if let (Ok(note_position), Ok(note_size)) =
+            (note_window.outer_position(), note_window.outer_size())
+        {
+            let scale = if target.scale_factor.is_finite() && target.scale_factor > 0.0 {
+                target.scale_factor
+            } else {
+                1.0
+            };
+            let rail_width = (width * scale).round() as i32;
+            let rail_height = (height * scale).round() as i32;
+            let gap = (8.0 * scale).round() as i32;
+            let target_right = target.bounds.x.saturating_add(target.bounds.width);
+            let target_bottom = target.bounds.y.saturating_add(target.bounds.height);
+            let max_x = target_right.saturating_sub(rail_width).max(target.bounds.x);
+            let max_y = target_bottom
+                .saturating_sub(rail_height)
+                .max(target.bounds.y);
+            let right_x = note_position
+                .x
+                .saturating_add(note_size.width as i32)
+                .saturating_add(gap);
+            let x = if right_x.saturating_add(rail_width) <= target_right {
+                right_x
+            } else {
+                note_position
+                    .x
+                    .saturating_sub(rail_width)
+                    .saturating_sub(gap)
+            }
+            .clamp(target.bounds.x, max_x);
+            let y = note_position.y.clamp(target.bounds.y, max_y);
+            rail.set_position(PhysicalPosition::new(x, y))
+                .map_err(|error| format!("Skribli could not place the note rail: {error}"))?;
+        }
+    } else if let Some(monitor) = rail
+        .primary_monitor()
+        .map_err(|error| format!("Skribli could not read the desktop work area: {error}"))?
+    {
+        let work_area = monitor.work_area();
+        let scale = monitor.scale_factor();
+        let rail_width = (width * scale).round() as i32;
+        let rail_height = (height * scale).round() as i32;
+        let margin = (16.0 * scale).round() as i32;
+        let x = work_area
+            .position
+            .x
+            .saturating_add(work_area.size.width as i32)
+            .saturating_sub(rail_width)
+            .saturating_sub(margin);
+        let y = work_area
+            .position
+            .y
+            .saturating_add((work_area.size.height as i32 - rail_height).max(0) / 2);
+        rail.set_position(PhysicalPosition::new(x, y))
+            .map_err(|error| format!("Skribli could not place the desktop note rail: {error}"))?;
+    }
+    rail.show()
+        .map_err(|error| format!("Skribli could not show the note rail: {error}"))?;
+    Ok(())
+}
+
+#[tauri::command]
 fn toggle_skrib_collapse(
     app_handle: AppHandle,
     state: State<'_, AppState>,
@@ -1486,15 +1758,30 @@ fn set_skrib_window_collapsed(
     #[cfg(not(target_os = "windows"))]
     let native_action_current = true;
 
+    let payload = build_mutation_payload(&app_handle, &state, false);
     if native_action_current {
+        if !collapsed {
+            if let Some(request) = state
+                .coordinator
+                .get_skrib(&id)
+                .and_then(|note| reopened_open_request(vec![note]))
+            {
+                if let Ok(mut runtime) = state.note_window_runtime.lock() {
+                    runtime.record_open_request(request.clone());
+                }
+                let _ = app_handle.emit("skribly://overlay-update", payload.clone());
+                let _ = app_handle.emit("skribly://open-note-request", request);
+            }
+        }
         if collapsed {
             let _ = window.show();
         } else {
             let _ = window.show();
             let _ = window.set_focus();
         }
+        let _ = show_context_rail_for_target(&app_handle, &state, &target);
     }
-    Ok(build_mutation_payload(&app_handle, &state, false))
+    Ok(payload)
 }
 
 #[tauri::command]
@@ -2030,6 +2317,11 @@ pub fn run() {
             update_skrib_position,
             update_skrib_text,
             update_skrib_color,
+            get_pending_open_note_request,
+            acknowledge_open_note_request,
+            get_context_rail_notes,
+            set_context_rail_expanded,
+            show_global_note_rail,
             toggle_skrib_collapse,
             set_skrib_window_collapsed,
             dismiss_collapsed_skrib_window,
@@ -2098,6 +2390,7 @@ pub fn run() {
             }
 
             desktop::tray::install_tray(app)?;
+            let _ = show_global_note_rail(app_handle.clone());
 
             let coordinator = app.state::<AppState>().coordinator.clone();
             let running_flag = app.state::<AppState>().running.clone();
@@ -2256,7 +2549,13 @@ pub fn run() {
                             &initial_metrics,
                         )
                         .unwrap_or(false);
-                        let open_request = shortcut_open_request(note_id);
+                        let matching_note_count = coordinator_hk
+                            .get_skribs_for_target(&target)
+                            .into_iter()
+                            .filter(|note| note.deleted_at.is_none())
+                            .count();
+                        let open_request =
+                            shortcut_open_request(note_id, matching_note_count);
 
                         #[cfg(target_os = "windows")]
                         if !native_open_current
@@ -2267,11 +2566,19 @@ pub fn run() {
                         {
                             continue;
                         }
-                        let _ = window.show();
-                        let _ = window.set_focus();
+                        if let Ok(mut runtime) = state_hk.note_window_runtime.lock() {
+                            runtime.record_open_request(open_request.clone());
+                        }
                         let payload = build_overlay_payload(&app_handle_hk, &state_hk, false);
                         let _ = app_handle_hk.emit("skribly://global-shortcut", payload);
                         let _ = app_handle_hk.emit("skribly://open-note-request", open_request);
+                        let _ = window.show();
+                        let _ = window.set_focus();
+                        let _ = show_context_rail_for_target(
+                            &app_handle_hk,
+                            &state_hk,
+                            &target,
+                        );
                     }
                 }
             });
@@ -2918,12 +3225,27 @@ mod tests {
         };
         let mut runtime = NoteWindowRuntime::default();
         runtime.record_programmatic_placement("note-a", true, &metrics);
+        runtime.record_open_request(shortcut_open_request("note-a".into(), 2));
 
         runtime.clear();
 
         assert_eq!(runtime.active_note_id(), None);
+        assert_eq!(runtime.pending_open_request(), None);
         assert!(!runtime.workspace_is_expanded());
         assert!(!runtime.should_ignore_position_save("note-a", 200, 160));
+    }
+
+    #[test]
+    fn pending_open_request_survives_until_the_matching_note_acknowledges_it() {
+        let mut runtime = NoteWindowRuntime::default();
+        let request = shortcut_open_request("note-a".into(), 3);
+        runtime.record_open_request(request.clone());
+
+        assert_eq!(runtime.pending_open_request(), Some(request));
+        assert!(!runtime.acknowledge_open_request("note-b"));
+        assert!(runtime.pending_open_request().is_some());
+        assert!(runtime.acknowledge_open_request("note-a"));
+        assert_eq!(runtime.pending_open_request(), None);
     }
 
     #[test]

@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Skribli",
-  "version": "0.1.13",
+  "version": "0.1.14",
   "identifier": "app.skribly.desktop",
   "mainBinaryName": "skribly",
   "build": {
@@ -68,10 +68,10 @@
       {
         "label": "rail",
         "title": "My Skribs",
-        "width": 360,
-        "height": 480,
-        "minWidth": 360,
-        "minHeight": 64,
+        "width": 72,
+        "height": 54,
+        "minWidth": 64,
+        "minHeight": 48,
         "visible": false,
         "decorations": false,
         "transparent": true,
