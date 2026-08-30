@@ -59,6 +59,15 @@ button {
   color: inherit;
 }
 
+button:not(.resize-handle):not(.collapsed-note-dot):not(.global-rail-pill) {
+  transition: transform 130ms ease, background-color 150ms ease, border-color 150ms ease, color 150ms ease, box-shadow 150ms ease, opacity 150ms ease;
+}
+
+button:not(.resize-handle):not(.collapsed-note-dot):not(.global-rail-pill):active,
+button.is-clicked:not(.resize-handle):not(.collapsed-note-dot):not(.global-rail-pill) {
+  transform: scale(0.96);
+}
+
 button:focus-visible,
 input:focus-visible,
 [contenteditable='true']:focus-visible {
@@ -264,15 +273,15 @@ input:focus-visible,
   max-width: 760px;
   margin: 10px 0 0;
   font-family: var(--font-display);
-  font-size: clamp(28px, 3.3vw, 46px);
-  line-height: 1.02;
+  font-size: clamp(27px, 2.8vw, 40px);
+  line-height: 1.06;
   letter-spacing: -0.058em;
 }
 
 .lab-state-key {
   padding-bottom: 5px;
   display: flex;
-  gap: 10px;
+  gap: 8px;
   color: rgb(38 41 35 / 56%);
   font-size: 8px;
   font-weight: 700;
@@ -301,9 +310,10 @@ input:focus-visible,
   max-width: 1320px;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: minmax(720px, 1fr) 260px;
+  grid-template-columns: minmax(720px, 1fr);
   align-items: start;
-  gap: 18px;
+  gap: 10px;
+  animation: view-enter 180ms ease-out both;
 }
 
 .prototype-stage {
@@ -317,18 +327,62 @@ input:focus-visible,
 }
 
 .view-notes {
-  min-height: 260px;
-  padding: 22px 20px;
+  width: 100%;
+  min-height: 0;
+  padding: 16px 18px;
   border: 1px solid var(--line);
-  border-radius: 18px 18px 28px 18px;
+  border-radius: 15px 15px 22px 15px;
   background: rgb(255 255 255 / 62%);
+  transition: width 180ms ease, padding 180ms ease, background-color 180ms ease, border-color 180ms ease;
+}
+
+.view-notes-toggle {
+  width: 100%;
+  min-height: 34px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font-size: 9px;
+  font-weight: 750;
+}
+
+.view-notes-toggle > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.view-notes-toggle > i:last-child {
+  transition: transform 160ms ease;
+}
+
+.view-notes.is-collapsed {
+  width: 156px;
+  justify-self: end;
+  padding: 4px 12px;
+  border-color: rgb(38 41 35 / 9%);
+  background: rgb(255 255 255 / 46%);
+}
+
+.view-notes.is-collapsed > :not(.view-notes-toggle) {
+  display: none;
+}
+
+.view-notes:not(.is-collapsed) .view-notes-toggle > i:last-child {
+  transform: rotate(180deg);
 }
 
 .view-notes ol {
-  margin: 18px 0 0;
+  margin: 14px 0 0;
   padding: 0;
   display: grid;
-  gap: 16px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
   list-style: none;
   counter-reset: note-rule;
 }
@@ -337,7 +391,7 @@ input:focus-visible,
   position: relative;
   padding-left: 25px;
   color: rgb(38 41 35 / 62%);
-  font-size: 9px;
+  font-size: 8px;
   line-height: 1.5;
   counter-increment: note-rule;
 }
@@ -418,7 +472,26 @@ input:focus-visible,
   border-radius: 22px 22px 34px 22px;
   background: var(--note-color, var(--mint));
   box-shadow: var(--shadow-note);
-  transition: width 200ms ease, height 200ms ease, background 160ms ease;
+  transition: width 180ms cubic-bezier(.2,.8,.2,1), height 180ms cubic-bezier(.2,.8,.2,1), background-color 170ms ease, grid-template-rows 160ms ease, box-shadow 170ms ease, opacity 140ms ease, transform 170ms ease;
+}
+
+.note-mock.is-color-changing {
+  animation: paper-settle 180ms ease-out;
+}
+
+.note-mock.is-resizing {
+  box-shadow: 0 28px 70px rgb(28 31 26 / 20%);
+}
+
+.note-mock.is-collapsing,
+.note-mock.is-completing {
+  opacity: 0;
+  transform: scale(0.96) translateY(6px);
+}
+
+.note-mock.is-entering,
+.collapsed-note-dot.is-entering {
+  animation: surface-pop 180ms ease-out both;
 }
 
 .note-mock.tray-closed {
@@ -593,11 +666,13 @@ input:focus-visible,
   overflow: hidden;
   border-bottom: 1px dashed rgb(38 41 35 / 12%);
   background: rgb(255 255 255 / 24%);
-  transition: opacity 120ms ease;
+  transform: translateY(0);
+  transition: opacity 140ms ease, transform 160ms ease;
 }
 
 .note-mock.tray-closed .note-tool-tray {
   opacity: 0;
+  transform: translateY(-5px);
 }
 
 .tool-panel {
@@ -610,6 +685,7 @@ input:focus-visible,
 
 .tool-panel.is-active {
   display: flex;
+  animation: panel-enter 150ms ease-out both;
 }
 
 .tool-panel-name {
@@ -679,27 +755,17 @@ input:focus-visible,
 .color-lavender,
 .note-marker.color-lavender { background: var(--lavender) !important; }
 
-.stroke-sizes {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-}
-
-.stroke-sizes button {
-  min-width: 25px;
-  width: 25px;
-  padding: 0;
-}
-
-.stroke-sizes i {
+.stroke-cycle i {
   display: block;
+  width: 7px;
+  height: 7px;
   border-radius: 999px;
   background: var(--ink);
+  transition: width 150ms ease, height 150ms ease;
 }
 
-.stroke-sizes button:nth-child(1) i { width: 5px; height: 5px; }
-.stroke-sizes button:nth-child(2) i { width: 8px; height: 8px; }
-.stroke-sizes button:nth-child(3) i { width: 11px; height: 11px; }
+.stroke-cycle[data-size='medium'] i { width: 9px; height: 9px; }
+.stroke-cycle[data-size='thick'] i { width: 12px; height: 12px; }
 
 .text-size-value {
   width: 28px;
@@ -783,6 +849,11 @@ input:focus-visible,
   font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.attachment-chip.is-entering,
+.note-reminder-chip.is-entering {
+  animation: chip-enter 170ms ease-out both;
 }
 
 .note-reminder-chip {
@@ -916,6 +987,12 @@ input:focus-visible,
   cursor: pointer;
   font-size: 18px;
   transform: translateY(-50%);
+  transition: transform 150ms ease, box-shadow 150ms ease, opacity 150ms ease;
+}
+
+.collapsed-note-dot:hover {
+  box-shadow: 0 0 0 1px rgb(38 41 35 / 28%), 0 15px 34px rgb(38 41 35 / 21%);
+  transform: translateY(-50%) scale(1.04);
 }
 
 .collapsed-note-dot span {
@@ -1071,6 +1148,10 @@ input:focus-visible,
   opacity: 0;
   pointer-events: none;
   transform: translateX(24px);
+}
+
+.rail-mock.is-settling {
+  box-shadow: 0 30px 70px rgb(38 41 35 / 24%);
 }
 
 .rail-header {
@@ -1264,6 +1345,10 @@ input:focus-visible,
   background: #ffffff;
 }
 
+.rail-note-row.is-selected {
+  animation: selection-settle 160ms ease-out;
+}
+
 .note-marker {
   width: 8px;
   height: 28px;
@@ -1310,6 +1395,10 @@ input:focus-visible,
   padding: 12px;
   border: 1px solid rgb(38 41 35 / 12%);
   border-radius: 13px 13px 20px 13px;
+}
+
+.rail-inspector.is-refreshing {
+  animation: inspector-refresh 170ms ease-out;
 }
 
 .rail-inspector-location {
@@ -1376,6 +1465,7 @@ input:focus-visible,
   box-shadow: var(--shadow-sm);
   font-size: 8px;
   font-weight: 700;
+  animation: toast-enter 180ms ease-out both;
 }
 
 .prototype-toast[hidden] {
@@ -1565,6 +1655,10 @@ input:focus-visible,
   min-width: 0;
   padding: 18px;
   overflow-y: auto;
+}
+
+.library-detail.is-refreshing {
+  animation: inspector-refresh 170ms ease-out;
 }
 
 .library-detail > header {
@@ -1957,6 +2051,56 @@ input:focus-visible,
   color: var(--paper);
 }
 
+.reminder-mock > footer .reminder-save.is-success {
+  background: var(--green);
+}
+
+.calendar-days button.is-selected,
+.repeat-options button.is-active {
+  animation: selection-settle 160ms ease-out;
+}
+
+@keyframes view-enter {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes panel-enter {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes surface-pop {
+  from { opacity: 0; transform: scale(0.96) translateY(5px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes paper-settle {
+  0% { transform: scale(0.992); }
+  70% { transform: scale(1.004); }
+  100% { transform: scale(1); }
+}
+
+@keyframes selection-settle {
+  0% { transform: scale(0.985); }
+  100% { transform: scale(1); }
+}
+
+@keyframes inspector-refresh {
+  from { opacity: 0.72; transform: translateY(3px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes chip-enter {
+  from { opacity: 0; transform: translateY(5px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes toast-enter {
+  from { opacity: 0; transform: translateY(7px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 /* System map */
 
 .lab-view[data-view='system'].is-active {
@@ -2150,5 +2294,7 @@ input:focus-visible,
   *::after {
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
   }
 }

@@ -23,6 +23,29 @@
 
   $$('[data-show-view]').forEach((button) => button.addEventListener('click', () => showView(button.dataset.showView)));
 
+  $$('.view-notes').forEach((panel) => {
+    panel.classList.add('is-collapsed');
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'view-notes-toggle';
+    toggle.setAttribute('aria-expanded', 'false');
+    toggle.innerHTML = '<span><i class="ph ph-info"></i> Design notes</span><i class="ph ph-caret-down"></i>';
+    panel.prepend(toggle);
+    toggle.addEventListener('click', () => {
+      const expanded = toggle.getAttribute('aria-expanded') === 'true';
+      toggle.setAttribute('aria-expanded', String(!expanded));
+      panel.classList.toggle('is-collapsed', expanded);
+    });
+  });
+
+  document.addEventListener('click', (event) => {
+    const button = event.target.closest('button');
+    if (!button || button.classList.contains('resize-handle')) return;
+    button.classList.remove('is-clicked');
+    requestAnimationFrame(() => button.classList.add('is-clicked'));
+    window.setTimeout(() => button.classList.remove('is-clicked'), 150);
+  });
+
   const noteMock = $('#noteMock');
   const toolTray = $('#noteToolTray');
   const inkCanvas = $('#inkCanvas');
@@ -54,6 +77,9 @@
     noteColors.forEach((color) => noteMock.classList.remove(`note-${color}`));
     noteMock.classList.add(`note-${button.dataset.noteColor}`);
     $$('[data-note-color]').forEach((item) => item.classList.toggle('is-selected', item === button));
+    noteMock.classList.remove('is-color-changing');
+    requestAnimationFrame(() => noteMock.classList.add('is-color-changing'));
+    window.setTimeout(() => noteMock.classList.remove('is-color-changing'), 190);
   }));
 
   const sizePresets = [
@@ -75,6 +101,8 @@
     icon.className = `ph ${preset.icon}`;
     cycleSize.title = preset.label;
     cycleSize.setAttribute('aria-label', preset.label);
+    noteMock.classList.add('is-resizing');
+    window.setTimeout(() => noteMock.classList.remove('is-resizing'), 200);
     requestAnimationFrame(resizeInkCanvas);
   }
 
@@ -88,6 +116,7 @@
     handle.addEventListener('pointerdown', (event) => {
       event.preventDefault();
       didDrag = false;
+      noteMock.classList.add('is-resizing');
       handle.setPointerCapture(event.pointerId);
       const start = { x: event.clientX, y: event.clientY, width: noteMock.offsetWidth, height: noteMock.offsetHeight };
       const corner = handle.dataset.resizeCorner;
@@ -106,6 +135,7 @@
 
       function stop(pointerEvent) {
         handle.releasePointerCapture(pointerEvent.pointerId);
+        window.setTimeout(() => noteMock.classList.remove('is-resizing'), 120);
         handle.removeEventListener('pointermove', move);
         handle.removeEventListener('pointerup', stop);
         handle.removeEventListener('pointercancel', stop);
@@ -127,6 +157,8 @@
       noteMock.style.width = `${width}px`;
       noteMock.style.height = `${height}px`;
       $('#noteSizeLabel').textContent = `Custom · ${width} × ${height}`;
+      noteMock.classList.add('is-resizing');
+      window.setTimeout(() => noteMock.classList.remove('is-resizing'), 180);
       resizeInkCanvas();
     });
   });
@@ -140,12 +172,15 @@
     chip.className = 'attachment-chip';
     chip.innerHTML = `<i class="ph ${attachmentIcons[type]}"></i>${type.toLowerCase()}-${attachmentCount}.${type === 'Image' ? 'png' : type === 'Video' ? 'mp4' : type === 'Link' ? 'url' : 'pdf'}`;
     $('#noteChips').append(chip);
+    chip.classList.add('is-entering');
   }));
 
   const noteReminderChip = $('#noteReminderChip');
   $$('[data-reminder-quick]').forEach((button) => button.addEventListener('click', () => {
     $('span', noteReminderChip).textContent = `${button.dataset.reminderQuick} · 09:30`;
     noteReminderChip.hidden = false;
+    noteReminderChip.classList.remove('is-entering');
+    requestAnimationFrame(() => noteReminderChip.classList.add('is-entering'));
   }));
   $('button', noteReminderChip).addEventListener('click', () => { noteReminderChip.hidden = true; });
 
@@ -173,13 +208,19 @@
   }));
 
   const collapsedDot = $('#collapsedDot');
-  function collapseEditor() {
-    noteMock.hidden = true;
-    collapsedDot.hidden = false;
+  function collapseEditor(complete = false) {
+    noteMock.classList.add(complete ? 'is-completing' : 'is-collapsing');
+    window.setTimeout(() => {
+      noteMock.hidden = true;
+      noteMock.classList.remove('is-collapsing', 'is-completing');
+      collapsedDot.hidden = false;
+      collapsedDot.classList.remove('is-entering');
+      requestAnimationFrame(() => collapsedDot.classList.add('is-entering'));
+    }, 150);
   }
-  $('#collapseNote').addEventListener('click', collapseEditor);
-  $('#closeNote').addEventListener('click', collapseEditor);
-  $('#doneNote').addEventListener('click', collapseEditor);
+  $('#collapseNote').addEventListener('click', () => collapseEditor(false));
+  $('#closeNote').addEventListener('click', () => collapseEditor(false));
+  $('#doneNote').addEventListener('click', () => collapseEditor(true));
   let dotDragged = false;
   collapsedDot.addEventListener('click', () => {
     if (dotDragged) {
@@ -188,6 +229,9 @@
     }
     collapsedDot.hidden = true;
     noteMock.hidden = false;
+    noteMock.classList.remove('is-entering');
+    requestAnimationFrame(() => noteMock.classList.add('is-entering'));
+    window.setTimeout(() => noteMock.classList.remove('is-entering'), 190);
   });
 
   const editorStage = $('.editor-stage');
@@ -257,10 +301,20 @@
     $$('[data-draw-mode]').forEach((item) => item.classList.toggle('is-selected', item === button));
     inkCanvas.style.cursor = drawMode === 'select' ? 'default' : 'crosshair';
   }));
-  $$('[data-stroke]').forEach((button) => button.addEventListener('click', () => {
-    strokeWidth = Number(button.dataset.stroke);
-    $$('[data-stroke]').forEach((item) => item.classList.toggle('is-selected', item === button));
-  }));
+  const strokeOptions = [
+    { name: 'Thin', value: 2, key: 'thin' },
+    { name: 'Medium', value: 5, key: 'medium' },
+    { name: 'Thick', value: 9, key: 'thick' },
+  ];
+  let strokeIndex = 0;
+  $('#cycleStroke').addEventListener('click', () => {
+    strokeIndex = (strokeIndex + 1) % strokeOptions.length;
+    const option = strokeOptions[strokeIndex];
+    strokeWidth = option.value;
+    $('#strokeLabel').textContent = option.name;
+    $('#cycleStroke').dataset.size = option.key;
+    $('#cycleStroke').setAttribute('aria-label', `Stroke size: ${option.name.toLowerCase()}`);
+  });
   $('#clearInk').addEventListener('click', () => inkContext.clearRect(0, 0, inkCanvas.width, inkCanvas.height));
 
   function pointFromEvent(event) {
@@ -304,6 +358,8 @@
   const railMock = $('#railMock');
   function setRailOpen(open) {
     railMock.classList.toggle('is-open', open);
+    railMock.classList.add('is-settling');
+    window.setTimeout(() => railMock.classList.remove('is-settling'), 190);
     $('#globalRailPill').classList.toggle('is-rail-open', open);
   }
   $('#globalRailPill').addEventListener('click', () => setRailOpen(true));
@@ -328,6 +384,9 @@
     inspector.classList.add(`note-${note.color}`);
     $('.rail-inspector-location', inspector).innerHTML = `<i class="ph ph-map-pin"></i> ${note.location}`;
     $('p', inspector).textContent = note.title;
+    inspector.classList.remove('is-refreshing');
+    requestAnimationFrame(() => inspector.classList.add('is-refreshing'));
+    window.setTimeout(() => inspector.classList.remove('is-refreshing'), 180);
     setRailOpen(true);
   }
   $$('.rail-note-row').forEach((button) => button.addEventListener('click', () => selectRailNote(button)));
@@ -367,6 +426,10 @@
     paper.textContent = note.title;
     noteColors.forEach((color) => paper.classList.remove(`note-${color}`));
     paper.classList.add(`note-${note.color}`);
+    const detail = $('.library-detail');
+    detail.classList.remove('is-refreshing');
+    requestAnimationFrame(() => detail.classList.add('is-refreshing'));
+    window.setTimeout(() => detail.classList.remove('is-refreshing'), 180);
   }));
 
   const calendarDays = $('#calendarDays');
@@ -408,7 +471,16 @@
     repeatValue = button.textContent.trim().toLowerCase();
     updateReminderSummary();
   }));
-  $('#saveReminder').addEventListener('click', () => showToast($('#reminderToast'), 'Reminder added to the note'));
+  $('#saveReminder').addEventListener('click', () => {
+    const button = $('#saveReminder');
+    button.classList.add('is-success');
+    button.innerHTML = '<i class="ph ph-check-circle"></i> Saved';
+    showToast($('#reminderToast'), 'Reminder added to the note');
+    window.setTimeout(() => {
+      button.classList.remove('is-success');
+      button.innerHTML = '<i class="ph ph-check"></i> Save reminder';
+    }, 1200);
+  });
 
   window.addEventListener('resize', resizeInkCanvas);
   setRailOpen(true);

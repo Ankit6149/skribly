@@ -64,8 +64,7 @@
             <h2 id="viewTitle">A focused canvas with tools that make room.</h2>
           </div>
           <div class="lab-state-key" aria-label="Prototype status">
-            <span><i class="ph-fill ph-circle" aria-hidden="true"></i> Interactive</span>
-            <span>Desktop · 100%</span>
+            <span><i class="ph-fill ph-circle" aria-hidden="true"></i> Live mock</span>
           </div>
         </div>
 
@@ -141,12 +140,7 @@
                   <button class="is-selected" type="button" data-draw-mode="pen" aria-label="Pen" title="Pen"><i class="ph ph-pen-nib"></i></button>
                   <button type="button" data-draw-mode="highlight" aria-label="Highlighter" title="Highlighter"><i class="ph ph-highlighter-circle"></i></button>
                   <button type="button" data-draw-mode="erase" aria-label="Eraser" title="Eraser"><i class="ph ph-eraser"></i></button>
-                  <button type="button" data-draw-mode="select" aria-label="Select ink" title="Select ink"><i class="ph ph-cursor"></i></button>
-                  <span class="stroke-sizes" aria-label="Stroke size">
-                    <button class="is-selected" type="button" data-stroke="2" aria-label="Thin stroke"><i></i></button>
-                    <button type="button" data-stroke="5" aria-label="Medium stroke"><i></i></button>
-                    <button type="button" data-stroke="9" aria-label="Thick stroke"><i></i></button>
-                  </span>
+                  <button class="stroke-cycle" type="button" id="cycleStroke" aria-label="Stroke size: thin" title="Change stroke size"><i></i><span id="strokeLabel">Thin</span></button>
                   <button type="button" id="clearInk" aria-label="Clear drawing" title="Clear drawing"><i class="ph ph-arrow-counter-clockwise"></i></button>
                   <button class="tray-close" type="button" data-close-tray aria-label="Close drawing tools"><i class="ph ph-x"></i></button>
                 </div>
