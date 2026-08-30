@@ -12,6 +12,7 @@ const requiredFiles = [
   'download-unavailable.html',
   'download-success.html',
   'v0-download.html',
+  'interface-lab.html',
   'styles.css',
   'ux-polish.css',
   'landing-typography.css',
@@ -19,6 +20,8 @@ const requiredFiles = [
   'product-truth.css',
   'app.js',
   'v0-download.js',
+  'interface-lab.css',
+  'interface-lab.js',
   'commerce-config.js',
   'vercel.json',
   'robots.txt',
@@ -47,6 +50,7 @@ const htmlFiles = [
   'download-unavailable.html',
   'download-success.html',
   'v0-download.html',
+  'interface-lab.html',
 ];
 
 for (const htmlFile of htmlFiles) {
@@ -285,6 +289,20 @@ for (const marker of [
 }
 if (/supabase|\/api\/download|accessToken/i.test(ownerDownloadScript)) {
   failures.push('Owner v0 client must use only local key decryption.');
+}
+
+const interfaceLab = await readFile(join(root, 'interface-lab.html'), 'utf8');
+for (const marker of [
+  'data-view="editor"',
+  'data-view="rail"',
+  'data-view="library"',
+  'data-view="reminder"',
+  'data-view="system"',
+  'data-resize-corner',
+  'data-rail-scope',
+  './interface-lab.js',
+]) {
+  if (!interfaceLab.includes(marker)) failures.push(`Interface lab is missing interactive marker: ${marker}`);
 }
 
 const encryptedArtifact = await readFile(join(root, 'assets/skribli-v0-windows.enc'));
