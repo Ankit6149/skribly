@@ -1,600 +1,248 @@
 (() => {
-  const $ = (selector, root = document) => root.querySelector(selector);
-  const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
+  const $=(s,r=document)=>r.querySelector(s);
+  const $$=(s,r=document)=>[...r.querySelectorAll(s)];
 
-  const viewCopy = {
-    editor: ['Surface 01 · Note editor', 'A focused canvas with tools that make room.'],
-    rail: ['Surface 02 · Pill and rail', 'Notes stay visible, grouped, and anchored to a real place.'],
-    library: ['Surface 03 · All Skribs', 'A quiet library built for reading before reopening.'],
-    reminder: ['Surface 04 · Reminder flow', 'Scheduling is explicit, readable, and hard to mis-set.'],
-    system: ['Surface 05 · Interaction map', 'Every primary click has one predictable result.'],
-  };
-
-  function showView(view) {
-    const navigationButtons = $$('.lab-surface-nav button');
-    navigationButtons.forEach((button) => button.classList.remove('is-active'));
-    navigationButtons
-      .find((button) => button.dataset.showView === view && !button.hasAttribute('data-open-note-calendar'))
-      ?.classList.add('is-active');
-    $$('.lab-view').forEach((panel) => panel.classList.toggle('is-active', panel.dataset.view === view));
-    const copy = viewCopy[view] || viewCopy.editor;
-    $('#viewEyebrow').textContent = copy[0];
-    $('#viewTitle').textContent = copy[1];
-    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
-  }
-
-  $$('[data-show-view]').forEach((button) => button.addEventListener('click', () => showView(button.dataset.showView)));
-
-  $$('.view-notes').forEach((panel) => {
-    panel.classList.add('is-collapsed');
-    const toggle = document.createElement('button');
-    toggle.type = 'button';
-    toggle.className = 'view-notes-toggle';
-    toggle.setAttribute('aria-expanded', 'false');
-    toggle.innerHTML = '<span><i class="ph ph-info"></i> Design notes</span><i class="ph ph-caret-down"></i>';
-    panel.prepend(toggle);
-    toggle.addEventListener('click', () => {
-      const expanded = toggle.getAttribute('aria-expanded') === 'true';
-      toggle.setAttribute('aria-expanded', String(!expanded));
-      panel.classList.toggle('is-collapsed', expanded);
-    });
-  });
-
-  document.addEventListener('click', (event) => {
-    const button = event.target.closest('button');
-    if (!button || button.classList.contains('resize-handle')) return;
-    button.classList.remove('is-clicked');
-    requestAnimationFrame(() => button.classList.add('is-clicked'));
-    window.setTimeout(() => button.classList.remove('is-clicked'), 150);
-  });
-
-  const noteMock = $('#noteMock');
-  const toolTray = $('#noteToolTray');
-  const inkCanvas = $('#inkCanvas');
-  const noteWriting = $('#noteWriting');
-  const noteInlineCalendar = $('#noteInlineCalendar');
-  let activeTool = 'attach';
-
-  function setTool(tool, forceOpen = true) {
-    const isAlreadyOpen = activeTool === tool && !noteMock.classList.contains('tray-closed');
-    const shouldOpen = forceOpen ? true : !isAlreadyOpen;
-    activeTool = tool;
-    noteMock.classList.toggle('tray-closed', !shouldOpen);
-    toolTray.classList.toggle('is-open', shouldOpen);
-    noteMock.classList.toggle('is-drawing', shouldOpen && tool === 'draw');
-    $$('[data-tool]').forEach((button) => button.classList.toggle('is-active', shouldOpen && button.dataset.tool === tool));
-    $$('[data-tool-panel]').forEach((panel) => panel.classList.toggle('is-active', shouldOpen && panel.dataset.toolPanel === tool));
-    if (shouldOpen && (tool === 'draw' || tool === 'remind') && sizeIndex !== 1) {
-      sizeIndex = 1;
-      applySize(sizeIndex);
-    }
-    if (tool !== 'remind') {
-      noteInlineCalendar.hidden = true;
-      noteMock.classList.remove('has-inline-calendar');
-      $$('.lab-surface-nav button').forEach((button) => button.classList.remove('is-active'));
-      $('.lab-surface-nav button[data-show-view="editor"]:not([data-open-note-calendar])')?.classList.add('is-active');
-    }
-    if (tool === 'draw' && shouldOpen) resizeInkCanvas();
-  }
-
-  $$('[data-tool]').forEach((button) => button.addEventListener('click', () => setTool(button.dataset.tool, false)));
-  $$('[data-close-tray]').forEach((button) => button.addEventListener('click', () => {
-    noteMock.classList.add('tray-closed');
-    toolTray.classList.remove('is-open');
-    noteMock.classList.remove('is-drawing');
-    noteInlineCalendar.hidden = true;
-    noteMock.classList.remove('has-inline-calendar');
-    $$('[data-tool]').forEach((item) => item.classList.remove('is-active'));
+  $$('[data-view-button]').forEach(btn=>btn.addEventListener('click',()=>{
+    const view=btn.dataset.viewButton;
+    $$('[data-view-button]').forEach(b=>b.classList.toggle('active',b===btn));
+    $$('.lab-view').forEach(v=>v.classList.toggle('active',v.dataset.view===view));
   }));
 
-  const noteColors = ['yellow', 'peach', 'mint', 'sky', 'lavender'];
-  $$('[data-note-color]').forEach((button) => button.addEventListener('click', () => {
-    noteColors.forEach((color) => noteMock.classList.remove(`note-${color}`));
-    noteMock.classList.add(`note-${button.dataset.noteColor}`);
-    $$('[data-note-color]').forEach((item) => item.classList.toggle('is-selected', item === button));
-    noteMock.classList.remove('is-color-changing');
-    requestAnimationFrame(() => noteMock.classList.add('is-color-changing'));
-    window.setTimeout(() => noteMock.classList.remove('is-color-changing'), 190);
+  const note=$('#noteMock');
+  const stage=$('#editorStage');
+  const header=$('#noteDragRegion');
+  const writing=$('#writingLayer');
+  const canvas=$('#inkCanvas');
+  const ctx=canvas.getContext('2d');
+  const dot=$('#collapsedDot');
+  const colors=['yellow','peach','mint','sky','lavender'];
+  const popovers=['#colorPopover','#attachPopover','#drawPopover','#textPopover','#sizePopover'];
+
+  function closePopovers(except=null){
+    popovers.forEach(s=>{const p=$(s);if(p!==except)p.hidden=true});
+  }
+  document.addEventListener('click',e=>{
+    if(e.target.closest('.anchored-control'))return;
+    closePopovers();
+  });
+  function togglePopover(selector,button){
+    const p=$(selector);const was=!p.hidden;closePopovers(p);p.hidden=was;
+    if(button)button.classList.toggle('active',!p.hidden);
+  }
+  $('#colorButton').addEventListener('click',e=>{e.stopPropagation();togglePopover('#colorPopover')});
+  $('#attachButton').addEventListener('click',e=>{e.stopPropagation();togglePopover('#attachPopover',$('#attachButton'))});
+  $('#drawButton').addEventListener('click',e=>{
+    e.stopPropagation();
+    const opening=$('#drawPopover').hidden;
+    togglePopover('#drawPopover',$('#drawButton'));
+    note.classList.toggle('drawing',opening);
+    resizeCanvas();
+  });
+  $('#textButton').addEventListener('click',e=>{e.stopPropagation();togglePopover('#textPopover',$('#textButton'))});
+  $('#sizeButton').addEventListener('click',e=>{e.stopPropagation();togglePopover('#sizePopover',$('#sizeButton'))});
+
+  $$('[data-note-color]').forEach(btn=>btn.addEventListener('click',()=>{
+    const color=btn.dataset.noteColor;
+    colors.forEach(c=>{note.classList.remove(`skrib-color-${c}`);dot.classList.remove(`skrib-color-${c}`)});
+    note.classList.add(`skrib-color-${color}`);dot.classList.add(`skrib-color-${color}`);
+    $('#colorButton').className=`color-button skrib-color-${color}`;
+    $$('[data-note-color]').forEach(b=>b.classList.toggle('active',b===btn));
+    $('#colorPopover').hidden=true;
   }));
 
-  const sizePresets = [
-    { name: 'Comfortable', width: 520, height: 430, icon: 'ph-arrows-out-simple', label: 'Increase to canvas' },
-    { name: 'Canvas', width: 640, height: 540, icon: 'ph-arrows-in-simple', label: 'Compact note' },
-    { name: 'Compact', width: 420, height: 360, icon: 'ph-arrows-out-simple', label: 'Increase to comfortable' },
-  ];
-  let sizeIndex = 0;
-  const cycleSize = $('#cycleSize');
-
-  function applySize(index, custom = false) {
-    const preset = sizePresets[index];
-    noteMock.style.width = `${preset.width}px`;
-    noteMock.style.height = `${preset.height}px`;
-    noteMock.classList.remove('size-comfortable', 'size-canvas', 'size-compact');
-    noteMock.classList.add(`size-${preset.name.toLowerCase()}`);
-    $('#noteSizeLabel').textContent = `${custom ? 'Custom' : preset.name} · drag a corner`;
-    const icon = $('i', cycleSize);
-    icon.className = `ph ${preset.icon}`;
-    cycleSize.title = preset.label;
-    cycleSize.setAttribute('aria-label', preset.label);
-    noteMock.classList.add('is-resizing');
-    window.setTimeout(() => noteMock.classList.remove('is-resizing'), 200);
-    requestAnimationFrame(resizeInkCanvas);
-  }
-
-  cycleSize.addEventListener('click', () => {
-    sizeIndex = (sizeIndex + 1) % sizePresets.length;
-    applySize(sizeIndex);
-  });
-
-  $$('[data-resize-corner]').forEach((handle) => {
-    let didDrag = false;
-    handle.addEventListener('pointerdown', (event) => {
-      event.preventDefault();
-      didDrag = false;
-      noteMock.classList.add('is-resizing');
-      handle.setPointerCapture(event.pointerId);
-      const start = { x: event.clientX, y: event.clientY, width: noteMock.offsetWidth, height: noteMock.offsetHeight };
-      const corner = handle.dataset.resizeCorner;
-
-      function move(pointerEvent) {
-        const horizontal = corner.includes('left') ? start.x - pointerEvent.clientX : pointerEvent.clientX - start.x;
-        const vertical = corner.includes('top') ? start.y - pointerEvent.clientY : pointerEvent.clientY - start.y;
-        if (Math.abs(horizontal) > 2 || Math.abs(vertical) > 2) didDrag = true;
-        const width = Math.max(400, Math.min(680, start.width + horizontal));
-        const height = Math.max(340, Math.min(560, start.height + vertical));
-        noteMock.style.width = `${Math.round(width)}px`;
-        noteMock.style.height = `${Math.round(height)}px`;
-        $('#noteSizeLabel').textContent = `Custom · ${Math.round(width)} × ${Math.round(height)}`;
-        resizeInkCanvas();
-      }
-
-      function stop(pointerEvent) {
-        handle.releasePointerCapture(pointerEvent.pointerId);
-        window.setTimeout(() => noteMock.classList.remove('is-resizing'), 120);
-        handle.removeEventListener('pointermove', move);
-        handle.removeEventListener('pointerup', stop);
-        handle.removeEventListener('pointercancel', stop);
-      }
-
-      handle.addEventListener('pointermove', move);
-      handle.addEventListener('pointerup', stop);
-      handle.addEventListener('pointercancel', stop);
-    });
-
-    handle.addEventListener('click', () => {
-      if (didDrag) {
-        didDrag = false;
-        return;
-      }
-      const grows = handle.dataset.resizeCorner === 'bottom-right';
-      const width = Math.max(400, Math.min(680, noteMock.offsetWidth + (grows ? 16 : -16)));
-      const height = Math.max(340, Math.min(560, noteMock.offsetHeight + (grows ? 16 : -16)));
-      noteMock.style.width = `${width}px`;
-      noteMock.style.height = `${height}px`;
-      $('#noteSizeLabel').textContent = `Custom · ${width} × ${height}`;
-      noteMock.classList.add('is-resizing');
-      window.setTimeout(() => noteMock.classList.remove('is-resizing'), 180);
-      resizeInkCanvas();
-    });
-  });
-
-  const attachmentIcons = { Image: 'ph-image', Video: 'ph-video-camera', Document: 'ph-file-text', Link: 'ph-link' };
-  let attachmentCount = 0;
-  $$('[data-add-attachment]').forEach((button) => button.addEventListener('click', () => {
-    attachmentCount += 1;
-    const type = button.dataset.addAttachment;
-    const chip = document.createElement('span');
-    chip.className = 'attachment-chip';
-    chip.innerHTML = `<i class="ph ${attachmentIcons[type]}"></i>${type.toLowerCase()}-${attachmentCount}.${type === 'Image' ? 'png' : type === 'Video' ? 'mp4' : type === 'Link' ? 'url' : 'pdf'}`;
-    $('#noteChips').append(chip);
-    chip.classList.add('is-entering');
+  let fileCount=0;
+  const fileIcons={Image:'ph-image',Video:'ph-video-camera',Document:'ph-file-text'};
+  $$('[data-add-file]').forEach(btn=>btn.addEventListener('click',()=>{
+    fileCount++;
+    const type=btn.dataset.addFile;
+    const ext=type==='Image'?'png':type==='Video'?'mp4':'pdf';
+    const chip=document.createElement('span');
+    chip.className='file-chip';
+    chip.innerHTML=`<i class="ph ${fileIcons[type]}"></i>${type.toLowerCase()}-${fileCount}.${ext}`;
+    $('#fileChips').append(chip);
+    $('#attachPopover').hidden=true;$('#attachButton').classList.remove('active');
   }));
 
-  const noteReminderChip = $('#noteReminderChip');
-  $$('[data-reminder-quick]').forEach((button) => button.addEventListener('click', () => {
-    $('span', noteReminderChip).textContent = `${button.dataset.reminderQuick} · 09:30`;
-    noteReminderChip.hidden = false;
-    noteReminderChip.classList.remove('is-entering');
-    requestAnimationFrame(() => noteReminderChip.classList.add('is-entering'));
-  }));
-  $('button', noteReminderChip).addEventListener('click', () => { noteReminderChip.hidden = true; });
-
-  let textSize = 18;
-  $$('[data-text-step]').forEach((button) => button.addEventListener('click', () => {
-    textSize = Math.max(14, Math.min(28, textSize + Number(button.dataset.textStep)));
-    noteWriting.style.fontSize = `${textSize}px`;
-    $('#textSizeValue').textContent = textSize;
-  }));
-  $$('[data-text-align]').forEach((button) => button.addEventListener('click', () => {
-    noteWriting.style.textAlign = button.dataset.textAlign;
-    $$('[data-text-align]').forEach((item) => item.classList.toggle('is-selected', item === button));
+  $$('[data-text-size]').forEach(btn=>btn.addEventListener('click',()=>{
+    const value=btn.dataset.textSize;
+    writing.dataset.size=value;
+    $$('[data-text-size]').forEach(b=>b.classList.toggle('active',b===btn));
+    $('#textPopover').hidden=true;$('#textButton').classList.remove('active');
   }));
 
-  const noteMore = $('#moreNote');
-  const noteMoreMenu = $('#noteMoreMenu');
-  noteMore.addEventListener('click', () => {
-    const isOpen = noteMore.getAttribute('aria-expanded') === 'true';
-    noteMore.setAttribute('aria-expanded', String(!isOpen));
-    noteMoreMenu.hidden = isOpen;
-  });
-  $$('button', noteMoreMenu).forEach((button) => button.addEventListener('click', () => {
-    noteMore.setAttribute('aria-expanded', 'false');
-    noteMoreMenu.hidden = true;
+  const sizes={compact:[420,380],medium:[520,470],large:[640,550]};
+  $$('[data-note-size]').forEach(btn=>btn.addEventListener('click',()=>{
+    const value=btn.dataset.noteSize;
+    const [w,h]=sizes[value];
+    note.style.width=`${w}px`;note.style.height=`${h}px`;
+    $$('[data-note-size]').forEach(b=>b.classList.toggle('active',b===btn));
+    $('#sizePopover').hidden=true;$('#sizeButton').classList.remove('active');
+    requestAnimationFrame(resizeCanvas);
   }));
 
-  const collapsedDot = $('#collapsedDot');
-  function collapseEditor(complete = false) {
-    noteMock.classList.add(complete ? 'is-completing' : 'is-collapsing');
-    window.setTimeout(() => {
-      noteMock.hidden = true;
-      noteMock.classList.remove('is-collapsing', 'is-completing');
-      collapsedDot.hidden = false;
-      collapsedDot.classList.remove('is-entering');
-      requestAnimationFrame(() => collapsedDot.classList.add('is-entering'));
-    }, 150);
-  }
-  $('#collapseNote').addEventListener('click', () => collapseEditor(false));
-  $('#closeNote').addEventListener('click', () => collapseEditor(false));
-  $('#doneNote').addEventListener('click', () => collapseEditor(true));
-  let dotDragged = false;
-  collapsedDot.addEventListener('click', () => {
-    if (dotDragged) {
-      dotDragged = false;
-      return;
-    }
-    collapsedDot.hidden = true;
-    noteMock.hidden = false;
-    noteMock.classList.remove('is-entering');
-    requestAnimationFrame(() => noteMock.classList.add('is-entering'));
-    window.setTimeout(() => noteMock.classList.remove('is-entering'), 190);
+  // The whole top bar is the drag surface. Controls opt out.
+  header.addEventListener('pointerdown',e=>{
+    if(e.button!==0||e.target.closest('[data-no-drag],button,.anchored-control'))return;
+    e.preventDefault();
+    const stageRect=stage.getBoundingClientRect();
+    const rect=note.getBoundingClientRect();
+    const startX=e.clientX,startY=e.clientY;
+    const startLeft=rect.left-stageRect.left,startTop=rect.top-stageRect.top;
+    note.style.left=`${startLeft}px`;note.style.top=`${startTop}px`;note.style.transform='none';
+    header.classList.add('dragging');
+    header.setPointerCapture(e.pointerId);
+    const move=ev=>{
+      const maxX=stageRect.width-note.offsetWidth-10;
+      const maxY=stageRect.height-note.offsetHeight-10;
+      const x=Math.max(10,Math.min(maxX,startLeft+ev.clientX-startX));
+      const y=Math.max(10,Math.min(maxY,startTop+ev.clientY-startY));
+      note.style.left=`${Math.round(x)}px`;note.style.top=`${Math.round(y)}px`;
+    };
+    const end=ev=>{
+      if(header.hasPointerCapture(ev.pointerId))header.releasePointerCapture(ev.pointerId);
+      header.classList.remove('dragging');
+      header.removeEventListener('pointermove',move);
+      header.removeEventListener('pointerup',end);
+      header.removeEventListener('pointercancel',end);
+    };
+    header.addEventListener('pointermove',move);
+    header.addEventListener('pointerup',end);
+    header.addEventListener('pointercancel',end);
   });
 
-  const editorStage = $('.editor-stage');
-  function makeDraggable(handle, surface, isDot = false) {
-    handle.addEventListener('pointerdown', (event) => {
-      event.preventDefault();
-      const stageRect = editorStage.getBoundingClientRect();
-      const surfaceRect = surface.getBoundingClientRect();
-      const start = { x: event.clientX, y: event.clientY, left: surfaceRect.left - stageRect.left, top: surfaceRect.top - stageRect.top };
-      let moved = false;
-      surface.style.position = 'absolute';
-      surface.style.right = 'auto';
-      surface.style.marginTop = '0';
-      surface.style.transform = 'none';
-      surface.style.left = `${start.left}px`;
-      surface.style.top = `${start.top}px`;
-      handle.setPointerCapture(event.pointerId);
-
-      function move(pointerEvent) {
-        const dx = pointerEvent.clientX - start.x;
-        const dy = pointerEvent.clientY - start.y;
-        if (Math.abs(dx) > 3 || Math.abs(dy) > 3) moved = true;
-        const left = Math.max(10, Math.min(stageRect.width - surface.offsetWidth - 10, start.left + dx));
-        const top = Math.max(10, Math.min(stageRect.height - surface.offsetHeight - 10, start.top + dy));
-        surface.style.left = `${Math.round(left)}px`;
-        surface.style.top = `${Math.round(top)}px`;
-      }
-
-      function stop(pointerEvent) {
-        handle.releasePointerCapture(pointerEvent.pointerId);
-        if (isDot && moved) dotDragged = true;
-        handle.removeEventListener('pointermove', move);
-        handle.removeEventListener('pointerup', stop);
-        handle.removeEventListener('pointercancel', stop);
-      }
-
-      handle.addEventListener('pointermove', move);
-      handle.addEventListener('pointerup', stop);
-      handle.addEventListener('pointercancel', stop);
-    });
+  function collapse(){
+    closePopovers();
+    note.style.opacity='0';note.style.transform=note.style.transform==='none'?'scale(.98)':'translateX(-50%) scale(.98)';
+    setTimeout(()=>{note.hidden=true;dot.hidden=false;note.style.opacity='1';},140);
   }
-  makeDraggable($('.note-drag', noteMock), noteMock);
-  makeDraggable(collapsedDot, collapsedDot, true);
-
-  let drawMode = 'pen';
-  let strokeWidth = 2;
-  let inkColor = '#262923';
-  let drawing = false;
-  let lastPoint = null;
-  const inkContext = inkCanvas.getContext('2d');
-
-  function resizeInkCanvas() {
-    const rect = inkCanvas.getBoundingClientRect();
-    const ratio = window.devicePixelRatio || 1;
-    if (!rect.width || !rect.height) return;
-    const snapshot = document.createElement('canvas');
-    snapshot.width = inkCanvas.width;
-    snapshot.height = inkCanvas.height;
-    snapshot.getContext('2d').drawImage(inkCanvas, 0, 0);
-    inkCanvas.width = Math.round(rect.width * ratio);
-    inkCanvas.height = Math.round(rect.height * ratio);
-    inkContext.setTransform(ratio, 0, 0, ratio, 0, 0);
-    if (snapshot.width && snapshot.height) inkContext.drawImage(snapshot, 0, 0, snapshot.width, snapshot.height, 0, 0, rect.width, rect.height);
-  }
-
-  $$('[data-draw-mode]').forEach((button) => button.addEventListener('click', () => {
-    drawMode = button.dataset.drawMode;
-    $$('[data-draw-mode]').forEach((item) => item.classList.toggle('is-selected', item === button));
-    inkCanvas.style.cursor = drawMode === 'select' ? 'default' : 'crosshair';
-  }));
-  const strokeOptions = [
-    { name: 'Thin', value: 2, key: 'thin' },
-    { name: 'Medium', value: 5, key: 'medium' },
-    { name: 'Thick', value: 9, key: 'thick' },
-  ];
-  let strokeIndex = 0;
-  $('#cycleStroke').addEventListener('click', () => {
-    strokeIndex = (strokeIndex + 1) % strokeOptions.length;
-    const option = strokeOptions[strokeIndex];
-    strokeWidth = option.value;
-    $('#strokeLabel').textContent = option.name;
-    $('#cycleStroke').dataset.size = option.key;
-    $('#cycleStroke').setAttribute('aria-label', `Stroke size: ${option.name.toLowerCase()}`);
+  $('#doneButton').addEventListener('click',collapse);
+  $('#headerCollapse').addEventListener('click',collapse);
+  dot.addEventListener('click',()=>{
+    dot.hidden=true;note.hidden=false;
+    note.style.transform=note.style.left.includes('px')?'none':'translateX(-50%)';
   });
-  $('#clearInk').addEventListener('click', () => inkContext.clearRect(0, 0, inkCanvas.width, inkCanvas.height));
-  $$('[data-ink-color]').forEach((button) => button.addEventListener('click', () => {
-    inkColor = button.dataset.inkColor;
-    $$('[data-ink-color]').forEach((item) => item.classList.toggle('is-selected', item === button));
-  }));
-
-  function pointFromEvent(event) {
-    const rect = inkCanvas.getBoundingClientRect();
-    return { x: event.clientX - rect.left, y: event.clientY - rect.top };
-  }
-  inkCanvas.addEventListener('pointerdown', (event) => {
-    if (drawMode === 'select') return;
-    drawing = true;
-    lastPoint = pointFromEvent(event);
-    inkCanvas.setPointerCapture(event.pointerId);
-  });
-  inkCanvas.addEventListener('pointermove', (event) => {
-    if (!drawing) return;
-    const point = pointFromEvent(event);
-    inkContext.beginPath();
-    inkContext.moveTo(lastPoint.x, lastPoint.y);
-    inkContext.lineTo(point.x, point.y);
-    inkContext.lineCap = 'round';
-    inkContext.lineJoin = 'round';
-    inkContext.lineWidth = drawMode === 'highlight' ? strokeWidth * 3 : strokeWidth;
-    inkContext.strokeStyle = drawMode === 'highlight' ? 'rgba(248, 203, 65, 0.5)' : inkColor;
-    inkContext.globalCompositeOperation = drawMode === 'erase' ? 'destination-out' : 'source-over';
-    inkContext.stroke();
-    lastPoint = point;
-  });
-  function stopDrawing() { drawing = false; lastPoint = null; }
-  inkCanvas.addEventListener('pointerup', stopDrawing);
-  inkCanvas.addEventListener('pointercancel', stopDrawing);
-  new ResizeObserver(resizeInkCanvas).observe($('#noteCanvas'));
-
-  const notes = {
-    'target-close': { title: 'v0.1.12 target-close smoke', location: 'GitHub › skribly › Issue #168', app: 'Chrome · GitHub', color: 'mint' },
-    'interface-plan': { title: 'Plan note and rail refinement', location: 'ChatGPT › Skribli build', app: 'ChatGPT · Skribli build', color: 'peach' },
-    'payment-list': { title: 'Payment readiness list', location: 'Notion › Launch plan', app: 'Notion · Launch plan', color: 'yellow' },
-    'token-pass': { title: 'Token cleanup', location: 'skribly › context-rail.css', app: 'VS Code · skribly', color: 'sky' },
-    'release-check': { title: 'Release check', location: 'skribly › v0.1.14', app: 'VS Code · skribly', color: 'lavender' },
-    'invoice-folder': { title: 'Licence documents', location: 'Documents › Skribli › Finance', app: 'File Explorer · Documents', color: 'peach' },
-  };
-
-  const railMock = $('#railMock');
-  const railDragHandle = $('#railDragHandle');
-  let railY = 16;
-  let railDrag = null;
-
-  function clampRailY(value) {
-    const stageHeight = railMock.parentElement.getBoundingClientRect().height;
-    const maxY = Math.max(16, stageHeight - railMock.offsetHeight - 16);
-    return Math.min(Math.max(value, 16), maxY);
-  }
-
-  function settleRail() {
-    railMock.classList.remove('is-dragging');
-    railMock.style.setProperty('--rail-drag-x', '0px');
-    railMock.classList.add('is-settling');
-    window.setTimeout(() => railMock.classList.remove('is-settling'), 220);
-  }
-
-  railDragHandle.addEventListener('pointerdown', (event) => {
-    if (event.button !== 0) return;
-    railDrag = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, startRailY: railY };
-    railDragHandle.setPointerCapture(event.pointerId);
-    railMock.classList.add('is-dragging');
+  $('#repositionButton').addEventListener('click',()=>{
+    note.style.left='50%';note.style.top='80px';note.style.transform='translateX(-50%)';
   });
 
-  railDragHandle.addEventListener('pointermove', (event) => {
-    if (!railDrag || event.pointerId !== railDrag.pointerId) return;
-    const pullX = Math.min(14, Math.max(-190, event.clientX - railDrag.startX));
-    railY = clampRailY(railDrag.startRailY + event.clientY - railDrag.startY);
-    railMock.style.setProperty('--rail-drag-x', `${pullX}px`);
-    railMock.style.setProperty('--rail-y', `${railY}px`);
-  });
-
-  const finishRailDrag = (event) => {
-    if (!railDrag || event.pointerId !== railDrag.pointerId) return;
-    railDrag = null;
-    settleRail();
-  };
-  railDragHandle.addEventListener('pointerup', finishRailDrag);
-  railDragHandle.addEventListener('pointercancel', finishRailDrag);
-  railDragHandle.addEventListener('keydown', (event) => {
-    if (!['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return;
-    event.preventDefault();
-    const stageHeight = railMock.parentElement.getBoundingClientRect().height;
-    const maxY = Math.max(16, stageHeight - railMock.offsetHeight - 16);
-    if (event.key === 'Home') railY = 16;
-    if (event.key === 'End') railY = maxY;
-    if (event.key === 'ArrowUp') railY = clampRailY(railY - 16);
-    if (event.key === 'ArrowDown') railY = clampRailY(railY + 16);
-    railMock.style.setProperty('--rail-y', `${railY}px`);
-    settleRail();
-  });
-  window.addEventListener('resize', () => {
-    railY = clampRailY(railY);
-    railMock.style.setProperty('--rail-y', `${railY}px`);
-  });
-
-  function setRailOpen(open) {
-    railMock.classList.toggle('is-open', open);
-    railMock.classList.add('is-settling');
-    window.setTimeout(() => railMock.classList.remove('is-settling'), 190);
-    $('#globalRailPill').classList.toggle('is-rail-open', open);
+  let drawing=false,last=null,mode='pen',ink='#262923';
+  function resizeCanvas(){
+    const rect=canvas.getBoundingClientRect();
+    if(!rect.width||!rect.height)return;
+    const ratio=window.devicePixelRatio||1;
+    const old=document.createElement('canvas');old.width=canvas.width;old.height=canvas.height;
+    if(old.width&&old.height)old.getContext('2d').drawImage(canvas,0,0);
+    canvas.width=Math.round(rect.width*ratio);canvas.height=Math.round(rect.height*ratio);
+    ctx.setTransform(ratio,0,0,ratio,0,0);
+    if(old.width&&old.height)ctx.drawImage(old,0,0,old.width,old.height,0,0,rect.width,rect.height);
   }
-  $('#globalRailPill').addEventListener('click', () => setRailOpen(true));
-  $('#collapseRail').addEventListener('click', () => setRailOpen(false));
-
-  $$('[data-rail-scope]').forEach((button) => button.addEventListener('click', () => {
-    const isAll = button.dataset.railScope === 'all';
-    $$('[data-rail-scope]').forEach((item) => {
-      const selected = item === button;
-      item.classList.toggle('is-active', selected);
-      item.setAttribute('aria-selected', String(selected));
-    });
-    $$('.all-only').forEach((group) => group.hidden = !isAll);
-  }));
-  $$('.all-only').forEach((group) => group.hidden = true);
-
-  function selectRailNote(button) {
-    $$('.rail-note-row').forEach((row) => row.classList.toggle('is-selected', row === button));
-    const note = notes[button.dataset.noteId];
-    const inspector = $('#railInspector');
-    noteColors.forEach((color) => inspector.classList.remove(`note-${color}`));
-    inspector.classList.add(`note-${note.color}`);
-    $('.rail-inspector-location', inspector).innerHTML = `<i class="ph ph-map-pin"></i> ${note.location}`;
-    $('p', inspector).textContent = note.title;
-    inspector.classList.remove('is-refreshing');
-    requestAnimationFrame(() => inspector.classList.add('is-refreshing'));
-    window.setTimeout(() => inspector.classList.remove('is-refreshing'), 180);
-    setRailOpen(true);
-  }
-  $$('.rail-note-row').forEach((button) => button.addEventListener('click', () => selectRailNote(button)));
-
-  const railSearch = $('#railSearch');
-  const railSearchInput = $('input', railSearch);
-  $('#railSearchToggle').addEventListener('click', () => {
-    railSearch.hidden = false;
-    railSearchInput.focus();
+  function pt(e){const r=canvas.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top}}
+  canvas.addEventListener('pointerdown',e=>{if(!note.classList.contains('drawing'))return;drawing=true;last=pt(e);canvas.setPointerCapture(e.pointerId)});
+  canvas.addEventListener('pointermove',e=>{
+    if(!drawing||!last)return;const p=pt(e);ctx.beginPath();ctx.moveTo(last.x,last.y);ctx.lineTo(p.x,p.y);ctx.lineCap='round';ctx.lineJoin='round';
+    ctx.globalCompositeOperation=mode==='erase'?'destination-out':'source-over';
+    ctx.strokeStyle=mode==='highlight'?'rgba(248,203,65,.52)':ink;ctx.lineWidth=mode==='highlight'?12:mode==='erase'?18:3;ctx.stroke();last=p;
   });
-  $('button', railSearch).addEventListener('click', () => {
-    railSearchInput.value = '';
-    railSearch.hidden = true;
-    $$('.rail-note-row').forEach((row) => row.hidden = false);
-  });
-  railSearchInput.addEventListener('input', () => {
-    const query = railSearchInput.value.toLowerCase().trim();
-    $$('.rail-note-row').forEach((row) => row.hidden = query && !row.textContent.toLowerCase().includes(query));
-  });
+  const stop=()=>{drawing=false;last=null};canvas.addEventListener('pointerup',stop);canvas.addEventListener('pointercancel',stop);
+  $$('[data-draw-mode]').forEach(btn=>btn.addEventListener('click',()=>{mode=btn.dataset.drawMode;$$('[data-draw-mode]').forEach(b=>b.classList.toggle('active',b===btn))}));
+  $$('[data-ink]').forEach(btn=>btn.addEventListener('click',()=>{ink=btn.dataset.ink;$$('[data-ink]').forEach(b=>b.classList.toggle('active',b===btn))}));
+  $('#clearInk').addEventListener('click',()=>ctx.clearRect(0,0,canvas.width,canvas.height));
+  new ResizeObserver(resizeCanvas).observe($('.composer-workspace'));
+  resizeCanvas();
 
-  let toastTimer;
-  function showToast(element, text) {
-    clearTimeout(toastTimer);
-    $('span', element).textContent = text;
-    element.hidden = false;
-    toastTimer = setTimeout(() => { element.hidden = true; }, 2600);
-  }
-  $('#readRailNote').addEventListener('click', () => showToast($('#railToast'), 'Reading in the rail · it stays pinned'));
-  $('#openRailContext').addEventListener('click', () => showToast($('#railToast'), 'Original location opened · rail stays pinned'));
-
-  $$('[data-library-note]').forEach((button) => button.addEventListener('click', () => {
-    $$('[data-library-note]').forEach((item) => item.classList.toggle('is-selected', item === button));
-    const note = notes[button.dataset.libraryNote];
-    $('#libraryTitle').textContent = note.title;
-    $('#libraryLocation').textContent = note.location;
-    const paper = $('#libraryPaper');
-    paper.textContent = note.title;
-    noteColors.forEach((color) => paper.classList.remove(`note-${color}`));
-    paper.classList.add(`note-${note.color}`);
-    const detail = $('.library-detail');
-    detail.classList.remove('is-refreshing');
-    requestAnimationFrame(() => detail.classList.add('is-refreshing'));
-    window.setTimeout(() => detail.classList.remove('is-refreshing'), 180);
-  }));
-
-  const calendarDays = $('#calendarDays');
-  const noteCalendarDays = $('#noteCalendarDays');
-  const days = [31, ...Array.from({ length: 30 }, (_, index) => index + 1), 1, 2, 3, 4];
-  let reminderHour = 9;
-  let reminderMinute = 30;
-  let reminderDay = 8;
-  let repeatValue = 'once';
-
-  function populateCalendar(container, compact = false) {
-    days.forEach((day, index) => {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.textContent = day;
-      button.dataset.calendarDay = String(day);
-      if (index === 0 || index > 30) button.classList.add(compact ? 'is-muted' : 'is-outside');
-      if (day === 8 && index === 8) button.classList.add('is-selected');
-      if (index > 0 && index <= 30) {
-        button.addEventListener('click', () => {
-          $$('[data-calendar-day]').forEach((item) => item.classList.toggle('is-selected', item.dataset.calendarDay === String(day) && !item.classList.contains('is-outside') && !item.classList.contains('is-muted')));
-          updateReminderSummary(day);
-        });
-      }
-      container.append(button);
-    });
-  }
-
-  populateCalendar(calendarDays);
-  populateCalendar(noteCalendarDays, true);
-
-  function updateReminderSummary(day = reminderDay) {
-    reminderDay = day;
-    const date = new Date(2026, 8, reminderDay);
-    const weekday = date.toLocaleDateString('en-GB', { weekday: 'long' });
-    const time = `${String(reminderHour).padStart(2, '0')}:${String(reminderMinute).padStart(2, '0')}`;
-    $('#reminderTime').textContent = time;
-    $('#noteReminderTime').textContent = time;
-    $('#reminderSummary').textContent = `${weekday}, ${reminderDay} September at ${time} · ${repeatValue}`;
-    $('#noteReminderInlineSummary').textContent = `${weekday}, ${reminderDay} September · ${time} · ${repeatValue}`;
-  }
-  $$('[data-time-step]').forEach((button) => button.addEventListener('click', () => {
-    reminderHour = button.dataset.timeStep === 'hour-up' ? (reminderHour + 1) % 24 : (reminderHour + 23) % 24;
+  // Reminder/calendar expands inside the current note instead of opening a toolbar row.
+  let month=8,year=2026,selectedDay=8;
+  const monthNames=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  function renderCalendar(){
+    $('#calendarTitle').textContent=`${monthNames[month]} ${year}`;
+    const grid=$('#calendarDays');grid.innerHTML='';
+    const first=new Date(year,month,1);let lead=(first.getDay()+6)%7;
+    const days=new Date(year,month+1,0).getDate();
+    const prevDays=new Date(year,month,0).getDate();
+    for(let i=lead-1;i>=0;i--)addDay(prevDays-i,true);
+    for(let d=1;d<=days;d++)addDay(d,false);
+    while(grid.children.length<42)addDay(grid.children.length-lead-days+1,true);
     updateReminderSummary();
-  }));
-  $$('[data-repeat]').forEach((button) => button.addEventListener('click', () => {
-    repeatValue = button.dataset.repeat;
-    $$('[data-repeat]').forEach((item) => item.classList.toggle('is-active', item.dataset.repeat === repeatValue));
-    updateReminderSummary();
-  }));
-
-  function openNoteCalendar() {
-    showView('editor');
-    setTool('remind', true);
-    noteInlineCalendar.hidden = false;
-    noteMock.classList.add('has-inline-calendar');
-    sizeIndex = 1;
-    applySize(sizeIndex);
-    $$('.lab-surface-nav button').forEach((button) => button.classList.remove('is-active'));
-    $('.lab-surface-nav button[data-open-note-calendar]')?.classList.add('is-active');
+    function addDay(d,outside){
+      const b=document.createElement('button');b.type='button';b.textContent=d;
+      if(outside)b.classList.add('outside');
+      const now=new Date();if(!outside&&year===now.getFullYear()&&month===now.getMonth()&&d===now.getDate())b.classList.add('today');
+      if(!outside&&d===selectedDay)b.classList.add('selected');
+      if(!outside)b.addEventListener('click',()=>{selectedDay=d;renderCalendar()});
+      grid.append(b);
+    }
   }
+  function openReminder(){
+    closePopovers();note.classList.remove('drawing');$('#drawButton').classList.remove('active');$('#drawPopover').hidden=true;
+    note.classList.add('calendar-open');$('#reminderPanel').hidden=false;$('#remindButton').classList.add('active');
+    if(note.style.transform==='none'){
+      const maxW=stage.clientWidth-note.offsetLeft-10,maxH=stage.clientHeight-note.offsetTop-10;
+      if(maxW<660)note.style.left=`${Math.max(10,stage.clientWidth-670)}px`;
+      if(maxH<610)note.style.top=`${Math.max(10,stage.clientHeight-620)}px`;
+    }
+    renderCalendar();
+  }
+  function closeReminder(){
+    $('#reminderPanel').hidden=true;note.classList.remove('calendar-open');$('#remindButton').classList.remove('active');
+    note.style.width='520px';note.style.height='470px';requestAnimationFrame(resizeCanvas);
+  }
+  $('#remindButton').addEventListener('click',()=>$('#reminderPanel').hidden?openReminder():closeReminder());
+  $('#closeReminder').addEventListener('click',closeReminder);
+  $('#prevMonth').addEventListener('click',()=>{month--;if(month<0){month=11;year--}selectedDay=1;renderCalendar()});
+  $('#nextMonth').addEventListener('click',()=>{month++;if(month>11){month=0;year++}selectedDay=1;renderCalendar()});
+  $('#reminderTime').addEventListener('change',updateReminderSummary);
+  $('#reminderRepeat').addEventListener('change',updateReminderSummary);
+  function updateReminderSummary(){
+    const date=new Date(year,month,selectedDay);
+    const day=date.toLocaleDateString('en-GB',{weekday:'short'});
+    const mon=date.toLocaleDateString('en-GB',{month:'short'});
+    const repeat=$('#reminderRepeat').value;
+    const repeatText=repeat==='none'?'':` · ${$('#reminderRepeat').selectedOptions[0].textContent}`;
+    $('#reminderSummary').textContent=`${day}, ${mon} ${selectedDay} · ${$('#reminderTime').value}${repeatText}`;
+  }
+  $$('[data-quick-reminder]').forEach(btn=>btn.addEventListener('click',()=>{
+    if(btn.dataset.quickReminder==='hour'){selectedDay=31;month=7;year=2026;$('#reminderTime').value='21:00'}
+    if(btn.dataset.quickReminder==='tomorrow'){selectedDay=1;month=8;year=2026;$('#reminderTime').value='09:00'}
+    if(btn.dataset.quickReminder==='week'){selectedDay=7;month=8;year=2026;$('#reminderTime').value='09:30'}
+    renderCalendar();
+  }));
+  $('#saveReminder').addEventListener('click',()=>{
+    const b=$('#saveReminder');b.innerHTML='<i class="ph ph-check-circle"></i> Reminder saved';
+    setTimeout(()=>b.innerHTML='<i class="ph ph-check"></i> Set reminder',1200);
+  });
+  renderCalendar();
 
-  $$('[data-open-note-calendar]').forEach((button) => button.addEventListener('click', openNoteCalendar));
-  $('#closeNoteCalendar').addEventListener('click', () => {
-    noteInlineCalendar.hidden = true;
-    noteMock.classList.remove('has-inline-calendar');
-  });
-  $('#saveInlineReminder').addEventListener('click', () => {
-    const summary = $('#noteReminderInlineSummary').textContent;
-    $('span', noteReminderChip).textContent = summary;
-    noteReminderChip.hidden = false;
-    noteReminderChip.classList.remove('is-entering');
-    requestAnimationFrame(() => noteReminderChip.classList.add('is-entering'));
-    noteInlineCalendar.hidden = true;
-    noteMock.classList.remove('has-inline-calendar');
-  });
-  $('#saveReminder').addEventListener('click', () => {
-    const button = $('#saveReminder');
-    button.classList.add('is-success');
-    button.innerHTML = '<i class="ph ph-check-circle"></i> Saved';
-    showToast($('#reminderToast'), 'Reminder added to the note');
-    window.setTimeout(() => {
-      button.classList.remove('is-success');
-      button.innerHTML = '<i class="ph ph-check"></i> Save reminder';
-    }, 1200);
-  });
+  const rail=$('#skribsRail');
+  $('#edgeStack').addEventListener('click',()=>rail.classList.add('open'));
+  $('#closeRail').addEventListener('click',()=>rail.classList.remove('open'));
+  $$('[data-rail-scope]').forEach(btn=>btn.addEventListener('click',()=>{
+    const all=btn.dataset.railScope==='all';
+    $$('[data-rail-scope]').forEach(b=>b.classList.toggle('active',b===btn));
+    $$('.all-scope').forEach(s=>s.hidden=!all);
+  }));
+  const notes={
+    target:{title:'Target-close smoke test',context:'Chrome · GitHub · Ankit6149/skribly',text:'Verify target capture before closing the note workflow.',color:'yellow',app:'Chrome',location:'Ankit6149/skribly'},
+    interface:{title:'Keep the current note language',context:'ChatGPT · Skribli build',text:'Improve the note that already works instead of replacing its personality.',color:'peach',app:'ChatGPT',location:'Skribli build'},
+    release:{title:'Release-readiness list',context:'Chrome · GitHub · skribly issues',text:'Finish the native interaction details and validate them before opening downloads.',color:'mint',app:'Chrome',location:'skribly issues'},
+    tokens:{title:'Clean visual tokens',context:'Visual Studio Code · skribly',text:'Keep spacing, type and controls consistent without flattening the paper character.',color:'sky',app:'Visual Studio Code',location:'skribly'},
+    docs:{title:'Validation checklist',context:'Visual Studio Code · docs',text:'Validate the Windows note lifecycle against the real native surface.',color:'lavender',app:'Visual Studio Code',location:'docs'},
+    licence:{title:'Licence documents',context:'File Explorer · Documents',text:'Keep customer-facing licence and support documents together.',color:'peach',app:'File Explorer',location:'Documents'}
+  };
+  function selectNote(id){
+    const n=notes[id];if(!n)return;
+    $$('.rail-note').forEach(b=>b.classList.toggle('active',b.dataset.note===id));
+    $('#railPreviewContext').textContent=n.context;$('#railPreviewText').textContent=n.text;
+    const p=$('#railPreview');colors.forEach(c=>p.classList.remove(`skrib-color-${c}`));p.classList.add(`skrib-color-${n.color}`);
+  }
+  $$('.rail-note').forEach(b=>b.addEventListener('click',()=>selectNote(b.dataset.note)));
+  $('#railSearch').addEventListener('input',e=>{const q=e.target.value.toLowerCase().trim();$$('.rail-note').forEach(b=>b.hidden=!!q&&!b.textContent.toLowerCase().includes(q))});
 
-  window.addEventListener('resize', resizeInkCanvas);
-  setRailOpen(true);
-  applySize(0);
-  updateReminderSummary();
+  $$('[data-library-note]').forEach(btn=>btn.addEventListener('click',()=>{
+    const id=btn.dataset.libraryNote,n=notes[id];if(!n)return;
+    $$('[data-library-note]').forEach(b=>b.classList.toggle('active',b===btn));
+    $('#libraryContext').textContent=n.context.toUpperCase();$('#libraryTitle').textContent=n.title;$('#libraryLocation').textContent=n.location;$('#libraryApp').textContent=n.app;$('#libraryPaper').textContent=n.text;
+    const p=$('#libraryPaper');colors.forEach(c=>p.classList.remove(`skrib-color-${c}`));p.classList.add(`skrib-color-${n.color}`);
+  }));
+
+  window.addEventListener('resize',resizeCanvas);
 })();
