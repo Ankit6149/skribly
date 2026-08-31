@@ -1,0 +1,535 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex,nofollow" />
+    <meta
+      name="description"
+      content="Skribli Surface Lab — a production-aligned interactive specification for the Windows v0 editor, dot, rail, library, reminder, and shared interface language."
+    />
+    <title>Skribli Surface Lab</title>
+    <link rel="icon" href="./assets/skribly-note-mark-v2.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Kalam:wght@400;700&family=Manrope:wght@500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./assets/phosphor/regular/style.css" />
+    <link rel="stylesheet" href="./assets/phosphor/fill/style.css" />
+    <link rel="stylesheet" href="./interface-lab-v2.css" />
+  </head>
+  <body>
+    <div class="lab-shell">
+      <header class="lab-topbar">
+        <a class="brand" href="/" aria-label="Back to Skribli">
+          <img src="./assets/skribly-note-mark-v2.svg" alt="" />
+          <span>Skribli</span>
+        </a>
+        <div class="topbar-context" aria-label="Surface lab status">
+          <span class="topbar-divider" aria-hidden="true"></span>
+          <strong>Surface Lab</strong>
+          <span>Windows v0 · production-aligned</span>
+        </div>
+        <div class="topbar-status">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span>Interactive specification</span>
+        </div>
+      </header>
+
+      <aside class="lab-sidebar" aria-label="Skribli interface surfaces">
+        <div class="sidebar-intro">
+          <p class="eyebrow">Interface system</p>
+          <h1>Quiet surfaces for thoughts that stay in context.</h1>
+          <p>
+            One shared language, adapted to the physical job of each native Windows surface.
+          </p>
+        </div>
+
+        <nav class="surface-nav" aria-label="Surface views">
+          <button class="is-active" type="button" data-show-view="editor">
+            <i class="ph ph-note-pencil" aria-hidden="true"></i>
+            <span><strong>Skrib editor</strong><small>Compose and save</small></span>
+            <kbd>01</kbd>
+          </button>
+          <button type="button" data-show-view="rail">
+            <i class="ph ph-sidebar-simple" aria-hidden="true"></i>
+            <span><strong>Dot + My Skribs</strong><small>Contextual recall</small></span>
+            <kbd>02</kbd>
+          </button>
+          <button type="button" data-show-view="library">
+            <i class="ph ph-books" aria-hidden="true"></i>
+            <span><strong>All Skribs</strong><small>Search and recovery</small></span>
+            <kbd>03</kbd>
+          </button>
+          <button type="button" data-show-view="reminder">
+            <i class="ph ph-calendar-check" aria-hidden="true"></i>
+            <span><strong>Reminder</strong><small>One-time scheduling</small></span>
+            <kbd>04</kbd>
+          </button>
+          <button type="button" data-show-view="system">
+            <i class="ph ph-squares-four" aria-hidden="true"></i>
+            <span><strong>Design language</strong><small>Tokens and states</small></span>
+            <kbd>05</kbd>
+          </button>
+        </nav>
+
+        <div class="sidebar-principles" aria-label="Core interface principles">
+          <p class="eyebrow">Always true</p>
+          <span><i class="ph ph-selection-background"></i> No invisible screen-blocking overlay</span>
+          <span><i class="ph ph-floppy-disk"></i> “Saved” only after durable persistence</span>
+          <span><i class="ph ph-crosshair"></i> Context precision is never exaggerated</span>
+        </div>
+      </aside>
+
+      <main class="lab-main">
+        <header class="view-header">
+          <div>
+            <p class="eyebrow" id="viewEyebrow">Surface 01 · Contextual</p>
+            <h2 id="viewTitle">The Skrib should feel present, not installed.</h2>
+            <p id="viewDescription">
+              Paper-like enough to feel human; restrained enough to sit beside real work all day.
+            </p>
+          </div>
+          <div class="view-status" aria-label="Specification status">
+            <span>Founder Alpha</span>
+            <strong>Current direction</strong>
+          </div>
+        </header>
+
+        <section class="lab-view is-active" data-view="editor" aria-label="Refined Skrib editor">
+          <div class="surface-grid editor-grid">
+            <div class="prototype-stage editor-stage">
+              <div class="desktop-window" aria-hidden="true">
+                <header>
+                  <span class="window-app"><i class="ph ph-chat-circle-text"></i> ChatGPT</span>
+                  <strong>Skribli interface refinement</strong>
+                  <span class="window-controls">— □ ×</span>
+                </header>
+                <div class="desktop-copy">
+                  <span></span><span></span><span></span><span></span><span></span>
+                </div>
+              </div>
+
+              <article class="skrib-note note-mint size-comfortable" id="noteMock" aria-label="Interactive Skrib editor prototype">
+                <header class="note-header">
+                  <button class="drag-grip" type="button" aria-label="Drag Skrib" title="Drag Skrib">
+                    <i class="ph ph-dots-six-vertical"></i>
+                  </button>
+                  <div class="context-lockup">
+                    <small>SKRIB FOR</small>
+                    <strong><i class="ph ph-chat-circle-text"></i> ChatGPT</strong>
+                    <span>Skribli interface refinement</span>
+                  </div>
+                  <div class="note-header-actions">
+                    <button type="button" data-tool="color" aria-label="Change Skrib colour" title="Colour">
+                      <i class="ph ph-palette"></i>
+                    </button>
+                    <button type="button" id="collapseNote" aria-label="Save and collapse Skrib" title="Save and collapse">
+                      <i class="ph ph-minus"></i>
+                    </button>
+                    <button type="button" id="moreNote" aria-label="More Skrib actions" aria-expanded="false" title="More">
+                      <i class="ph ph-dots-three"></i>
+                    </button>
+                  </div>
+                  <div class="note-menu" id="noteMenu" hidden>
+                    <button type="button" data-show-view="library"><i class="ph ph-books"></i> Open in All Skribs</button>
+                    <button type="button" class="danger"><i class="ph ph-trash"></i> Move to Trash</button>
+                  </div>
+                </header>
+
+                <div class="note-command-row" role="toolbar" aria-label="Skrib tools">
+                  <button type="button" data-tool="attach" aria-label="Attach a local file" title="Files">
+                    <i class="ph ph-paperclip"></i>
+                  </button>
+                  <button type="button" data-tool="draw" aria-label="Draw on this Skrib" title="Draw">
+                    <i class="ph ph-pencil-line"></i>
+                  </button>
+                  <button type="button" data-tool="remind" aria-label="Set a reminder" title="Reminder">
+                    <i class="ph ph-bell"></i>
+                  </button>
+                  <button type="button" data-tool="text" aria-label="Text settings" title="Text">
+                    <i class="ph ph-text-t"></i>
+                  </button>
+                  <span class="command-divider" aria-hidden="true"></span>
+                  <button type="button" id="cycleSize" aria-label="Increase Skrib size" title="Increase size">
+                    <i class="ph ph-arrows-out-simple"></i>
+                  </button>
+                </div>
+
+                <div class="note-tool-row" id="noteToolRow" aria-live="polite">
+                  <div class="tool-panel" data-tool-panel="attach">
+                    <span class="tool-label"><i class="ph ph-paperclip"></i> Files</span>
+                    <button type="button" data-add-attachment="Image"><i class="ph ph-image"></i><span>Image</span></button>
+                    <button type="button" data-add-attachment="Video"><i class="ph ph-video-camera"></i><span>Video</span></button>
+                    <button type="button" data-add-attachment="Document"><i class="ph ph-file-text"></i><span>Document</span></button>
+                    <button class="tool-close" type="button" data-close-tool aria-label="Close file tools"><i class="ph ph-x"></i></button>
+                  </div>
+
+                  <div class="tool-panel" data-tool-panel="draw">
+                    <span class="tool-label"><i class="ph ph-pencil-line"></i> Draw</span>
+                    <button class="is-selected icon-tool" type="button" data-draw-mode="pen" aria-label="Pen" title="Pen"><i class="ph ph-pen-nib"></i></button>
+                    <button class="icon-tool" type="button" data-draw-mode="highlight" aria-label="Highlighter" title="Highlighter"><i class="ph ph-highlighter"></i></button>
+                    <button class="icon-tool" type="button" data-draw-mode="erase" aria-label="Eraser" title="Eraser"><i class="ph ph-eraser"></i></button>
+                    <button class="stroke-control" type="button" id="cycleStroke" aria-label="Stroke width: thin"><span class="stroke-preview"></span><span id="strokeLabel">Thin</span></button>
+                    <span class="tool-separator" aria-hidden="true"></span>
+                    <button class="ink-dot ink-black is-selected" type="button" data-ink-color="#262923" aria-label="Ink colour black"></button>
+                    <button class="ink-dot ink-blue" type="button" data-ink-color="#496d91" aria-label="Ink colour blue"></button>
+                    <button class="ink-dot ink-coral" type="button" data-ink-color="#a85852" aria-label="Ink colour coral"></button>
+                    <button class="icon-tool" type="button" id="clearInk" aria-label="Clear drawing" title="Clear drawing"><i class="ph ph-trash-simple"></i></button>
+                    <button class="tool-close" type="button" data-close-tool aria-label="Close drawing tools"><i class="ph ph-x"></i></button>
+                  </div>
+
+                  <div class="tool-panel" data-tool-panel="remind">
+                    <span class="tool-label"><i class="ph ph-bell"></i> Remind</span>
+                    <button type="button" data-reminder-quick="Today"><i class="ph ph-sun"></i><span>Today</span></button>
+                    <button type="button" data-reminder-quick="Tomorrow"><i class="ph ph-sun-horizon"></i><span>Tomorrow</span></button>
+                    <button type="button" data-reminder-quick="Next week"><i class="ph ph-calendar-blank"></i><span>Next week</span></button>
+                    <button type="button" data-open-reminder><i class="ph ph-calendar-plus"></i><span>Choose date</span></button>
+                    <button class="tool-close" type="button" data-close-tool aria-label="Close reminder tools"><i class="ph ph-x"></i></button>
+                  </div>
+
+                  <div class="tool-panel" data-tool-panel="text">
+                    <span class="tool-label"><i class="ph ph-text-t"></i> Text</span>
+                    <button class="icon-tool" type="button" data-text-step="-1" aria-label="Decrease text size"><i class="ph ph-minus"></i></button>
+                    <span class="text-size" id="textSizeValue">18</span>
+                    <button class="icon-tool" type="button" data-text-step="1" aria-label="Increase text size"><i class="ph ph-plus"></i></button>
+                    <span class="tool-separator" aria-hidden="true"></span>
+                    <button class="icon-tool is-selected" type="button" data-text-align="left" aria-label="Align text left"><i class="ph ph-text-align-left"></i></button>
+                    <button class="icon-tool" type="button" data-text-align="center" aria-label="Align text centre"><i class="ph ph-text-align-center"></i></button>
+                    <button class="tool-close" type="button" data-close-tool aria-label="Close text tools"><i class="ph ph-x"></i></button>
+                  </div>
+
+                  <div class="tool-panel" data-tool-panel="color">
+                    <span class="tool-label"><i class="ph ph-palette"></i> Colour</span>
+                    <button class="note-swatch color-yellow" type="button" data-note-color="yellow" aria-label="Yellow Skrib"></button>
+                    <button class="note-swatch color-peach" type="button" data-note-color="peach" aria-label="Peach Skrib"></button>
+                    <button class="note-swatch color-mint is-selected" type="button" data-note-color="mint" aria-label="Mint Skrib"></button>
+                    <button class="note-swatch color-sky" type="button" data-note-color="sky" aria-label="Sky Skrib"></button>
+                    <button class="note-swatch color-lavender" type="button" data-note-color="lavender" aria-label="Lavender Skrib"></button>
+                    <button class="tool-close" type="button" data-close-tool aria-label="Close colour tools"><i class="ph ph-x"></i></button>
+                  </div>
+                </div>
+
+                <div class="note-canvas" id="noteCanvas">
+                  <div class="note-writing" id="noteWriting" contenteditable="true" role="textbox" aria-label="Skrib text" spellcheck="true">Keep the thought here while the context is still fresh.</div>
+                  <canvas id="inkCanvas" aria-label="Drawing layer"></canvas>
+                  <div class="note-chips" id="noteChips" aria-live="polite"></div>
+                  <span class="reminder-chip" id="noteReminderChip" hidden>
+                    <i class="ph ph-bell-ringing"></i><span></span><button type="button" aria-label="Remove reminder"><i class="ph ph-x"></i></button>
+                  </span>
+                </div>
+
+                <footer class="note-footer">
+                  <span class="save-state"><i class="save-dot" aria-hidden="true"></i><strong>Saved</strong><small>local</small></span>
+                  <span class="note-size-label" id="noteSizeLabel">Comfortable</span>
+                  <button class="done-button" type="button" id="doneNote"><i class="ph ph-check"></i> Done</button>
+                </footer>
+
+                <button class="resize-handle top-left" type="button" data-resize-corner="top-left" aria-label="Resize from top left"></button>
+                <button class="resize-handle top-right" type="button" data-resize-corner="top-right" aria-label="Resize from top right"></button>
+                <button class="resize-handle bottom-left" type="button" data-resize-corner="bottom-left" aria-label="Resize from bottom left"></button>
+                <button class="resize-handle bottom-right" type="button" data-resize-corner="bottom-right" aria-label="Resize from bottom right"></button>
+              </article>
+
+              <button class="collapsed-skrib note-mint" id="collapsedDot" type="button" hidden aria-label="Reopen collapsed Skrib" title="Reopen Skrib">
+                <span class="fold-mark" aria-hidden="true"></span>
+              </button>
+            </div>
+
+            <aside class="decision-panel">
+              <p class="eyebrow">Refinement decisions</p>
+              <h3>Less UI, stronger hierarchy.</h3>
+              <div class="decision-list">
+                <article><span>01</span><div><strong>One calm command row</strong><p>Tools read as a compact instrument panel, not a toolbar floating over content.</p></div></article>
+                <article><span>02</span><div><strong>Reserved expansion</strong><p>Tool controls consume their own row so the paper never becomes visually obstructed.</p></div></article>
+                <article><span>03</span><div><strong>Paper, not card UI</strong><p>Fewer borders and lower shadow contrast keep the Skrib tactile without becoming playful decoration.</p></div></article>
+                <article><span>04</span><div><strong>One clear completion action</strong><p>Done saves then collapses. Secondary lifecycle actions live outside the persistent footer.</p></div></article>
+              </div>
+              <div class="truth-note"><i class="ph ph-shield-check"></i><span><strong>Product truth</strong> Attachments are image, video, and document only. Reminder recurrence is not shown.</span></div>
+            </aside>
+          </div>
+        </section>
+
+        <section class="lab-view" data-view="rail" aria-label="Refined collapsed dot and My Skribs rail">
+          <div class="surface-grid rail-grid">
+            <div class="prototype-stage rail-stage">
+              <div class="desktop-window rail-background-window" aria-hidden="true">
+                <header>
+                  <span class="window-app"><i class="ph ph-browser"></i> Chrome</span>
+                  <strong>Ankit6149/skribly · GitHub</strong>
+                  <span class="window-controls">— □ ×</span>
+                </header>
+                <div class="mock-browser-page">
+                  <span class="page-label">ISSUE</span>
+                  <h4>Polish contextual note workflow</h4>
+                  <p>The underlying application stays readable while My Skribs remains a separate edge surface.</p>
+                </div>
+              </div>
+
+              <button class="rail-pill" id="globalRailPill" type="button" aria-label="Open My Skribs">
+                <i class="ph ph-stack"></i><b>6</b>
+              </button>
+
+              <aside class="my-skribs-rail is-open" id="railMock" aria-label="My Skribs rail">
+                <header class="rail-header">
+                  <button class="rail-grip" id="railDragHandle" type="button" aria-label="Move My Skribs rail" title="Drag vertically">
+                    <i class="ph ph-dots-six-vertical"></i>
+                  </button>
+                  <div>
+                    <strong>My Skribs</strong>
+                    <small>6 saved locally</small>
+                  </div>
+                  <span class="rail-header-actions">
+                    <button type="button" id="railSearchToggle" aria-label="Search Skribs" title="Search"><i class="ph ph-magnifying-glass"></i></button>
+                    <button type="button" id="collapseRail" aria-label="Collapse My Skribs" title="Collapse"><i class="ph ph-caret-right"></i></button>
+                  </span>
+                </header>
+
+                <div class="rail-search" id="railSearch" hidden>
+                  <i class="ph ph-magnifying-glass"></i>
+                  <input type="search" placeholder="Search saved Skribs" aria-label="Search saved Skribs" />
+                  <button type="button" aria-label="Close search"><i class="ph ph-x"></i></button>
+                </div>
+
+                <div class="rail-tabs" role="tablist" aria-label="Skrib scope">
+                  <button class="is-active" type="button" role="tab" data-rail-scope="here" aria-selected="true">Here <span>3</span></button>
+                  <button type="button" role="tab" data-rail-scope="all" aria-selected="false">All <span>6</span></button>
+                </div>
+
+                <div class="rail-list" id="railList">
+                  <section class="rail-group" data-app="Chrome">
+                    <header><span><i class="ph ph-browser"></i> Chrome</span><small>3 in this context</small></header>
+                    <button class="rail-row is-selected" type="button" data-note-id="target-close" data-scope="here">
+                      <i class="note-marker color-mint"></i>
+                      <span><strong>Target-close smoke test</strong><small>GitHub — Ankit6149/skribly</small></span>
+                      <i class="ph ph-caret-right"></i>
+                    </button>
+                    <button class="rail-row" type="button" data-note-id="interface-plan" data-scope="here">
+                      <i class="note-marker color-peach"></i>
+                      <span><strong>Refine the interface language</strong><small>ChatGPT — Skribli build</small></span>
+                      <i class="ph ph-caret-right"></i>
+                    </button>
+                    <button class="rail-row" type="button" data-note-id="release-list" data-scope="here">
+                      <i class="note-marker color-yellow"></i>
+                      <span><strong>Release-readiness list</strong><small>GitHub — skribly issues</small></span>
+                      <i class="ph ph-caret-right"></i>
+                    </button>
+                  </section>
+                  <section class="rail-group all-only" data-app="VS Code">
+                    <header><span><i class="ph ph-code"></i> VS Code</span><small>2</small></header>
+                    <button class="rail-row" type="button" data-note-id="token-pass" data-scope="all">
+                      <i class="note-marker color-sky"></i>
+                      <span><strong>Clean the visual tokens</strong><small>context-rail.css — skribly</small></span>
+                      <i class="ph ph-caret-right"></i>
+                    </button>
+                    <button class="rail-row" type="button" data-note-id="release-check" data-scope="all">
+                      <i class="note-marker color-lavender"></i>
+                      <span><strong>Validate the Windows build</strong><small>skribly — Visual Studio Code</small></span>
+                      <i class="ph ph-caret-right"></i>
+                    </button>
+                  </section>
+                  <section class="rail-group all-only" data-app="File Explorer">
+                    <header><span><i class="ph ph-folder-open"></i> File Explorer</span><small>1</small></header>
+                    <button class="rail-row" type="button" data-note-id="documents" data-scope="all">
+                      <i class="note-marker color-peach"></i>
+                      <span><strong>Licence documents</strong><small>Documents — File Explorer</small></span>
+                      <i class="ph ph-caret-right"></i>
+                    </button>
+                  </section>
+                </div>
+
+                <article class="rail-preview note-mint" id="railInspector">
+                  <div class="rail-preview-meta"><i class="ph ph-app-window"></i><span id="railLocation">Chrome · GitHub — Ankit6149/skribly</span></div>
+                  <p id="railPreviewText">Verify target capture before closing the note workflow.</p>
+                  <div class="rail-preview-actions">
+                    <button type="button" id="readRailNote"><i class="ph ph-eye"></i> Read full</button>
+                    <button class="primary" type="button" id="openRailContext"><i class="ph ph-arrow-square-out"></i> Open original</button>
+                  </div>
+                </article>
+              </aside>
+              <div class="prototype-toast" id="railToast" role="status" hidden><i class="ph ph-check-circle"></i><span></span></div>
+            </div>
+
+            <aside class="decision-panel">
+              <p class="eyebrow">Refinement decisions</p>
+              <h3>Retrieval without becoming a second app.</h3>
+              <div class="decision-list">
+                <article><span>01</span><div><strong>Dot and rail have different identities</strong><p>The pastel dot represents one folded active Skrib. The edge pill represents retrieval across many Skribs.</p></div></article>
+                <article><span>02</span><div><strong>Selection is non-destructive</strong><p>Rows update a mounted preview. Nothing jumps away until Open original is chosen.</p></div></article>
+                <article><span>03</span><div><strong>Context is descriptive, not magical</strong><p>Labels use app/window-level information and avoid implying browser DOM precision that v0 does not have.</p></div></article>
+                <article><span>04</span><div><strong>Here remains the default</strong><p>The rail prioritises what belongs around the current context; All is a deliberate expansion.</p></div></article>
+              </div>
+            </aside>
+          </div>
+        </section>
+
+        <section class="lab-view" data-view="library" aria-label="Refined All Skribs library">
+          <div class="surface-grid library-grid">
+            <div class="prototype-stage library-stage">
+              <section class="library-window">
+                <header class="library-titlebar">
+                  <div>
+                    <small>LOCAL LIBRARY</small>
+                    <h3>All Skribs</h3>
+                  </div>
+                  <div class="library-title-actions">
+                    <button type="button" aria-label="Import Skribs" title="Import"><i class="ph ph-file-arrow-down"></i></button>
+                    <button type="button" aria-label="Export Skribs" title="Export"><i class="ph ph-file-arrow-up"></i></button>
+                    <button type="button" aria-label="More library actions" title="More"><i class="ph ph-dots-three"></i></button>
+                  </div>
+                </header>
+                <div class="library-toolbar">
+                  <div class="library-tabs" role="tablist" aria-label="Library view">
+                    <button class="is-active" type="button">Notes <span>6</span></button>
+                    <button type="button">Calendar <span>2</span></button>
+                    <button type="button">Trash <span>1</span></button>
+                  </div>
+                  <label class="library-search"><i class="ph ph-magnifying-glass"></i><input type="search" placeholder="Search notes, apps, or context" aria-label="Search All Skribs" /><kbd>/</kbd></label>
+                </div>
+                <div class="library-workspace">
+                  <aside class="library-results" aria-label="Saved Skribs">
+                    <button class="is-selected" type="button" data-library-note="target-close">
+                      <i class="note-marker color-mint"></i>
+                      <span><strong>Target-close smoke test</strong><small>Chrome · GitHub — Ankit6149/skribly</small><time>Today · 1:04 pm</time></span>
+                    </button>
+                    <button type="button" data-library-note="interface-plan">
+                      <i class="note-marker color-peach"></i>
+                      <span><strong>Refine the interface language</strong><small>ChatGPT — Skribli build</small><time>Today · 12:48 pm</time></span>
+                    </button>
+                    <button type="button" data-library-note="release-list">
+                      <i class="note-marker color-yellow"></i>
+                      <span><strong>Release-readiness list</strong><small>GitHub — skribly issues</small><time>Yesterday</time></span>
+                    </button>
+                    <button type="button" data-library-note="release-check">
+                      <i class="note-marker color-lavender"></i>
+                      <span><strong>Validate the Windows build</strong><small>skribly — Visual Studio Code</small><time>Saturday</time></span>
+                    </button>
+                  </aside>
+                  <article class="library-detail">
+                    <header>
+                      <div>
+                        <small id="libraryContext">CHROME · GITHUB</small>
+                        <h4 id="libraryTitle">Target-close smoke test</h4>
+                        <p id="libraryLocation">GitHub — Ankit6149/skribly</p>
+                      </div>
+                      <button type="button"><i class="ph ph-arrow-square-out"></i> Open original</button>
+                    </header>
+                    <div class="library-scroll-area">
+                      <div class="library-paper note-mint" id="libraryPaper">Verify target capture before closing the note workflow.</div>
+                      <dl class="library-metadata">
+                        <div><dt><i class="ph ph-app-window"></i> Application</dt><dd id="libraryApp">Chrome</dd></div>
+                        <div><dt><i class="ph ph-clock"></i> Updated</dt><dd>Today, 1:04 pm</dd></div>
+                        <div><dt><i class="ph ph-bell"></i> Reminder</dt><dd>None</dd></div>
+                      </dl>
+                    </div>
+                  </article>
+                </div>
+              </section>
+            </div>
+
+            <aside class="decision-panel">
+              <p class="eyebrow">Refinement decisions</p>
+              <h3>A library, not a dashboard.</h3>
+              <div class="decision-list">
+                <article><span>01</span><div><strong>Normal desktop density</strong><p>Management surfaces use clearer structure and less paper-play than the contextual Skrib.</p></div></article>
+                <article><span>02</span><div><strong>Read before reopening</strong><p>Selection changes the detail pane only. Open original remains a deliberate action.</p></div></article>
+                <article><span>03</span><div><strong>Context remains secondary</strong><p>The thought is primary; application/window context supports recognition without becoming visual noise.</p></div></article>
+                <article><span>04</span><div><strong>Recovery belongs here</strong><p>Search, Calendar, Trash, import and export remain in this normal application window—not in the rail.</p></div></article>
+              </div>
+            </aside>
+          </div>
+        </section>
+
+        <section class="lab-view" data-view="reminder" aria-label="Refined one-time reminder scheduling">
+          <div class="surface-grid reminder-grid">
+            <div class="prototype-stage reminder-stage">
+              <section class="reminder-sheet">
+                <header>
+                  <button type="button" data-show-view="editor" aria-label="Back to editor"><i class="ph ph-arrow-left"></i></button>
+                  <div><small>REMINDER FOR</small><strong>Release-readiness list</strong></div>
+                  <button type="button" data-show-view="editor" aria-label="Close reminder"><i class="ph ph-x"></i></button>
+                </header>
+                <div class="reminder-content">
+                  <section class="calendar-card">
+                    <header><button type="button" aria-label="Previous month"><i class="ph ph-caret-left"></i></button><strong>September 2026</strong><button type="button" aria-label="Next month"><i class="ph ph-caret-right"></i></button></header>
+                    <div class="calendar-week"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div>
+                    <div class="calendar-days" id="calendarDays"></div>
+                  </section>
+                  <aside class="reminder-options">
+                    <div class="setting-block">
+                      <small>TIME</small>
+                      <div class="time-control"><button type="button" data-time-step="hour-down" aria-label="One hour earlier"><i class="ph ph-minus"></i></button><strong id="reminderTime">09:30</strong><button type="button" data-time-step="hour-up" aria-label="One hour later"><i class="ph ph-plus"></i></button></div>
+                    </div>
+                    <label class="notification-row"><span><i class="ph ph-bell-ringing"></i><span><strong>Windows notification</strong><small>If OS permission is available</small></span></span><input type="checkbox" checked /></label>
+                    <div class="reminder-summary"><i class="ph ph-calendar-check"></i><span><small>ONE-TIME REMINDER</small><strong id="reminderSummary">Tuesday, 8 September at 09:30</strong></span></div>
+                  </aside>
+                </div>
+                <footer><button class="secondary" type="button" data-show-view="editor">Cancel</button><button class="primary" type="button" id="saveReminder"><i class="ph ph-check"></i> Save reminder</button></footer>
+              </section>
+              <div class="prototype-toast" id="reminderToast" role="status" hidden><i class="ph ph-check-circle"></i><span>Reminder saved locally</span></div>
+            </div>
+
+            <aside class="decision-panel">
+              <p class="eyebrow">Refinement decisions</p>
+              <h3>Scheduling should be impossible to misread.</h3>
+              <div class="decision-list">
+                <article><span>01</span><div><strong>One-time only in v0</strong><p>The Lab no longer demonstrates Daily, Weekdays, or Weekly recurrence ahead of the product contract.</p></div></article>
+                <article><span>02</span><div><strong>Calendar and time share one sheet</strong><p>No detached popover floats over the writing surface.</p></div></article>
+                <article><span>03</span><div><strong>Notification is a delivery option</strong><p>The reminder remains useful even when Windows notification permission is unavailable.</p></div></article>
+              </div>
+            </aside>
+          </div>
+        </section>
+
+        <section class="lab-view" data-view="system" aria-label="Skribli design language">
+          <div class="system-layout">
+            <section class="system-section">
+              <p class="eyebrow">Visual hierarchy</p>
+              <h3>Professional refinement without losing the paper metaphor.</h3>
+              <div class="system-principle-grid">
+                <article><i class="ph ph-square-half"></i><strong>Paper is a material, not a theme</strong><p>Pastels identify Skribs. Management windows stay mostly neutral so the colour remains meaningful.</p></article>
+                <article><i class="ph ph-corners-out"></i><strong>Three radius levels</strong><p>8px controls, 12px structured surfaces, 16–20px paper objects. Pills are reserved for counts and compact states.</p></article>
+                <article><i class="ph ph-drop-shadow"></i><strong>Elevation follows behaviour</strong><p>Floating contextual surfaces receive soft depth. Normal windows use borders and low elevation instead of card-on-card shadows.</p></article>
+                <article><i class="ph ph-text-aa"></i><strong>Typography has jobs</strong><p>Manrope for strong titles, DM Sans for interface language, Kalam only for authored Skrib content.</p></article>
+              </div>
+            </section>
+
+            <section class="system-section token-section">
+              <p class="eyebrow">Core palette</p>
+              <div class="token-row">
+                <span><i style="--swatch:#fffdf7"></i><b>Paper</b><code>#FFFDF7</code></span>
+                <span><i style="--swatch:#262923"></i><b>Ink</b><code>#262923</code></span>
+                <span><i style="--swatch:#f8df78"></i><b>Yellow</b><code>#F8DF78</code></span>
+                <span><i style="--swatch:#ffd5c4"></i><b>Peach</b><code>#FFD5C4</code></span>
+                <span><i style="--swatch:#dceadf"></i><b>Mint</b><code>#DCEADF</code></span>
+                <span><i style="--swatch:#dce8f7"></i><b>Sky</b><code>#DCE8F7</code></span>
+                <span><i style="--swatch:#e8def8"></i><b>Lavender</b><code>#E8DEF8</code></span>
+              </div>
+            </section>
+
+            <section class="system-section">
+              <p class="eyebrow">Component states</p>
+              <div class="state-board">
+                <div><span>Icon button</span><button type="button"><i class="ph ph-paperclip"></i></button><button class="is-hover-demo" type="button"><i class="ph ph-paperclip"></i></button><button class="is-selected" type="button"><i class="ph ph-paperclip"></i></button><button type="button" disabled><i class="ph ph-paperclip"></i></button></div>
+                <div><span>Save state</span><b class="state-saving"><i></i> Saving</b><b class="state-saved"><i></i> Saved</b><b class="state-error"><i></i> Retry</b></div>
+                <div><span>Skrib colours</span><i class="mini-skrib color-yellow"></i><i class="mini-skrib color-peach"></i><i class="mini-skrib color-mint"></i><i class="mini-skrib color-sky"></i><i class="mini-skrib color-lavender"></i></div>
+              </div>
+            </section>
+
+            <section class="system-section truth-section">
+              <p class="eyebrow">Product-truth boundaries</p>
+              <div class="truth-grid">
+                <article><i class="ph ph-check-circle"></i><div><strong>Shown as current</strong><p>Compact editor, one folded dot, app/window context, local files, drawing, one-time reminder, rail, All Skribs.</p></div></article>
+                <article><i class="ph ph-clock-countdown"></i><div><strong>Deliberately not simulated</strong><p>Recurring reminders, browser DOM anchors, link attachments, Duplicate, multiple simultaneous native Skrib windows.</p></div></article>
+              </div>
+            </section>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="./interface-lab-v2.js"></script>
+  </body>
+</html>
