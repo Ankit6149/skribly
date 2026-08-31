@@ -72,7 +72,12 @@ pub fn launch(process_name: &str) -> Result<String, String> {
         .args(["/C", "start", "", application.executable])
         .creation_flags(CREATE_NO_WINDOW)
         .spawn()
-        .map_err(|error| format!("Skribli could not start {}: {error}", application.display_name))?;
+        .map_err(|error| {
+            format!(
+                "Skribli could not start {}: {error}",
+                application.display_name
+            )
+        })?;
     Ok(application.display_name.to_string())
 }
 
