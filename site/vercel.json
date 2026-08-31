@@ -6,7 +6,7 @@
   "rewrites": [
     {
       "source": "/interface-lab",
-      "destination": "/interface-lab-v2.html"
+      "destination": "/interface-lab-v2"
     }
   ],
   "headers": [
