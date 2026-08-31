@@ -68,6 +68,9 @@ pub fn install_tray<R: Runtime>(app: &App<R>) -> tauri::Result<()> {
             }
             match action {
                 TrayAction::OpenSkribli => {
+                    if let Some(window) = app.get_webview_window(LIBRARY_WINDOW_LABEL) {
+                        let _ = window.hide();
+                    }
                     if let Some(window) = app.get_webview_window("home") {
                         let _ = window.unminimize();
                         let _ = window.show();
@@ -75,6 +78,9 @@ pub fn install_tray<R: Runtime>(app: &App<R>) -> tauri::Result<()> {
                     }
                 }
                 TrayAction::OpenAllSkribs => {
+                    if let Some(window) = app.get_webview_window("home") {
+                        let _ = window.hide();
+                    }
                     if let Some(window) = app.get_webview_window(LIBRARY_WINDOW_LABEL) {
                         let _ = window.unminimize();
                         let _ = window.show();

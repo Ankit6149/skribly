@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { SkribNote, TargetWindowInfo } from '../../lib/geometry';
-import { contextMatchScore, groupNotesForRail } from './contextRailModel';
+import {
+  contextMatchScore,
+  groupNotesForRail,
+  railPillCount,
+  selectBestContextTarget,
+} from './contextRailModel';
 
 function note(overrides: Partial<SkribNote> = {}): SkribNote {
   return {
@@ -53,5 +58,21 @@ describe('context note rail', () => {
     expect(contextMatchScore(note(), target({ title: 'Skribli' }))).toBe(75);
     expect(contextMatchScore(note(), target({ title: 'Different tab — Google Chrome' }))).toBe(0);
     expect(contextMatchScore(note(), target({ process_name: 'Code.exe' }))).toBe(0);
+  });
+
+  it('selects an exact context and never substitutes another window from the same app', () => {
+    const exact = target();
+    const differentTab = target({ hwnd_val: 43, title: 'Different tab — Google Chrome' });
+    expect(selectBestContextTarget(note(), [differentTab, exact])).toEqual(exact);
+    expect(selectBestContextTarget(note(), [differentTab])).toBeNull();
+    expect(
+      selectBestContextTarget(note(), [differentTab, target({ hwnd_val: 44, title: 'Another tab' })])
+    ).toBeNull();
+  });
+
+  it('shows the current context count when available and total notes otherwise', () => {
+    expect(railPillCount(12, 3, true)).toBe(3);
+    expect(railPillCount(12, 0, true)).toBe(12);
+    expect(railPillCount(12, 3, false)).toBe(12);
   });
 });

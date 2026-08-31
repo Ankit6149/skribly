@@ -4,9 +4,10 @@ import { LogicalSize } from '@tauri-apps/api/dpi';
 import { listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { ExternalLink, Layers3, MapPin, Minimize2, RefreshCw, StickyNote } from 'lucide-react';
-import type { SkribNote, TargetWindowInfo } from '../../lib/geometry';
+import type { SkribNote } from '../../lib/geometry';
 import '../../styles/context-rail.css';
-import { applicationLabel, contextMatchScore, groupNotesForRail } from './contextRailModel';
+import { applicationLabel, groupNotesForRail, railPillCount } from './contextRailModel';
+import { openNoteInSavedContext } from './openNoteContext';
 
 type RailScope = 'context' | 'all';
 
@@ -32,7 +33,7 @@ export const ContextRail: React.FC = () => {
   const visibleNotes = scope === 'context' && contextNotes.length > 0 ? contextNotes : activeNotes;
   const groups = useMemo(() => groupNotesForRail(visibleNotes), [visibleNotes]);
   const selected = visibleNotes.find((note) => note.id === selectedId) ?? visibleNotes[0] ?? null;
-  const pillCount = contextualDock ? contextNotes.length : activeNotes.length;
+  const pillCount = railPillCount(activeNotes.length, contextNotes.length, contextualDock);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -102,18 +103,7 @@ export const ContextRail: React.FC = () => {
   const openContext = async (note: SkribNote) => {
     setMessage(null);
     try {
-      const targets = await invoke<TargetWindowInfo[]>('list_target_windows');
-      const target = targets
-        .map((candidate) => ({ candidate, score: contextMatchScore(note, candidate) }))
-        .filter(({ score }) => score >= 50)
-        .sort((left, right) => right.score - left.score)[0]?.candidate;
-      if (!target) {
-        setMessage(`${applicationLabel(note.target_process_name)} is not open at the saved location.`);
-        return;
-      }
-      await invoke('focus_target_window', { hwndVal: target.hwnd_val });
-      await invoke('set_active_target', { target });
-      await invoke('set_skrib_window_collapsed', { id: note.id, collapsed: false });
+      setMessage(await openNoteInSavedContext(note));
     } catch (reason) {
       setMessage(reason instanceof Error ? reason.message : String(reason));
     }

@@ -70,10 +70,16 @@ struct LibraryExportResult {
 pub fn install_library_bridge<R: Runtime>(app: &App<R>) -> tauri::Result<()> {
     if let Some(window) = app.get_webview_window(LIBRARY_WINDOW_LABEL) {
         let window_to_hide = window.clone();
+        let app_handle = app.handle().clone();
         window.on_window_event(move |event| {
             if let WindowEvent::CloseRequested { api, .. } = event {
                 api.prevent_close();
                 let _ = window_to_hide.hide();
+                if let Some(home) = app_handle.get_webview_window("home") {
+                    let _ = home.unminimize();
+                    let _ = home.show();
+                    let _ = home.set_focus();
+                }
             }
         });
     }

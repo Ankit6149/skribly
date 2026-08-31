@@ -22,6 +22,25 @@ export function contextMatchScore(note: SkribNote, target: TargetWindowInfo): nu
   return 0;
 }
 
+export function selectBestContextTarget(
+  note: SkribNote,
+  targets: TargetWindowInfo[]
+): TargetWindowInfo | null {
+  const ranked = targets
+    .map((candidate) => ({ candidate, score: contextMatchScore(note, candidate) }))
+    .filter(({ score }) => score >= 50)
+    .sort((left, right) => right.score - left.score);
+  return ranked[0]?.candidate ?? null;
+}
+
+export function railPillCount(
+  activeNoteCount: number,
+  contextualNoteCount: number,
+  contextualDock: boolean
+): number {
+  return contextualDock && contextualNoteCount > 0 ? contextualNoteCount : activeNoteCount;
+}
+
 export function groupNotesForRail(notes: SkribNote[]): NoteGroup[] {
   const groups = new Map<string, SkribNote[]>();
   for (const note of notes.filter((item) => item.deleted_at == null)) {

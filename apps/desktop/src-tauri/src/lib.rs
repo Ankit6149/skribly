@@ -389,7 +389,7 @@ fn show_global_note_rail(app_handle: AppHandle) -> Result<(), String> {
         .ok_or_else(|| "My Skribs rail is unavailable.".to_string())?;
     let width = 72.0;
     let height = 54.0;
-    rail.set_always_on_top(false)
+    rail.set_always_on_top(true)
         .map_err(|error| format!("Skribli could not dock the desktop note pill: {error}"))?;
     rail.set_size(LogicalSize::new(width, height))
         .map_err(|error| format!("Skribli could not size the desktop note pill: {error}"))?;
@@ -452,11 +452,6 @@ fn show_context_rail_for_target(
     let Some(rail) = app_handle.get_webview_window("rail") else {
         return Ok(false);
     };
-    if note_count < 2 {
-        let _ = rail.hide();
-        return Ok(false);
-    }
-
     let width = 72.0;
     let height = 54.0;
     rail.set_always_on_top(true)
@@ -1545,6 +1540,11 @@ fn get_context_rail_notes(state: State<'_, AppState>) -> Vec<SkribNote> {
 }
 
 #[tauri::command]
+fn launch_supported_target_application(process_name: String) -> Result<String, String> {
+    desktop::target_launch::launch(&process_name)
+}
+
+#[tauri::command]
 fn set_context_rail_expanded(
     app_handle: AppHandle,
     state: State<'_, AppState>,
@@ -1568,7 +1568,7 @@ fn set_context_rail_expanded(
     } else {
         (72.0, 54.0)
     };
-    rail.set_always_on_top(contextual)
+    rail.set_always_on_top(true)
         .map_err(|error| format!("Skribli could not update the note rail layer: {error}"))?;
     rail.set_size(LogicalSize::new(width, height))
         .map_err(|error| format!("Skribli could not resize the note rail: {error}"))?;
@@ -2320,6 +2320,7 @@ pub fn run() {
             get_pending_open_note_request,
             acknowledge_open_note_request,
             get_context_rail_notes,
+            launch_supported_target_application,
             set_context_rail_expanded,
             show_global_note_rail,
             toggle_skrib_collapse,

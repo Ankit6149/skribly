@@ -475,6 +475,16 @@ html[data-skribly-window='library'] #root {
   gap: 14px;
 }
 
+.library-inline-error {
+  padding: 10px 12px;
+  border: 1px solid rgb(154 74 51 / 24%);
+  border-radius: 12px;
+  background: rgb(255 239 229 / 78%);
+  color: #8a4633;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .library-rich-summary,
 .library-rich-section {
   padding: 14px 0;

@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { emit, listen } from '@tauri-apps/api/event';
-import { getCurrentWindow } from '@tauri-apps/api/window';
+import { getCurrentWindow, Window } from '@tauri-apps/api/window';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { SkribNote } from '../../lib/geometry';
 import { deleteOrphanedRichContent } from '../../lib/richContentStore';
@@ -17,6 +17,7 @@ import {
 import { LibraryImportPanel } from './LibraryImportPanel';
 import { LibraryRichContent } from './LibraryRichContent';
 import { ReminderCalendar } from './ReminderCalendar';
+import { openNoteInSavedContext } from '../rail/openNoteContext';
 import {
   filterLibraryNotes,
   noteContextLabel,
@@ -73,6 +74,8 @@ export const LibraryHost: React.FC = () => {
   const [permanentDeleteNoteId, setPermanentDeleteNoteId] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [exportMessage, setExportMessage] = useState<ExportMessage>(null);
+  const [openingContextId, setOpeningContextId] = useState<string | null>(null);
+  const [contextMessage, setContextMessage] = useState<string | null>(null);
   const pendingExportRequest = useRef<string | null>(null);
   const pendingExportTimeout = useRef<number | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -324,11 +327,29 @@ export const LibraryHost: React.FC = () => {
     }
   };
 
-  const hideLibrary = async () => {
+  const returnToHome = async () => {
     try {
       await getCurrentWindow().hide();
+      const home = await Window.getByLabel('home');
+      if (!home) return;
+      await home.unminimize();
+      await home.show();
+      await home.setFocus();
     } catch {
       // The process may already be exiting from the tray.
+    }
+  };
+
+  const openSelectedNote = async (note: SkribNote) => {
+    setOpeningContextId(note.id);
+    setContextMessage(null);
+    try {
+      await openNoteInSavedContext(note);
+      await getCurrentWindow().hide();
+    } catch (reason) {
+      setContextMessage(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setOpeningContextId(null);
     }
   };
 
@@ -342,7 +363,7 @@ export const LibraryHost: React.FC = () => {
         <div>
           <span className="library-kicker">LOCAL NOTE LIBRARY</span>
           <h1 id="library-title">All Skribs</h1>
-          <p>Find, restore, import, and export notes without reopening their original applications.</p>
+          <p>Find, restore, reopen, import, and export notes from one local workspace.</p>
         </div>
         <div className="library-topbar-actions">
           <button
@@ -356,9 +377,9 @@ export const LibraryHost: React.FC = () => {
           <button
             type="button"
             className="library-button secondary"
-            onClick={() => void hideLibrary()}
+            onClick={() => void returnToHome()}
           >
-            Hide library
+            Back to Skribli
           </button>
           <LibraryImportPanel canApply={canMutate} onApplied={handleImportApplied} />
           <button
@@ -550,6 +571,16 @@ export const LibraryHost: React.FC = () => {
                   <p>{noteContextLabel(selectedNote)}</p>
                 </div>
                 <div className="library-detail-actions">
+                  {!isTrashedNote(selectedNote) && (
+                    <button
+                      type="button"
+                      className="library-button secondary"
+                      onClick={() => void openSelectedNote(selectedNote)}
+                      disabled={openingContextId !== null}
+                    >
+                      {openingContextId === selectedNote.id ? 'Opening…' : 'Open original'}
+                    </button>
+                  )}
                   <button
                     type="button"
                     className="library-button primary"
@@ -649,8 +680,9 @@ export const LibraryHost: React.FC = () => {
               )}
 
               <p className="library-safety-note">
-                All Skribs never launches or guesses the original application. Restoring and importing change only local records; context reopening and re-anchoring remain separate safety-reviewed workflows.
+                Open original focuses a matching live window. For supported Windows apps, Skribli can start the app first and then restore the note when that saved window is available.
               </p>
+              {contextMessage && <div className="library-inline-error" role="status">{contextMessage}</div>}
             </>
           ) : (
             <div className="library-detail-empty">

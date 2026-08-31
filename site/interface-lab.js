@@ -11,9 +11,11 @@
   };
 
   function showView(view) {
-    $$('.lab-surface-nav button').forEach((button) => {
-      button.classList.toggle('is-active', button.dataset.showView === view);
-    });
+    const navigationButtons = $$('.lab-surface-nav button');
+    navigationButtons.forEach((button) => button.classList.remove('is-active'));
+    navigationButtons
+      .find((button) => button.dataset.showView === view && !button.hasAttribute('data-open-note-calendar'))
+      ?.classList.add('is-active');
     $$('.lab-view').forEach((panel) => panel.classList.toggle('is-active', panel.dataset.view === view));
     const copy = viewCopy[view] || viewCopy.editor;
     $('#viewEyebrow').textContent = copy[0];
@@ -50,6 +52,7 @@
   const toolTray = $('#noteToolTray');
   const inkCanvas = $('#inkCanvas');
   const noteWriting = $('#noteWriting');
+  const noteInlineCalendar = $('#noteInlineCalendar');
   let activeTool = 'attach';
 
   function setTool(tool, forceOpen = true) {
@@ -61,6 +64,16 @@
     noteMock.classList.toggle('is-drawing', shouldOpen && tool === 'draw');
     $$('[data-tool]').forEach((button) => button.classList.toggle('is-active', shouldOpen && button.dataset.tool === tool));
     $$('[data-tool-panel]').forEach((panel) => panel.classList.toggle('is-active', shouldOpen && panel.dataset.toolPanel === tool));
+    if (shouldOpen && (tool === 'draw' || tool === 'remind') && sizeIndex !== 1) {
+      sizeIndex = 1;
+      applySize(sizeIndex);
+    }
+    if (tool !== 'remind') {
+      noteInlineCalendar.hidden = true;
+      noteMock.classList.remove('has-inline-calendar');
+      $$('.lab-surface-nav button').forEach((button) => button.classList.remove('is-active'));
+      $('.lab-surface-nav button[data-show-view="editor"]:not([data-open-note-calendar])')?.classList.add('is-active');
+    }
     if (tool === 'draw' && shouldOpen) resizeInkCanvas();
   }
 
@@ -69,6 +82,8 @@
     noteMock.classList.add('tray-closed');
     toolTray.classList.remove('is-open');
     noteMock.classList.remove('is-drawing');
+    noteInlineCalendar.hidden = true;
+    noteMock.classList.remove('has-inline-calendar');
     $$('[data-tool]').forEach((item) => item.classList.remove('is-active'));
   }));
 
@@ -278,6 +293,7 @@
 
   let drawMode = 'pen';
   let strokeWidth = 2;
+  let inkColor = '#262923';
   let drawing = false;
   let lastPoint = null;
   const inkContext = inkCanvas.getContext('2d');
@@ -316,6 +332,10 @@
     $('#cycleStroke').setAttribute('aria-label', `Stroke size: ${option.name.toLowerCase()}`);
   });
   $('#clearInk').addEventListener('click', () => inkContext.clearRect(0, 0, inkCanvas.width, inkCanvas.height));
+  $$('[data-ink-color]').forEach((button) => button.addEventListener('click', () => {
+    inkColor = button.dataset.inkColor;
+    $$('[data-ink-color]').forEach((item) => item.classList.toggle('is-selected', item === button));
+  }));
 
   function pointFromEvent(event) {
     const rect = inkCanvas.getBoundingClientRect();
@@ -336,7 +356,7 @@
     inkContext.lineCap = 'round';
     inkContext.lineJoin = 'round';
     inkContext.lineWidth = drawMode === 'highlight' ? strokeWidth * 3 : strokeWidth;
-    inkContext.strokeStyle = drawMode === 'highlight' ? 'rgba(248, 203, 65, 0.5)' : '#262923';
+    inkContext.strokeStyle = drawMode === 'highlight' ? 'rgba(248, 203, 65, 0.5)' : inkColor;
     inkContext.globalCompositeOperation = drawMode === 'erase' ? 'destination-out' : 'source-over';
     inkContext.stroke();
     lastPoint = point;
@@ -356,6 +376,62 @@
   };
 
   const railMock = $('#railMock');
+  const railDragHandle = $('#railDragHandle');
+  let railY = 16;
+  let railDrag = null;
+
+  function clampRailY(value) {
+    const stageHeight = railMock.parentElement.getBoundingClientRect().height;
+    const maxY = Math.max(16, stageHeight - railMock.offsetHeight - 16);
+    return Math.min(Math.max(value, 16), maxY);
+  }
+
+  function settleRail() {
+    railMock.classList.remove('is-dragging');
+    railMock.style.setProperty('--rail-drag-x', '0px');
+    railMock.classList.add('is-settling');
+    window.setTimeout(() => railMock.classList.remove('is-settling'), 220);
+  }
+
+  railDragHandle.addEventListener('pointerdown', (event) => {
+    if (event.button !== 0) return;
+    railDrag = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, startRailY: railY };
+    railDragHandle.setPointerCapture(event.pointerId);
+    railMock.classList.add('is-dragging');
+  });
+
+  railDragHandle.addEventListener('pointermove', (event) => {
+    if (!railDrag || event.pointerId !== railDrag.pointerId) return;
+    const pullX = Math.min(14, Math.max(-190, event.clientX - railDrag.startX));
+    railY = clampRailY(railDrag.startRailY + event.clientY - railDrag.startY);
+    railMock.style.setProperty('--rail-drag-x', `${pullX}px`);
+    railMock.style.setProperty('--rail-y', `${railY}px`);
+  });
+
+  const finishRailDrag = (event) => {
+    if (!railDrag || event.pointerId !== railDrag.pointerId) return;
+    railDrag = null;
+    settleRail();
+  };
+  railDragHandle.addEventListener('pointerup', finishRailDrag);
+  railDragHandle.addEventListener('pointercancel', finishRailDrag);
+  railDragHandle.addEventListener('keydown', (event) => {
+    if (!['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    const stageHeight = railMock.parentElement.getBoundingClientRect().height;
+    const maxY = Math.max(16, stageHeight - railMock.offsetHeight - 16);
+    if (event.key === 'Home') railY = 16;
+    if (event.key === 'End') railY = maxY;
+    if (event.key === 'ArrowUp') railY = clampRailY(railY - 16);
+    if (event.key === 'ArrowDown') railY = clampRailY(railY + 16);
+    railMock.style.setProperty('--rail-y', `${railY}px`);
+    settleRail();
+  });
+  window.addEventListener('resize', () => {
+    railY = clampRailY(railY);
+    railMock.style.setProperty('--rail-y', `${railY}px`);
+  });
+
   function setRailOpen(open) {
     railMock.classList.toggle('is-open', open);
     railMock.classList.add('is-settling');
@@ -433,44 +509,79 @@
   }));
 
   const calendarDays = $('#calendarDays');
+  const noteCalendarDays = $('#noteCalendarDays');
   const days = [31, ...Array.from({ length: 30 }, (_, index) => index + 1), 1, 2, 3, 4];
-  days.forEach((day, index) => {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.textContent = day;
-    if (index === 0 || index > 30) button.classList.add('is-outside');
-    if (day === 8 && index === 8) button.classList.add('is-selected');
-    if (index > 0 && index <= 30) {
-      button.addEventListener('click', () => {
-        $$('.calendar-days button').forEach((item) => item.classList.remove('is-selected'));
-        button.classList.add('is-selected');
-        updateReminderSummary(day);
-      });
-    }
-    calendarDays.append(button);
-  });
-
   let reminderHour = 9;
   let reminderMinute = 30;
   let reminderDay = 8;
   let repeatValue = 'once';
+
+  function populateCalendar(container, compact = false) {
+    days.forEach((day, index) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = day;
+      button.dataset.calendarDay = String(day);
+      if (index === 0 || index > 30) button.classList.add(compact ? 'is-muted' : 'is-outside');
+      if (day === 8 && index === 8) button.classList.add('is-selected');
+      if (index > 0 && index <= 30) {
+        button.addEventListener('click', () => {
+          $$('[data-calendar-day]').forEach((item) => item.classList.toggle('is-selected', item.dataset.calendarDay === String(day) && !item.classList.contains('is-outside') && !item.classList.contains('is-muted')));
+          updateReminderSummary(day);
+        });
+      }
+      container.append(button);
+    });
+  }
+
+  populateCalendar(calendarDays);
+  populateCalendar(noteCalendarDays, true);
+
   function updateReminderSummary(day = reminderDay) {
     reminderDay = day;
     const date = new Date(2026, 8, reminderDay);
     const weekday = date.toLocaleDateString('en-GB', { weekday: 'long' });
     const time = `${String(reminderHour).padStart(2, '0')}:${String(reminderMinute).padStart(2, '0')}`;
     $('#reminderTime').textContent = time;
+    $('#noteReminderTime').textContent = time;
     $('#reminderSummary').textContent = `${weekday}, ${reminderDay} September at ${time} · ${repeatValue}`;
+    $('#noteReminderInlineSummary').textContent = `${weekday}, ${reminderDay} September · ${time} · ${repeatValue}`;
   }
   $$('[data-time-step]').forEach((button) => button.addEventListener('click', () => {
     reminderHour = button.dataset.timeStep === 'hour-up' ? (reminderHour + 1) % 24 : (reminderHour + 23) % 24;
     updateReminderSummary();
   }));
-  $$('.repeat-options button').forEach((button) => button.addEventListener('click', () => {
-    $$('.repeat-options button').forEach((item) => item.classList.toggle('is-active', item === button));
-    repeatValue = button.textContent.trim().toLowerCase();
+  $$('[data-repeat]').forEach((button) => button.addEventListener('click', () => {
+    repeatValue = button.dataset.repeat;
+    $$('[data-repeat]').forEach((item) => item.classList.toggle('is-active', item.dataset.repeat === repeatValue));
     updateReminderSummary();
   }));
+
+  function openNoteCalendar() {
+    showView('editor');
+    setTool('remind', true);
+    noteInlineCalendar.hidden = false;
+    noteMock.classList.add('has-inline-calendar');
+    sizeIndex = 1;
+    applySize(sizeIndex);
+    $$('.lab-surface-nav button').forEach((button) => button.classList.remove('is-active'));
+    $('.lab-surface-nav button[data-open-note-calendar]')?.classList.add('is-active');
+  }
+
+  $$('[data-open-note-calendar]').forEach((button) => button.addEventListener('click', openNoteCalendar));
+  $('#closeNoteCalendar').addEventListener('click', () => {
+    noteInlineCalendar.hidden = true;
+    noteMock.classList.remove('has-inline-calendar');
+  });
+  $('#saveInlineReminder').addEventListener('click', () => {
+    const summary = $('#noteReminderInlineSummary').textContent;
+    $('span', noteReminderChip).textContent = summary;
+    noteReminderChip.hidden = false;
+    noteReminderChip.classList.remove('is-entering');
+    requestAnimationFrame(() => noteReminderChip.classList.add('is-entering'));
+    noteInlineCalendar.hidden = true;
+    noteMock.classList.remove('has-inline-calendar');
+  });
   $('#saveReminder').addEventListener('click', () => {
     const button = $('#saveReminder');
     button.classList.add('is-success');

@@ -99,7 +99,7 @@ html[data-skribly-window='rail'] #root,
 
 .context-rail-heading small {
   color: rgb(38 41 35 / 54%);
-  font-size: 7px;
+  font-size: 9px;
 }
 
 .context-rail-actions {
@@ -114,7 +114,7 @@ html[data-skribly-window='rail'] #root,
   padding: 0;
   place-items: center;
   border: 0;
-  border-radius: 9px;
+  border-radius: 50%;
   background: transparent;
   color: rgb(38 41 35 / 64%);
   cursor: pointer;
@@ -142,7 +142,7 @@ html[data-skribly-window='rail'] #root,
   background: transparent;
   color: rgb(38 41 35 / 62%);
   cursor: pointer;
-  font: 750 8px/1 var(--font-ui);
+  font: 750 10px/1 var(--font-ui);
 }
 
 .context-rail-tabs button span {
@@ -249,7 +249,7 @@ html[data-skribly-window='rail'] #root,
 }
 
 .context-rail-note strong {
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .context-rail-note small {
@@ -257,7 +257,7 @@ html[data-skribly-window='rail'] #root,
   align-items: center;
   gap: 3px;
   color: rgb(38 41 35 / 52%);
-  font-size: 7px;
+  font-size: 9px;
 }
 
 .context-rail-preview {
@@ -292,11 +292,11 @@ html[data-skribly-window='rail'] #root,
   align-items: center;
   gap: 5px;
   border: 0;
-  border-radius: 9px;
+  border-radius: 999px;
   background: var(--ink);
   color: var(--paper);
   cursor: pointer;
-  font: 750 8px/1 var(--font-ui);
+  font: 750 9px/1 var(--font-ui);
   white-space: nowrap;
 }
 
@@ -307,7 +307,7 @@ html[data-skribly-window='rail'] #root,
   border-radius: 10px;
   background: rgb(255 255 255 / 38%);
   color: rgb(38 41 35 / 62%);
-  font-size: 8px;
+  font-size: 10px;
   line-height: 1.4;
 }
 

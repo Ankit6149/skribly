@@ -8,6 +8,10 @@
 - Refined editor capture: `artifacts/interface-lab-refinement/10-after-editor-matched.png`
 - Refined draw capture: `artifacts/interface-lab-refinement/11-after-draw-matched.png`
 - Refined rail capture: `artifacts/interface-lab-refinement/12-after-rail-matched.png`
+- Circular-control editor capture: `artifacts/interface-lab-refinement/13-after-circular-editor.png`
+- Readable magnetic-rail capture: `artifacts/interface-lab-refinement/14-after-readable-magnetic-rail.png`
+- Expanded drawing capture: `artifacts/interface-lab-refinement/15-after-expanded-draw.png`
+- In-note calendar capture: `artifacts/interface-lab-refinement/16-after-inline-calendar.png`
 - CSS viewport: 1280 x 900 for every matched capture.
 - Raster size: 1265 x 842 for every matched capture.
 - Source device pixel ratio: 1.25. Local implementation device pixel ratio: 1.0. The browser output is normalized to the same raster dimensions for comparison.
@@ -22,6 +26,13 @@ The matched captures were reviewed together in the same comparison input.
 - P3: State changes felt static. Fixed with restrained 120–180 ms press, panel, selection, resize, color, collapse, rail, chip, and save feedback.
 - P3: Prototype status repeated two ideas. Fixed by reducing it to one `Live mock` indicator.
 - P3: The display heading competed with the prototypes. Fixed by slightly reducing its maximum scale while preserving the site typography and hierarchy.
+- P2: Icon-only controls used inconsistent rounded-square containers. Fixed by making icon-only navigation, note, tray, rail, library, calendar, time, and state controls true circles while leaving text actions as pills.
+- P2: Rail metadata was below a comfortable reading floor. Fixed with shared 10 px micro and 11 px small-text tokens, 12 px rail titles, and stronger hierarchy without widening the rail.
+- P2: The rail could only sit against one fixed top position. Fixed with a draggable header: horizontal pull snaps back to the right edge, vertical position remains clamped inside the stage, and keyboard Home/End/arrow movement is supported.
+- P3: Collapse, import, and export symbols were ambiguous. Fixed with minus, file-import, and file-export Phosphor icons plus descriptive hover titles.
+- P2: Drawing and scheduling competed with the writing area at the comfortable note size. Fixed by enlarging the same note to its canvas preset when either tool opens, preserving typed content underneath.
+- P2: Reminder scheduling previously read as a separate destination. Fixed with an inline month, time, repeat, summary, and save flow inside the enlarged note.
+- P3: The Reminder navigation item could remain highlighted after switching to Draw. Fixed by synchronizing the active surface item with the currently visible editor state.
 
 ## Required-surface review
 
@@ -35,13 +46,17 @@ The matched captures were reviewed together in the same comparison input.
 
 - Design notes expand and collapse with correct `aria-expanded` state.
 - Draw tray opens without overlapping the canvas; stroke size cycles Thin → Medium → Thick.
+- Draw automatically expands the note to 640 x 540 and exposes pen, highlighter, eraser, stroke, ink color, and clear actions without covering typed content.
 - Note color, preset size, attachment, reminder chip, collapse, and reopen actions work.
 - Rail remains visible after note selection and when switching Here / All scope.
+- Rail header exposes a drag affordance, clamps vertical movement within the mock window, and resets horizontal pull to the docked edge on release.
 - Library selection updates title, paper, and stored location.
 - Reminder repeat choice updates its readable summary; Save shows a `Saved` state and success toast before restoring.
+- Reminder-in-note automatically expands to 640 x 540; the calendar closes back to the writing canvas without opening a separate surface.
 - No horizontally overflowing document state at the tested desktop viewport.
 - No visible unlabeled icon-only buttons in the tested active surface.
 - No browser console errors during the completed interaction pass.
+- Circular controls were visually verified on editor, library, reminder, calendar, and time surfaces; no horizontal overflow was introduced.
 - `prefers-reduced-motion` reduces animations and transitions to effectively instantaneous behavior.
 
 final result: passed

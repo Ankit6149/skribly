@@ -15,12 +15,24 @@ import { ReminderNotificationMonitor } from '../skribs/ReminderNotificationMonit
 type AccountMode = 'signIn' | 'create';
 
 async function openLibrary(view: 'notes' | 'calendar' = 'notes'): Promise<void> {
+  const home = getCurrentWindow();
   const library = await Window.getByLabel('library');
   if (!library) throw new Error('All Skribs is unavailable. Restart Skribli and try again.');
-  await library.unminimize();
-  await library.show();
-  await library.setFocus();
-  await emit('skribly://library-view', { view });
+  let homeHidden = false;
+  try {
+    await home.hide();
+    homeHidden = true;
+    await library.unminimize();
+    await library.show();
+    await library.setFocus();
+    await emit('skribly://library-view', { view });
+  } catch (error) {
+    if (homeHidden) {
+      await home.show().catch(() => undefined);
+      await home.setFocus().catch(() => undefined);
+    }
+    throw error;
+  }
 }
 
 async function openNoteRail(): Promise<void> {
