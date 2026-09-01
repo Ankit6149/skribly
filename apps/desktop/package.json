@@ -21,7 +21,7 @@
     "@supabase/supabase-js": "2.112.3",
     "@tauri-apps/api": "^2.0.0",
     "@tauri-apps/plugin-notification": "^2.3.3",
-    "lucide-react": "^0.468.0",
+    "lucide-react": "^1.37.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "zustand": "^5.0.15"
