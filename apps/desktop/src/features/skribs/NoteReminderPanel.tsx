@@ -208,7 +208,12 @@ export const NoteReminderPanel: React.FC<NoteReminderPanelProps> = ({
     <section className="note-reminder-panel" aria-labelledby="note-reminder-title">
       <header className="note-panel-heading">
         <div>
-          <strong id="note-reminder-title"><CalendarClock size={17} aria-hidden="true" /> Set a reminder</strong>
+          <strong id="note-reminder-title">
+            <span className="note-panel-heading-icon" aria-hidden="true">
+              <CalendarClock size={16} />
+            </span>
+            Set a reminder
+          </strong>
           <span>Private to this device · visible in Skribli Calendar</span>
         </div>
       </header>

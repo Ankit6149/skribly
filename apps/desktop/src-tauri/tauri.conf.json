@@ -68,10 +68,10 @@
       {
         "label": "rail",
         "title": "My Skribs",
-        "width": 72,
-        "height": 54,
+        "width": 64,
+        "height": 64,
         "minWidth": 64,
-        "minHeight": 48,
+        "minHeight": 64,
         "visible": false,
         "decorations": false,
         "transparent": true,

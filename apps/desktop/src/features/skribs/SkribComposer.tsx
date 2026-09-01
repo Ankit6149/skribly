@@ -2,7 +2,17 @@ import React, { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useSt
 import { invoke } from '@tauri-apps/api/core';
 import { emit } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { Bell, Maximize2, Paperclip, PenLine, Type, X } from 'lucide-react';
+import {
+  Bell,
+  Expand,
+  LocateFixed,
+  Maximize2,
+  Minimize2,
+  Paperclip,
+  PenLine,
+  Type,
+  X,
+} from 'lucide-react';
 import { OverlayMetrics, SkribNote, TargetWindowInfo } from '../../lib/geometry';
 import {
   addInkToNote,
@@ -38,6 +48,8 @@ type ComposerPanel = 'reminder' | null;
 type NoteSurfaceSize = 'compact' | 'medium' | 'large';
 
 const NOTE_COLORS = ['yellow', 'peach', 'mint', 'sky', 'lavender'] as const;
+const NOTE_SURFACE_SIZES: NoteSurfaceSize[] = ['compact', 'medium', 'large'];
+const NOTE_TEXT_SIZES: SkribTextSize[] = ['small', 'medium', 'large'];
 
 interface SkribComposerProps {
   note: SkribNote;
@@ -158,7 +170,6 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
     setDiagnosticsPath(null);
     setActivePanel(null);
     setDrawingEnabled(false);
-    setSurfaceSize(note.width >= 680 ? 'large' : note.width >= 500 ? 'medium' : 'compact');
     setAttachmentCount(0);
     richOperationsInProgress.current.clear();
     setRichOperationCount(0);
@@ -175,7 +186,11 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
       setSaveSnapshot(snapshot);
       setText(snapshot.draft);
     });
-  }, [note.width, saveController]);
+  }, [saveController]);
+
+  useEffect(() => {
+    setSurfaceSize(note.width >= 680 ? 'large' : note.width >= 500 ? 'medium' : 'compact');
+  }, [note.width]);
 
   useEffect(() => {
     saveController.acceptCommittedText(note.text);
@@ -264,6 +279,35 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
       }
     },
     [note.id]
+  );
+
+  const cycleSurfaceSize = useCallback(async () => {
+    const currentIndex = NOTE_SURFACE_SIZES.indexOf(surfaceSize);
+    const nextSize = NOTE_SURFACE_SIZES[(currentIndex + 1) % NOTE_SURFACE_SIZES.length]!;
+    await changeSurfaceSize(nextSize);
+  }, [changeSurfaceSize, surfaceSize]);
+
+  const cycleTextSize = useCallback(async () => {
+    const currentIndex = NOTE_TEXT_SIZES.indexOf(textSize);
+    const nextSize = NOTE_TEXT_SIZES[(currentIndex + 1) % NOTE_TEXT_SIZES.length]!;
+    await changeTextSize(nextSize);
+  }, [changeTextSize, textSize]);
+
+  const openRoomyTool = useCallback(
+    async (tool: 'draw' | 'reminder') => {
+      if (tool === 'draw') {
+        const nextEnabled = !drawingEnabled;
+        if (nextEnabled && surfaceSize !== 'large') await changeSurfaceSize('large');
+        setDrawingEnabled(nextEnabled);
+        setActivePanel(null);
+        return;
+      }
+      const openingReminder = activePanel !== 'reminder';
+      if (openingReminder && surfaceSize !== 'large') await changeSurfaceSize('large');
+      setDrawingEnabled(false);
+      setActivePanel(openingReminder ? 'reminder' : null);
+    },
+    [activePanel, changeSurfaceSize, drawingEnabled, surfaceSize]
   );
 
   const hasPersistedExtras = useCallback(async () => {
@@ -622,7 +666,11 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
               aria-label="Reposition Skribli beside the target application"
               title="Reposition beside target"
             >
-              {isRepositioning ? 'Moving…' : 'Reposition'}
+              {isRepositioning ? (
+                <span className="composer-button-spinner" aria-hidden="true" />
+              ) : (
+                <LocateFixed size={15} aria-hidden="true" />
+              )}
             </button>
             <button
               type="button"
@@ -688,10 +736,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
             aria-pressed={drawingEnabled}
             title="Draw over your text"
             disabled={!canWrite || isFinishing || isInkLoading}
-            onClick={() => {
-              setDrawingEnabled((enabled) => !enabled);
-              setActivePanel(null);
-            }}
+            onClick={() => void openRoomyTool('draw')}
           >
             <PenLine size={15} aria-hidden="true" />
           </button>
@@ -701,44 +746,42 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
             aria-expanded={activePanel === 'reminder'}
             title="Set a reminder or repeating task"
             disabled={!canWrite || isFinishing || hasPendingRichOperation}
-            onClick={() => {
-              setDrawingEnabled(false);
-              setActivePanel((panel) => panel === 'reminder' ? null : 'reminder');
-            }}
+            onClick={() => void openRoomyTool('reminder')}
           >
             <Bell size={15} aria-hidden="true" />
           </button>
-          <label className="composer-tool-select" title={`Text size: ${textSize}`}>
+          <button
+            type="button"
+            className="composer-tool-button composer-text-size-button"
+            title={`Text size: ${textSize}. Click for the next size.`}
+            aria-label={`Text size is ${textSize}. Change to the next text size.`}
+            disabled={!canWrite || isFinishing}
+            onClick={() => void cycleTextSize()}
+          >
             <Type size={14} aria-hidden="true" />
-            <span className="sr-only">Text size</span>
-            <select
-              aria-label="Text size"
-              value={textSize}
-              disabled={!canWrite || isFinishing}
-              onChange={(event) => void changeTextSize(event.target.value as SkribTextSize)}
-            >
-              <option value="small">Small text</option>
-              <option value="medium">Medium text</option>
-              <option value="large">Large text</option>
-            </select>
-          </label>
-          <label className="composer-tool-select surface-size-select" title={`Note size: ${surfaceSize}`}>
-            <Maximize2 size={14} aria-hidden="true" />
-            <span className="sr-only">Note size</span>
-            <select
-              aria-label="Note size"
-              value={surfaceSize}
-              disabled={isResizing || isFinishing || hasPendingRichOperation || hasUnsavedInk}
-              onChange={(event) => void changeSurfaceSize(event.target.value as NoteSurfaceSize)}
-            >
-              <option value="compact">Compact note</option>
-              <option value="medium">Medium note</option>
-              <option value="large">Large note</option>
-            </select>
-          </label>
+            <span className="composer-tool-level" aria-hidden="true">
+              {textSize === 'small' ? 'S' : textSize === 'medium' ? 'M' : 'L'}
+            </span>
+          </button>
+          <button
+            type="button"
+            className="composer-tool-button surface-size-button"
+            title={`Note size: ${surfaceSize}. Click for the next size.`}
+            aria-label={`Note size is ${surfaceSize}. Change to the next note size.`}
+            disabled={isResizing || isFinishing || hasPendingRichOperation || hasUnsavedInk}
+            onClick={() => void cycleSurfaceSize()}
+          >
+            {surfaceSize === 'compact' ? (
+              <Maximize2 size={14} aria-hidden="true" />
+            ) : surfaceSize === 'medium' ? (
+              <Expand size={14} aria-hidden="true" />
+            ) : (
+              <Minimize2 size={14} aria-hidden="true" />
+            )}
+          </button>
         </div>
 
-        <div className="composer-unified-workspace">
+        <div className={`composer-unified-workspace ${activePanel ? 'panel-open' : ''}`}>
           <div
             className={`composer-unified-canvas ${drawingEnabled ? 'drawing' : 'typing'}`}
             data-text-size={textSize}

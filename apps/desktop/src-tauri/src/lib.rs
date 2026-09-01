@@ -3,11 +3,15 @@ mod desktop;
 mod note_lifecycle;
 mod platform;
 
+use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::{channel, Receiver};
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
 use std::time::Duration;
-use tauri::{AppHandle, Emitter, LogicalSize, Manager, PhysicalPosition, RunEvent, State};
+use tauri::{
+    AppHandle, Emitter, LogicalSize, Manager, PhysicalPosition, PhysicalSize, RunEvent, State,
+    WebviewWindow,
+};
 
 use core::coordinator::{Coordinator, MatchResult};
 use core::models::{
@@ -85,6 +89,175 @@ impl NativeWindowOperationGate {
             .lock()
             .map_err(|_| "The native window operation lock is unavailable.".to_string())
     }
+}
+
+const RAIL_COLLAPSED_WIDTH: f64 = 64.0;
+const RAIL_COLLAPSED_HEIGHT: f64 = 64.0;
+const RAIL_EDGE_MARGIN_LOGICAL: f64 = 8.0;
+const RAIL_DOCK_DEBOUNCE: Duration = Duration::from_millis(180);
+
+#[derive(Debug, Default)]
+struct RailWindowRuntime {
+    movement_generation: AtomicU64,
+    pending_programmatic_positions: Mutex<VecDeque<(i32, i32)>>,
+    has_docked_position: AtomicBool,
+}
+
+impl RailWindowRuntime {
+    fn cancel_pending_user_dock(&self) {
+        self.movement_generation.fetch_add(1, Ordering::AcqRel);
+    }
+
+    fn record_programmatic_position(&self, position: PhysicalPosition<i32>) {
+        // App-controlled placement supersedes any delayed edge snap that was
+        // scheduled while the user was dragging the rail.
+        self.cancel_pending_user_dock();
+        if let Ok(mut pending) = self.pending_programmatic_positions.lock() {
+            pending.push_back((position.x, position.y));
+            while pending.len() > 8 {
+                pending.pop_front();
+            }
+        }
+        self.has_docked_position.store(true, Ordering::Release);
+    }
+
+    fn consume_programmatic_movement(&self, position: PhysicalPosition<i32>) -> bool {
+        let Ok(mut pending) = self.pending_programmatic_positions.lock() else {
+            return false;
+        };
+        let matching_index = pending
+            .iter()
+            .position(|(x, y)| x.abs_diff(position.x) <= 2 && y.abs_diff(position.y) <= 2);
+        if let Some(index) = matching_index {
+            pending.remove(index);
+            true
+        } else {
+            // A non-matching move is user-originated. Drop stale expected
+            // positions so a later drag cannot be mistaken for an old command.
+            pending.clear();
+            false
+        }
+    }
+
+    fn begin_user_movement(&self) -> u64 {
+        self.movement_generation
+            .fetch_add(1, Ordering::AcqRel)
+            .wrapping_add(1)
+    }
+
+    fn movement_is_current(&self, generation: u64) -> bool {
+        self.movement_generation.load(Ordering::Acquire) == generation
+    }
+
+    fn has_docked_position(&self) -> bool {
+        self.has_docked_position.load(Ordering::Acquire)
+    }
+}
+
+static RAIL_WINDOW_RUNTIME: OnceLock<RailWindowRuntime> = OnceLock::new();
+
+fn rail_window_runtime() -> &'static RailWindowRuntime {
+    RAIL_WINDOW_RUNTIME.get_or_init(RailWindowRuntime::default)
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct RailDockBounds {
+    x: i32,
+    y: i32,
+    width: i32,
+    height: i32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RailDockSide {
+    Left,
+    Right,
+}
+
+fn rail_dock_limits(
+    window_size: PhysicalSize<u32>,
+    work_area: RailDockBounds,
+    margin: i32,
+) -> (i64, i64, i64, i64) {
+    let work_left = i64::from(work_area.x);
+    let work_top = i64::from(work_area.y);
+    let work_width = i64::from(work_area.width.max(0));
+    let work_height = i64::from(work_area.height.max(0));
+    let window_width = i64::from(window_size.width);
+    let window_height = i64::from(window_size.height);
+    let margin = i64::from(margin.max(0));
+
+    let horizontal_margin = margin.min((work_width - window_width).max(0) / 2);
+    let vertical_margin = margin.min((work_height - window_height).max(0) / 2);
+    let left = work_left.saturating_add(horizontal_margin);
+    let right = work_left
+        .saturating_add(work_width)
+        .saturating_sub(window_width)
+        .saturating_sub(horizontal_margin)
+        .max(left);
+    let top = work_top.saturating_add(vertical_margin);
+    let bottom = work_top
+        .saturating_add(work_height)
+        .saturating_sub(window_height)
+        .saturating_sub(vertical_margin)
+        .max(top);
+    (left, right, top, bottom)
+}
+
+fn rail_dock_side(
+    position: PhysicalPosition<i32>,
+    window_size: PhysicalSize<u32>,
+    work_area: RailDockBounds,
+    margin: i32,
+) -> RailDockSide {
+    let (left, right, _, _) = rail_dock_limits(window_size, work_area, margin);
+    let current_x = i64::from(position.x);
+    if current_x.abs_diff(left) <= current_x.abs_diff(right) {
+        RailDockSide::Left
+    } else {
+        RailDockSide::Right
+    }
+}
+
+fn rail_position_for_side_and_y(
+    side: RailDockSide,
+    y: i32,
+    window_size: PhysicalSize<u32>,
+    work_area: RailDockBounds,
+    margin: i32,
+) -> PhysicalPosition<i32> {
+    let (left, right, top, bottom) = rail_dock_limits(window_size, work_area, margin);
+    let x = match side {
+        RailDockSide::Left => left,
+        RailDockSide::Right => right,
+    };
+    PhysicalPosition::new(
+        x.clamp(i64::from(i32::MIN), i64::from(i32::MAX)) as i32,
+        i64::from(y)
+            .clamp(top, bottom)
+            .clamp(i64::from(i32::MIN), i64::from(i32::MAX)) as i32,
+    )
+}
+
+fn rail_position_after_size_change(
+    previous_position: PhysicalPosition<i32>,
+    previous_size: PhysicalSize<u32>,
+    next_size: PhysicalSize<u32>,
+    work_area: RailDockBounds,
+    margin: i32,
+) -> PhysicalPosition<i32> {
+    let side = rail_dock_side(previous_position, previous_size, work_area, margin);
+    rail_position_for_side_and_y(side, previous_position.y, next_size, work_area, margin)
+}
+
+fn nearest_rail_edge_position(
+    position: PhysicalPosition<i32>,
+    window_size: PhysicalSize<u32>,
+    work_area: RailDockBounds,
+    margin: i32,
+) -> PhysicalPosition<i32> {
+    let side = rail_dock_side(position, window_size, work_area, margin);
+    rail_position_for_side_and_y(side, position.y, window_size, work_area, margin)
 }
 
 impl NoteWindowRuntime {
@@ -230,6 +403,116 @@ pub struct AppState {
     native_window_operation_gate: NativeWindowOperationGate,
     #[cfg(target_os = "windows")]
     pub win_event_pipeline: WinEventPipeline,
+}
+
+fn set_rail_position(
+    _app_handle: &AppHandle,
+    rail: &WebviewWindow,
+    position: PhysicalPosition<i32>,
+) -> tauri::Result<()> {
+    rail_window_runtime().record_programmatic_position(position);
+    rail.set_position(position)
+}
+
+fn size_and_dock_rail(
+    app_handle: &AppHandle,
+    rail: &WebviewWindow,
+    logical_width: f64,
+    logical_height: f64,
+) -> Result<(), String> {
+    let previous_position = rail.outer_position().ok();
+    let previous_size = rail.outer_size().ok();
+    let had_docked_position = rail_window_runtime().has_docked_position();
+    let monitor = rail
+        .current_monitor()
+        .ok()
+        .flatten()
+        .or_else(|| rail.primary_monitor().ok().flatten());
+
+    rail.set_size(LogicalSize::new(logical_width, logical_height))
+        .map_err(|error| format!("Skribli could not resize the note rail: {error}"))?;
+
+    let Some(monitor) = monitor else {
+        return Ok(());
+    };
+    let work_area = monitor.work_area();
+    let scale = monitor.scale_factor();
+    let margin = (RAIL_EDGE_MARGIN_LOGICAL * scale).round() as i32;
+    let bounds = RailDockBounds {
+        x: work_area.position.x,
+        y: work_area.position.y,
+        width: i32::try_from(work_area.size.width).unwrap_or(i32::MAX),
+        height: i32::try_from(work_area.size.height).unwrap_or(i32::MAX),
+    };
+    let next_size = PhysicalSize::new(
+        (logical_width * scale).round().max(0.0) as u32,
+        (logical_height * scale).round().max(0.0) as u32,
+    );
+    let position = match (had_docked_position, previous_position, previous_size) {
+        (true, Some(position), Some(size)) => {
+            rail_position_after_size_change(position, size, next_size, bounds, margin)
+        }
+        _ => rail_position_for_side_and_y(
+            RailDockSide::Right,
+            work_area.position.y.saturating_add(
+                (work_area.size.height as i32 - next_size.height as i32).max(0) / 2,
+            ),
+            next_size,
+            bounds,
+            margin,
+        ),
+    };
+    set_rail_position(app_handle, rail, position)
+        .map_err(|error| format!("Skribli could not dock the note rail: {error}"))
+}
+
+fn schedule_rail_edge_dock(app_handle: &AppHandle, position: PhysicalPosition<i32>) {
+    let runtime = rail_window_runtime();
+    if runtime.consume_programmatic_movement(position) {
+        return;
+    }
+    let generation = runtime.begin_user_movement();
+    let app_handle = app_handle.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(RAIL_DOCK_DEBOUNCE);
+        if !rail_window_runtime().movement_is_current(generation) {
+            return;
+        }
+        let Some(rail) = app_handle.get_webview_window("rail") else {
+            return;
+        };
+        if !rail.is_visible().unwrap_or(false) {
+            return;
+        }
+        let Ok(current_position) = rail.outer_position() else {
+            return;
+        };
+        let Ok(window_size) = rail.outer_size() else {
+            return;
+        };
+        let monitor = rail
+            .current_monitor()
+            .ok()
+            .flatten()
+            .or_else(|| rail.primary_monitor().ok().flatten());
+        let Some(monitor) = monitor else {
+            return;
+        };
+        let work_area = monitor.work_area();
+        let scale = monitor.scale_factor();
+        let margin = (RAIL_EDGE_MARGIN_LOGICAL * scale).round() as i32;
+        let bounds = RailDockBounds {
+            x: work_area.position.x,
+            y: work_area.position.y,
+            width: i32::try_from(work_area.size.width).unwrap_or(i32::MAX),
+            height: i32::try_from(work_area.size.height).unwrap_or(i32::MAX),
+        };
+        let docked = nearest_rail_edge_position(current_position, window_size, bounds, margin);
+        let _ = rail.set_always_on_top(true);
+        if docked != current_position {
+            let _ = set_rail_position(&app_handle, &rail, docked);
+        }
+    });
 }
 
 fn set_runtime_active_target_unchecked(state: &AppState, target: Option<TargetWindowInfo>) {
@@ -387,35 +670,11 @@ fn show_global_note_rail(app_handle: AppHandle) -> Result<(), String> {
     let rail = app_handle
         .get_webview_window("rail")
         .ok_or_else(|| "My Skribs rail is unavailable.".to_string())?;
-    let width = 72.0;
-    let height = 54.0;
+    let width = RAIL_COLLAPSED_WIDTH;
+    let height = RAIL_COLLAPSED_HEIGHT;
     rail.set_always_on_top(true)
         .map_err(|error| format!("Skribli could not dock the desktop note pill: {error}"))?;
-    rail.set_size(LogicalSize::new(width, height))
-        .map_err(|error| format!("Skribli could not size the desktop note pill: {error}"))?;
-
-    if let Some(monitor) = rail
-        .primary_monitor()
-        .map_err(|error| format!("Skribli could not read the desktop work area: {error}"))?
-    {
-        let work_area = monitor.work_area();
-        let scale = monitor.scale_factor();
-        let rail_width = (width * scale).round() as i32;
-        let rail_height = (height * scale).round() as i32;
-        let margin = (16.0 * scale).round() as i32;
-        let x = work_area
-            .position
-            .x
-            .saturating_add(work_area.size.width as i32)
-            .saturating_sub(rail_width)
-            .saturating_sub(margin);
-        let y = work_area
-            .position
-            .y
-            .saturating_add((work_area.size.height as i32 - rail_height).max(0) / 2);
-        rail.set_position(PhysicalPosition::new(x, y))
-            .map_err(|error| format!("Skribli could not place the desktop note pill: {error}"))?;
-    }
+    size_and_dock_rail(&app_handle, &rail, width, height)?;
 
     let _ = app_handle.emit("skribly://global-rail-refresh", ());
     rail.show()
@@ -452,49 +711,11 @@ fn show_context_rail_for_target(
     let Some(rail) = app_handle.get_webview_window("rail") else {
         return Ok(false);
     };
-    let width = 72.0;
-    let height = 54.0;
+    let width = RAIL_COLLAPSED_WIDTH;
+    let height = RAIL_COLLAPSED_HEIGHT;
     rail.set_always_on_top(true)
         .map_err(|error| format!("Skribli could not attach the note rail to this app: {error}"))?;
-    rail.set_size(LogicalSize::new(width, height))
-        .map_err(|error| format!("Skribli could not size the note rail: {error}"))?;
-
-    if let Some(note_window) = app_handle.get_webview_window("main") {
-        if let (Ok(note_position), Ok(note_size)) =
-            (note_window.outer_position(), note_window.outer_size())
-        {
-            let scale = if target.scale_factor.is_finite() && target.scale_factor > 0.0 {
-                target.scale_factor
-            } else {
-                1.0
-            };
-            let rail_width = (width * scale).round() as i32;
-            let rail_height = (height * scale).round() as i32;
-            let gap = (8.0 * scale).round() as i32;
-            let target_right = target.bounds.x.saturating_add(target.bounds.width);
-            let target_bottom = target.bounds.y.saturating_add(target.bounds.height);
-            let max_x = target_right.saturating_sub(rail_width).max(target.bounds.x);
-            let max_y = target_bottom
-                .saturating_sub(rail_height)
-                .max(target.bounds.y);
-            let right_x = note_position
-                .x
-                .saturating_add(note_size.width as i32)
-                .saturating_add(gap);
-            let x = if right_x.saturating_add(rail_width) <= target_right {
-                right_x
-            } else {
-                note_position
-                    .x
-                    .saturating_sub(rail_width)
-                    .saturating_sub(gap)
-            }
-            .clamp(target.bounds.x, max_x);
-            let y = note_position.y.clamp(target.bounds.y, max_y);
-            rail.set_position(PhysicalPosition::new(x, y))
-                .map_err(|error| format!("Skribli could not place the note rail: {error}"))?;
-        }
-    }
+    size_and_dock_rail(app_handle, &rail, width, height)?;
 
     let _ = app_handle.emit("skribly://context-rail-refresh", note_count);
     rail.show()
@@ -1552,86 +1773,20 @@ fn set_context_rail_expanded(
     contextual: bool,
     note_count: usize,
 ) -> Result<(), String> {
-    let target =
-        if contextual {
-            Some(state.coordinator.get_active_target().ok_or_else(|| {
-                "Skribli does not have an active application context.".to_string()
-            })?)
-        } else {
-            None
-        };
+    if contextual && state.coordinator.get_active_target().is_none() {
+        return Err("Skribli does not have an active application context.".to_string());
+    }
     let rail = app_handle
         .get_webview_window("rail")
         .ok_or_else(|| "My Skribs rail is unavailable.".to_string())?;
     let (width, height) = if expanded {
-        (304.0, (210 + note_count.min(4) * 48).min(402) as f64)
+        (336.0, (260 + note_count.min(4) * 54).clamp(424, 500) as f64)
     } else {
-        (72.0, 54.0)
+        (RAIL_COLLAPSED_WIDTH, RAIL_COLLAPSED_HEIGHT)
     };
     rail.set_always_on_top(true)
         .map_err(|error| format!("Skribli could not update the note rail layer: {error}"))?;
-    rail.set_size(LogicalSize::new(width, height))
-        .map_err(|error| format!("Skribli could not resize the note rail: {error}"))?;
-
-    if let (Some(target), Some(note_window)) =
-        (target.as_ref(), app_handle.get_webview_window("main"))
-    {
-        if let (Ok(note_position), Ok(note_size)) =
-            (note_window.outer_position(), note_window.outer_size())
-        {
-            let scale = if target.scale_factor.is_finite() && target.scale_factor > 0.0 {
-                target.scale_factor
-            } else {
-                1.0
-            };
-            let rail_width = (width * scale).round() as i32;
-            let rail_height = (height * scale).round() as i32;
-            let gap = (8.0 * scale).round() as i32;
-            let target_right = target.bounds.x.saturating_add(target.bounds.width);
-            let target_bottom = target.bounds.y.saturating_add(target.bounds.height);
-            let max_x = target_right.saturating_sub(rail_width).max(target.bounds.x);
-            let max_y = target_bottom
-                .saturating_sub(rail_height)
-                .max(target.bounds.y);
-            let right_x = note_position
-                .x
-                .saturating_add(note_size.width as i32)
-                .saturating_add(gap);
-            let x = if right_x.saturating_add(rail_width) <= target_right {
-                right_x
-            } else {
-                note_position
-                    .x
-                    .saturating_sub(rail_width)
-                    .saturating_sub(gap)
-            }
-            .clamp(target.bounds.x, max_x);
-            let y = note_position.y.clamp(target.bounds.y, max_y);
-            rail.set_position(PhysicalPosition::new(x, y))
-                .map_err(|error| format!("Skribli could not place the note rail: {error}"))?;
-        }
-    } else if let Some(monitor) = rail
-        .primary_monitor()
-        .map_err(|error| format!("Skribli could not read the desktop work area: {error}"))?
-    {
-        let work_area = monitor.work_area();
-        let scale = monitor.scale_factor();
-        let rail_width = (width * scale).round() as i32;
-        let rail_height = (height * scale).round() as i32;
-        let margin = (16.0 * scale).round() as i32;
-        let x = work_area
-            .position
-            .x
-            .saturating_add(work_area.size.width as i32)
-            .saturating_sub(rail_width)
-            .saturating_sub(margin);
-        let y = work_area
-            .position
-            .y
-            .saturating_add((work_area.size.height as i32 - rail_height).max(0) / 2);
-        rail.set_position(PhysicalPosition::new(x, y))
-            .map_err(|error| format!("Skribli could not place the desktop note rail: {error}"))?;
-    }
+    size_and_dock_rail(&app_handle, &rail, width, height)?;
     rail.show()
         .map_err(|error| format!("Skribli could not show the note rail: {error}"))?;
     Ok(())
@@ -1972,7 +2127,7 @@ fn note_surface_dimensions(size: &str) -> Result<(f64, f64), String> {
     match size {
         "compact" => Ok((420.0, 360.0)),
         "medium" => Ok((560.0, 480.0)),
-        "large" => Ok((760.0, 620.0)),
+        "large" => Ok((760.0, 680.0)),
         _ => Err("Choose compact, medium, or large for the Skrib size.".into()),
     }
 }
@@ -3047,6 +3202,13 @@ pub fn run() {
     app.run(move |app_handle, event| match event {
         RunEvent::WindowEvent {
             label,
+            event: tauri::WindowEvent::Moved(position),
+            ..
+        } if label == "rail" => {
+            schedule_rail_edge_dock(app_handle, position);
+        }
+        RunEvent::WindowEvent {
+            label,
             event: tauri::WindowEvent::CloseRequested { api, .. },
             ..
         } if label == "main" || label == "home" || label == "library" => {
@@ -3117,6 +3279,106 @@ mod tests {
             dpi: 96,
             scale_factor: 1.0,
         }
+    }
+
+    #[test]
+    fn rail_dock_uses_the_nearest_work_area_edge_and_preserves_y() {
+        let work_area = RailDockBounds {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1040,
+        };
+        let window_size = PhysicalSize::new(64, 64);
+
+        assert_eq!(
+            nearest_rail_edge_position(PhysicalPosition::new(120, 480), window_size, work_area, 8,),
+            PhysicalPosition::new(8, 480)
+        );
+        assert_eq!(
+            nearest_rail_edge_position(PhysicalPosition::new(1700, 480), window_size, work_area, 8,),
+            PhysicalPosition::new(1848, 480)
+        );
+    }
+
+    #[test]
+    fn rail_dock_clamps_y_inside_negative_origin_monitor_work_area() {
+        let work_area = RailDockBounds {
+            x: -1920,
+            y: -120,
+            width: 1920,
+            height: 1080,
+        };
+        let window_size = PhysicalSize::new(64, 64);
+
+        assert_eq!(
+            nearest_rail_edge_position(
+                PhysicalPosition::new(-100, 1200),
+                window_size,
+                work_area,
+                8,
+            ),
+            PhysicalPosition::new(-72, 888)
+        );
+    }
+
+    #[test]
+    fn rail_resize_preserves_docked_side_and_y_while_growing_inward() {
+        let work_area = RailDockBounds {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1040,
+        };
+        let collapsed = PhysicalSize::new(64, 64);
+        let expanded = PhysicalSize::new(336, 500);
+
+        assert_eq!(
+            rail_position_after_size_change(
+                PhysicalPosition::new(1848, 480),
+                collapsed,
+                expanded,
+                work_area,
+                8,
+            ),
+            PhysicalPosition::new(1576, 480)
+        );
+        assert_eq!(
+            rail_position_after_size_change(
+                PhysicalPosition::new(8, 900),
+                collapsed,
+                expanded,
+                work_area,
+                8,
+            ),
+            PhysicalPosition::new(8, 532)
+        );
+    }
+
+    #[test]
+    fn programmatic_rail_placement_cancels_a_pending_user_snap() {
+        let runtime = RailWindowRuntime::default();
+        let generation = runtime.begin_user_movement();
+        assert!(runtime.movement_is_current(generation));
+
+        let position = PhysicalPosition::new(400, 240);
+        runtime.record_programmatic_position(position);
+
+        assert!(!runtime.movement_is_current(generation));
+        assert!(runtime.consume_programmatic_movement(position));
+    }
+
+    #[test]
+    fn rapid_programmatic_rail_placements_ignore_both_move_events() {
+        let runtime = RailWindowRuntime::default();
+        let first = PhysicalPosition::new(400, 240);
+        let second = PhysicalPosition::new(420, 260);
+
+        runtime.record_programmatic_position(first);
+        runtime.record_programmatic_position(second);
+
+        assert!(runtime.consume_programmatic_movement(first));
+        assert!(runtime.consume_programmatic_movement(second));
     }
 
     #[test]
@@ -3774,7 +4036,7 @@ mod tests {
     fn note_surface_sizes_are_bounded_product_presets() {
         assert_eq!(note_surface_dimensions("compact"), Ok((420.0, 360.0)));
         assert_eq!(note_surface_dimensions("medium"), Ok((560.0, 480.0)));
-        assert_eq!(note_surface_dimensions("large"), Ok((760.0, 620.0)));
+        assert_eq!(note_surface_dimensions("large"), Ok((760.0, 680.0)));
         assert!(note_surface_dimensions("fullscreen").is_err());
     }
 }

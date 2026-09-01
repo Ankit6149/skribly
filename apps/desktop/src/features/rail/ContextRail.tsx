@@ -3,9 +3,20 @@ import { invoke } from '@tauri-apps/api/core';
 import { LogicalSize } from '@tauri-apps/api/dpi';
 import { listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { ExternalLink, Layers3, MapPin, Minimize2, RefreshCw, StickyNote } from 'lucide-react';
+import {
+  AppWindow,
+  ArrowUpRight,
+  ChevronRight,
+  GripVertical,
+  MapPin,
+  PanelRightClose,
+  RefreshCw,
+  StickyNote,
+  X,
+} from 'lucide-react';
 import type { SkribNote } from '../../lib/geometry';
 import '../../styles/context-rail.css';
+import skribliLogo from '../../../src-tauri/icons/128x128.png';
 import { applicationLabel, groupNotesForRail, railPillCount } from './contextRailModel';
 import { openNoteInSavedContext } from './openNoteContext';
 
@@ -32,7 +43,9 @@ export const ContextRail: React.FC = () => {
   );
   const visibleNotes = scope === 'context' && contextNotes.length > 0 ? contextNotes : activeNotes;
   const groups = useMemo(() => groupNotesForRail(visibleNotes), [visibleNotes]);
-  const selected = visibleNotes.find((note) => note.id === selectedId) ?? visibleNotes[0] ?? null;
+  const selected = selectedId
+    ? visibleNotes.find((note) => note.id === selectedId) ?? null
+    : null;
   const pillCount = railPillCount(activeNotes.length, contextNotes.length, contextualDock);
 
   const refresh = useCallback(async () => {
@@ -61,7 +74,7 @@ export const ContextRail: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    void getCurrentWindow().setSize(new LogicalSize(72, 54)).catch(() => undefined);
+    void getCurrentWindow().setSize(new LogicalSize(64, 64)).catch(() => undefined);
     void refresh();
     const subscriptions = [
       listen('skribly://overlay-state', () => void refresh()),
@@ -94,8 +107,8 @@ export const ContextRail: React.FC = () => {
         noteCount: visibleNotes.length,
       });
     } catch {
-      const expandedHeight = Math.min(402, 210 + Math.min(visibleNotes.length, 4) * 48);
-      await getCurrentWindow().setSize(new LogicalSize(next ? 72 : 304, next ? 54 : expandedHeight));
+      const expandedHeight = Math.min(500, Math.max(424, 260 + Math.min(visibleNotes.length, 4) * 54));
+      await getCurrentWindow().setSize(new LogicalSize(next ? 64 : 336, next ? 64 : expandedHeight));
     }
     setCollapsed(next);
   };
@@ -119,8 +132,12 @@ export const ContextRail: React.FC = () => {
           aria-label={`Open My Skribs rail with ${pillCount} notes`}
           title={`My Skribs · ${pillCount} note${pillCount === 1 ? '' : 's'}`}
         >
-          <Layers3 size={17} aria-hidden="true" />
-          <span>{pillCount > 99 ? '99+' : pillCount}</span>
+          <span className="context-rail-pill-sheet context-rail-pill-sheet-back" aria-hidden="true" />
+          <span className="context-rail-pill-sheet context-rail-pill-sheet-middle" aria-hidden="true" />
+          <span className="context-rail-pill-sheet context-rail-pill-sheet-front" aria-hidden="true">
+            <StickyNote size={15} strokeWidth={1.9} aria-hidden="true" />
+          </span>
+          <span className="context-rail-pill-count">{pillCount > 99 ? '99+' : pillCount}</span>
         </button>
       </main>
     );
@@ -130,7 +147,8 @@ export const ContextRail: React.FC = () => {
     <main className="context-rail expanded">
       <header className="context-rail-header" data-tauri-drag-region>
         <span className="context-rail-heading" data-tauri-drag-region>
-          <StickyNote size={16} aria-hidden="true" />
+          <GripVertical className="context-rail-grip" size={15} aria-hidden="true" />
+          <img className="context-rail-brand-mark" src={skribliLogo} alt="" aria-hidden="true" />
           <span data-tauri-drag-region>
             <strong data-tauri-drag-region>My Skribs</strong>
             <small data-tauri-drag-region>{activeNotes.length} saved locally</small>
@@ -141,7 +159,7 @@ export const ContextRail: React.FC = () => {
             <RefreshCw size={14} aria-hidden="true" />
           </button>
           <button type="button" onClick={() => void toggleCollapsed()} aria-label="Collapse note rail" title="Collapse">
-            <Minimize2 size={14} aria-hidden="true" />
+            <PanelRightClose size={14} aria-hidden="true" />
           </button>
         </span>
       </header>
@@ -167,29 +185,60 @@ export const ContextRail: React.FC = () => {
           <div className="context-rail-empty">Use Ctrl + Shift + Space to add a Skrib here.</div>
         ) : (
           <div className="context-rail-list" aria-label="Saved notes">
-            {groups.flatMap((group) => group.notes).map((note) => (
-              <button
-                key={note.id}
-                type="button"
-                className={`context-rail-note ${selected?.id === note.id ? 'active' : ''}`}
-                onClick={() => setSelectedId(note.id)}
-                title={note.text.trim().slice(0, 100) || note.target_title}
-              >
-                <i className={`skrib-color-${note.color}`} aria-hidden="true" />
-                <span>
-                  <strong>{noteTitle(note)}</strong>
-                  <small><MapPin size={10} aria-hidden="true" /> {note.target_title || applicationLabel(note.target_process_name)}</small>
-                </span>
-              </button>
+            {groups.map((group) => (
+              <section className="context-rail-group" key={group.key} aria-label={`${group.label} notes`}>
+                <div className="context-rail-group-heading">
+                  <span><AppWindow size={11} aria-hidden="true" /> {group.label}</span>
+                  <small>
+                    {group.notes.length}{' '}
+                    {scope === 'context' ? 'here' : group.notes.length === 1 ? 'note' : 'notes'}
+                  </small>
+                </div>
+                <div className="context-rail-group-notes">
+                  {group.notes.map((note) => (
+                    <button
+                      key={note.id}
+                      type="button"
+                      className={`context-rail-note ${selected?.id === note.id ? 'active' : ''}`}
+                      onClick={() => setSelectedId((current) => current === note.id ? null : note.id)}
+                      title={note.text.trim().slice(0, 100) || note.target_title}
+                      aria-pressed={selected?.id === note.id}
+                      aria-expanded={selected?.id === note.id}
+                    >
+                      <i className={`skrib-color-${note.color}`} aria-hidden="true" />
+                      <span>
+                        <strong>{noteTitle(note)}</strong>
+                        <small><MapPin size={11} aria-hidden="true" /> {note.target_title || applicationLabel(note.target_process_name)}</small>
+                      </span>
+                      <ChevronRight className="context-rail-note-arrow" size={13} aria-hidden="true" />
+                    </button>
+                  ))}
+                </div>
+              </section>
             ))}
           </div>
         )}
 
         {selected && (
           <article className={`context-rail-preview skrib-color-${selected.color}`}>
-            <p>{selected.text.trim() || 'Drawing, attachment, or reminder saved on this Skrib.'}</p>
-            <button type="button" onClick={() => void openContext(selected)}>
-              <ExternalLink size={13} aria-hidden="true" /> Open there
+            <div className="context-rail-preview-copy">
+              <div className="context-rail-preview-heading">
+                <small><StickyNote size={12} aria-hidden="true" /> Read Skrib</small>
+                <button
+                  type="button"
+                  className="context-rail-preview-close"
+                  onClick={() => setSelectedId(null)}
+                  aria-label="Close note preview"
+                  title="Close preview"
+                >
+                  <X size={13} aria-hidden="true" />
+                </button>
+              </div>
+              <p>{selected.text.trim() || 'Drawing, attachment, or reminder saved on this Skrib.'}</p>
+              <small><MapPin size={11} aria-hidden="true" /> {selected.target_title || applicationLabel(selected.target_process_name)}</small>
+            </div>
+            <button className="context-rail-open-context" type="button" onClick={() => void openContext(selected)}>
+              <ArrowUpRight size={13} aria-hidden="true" /> Open in app
             </button>
           </article>
         )}

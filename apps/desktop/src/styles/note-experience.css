@@ -90,6 +90,8 @@ body {
 }
 
 .composer-header {
+  position: relative;
+  z-index: 20;
   min-height: 62px;
   padding: 18px 16px 11px;
   display: flex;
@@ -130,7 +132,7 @@ body {
   display: block;
   margin-bottom: 3px;
   color: var(--skribli-muted);
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 800;
   letter-spacing: 0.14em;
 }
@@ -141,7 +143,7 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 650;
   letter-spacing: -0.015em;
 }
@@ -165,11 +167,25 @@ body {
 }
 
 .composer-reposition {
-  min-height: 30px;
-  padding: 0 9px;
-  border-radius: 10px;
-  font-size: 9px;
-  font-weight: 750;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  padding: 0;
+  place-items: center;
+  border-radius: 50%;
+}
+
+.composer-button-spinner {
+  width: 13px;
+  height: 13px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: composer-control-spin 680ms linear infinite;
+}
+
+@keyframes composer-control-spin {
+  to { transform: rotate(1turn); }
 }
 
 .composer-close {
@@ -292,12 +308,12 @@ body {
   flex-direction: column;
   gap: 2px;
   color: var(--skribli-muted);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 650;
 }
 
 .composer-status small {
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 500;
   opacity: 0.78;
 }
@@ -671,7 +687,7 @@ body {
   position: absolute;
   top: 39px;
   right: 0;
-  z-index: 8;
+  z-index: 30;
   padding: 8px;
   display: flex;
   gap: 6px;
@@ -814,8 +830,10 @@ body {
 }
 
 .composer-unified-canvas.drawing .composer-textarea {
+  padding-top: 66px;
   caret-color: transparent;
   user-select: none;
+  transition: padding-top 160ms ease;
 }
 
 .composer-ink-layer {
@@ -1585,6 +1603,184 @@ body {
   opacity: 0.64;
 }
 
+/* Production note refinement: calm circular tools, readable metadata, and in-flow panels. */
+.composer-command-bar {
+  min-height: 48px;
+  padding: 7px 13px;
+  gap: 7px;
+}
+
+.composer-tool-button,
+.composer-tool-select {
+  width: 34px;
+  min-width: 34px;
+  min-height: 34px;
+  border-radius: 50%;
+}
+
+.composer-tool-button svg {
+  transition: transform 150ms ease;
+}
+
+.composer-tool-button:hover:not(:disabled) svg {
+  transform: scale(1.08);
+}
+
+.composer-tool-level {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  min-width: 14px;
+  height: 14px;
+  display: grid;
+  padding: 0 3px;
+  place-items: center;
+  border: 1px solid rgba(38, 41, 35, 0.14);
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--skribli-ink);
+  font-size: 7px;
+  font-weight: 850;
+  line-height: 1;
+}
+
+.composer-unified-canvas {
+  min-height: 176px;
+}
+
+.ink-editor-overlay .ink-editor-toolbar {
+  min-height: 42px;
+  padding: 5px 8px;
+  border-radius: 999px;
+}
+
+.ink-editor-overlay .ink-tool-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+}
+
+.ink-editor-overlay .ink-icon-tool {
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
+  min-height: 30px;
+  padding: 0;
+  border-radius: 50%;
+}
+
+.attachment-chip-copy a,
+.attachment-chip-copy strong {
+  font-size: 11px;
+}
+
+.attachment-chip-copy small {
+  font-size: 9px;
+}
+
+.attachment-chip button {
+  border-radius: 50%;
+}
+
+.composer-inline-panel {
+  position: relative;
+  inset: auto;
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.composer-unified-workspace.panel-open .composer-unified-canvas {
+  min-height: 76px;
+  flex: 0 0 92px;
+  border-bottom: 1px dashed var(--skribli-line);
+}
+
+.composer-unified-workspace.panel-open .composer-textarea {
+  padding-top: 12px;
+  padding-bottom: 10px;
+  font-size: 16px;
+  line-height: 1.38;
+}
+
+.ink-editor button,
+.note-attachment-panel button,
+.note-reminder-panel button,
+.note-attachment-panel a {
+  font-size: 10px;
+}
+
+.ink-editor .ink-icon-tool {
+  position: relative;
+}
+
+.ink-editor-status,
+.note-attachment-summary {
+  font-size: 10px;
+}
+
+.note-panel-heading strong {
+  font-size: 17px;
+}
+
+.note-panel-heading-icon {
+  width: 30px;
+  height: 30px;
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid rgba(38, 41, 35, 0.12);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--yellow) 56%, white);
+  color: var(--olive);
+}
+
+.note-panel-heading span {
+  font-size: 10.5px;
+}
+
+.note-attachment-copy strong {
+  font-size: 11px;
+}
+
+.note-attachment-copy span,
+.note-reminder-row small {
+  font-size: 9.5px;
+}
+
+.note-reminder-presets > span,
+.note-reminder-time-kicker {
+  font-size: 9px;
+}
+
+.note-reminder-presets button {
+  font-size: 9.5px;
+}
+
+.note-reminder-calendar-nav button,
+.note-reminder-days button {
+  border-radius: 50%;
+}
+
+.note-reminder-weekdays span {
+  font-size: 8.5px;
+}
+
+.note-reminder-days button {
+  font-size: 10.5px;
+}
+
+.note-reminder-time small {
+  font-size: 9px;
+}
+
+.note-reminder-state {
+  font-size: 8.5px;
+}
+
 @media (max-width: 560px) {
   .note-reminder-picker {
     grid-template-columns: minmax(0, 1fr);
@@ -1659,6 +1855,11 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .composer-unified-canvas.drawing .composer-textarea,
+  .composer-tool-button svg {
+    transition: none;
+  }
+
   .collapsed-skrib-dot[data-opening='true'] .collapsed-skrib-bubble,
   .overlay-preparing-pulse {
     animation: none;

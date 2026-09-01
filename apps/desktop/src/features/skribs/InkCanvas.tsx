@@ -345,21 +345,25 @@ export const InkCanvas: React.FC<InkCanvasProps> = ({
       <div className="ink-editor-toolbar">
         <button
           type="button"
-          className={interactionMode === 'select' ? 'active' : ''}
+          className={`ink-icon-tool ${interactionMode === 'select' ? 'active' : ''}`}
           aria-pressed={interactionMode === 'select'}
+          aria-label="Select and move a stroke"
           disabled={disabled}
           onClick={() => setInteractionMode('select')}
           title="Select and move a stroke"
         >
-          <MousePointer2 size={14} aria-hidden="true" /> Select
+          <MousePointer2 size={14} aria-hidden="true" />
+          <span className="ink-tool-label">Select</span>
         </button>
         <div className="ink-tool-group" role="group" aria-label="Drawing tool">
           {(['pen', 'highlighter', 'eraser'] as const).map((value) => (
             <button
               key={value}
               type="button"
-              className={tool === value ? 'active' : ''}
+              className={`ink-icon-tool ${tool === value ? 'active' : ''}`}
               aria-pressed={tool === value}
+              aria-label={value === 'pen' ? 'Pen' : value === 'highlighter' ? 'Highlighter' : 'Eraser'}
+              title={value === 'pen' ? 'Pen' : value === 'highlighter' ? 'Highlighter' : 'Eraser'}
               disabled={disabled}
               onClick={() => {
                 setTool(value);
@@ -368,7 +372,9 @@ export const InkCanvas: React.FC<InkCanvasProps> = ({
               }}
             >
               {value === 'pen' ? <PenLine size={14} aria-hidden="true" /> : value === 'highlighter' ? <Highlighter size={14} aria-hidden="true" /> : <Eraser size={14} aria-hidden="true" />}
-              {value === 'pen' ? 'Pen' : value === 'highlighter' ? 'Highlight' : 'Eraser'}
+              <span className="ink-tool-label">
+                {value === 'pen' ? 'Pen' : value === 'highlighter' ? 'Highlight' : 'Eraser'}
+              </span>
             </button>
           ))}
         </div>
@@ -398,16 +404,27 @@ export const InkCanvas: React.FC<InkCanvasProps> = ({
           />
         </label>
         <div className="ink-history-actions">
-          <button type="button" onClick={undo} disabled={disabled || strokes.length === 0}>
-            <Undo2 size={14} aria-hidden="true" /> Undo
+          <button
+            type="button"
+            className="ink-icon-tool"
+            aria-label="Undo last stroke"
+            title="Undo"
+            onClick={undo}
+            disabled={disabled || strokes.length === 0}
+          >
+            <Undo2 size={14} aria-hidden="true" />
+            <span className="ink-tool-label">Undo</span>
           </button>
           <button
             type="button"
-            className={clearPending ? 'danger' : ''}
+            className={`ink-icon-tool ${clearPending ? 'danger' : ''}`}
+            aria-label={clearPending ? 'Confirm clearing every stroke' : 'Clear drawing'}
+            title={clearPending ? 'Click again to clear every stroke' : 'Clear drawing'}
             onClick={clear}
             disabled={disabled || strokes.length === 0}
           >
-            <Trash2 size={14} aria-hidden="true" /> {clearPending ? 'Clear all?' : 'Clear'}
+            <Trash2 size={14} aria-hidden="true" />
+            <span className="ink-tool-label">{clearPending ? 'Clear all?' : 'Clear'}</span>
           </button>
           {onSavePreview && (
             <button

@@ -59,4 +59,18 @@ The matched captures were reviewed together in the same comparison input.
 - Circular controls were visually verified on editor, library, reminder, calendar, and time surfaces; no horizontal overflow was introduced.
 - `prefers-reduced-motion` reduces animations and transitions to effectively instantaneous behavior.
 
+## Production desktop rail and note QA
+
+- User-selected collapsed rail reference: `artifacts/rail-redesign/04-user-selected-collapsed-pill.png`.
+- Actual Tauri collapsed rail capture: `artifacts/rail-redesign/cdp-latest-collapsed/rail-64x64.png`.
+- Actual Tauri expanded rail capture: `artifacts/rail-redesign/cdp-latest-expanded/rail-336x476.png`.
+- Actual Tauri large note capture: `artifacts/rail-redesign/cdp-force-note-2/main-746x612.png`.
+- Actual Tauri reminder capture: `artifacts/rail-redesign/cdp-force-note-large/main-760x620.png`.
+- The reference and final collapsed rail were reviewed together. The final production rail preserves the layered yellow, peach, and sky paper silhouette, count badge, soft shadow, and note meaning while reducing the native footprint from 72 x 72 to 64 x 64.
+- The expanded rail uses the unchanged packaged Skribli mark, a wider 336 px reading surface, singular/plural group grammar, and a separate explicit `Open in app` action.
+- Note-row selection now opens and closes an in-rail reading view. Long note text remains readable with a themed internal scrollbar; selecting a note no longer navigates away.
+- Opening the reminder no longer loses its active panel during the native resize. The calendar, quick picks, time, repeat, selected date, and save action remain visible together on the large note surface.
+- Native edge-docking tests verify nearest-edge snapping, negative-origin monitors, growth inward from either wall, preservation of vertical position, and suppression of stale move events.
+- Final automated verification: 27 desktop test files / 150 tests, 137 native library tests, 3 native binary tests, 37 schema migration tests, production build, desktop theme validation, compact-surface validation, and Rust format check all passed.
+
 final result: passed
