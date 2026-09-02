@@ -1910,11 +1910,15 @@ fn open_skrib_note_here(
 #[tauri::command]
 fn close_skrib_note_here(app_handle: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
     let _operation_guard = state.native_window_operation_gate.lock()?;
-    let detached = state
+    let (detached, has_active_note) = state
         .note_window_runtime
         .lock()
-        .map(|runtime| runtime.detached)
-        .unwrap_or(false);
+        .map(|runtime| (runtime.detached, runtime.active_note_id().is_some()))
+        .map_err(|_| "The note window state is unavailable.".to_string())?;
+    // Trash/discard already hides the removed note and clears its runtime state.
+    if !has_active_note {
+        return Ok(());
+    }
     if !detached {
         return Err("This is a contextual note, not an Open here window.".into());
     }

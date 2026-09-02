@@ -89,8 +89,8 @@ This section supersedes the in-rail reading interaction described above. The use
 ### Automated evidence
 
 - Desktop tests: 155 passing, including separate Open here/Open at location command paths and draft-save handshake success/failure.
-- Native tests: 141 library tests, 3 binary tests, and 37 schema migration tests passed.
-- TypeScript, production build, product lifecycle validation, theme/compact-surface checks, repository governance, and site validation are tracked for the release candidate.
+- Native tests: 142 library tests, 3 binary tests, and 37 schema migration tests passed. The added side-by-side layout regression covers both rail sides, negative-origin monitors, and 100%/125%/150% scaling.
+- TypeScript, production build, product lifecycle validation, theme/compact-surface checks, repository governance, site validation, and private-artifact workflow validation passed locally. The installer workflow repeats these checks against the exact committed candidate.
 - No production account credentials, installed note data, or website design were changed for this revision.
 
 ### Visual verification limitation

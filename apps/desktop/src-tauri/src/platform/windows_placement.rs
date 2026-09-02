@@ -735,6 +735,47 @@ pub fn position_note_workspace_for_target(
     }
 }
 
+fn calculate_detached_note_window_placement(
+    work_area: &WindowRect,
+    rail_bounds: &WindowRect,
+    note: &SkribNote,
+    dpi: u32,
+) -> Result<CompactWindowPlacement, String> {
+    let scale = normalized_dpi(dpi) as f64 / 96.0;
+    let rail_is_on_right = rail_bounds.x > work_area.x + work_area.width / 2;
+    let available_width = if rail_is_on_right {
+        i64::from(rail_bounds.x) - i64::from(work_area.x)
+    } else {
+        rect_right(work_area) - rect_right(rail_bounds)
+    } as f64
+        / scale
+        - COMPACT_WINDOW_LOGICAL_MARGIN as f64
+        - 12.0;
+    let mut detached_note = note.clone();
+    let desired_width = note.width.clamp(
+        COMPACT_WINDOW_LOGICAL_WIDTH as f64,
+        WORKSPACE_LOGICAL_WIDTH as f64,
+    );
+    // Keep the expanded rail reachable, including on a scaled laptop display.
+    let width = if available_width >= COMPACT_WINDOW_MIN_LOGICAL_WIDTH as f64 {
+        desired_width.min(available_width.floor())
+    } else {
+        desired_width
+    };
+    detached_note.width = width;
+    detached_note.height = note.height.clamp(
+        COMPACT_WINDOW_LOGICAL_HEIGHT as f64,
+        WORKSPACE_LOGICAL_HEIGHT as f64,
+    );
+    detached_note.rel_x = if rail_is_on_right {
+        -width - 12.0
+    } else {
+        rail_bounds.width as f64 / scale + 12.0
+    };
+    detached_note.rel_y = 0.0;
+    calculate_saved_note_window_placement(work_area, rail_bounds, &detached_note, dpi, false)
+}
+
 /// Opens the real note beside the rail without activating or modifying its saved target.
 pub fn position_detached_note_window(
     window: &tauri::WebviewWindow,
@@ -749,26 +790,7 @@ pub fn position_detached_note_window(
         .ok_or_else(|| "Skribli could not read the rail position.".to_string())?;
     let work_area = monitor_work_area_for_window(hwnd)?;
     let (dpi, _) = get_window_dpi(hwnd);
-    let scale = normalized_dpi(dpi) as f64 / 96.0;
-    let mut detached_note = note.clone();
-    let width = note.width.clamp(
-        COMPACT_WINDOW_LOGICAL_WIDTH as f64,
-        WORKSPACE_LOGICAL_WIDTH as f64,
-    );
-    detached_note.width = width;
-    detached_note.height = note.height.clamp(
-        COMPACT_WINDOW_LOGICAL_HEIGHT as f64,
-        WORKSPACE_LOGICAL_HEIGHT as f64,
-    );
-    let rail_is_on_right = bounds.x > work_area.x + work_area.width / 2;
-    detached_note.rel_x = if rail_is_on_right {
-        -width - 12.0
-    } else {
-        bounds.width as f64 / scale + 12.0
-    };
-    detached_note.rel_y = 0.0;
-    let placement =
-        calculate_saved_note_window_placement(&work_area, &bounds, &detached_note, dpi, false)?;
+    let placement = calculate_detached_note_window_placement(&work_area, &bounds, note, dpi)?;
     window
         .set_min_size(Some(LogicalSize::new(
             COMPACT_WINDOW_MIN_LOGICAL_WIDTH,
@@ -798,6 +820,57 @@ pub fn initialize_compact_window(window: &tauri::WebviewWindow) -> Result<Overla
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn detached_large_notes_leave_the_rail_clear_on_scaled_laptops_and_negative_monitors() {
+        let note = SkribNote {
+            id: "detached".into(),
+            target_process_name: "chrome.exe".into(),
+            target_title: "Project".into(),
+            rel_x: 180.0,
+            rel_y: 120.0,
+            width: 820.0,
+            height: 760.0,
+            text: "Saved".into(),
+            color: "mint".into(),
+            collapsed: true,
+            created_at: 1,
+            updated_at: 1,
+            deleted_at: None,
+        };
+        for origin in [0, -1366] {
+            for dpi in [96, 120, 144] {
+                let scale = dpi as f64 / 96.0;
+                let rail_width = (336.0 * scale) as i32;
+                let work = rect(origin, 0, 1366, 728);
+                for right in [false, true] {
+                    let rail = rect(
+                        if right {
+                            origin + 1366 - rail_width - 12
+                        } else {
+                            origin + 12
+                        },
+                        24,
+                        rail_width,
+                        500,
+                    );
+                    let placement =
+                        calculate_detached_note_window_placement(&work, &rail, &note, dpi).unwrap();
+                    let placed = rect(placement.x, placement.y, placement.width, placement.height);
+                    assert!(rect_is_within_work_area(&placed, &work));
+                    if right {
+                        assert!(rect_right(&placed) < i64::from(rail.x));
+                    } else {
+                        assert!(i64::from(placed.x) > rect_right(&rail));
+                    }
+                }
+            }
+        }
+        assert_eq!(
+            (note.rel_x, note.rel_y, note.collapsed),
+            (180.0, 120.0, true)
+        );
+    }
 
     fn rect(x: i32, y: i32, width: i32, height: i32) -> WindowRect {
         WindowRect {
