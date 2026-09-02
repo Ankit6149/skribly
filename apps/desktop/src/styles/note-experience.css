@@ -1344,9 +1344,9 @@ body {
 }
 
 .note-reminder-scheduler {
-  padding: 10px 0 12px;
+  padding: 12px 0 14px;
   display: grid;
-  gap: 9px;
+  gap: 11px;
   border-bottom: 1px solid rgba(38, 41, 35, 0.1);
 }
 
@@ -1370,24 +1370,30 @@ body {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 5px;
+  gap: 7px;
 }
 
 .note-reminder-presets > span,
 .note-reminder-time-kicker {
-  margin-right: 3px;
+  margin-right: 5px;
   color: var(--skribli-muted);
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 800;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 
 .note-reminder-presets button {
-  min-height: 27px;
-  padding: 0 9px;
+  min-height: 32px;
+  padding: 0 12px;
   border-color: rgba(38, 41, 35, 0.1);
-  font-size: 8px;
+  font-size: 10px;
+  transition: border-color 140ms ease, transform 140ms ease, background 140ms ease;
+}
+
+.note-reminder-presets button:hover:not(:disabled) {
+  border-color: rgba(38, 41, 35, 0.2);
+  transform: translateY(-1px);
 }
 
 .note-reminder-presets button:nth-of-type(1) {
@@ -1403,33 +1409,38 @@ body {
 }
 
 .note-reminder-picker {
-  min-height: 218px;
+  min-width: 0;
+  min-height: 306px;
   display: grid;
-  grid-template-columns: minmax(248px, 1.45fr) minmax(148px, 0.75fr);
+  grid-template-columns: minmax(326px, 1.45fr) minmax(210px, 0.8fr);
   overflow: hidden;
   border: 1px solid rgba(38, 41, 35, 0.16);
-  border-radius: 16px 16px 25px 16px;
-  background: color-mix(in srgb, var(--skribli-paper) 48%, white);
-  box-shadow: 0 1px 2px rgba(38, 41, 35, 0.07);
+  border-radius: 20px 20px 30px 20px;
+  background: color-mix(in srgb, var(--skribli-paper) 38%, white);
+  box-shadow: 0 1px 3px rgba(38, 41, 35, 0.08);
 }
 
 .note-reminder-calendar {
   min-width: 0;
-  padding: 10px 12px 11px;
+  min-height: 304px;
+  padding: 16px 17px 17px;
+  display: flex;
+  flex-direction: column;
 }
 
 .note-reminder-calendar-nav {
-  min-height: 28px;
+  min-height: 36px;
   display: grid;
-  grid-template-columns: 28px minmax(0, 1fr) 28px;
+  grid-template-columns: 34px minmax(0, 1fr) 34px;
   align-items: center;
-  gap: 5px;
+  gap: 8px;
 }
 
 .note-reminder-calendar-nav strong {
   overflow: hidden;
   font-family: var(--font-display);
-  font-size: 13px;
+  font-size: 15px;
+  font-weight: 750;
   text-align: center;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1437,32 +1448,40 @@ body {
 
 .note-reminder-calendar-nav button,
 .note-reminder-days button {
-  min-height: 26px;
+  min-height: 34px;
   padding: 0;
   border-color: transparent;
-  border-radius: 8px;
+  border-radius: 50%;
   background: transparent;
 }
 
 .note-reminder-calendar-nav button {
+  width: 34px;
+  min-width: 34px;
   font-size: 18px;
   font-weight: 500;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.note-reminder-calendar-nav button:hover:not(:disabled) {
+  border-color: rgba(38, 41, 35, 0.12);
+  background: rgba(255, 255, 255, 0.82);
 }
 
 .note-reminder-weekdays,
 .note-reminder-days {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 2px;
+  gap: 4px;
 }
 
 .note-reminder-weekdays {
-  margin: 5px 0 3px;
+  margin: 10px 0 5px;
 }
 
 .note-reminder-weekdays span {
   color: var(--skribli-muted);
-  font-size: 7px;
+  font-size: 9px;
   font-weight: 800;
   text-align: center;
   text-transform: uppercase;
@@ -1470,8 +1489,12 @@ body {
 
 .note-reminder-days button {
   position: relative;
+  width: 36px;
+  height: 36px;
+  justify-self: center;
   color: var(--skribli-ink);
-  font-size: 9px;
+  font-size: 11px;
+  font-weight: 650;
 }
 
 .note-reminder-days button:hover:not(:disabled) {
@@ -1484,13 +1507,14 @@ body {
 
 .note-reminder-days button[data-today='true']::after {
   position: absolute;
-  right: 5px;
-  bottom: 3px;
-  width: 3px;
-  height: 3px;
+  right: 50%;
+  bottom: 4px;
+  width: 4px;
+  height: 4px;
   border-radius: 50%;
   background: var(--olive);
   content: '';
+  transform: translateX(50%);
 }
 
 .note-reminder-days button.selected,
@@ -1509,76 +1533,94 @@ body {
 
 .note-reminder-time {
   min-width: 0;
-  padding: 15px 13px;
+  padding: 20px 18px;
   display: flex;
   flex-direction: column;
   align-items: stretch;
   justify-content: center;
-  gap: 8px;
+  gap: 12px;
   border-left: 1px solid rgba(38, 41, 35, 0.1);
-  background:
-    radial-gradient(circle at 85% 12%, color-mix(in srgb, var(--peach) 58%, transparent), transparent 42%),
-    color-mix(in srgb, var(--mint) 46%, white);
+  background: color-mix(in srgb, var(--mint) 42%, white);
 }
 
-.note-reminder-time label {
+.note-reminder-time-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.note-reminder-time-kicker {
+  margin: 0;
+}
+
+.note-reminder-select-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.note-reminder-field-label {
+  color: var(--skribli-muted);
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.note-reminder-select-control {
   position: relative;
+  display: block;
 }
 
-.note-reminder-select-field > svg:last-child {
+.note-reminder-select-control > svg:last-child {
   position: absolute;
   top: 50%;
-  right: 9px;
+  right: 11px;
   color: var(--skribli-muted);
   pointer-events: none;
   transform: translateY(-50%);
 }
 
-.note-reminder-select-field.repeat-field > svg:first-of-type {
+.note-reminder-select-control > svg:first-of-type {
   position: absolute;
   top: 50%;
-  left: 9px;
+  left: 11px;
   color: var(--olive);
   pointer-events: none;
   transform: translateY(-50%);
 }
 
-.note-reminder-select-field.repeat-field select {
-  padding-left: 29px;
-}
-
 .note-reminder-time select {
   width: 100%;
-  min-height: 36px;
-  padding: 0 28px 0 10px;
+  min-height: 42px;
+  padding: 0 32px 0 36px;
   appearance: none;
   border: 1px solid rgba(38, 41, 35, 0.15);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.66);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.72);
   color: var(--skribli-ink);
   font-family: var(--skribli-ui-font);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
 }
 
 .note-reminder-selected-date {
-  overflow: hidden;
   font-family: var(--skribli-note-font);
-  font-size: 17px;
-  line-height: 1.1;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: 19px;
+  font-weight: 400;
+  line-height: 1.2;
 }
 
 .note-reminder-time .primary {
   width: 100%;
-  min-height: 34px;
+  min-height: 42px;
+  margin-top: 2px;
+  font-size: 11px;
 }
 
 .note-reminder-time small {
   color: var(--skribli-muted);
-  font-size: 7px;
-  line-height: 1.35;
+  font-size: 9px;
+  line-height: 1.45;
+  text-align: center;
 }
 
 .note-reminder-row {
@@ -1694,8 +1736,8 @@ body {
 }
 
 .composer-unified-workspace.panel-open .composer-unified-canvas {
-  min-height: 76px;
-  flex: 0 0 92px;
+  min-height: 64px;
+  flex: 0 0 72px;
   border-bottom: 1px dashed var(--skribli-line);
 }
 
@@ -1757,7 +1799,7 @@ body {
 }
 
 .note-reminder-presets button {
-  font-size: 9.5px;
+  font-size: 11px;
 }
 
 .note-reminder-calendar-nav button,
@@ -1766,42 +1808,93 @@ body {
 }
 
 .note-reminder-weekdays span {
-  font-size: 8.5px;
+  font-size: 11px;
 }
 
 .note-reminder-days button {
-  font-size: 10.5px;
+  font-size: 13px;
 }
 
 .note-reminder-time small {
-  font-size: 9px;
+  font-size: 10px;
 }
 
 .note-reminder-state {
-  font-size: 8.5px;
+  font-size: 10px;
 }
 
-@media (max-width: 560px) {
+.composer-reposition[hidden] {
+  display: none;
+}
+
+.composer-inline-panel .note-reminder-panel {
+  overflow: visible;
+}
+
+@media (max-width: 660px) {
   .note-reminder-picker {
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .note-reminder-calendar {
+    min-height: 306px;
+  }
+
   .note-reminder-time {
-    padding: 10px 12px;
+    padding: 16px;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(112px, auto);
-    align-items: center;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: end;
+    gap: 12px;
     border-top: 1px solid rgba(38, 41, 35, 0.1);
     border-left: 0;
   }
 
-  .note-reminder-time-kicker,
+  .note-reminder-time-heading,
   .note-reminder-time small {
     grid-column: 1 / -1;
   }
 
-  .note-reminder-selected-date {
-    display: none;
+  .note-reminder-time .primary {
+    margin: 0;
+  }
+}
+
+@media (max-width: 440px) {
+  .note-reminder-panel {
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+
+  .note-reminder-presets > span {
+    width: 100%;
+  }
+
+  .note-reminder-picker {
+    border-radius: 16px 16px 24px 16px;
+  }
+
+  .note-reminder-calendar {
+    min-height: 294px;
+    padding: 14px 12px 15px;
+  }
+
+  .note-reminder-weekdays,
+  .note-reminder-days {
+    gap: 2px;
+  }
+
+  .note-reminder-days button {
+    min-height: 32px;
+  }
+
+  .note-reminder-time {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .note-reminder-time-heading,
+  .note-reminder-time small {
+    grid-column: auto;
   }
 }
 

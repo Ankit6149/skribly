@@ -76,7 +76,7 @@ export function readAccountConfiguration(): AccountConfiguration | null {
   const entitlementFunction = String(
     import.meta.env.VITE_SKRIBLY_ACCOUNT_FUNCTION || 'account-session'
   ).trim();
-  const appVersion = String(import.meta.env.VITE_SKRIBLY_APP_VERSION || '0.1.14').trim();
+  const appVersion = String(import.meta.env.VITE_SKRIBLY_APP_VERSION || '0.1.15').trim();
 
   if (
     !isHttpsUrl(supabaseUrl) ||

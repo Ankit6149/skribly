@@ -22,8 +22,8 @@ use super::windows::{get_overlay_metrics, get_window_bounds, get_window_dpi, rec
 pub const COMPACT_WINDOW_LOGICAL_WIDTH: i32 = 420;
 pub const COMPACT_WINDOW_LOGICAL_HEIGHT: i32 = 360;
 pub const COLLAPSED_NOTE_LOGICAL_SIZE: i32 = 44;
-pub const WORKSPACE_LOGICAL_WIDTH: i32 = 760;
-pub const WORKSPACE_LOGICAL_HEIGHT: i32 = 620;
+pub const WORKSPACE_LOGICAL_WIDTH: i32 = 820;
+pub const WORKSPACE_LOGICAL_HEIGHT: i32 = 760;
 const COMPACT_WINDOW_MIN_LOGICAL_WIDTH: i32 = 320;
 const COMPACT_WINDOW_MIN_LOGICAL_HEIGHT: i32 = 260;
 const COMPACT_WINDOW_LOGICAL_MARGIN: i32 = 18;
@@ -424,16 +424,33 @@ pub fn calculate_saved_note_window_placement(
             WORKSPACE_LOGICAL_HEIGHT as f64,
         ) as i32
     };
-    let width = logical_to_physical(logical_width, scale_factor);
-    let height = logical_to_physical(logical_height, scale_factor);
     let available_width = work_area.width.saturating_sub(margin.saturating_mul(2));
     let available_height = work_area.height.saturating_sub(margin.saturating_mul(2));
-    if available_width < width || available_height < height {
+    let minimum_width = logical_to_physical(
+        if collapsed {
+            COLLAPSED_NOTE_LOGICAL_SIZE
+        } else {
+            COMPACT_WINDOW_MIN_LOGICAL_WIDTH
+        },
+        scale_factor,
+    );
+    let minimum_height = logical_to_physical(
+        if collapsed {
+            COLLAPSED_NOTE_LOGICAL_SIZE
+        } else {
+            COMPACT_WINDOW_MIN_LOGICAL_HEIGHT
+        },
+        scale_factor,
+    );
+    if available_width < minimum_width || available_height < minimum_height {
         return Err(format!(
             "The selected display work area is too small for this Skrib at {}% scaling.",
             (scale_factor * 100.0).round() as i32
         ));
     }
+    // Large tools must reflow on smaller/high-DPI laptop displays, not fail to open.
+    let width = logical_to_physical(logical_width, scale_factor).min(available_width);
+    let height = logical_to_physical(logical_height, scale_factor).min(available_height);
 
     let min_x = work_area.x.saturating_add(margin);
     let min_y = work_area.y.saturating_add(margin);
@@ -718,6 +735,59 @@ pub fn position_note_workspace_for_target(
     }
 }
 
+/// Opens the real note beside the rail without activating or modifying its saved target.
+pub fn position_detached_note_window(
+    window: &tauri::WebviewWindow,
+    rail: &tauri::WebviewWindow,
+    note: &SkribNote,
+) -> Result<OverlayMetrics, String> {
+    let hwnd = rail
+        .hwnd()
+        .map_err(|error| format!("Skribli could not locate the rail: {error}"))?;
+    let hwnd = HWND(hwnd.0 as *mut _);
+    let bounds = get_window_bounds(hwnd)
+        .ok_or_else(|| "Skribli could not read the rail position.".to_string())?;
+    let work_area = monitor_work_area_for_window(hwnd)?;
+    let (dpi, _) = get_window_dpi(hwnd);
+    let scale = normalized_dpi(dpi) as f64 / 96.0;
+    let mut detached_note = note.clone();
+    let width = note.width.clamp(
+        COMPACT_WINDOW_LOGICAL_WIDTH as f64,
+        WORKSPACE_LOGICAL_WIDTH as f64,
+    );
+    detached_note.width = width;
+    detached_note.height = note.height.clamp(
+        COMPACT_WINDOW_LOGICAL_HEIGHT as f64,
+        WORKSPACE_LOGICAL_HEIGHT as f64,
+    );
+    let rail_is_on_right = bounds.x > work_area.x + work_area.width / 2;
+    detached_note.rel_x = if rail_is_on_right {
+        -width - 12.0
+    } else {
+        bounds.width as f64 / scale + 12.0
+    };
+    detached_note.rel_y = 0.0;
+    let placement =
+        calculate_saved_note_window_placement(&work_area, &bounds, &detached_note, dpi, false)?;
+    window
+        .set_min_size(Some(LogicalSize::new(
+            COMPACT_WINDOW_MIN_LOGICAL_WIDTH,
+            COMPACT_WINDOW_MIN_LOGICAL_HEIGHT,
+        )))
+        .map_err(|error| format!("Skribli could not prepare the note size: {error}"))?;
+    let applied = apply_placement(window, &placement, NativeNoteSurface::Note)?;
+    if actual_matches_placement(&applied, &placement) {
+        Ok(applied.outer_metrics)
+    } else {
+        let reapplied = apply_placement(window, &placement, NativeNoteSurface::Note)?;
+        if actual_matches_placement(&reapplied, &placement) {
+            Ok(reapplied.outer_metrics)
+        } else {
+            Err("Windows could not place this note beside the rail.".into())
+        }
+    }
+}
+
 pub fn initialize_compact_window(window: &tauri::WebviewWindow) -> Result<OverlayMetrics, String> {
     let hwnd = window
         .hwnd()
@@ -915,10 +985,27 @@ mod tests {
             96,
         )
         .expect("workspace placement");
-        assert_eq!((placement.width, placement.height), (760, 620));
+        assert_eq!((placement.width, placement.height), (820, 760));
         assert!(rect_is_within_work_area(
             &rect(placement.x, placement.y, placement.width, placement.height),
             &placement.work_area
+        ));
+
+        let mut large_note = note.clone();
+        large_note.width = 820.0;
+        large_note.height = 760.0;
+        let laptop = calculate_saved_note_window_placement(
+            &rect(0, 0, 1366, 728),
+            &rect(0, 0, 1366, 728),
+            &large_note,
+            120,
+            false,
+        )
+        .expect("large note adapts to a scaled laptop display");
+        assert_eq!(laptop.height, 682);
+        assert!(rect_is_within_work_area(
+            &rect(laptop.x, laptop.y, laptop.width, laptop.height),
+            &laptop.work_area,
         ));
     }
 

@@ -20,13 +20,14 @@ function note(id: string): SkribNote {
 }
 
 describe('open-note request validation', () => {
-  it('accepts created and reopened requests', () => {
+  it('accepts created and reopened requests, plus detached Open here requests', () => {
     expect(
       isOpenNoteRequest({ action: 'created', noteId: 'note-a', matchingNoteCount: 0 })
     ).toBe(true);
     expect(
       isOpenNoteRequest({ action: 'reopened', noteId: 'note-a', matchingNoteCount: 2 })
     ).toBe(true);
+    expect(isOpenNoteRequest({ action: 'detached', noteId: 'note-a', matchingNoteCount: 0 })).toBe(true);
   });
 
   it('rejects malformed or privacy-unsafe payloads', () => {

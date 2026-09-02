@@ -1,6 +1,6 @@
 import React, { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { emit } from '@tauri-apps/api/event';
+import { emit, listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import {
   Bell,
@@ -199,6 +199,33 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
   useEffect(() => () => saveController.dispose(), [saveController]);
 
   useEffect(() => {
+    if (!isTauriAvailable) return;
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+    void listen<{ requestId: string; noteId: string }>('skribly://prepare-note-switch', async ({ payload }) => {
+      if (disposed || payload.noteId !== note.id) return;
+      const ink = inkPersistenceStateRef.current;
+      let ready = false;
+      try {
+        if (!ink.hasUnsavedChanges && ink.status !== 'saving' && richOperationsInProgress.current.size === 0) {
+          ready = await saveController.flush();
+        }
+      } catch {
+        // Keep the current editor in place when persistence fails.
+      }
+      await emit('skribly://note-switch-ready', {
+        requestId: payload.requestId,
+        ready,
+        message: ready ? undefined : 'The current note has unsaved changes. Finish saving it before opening another.',
+      }).catch(() => undefined);
+    }).then((dispose) => {
+      if (disposed) dispose();
+      else unlisten = dispose;
+    }).catch(() => undefined);
+    return () => { disposed = true; unlisten?.(); };
+  }, [isTauriAvailable, note.id, saveController]);
+
+  useEffect(() => {
     let cancelled = false;
     setIsInkLoading(true);
     void Promise.all([getInkForNote(note.id), getRichContent(note.id)])
@@ -225,9 +252,10 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
   }, [note.id]);
 
   const hideWindow = useCallback(async () => {
-    await getCurrentWindow().hide();
+    if (openAction === 'detached') await invoke('close_skrib_note_here');
+    else await getCurrentWindow().hide();
     closeComposer();
-  }, [closeComposer]);
+  }, [closeComposer, openAction]);
 
   const runExclusive = useCallback(async (operation: () => Promise<void>) => {
     if (operationInProgress.current) return;
@@ -242,8 +270,8 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
   }, []);
 
   const changeSurfaceSize = useCallback(
-    async (nextSize: NoteSurfaceSize) => {
-      if (nextSize === surfaceSize || isResizing) return;
+    async (nextSize: NoteSurfaceSize, force = false) => {
+      if ((!force && nextSize === surfaceSize) || isResizing) return false;
       setIsResizing(true);
       setComposerError(null);
       try {
@@ -254,6 +282,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
           });
         }
         setSurfaceSize(nextSize);
+        return true;
       } catch (reason) {
         setComposerError(
           `Skribli could not resize the editor safely: ${
@@ -297,17 +326,17 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
     async (tool: 'draw' | 'reminder') => {
       if (tool === 'draw') {
         const nextEnabled = !drawingEnabled;
-        if (nextEnabled && surfaceSize !== 'large') await changeSurfaceSize('large');
+        if (nextEnabled && !await changeSurfaceSize('large', true)) return;
         setDrawingEnabled(nextEnabled);
         setActivePanel(null);
         return;
       }
       const openingReminder = activePanel !== 'reminder';
-      if (openingReminder && surfaceSize !== 'large') await changeSurfaceSize('large');
+      if (openingReminder && !await changeSurfaceSize('large', true)) return;
       setDrawingEnabled(false);
       setActivePanel(openingReminder ? 'reminder' : null);
     },
-    [activePanel, changeSurfaceSize, drawingEnabled, surfaceSize]
+    [activePanel, changeSurfaceSize, drawingEnabled]
   );
 
   const hasPersistedExtras = useCallback(async () => {
@@ -381,6 +410,10 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
 
       const saved = await saveController.flush();
       if (saved) {
+        if (openAction === 'detached') {
+          await hideWindow();
+          return;
+        }
         const collapsed = await setSkribCollapsed(note.id, true);
         if (!collapsed) {
           setComposerError(
@@ -399,6 +432,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
     hasPersistedExtras,
     licenceAllowsWrite,
     note.id,
+    openAction,
     runExclusive,
     saveController,
     setSkribCollapsed,
@@ -597,7 +631,9 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
     : hasPendingRichOperation
     ? 'Saving local drawing, file, or reminder…'
     : storageWritable
-      ? 'Esc or Ctrl+Enter collapses after the latest text is saved'
+      ? openAction === 'detached'
+        ? 'Esc or Ctrl+Enter saves and closes'
+        : 'Esc or Ctrl+Enter saves and collapses'
       : 'Recovery required before closing';
   const textareaDescription =
     deleteConfirmation === 'confirming'
@@ -621,7 +657,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
           <span className="composer-drag-grip" data-tauri-drag-region aria-hidden="true" />
           <div className="composer-context" data-tauri-drag-region>
             <span className="composer-kicker" data-tauri-drag-region>
-              {isNewNote ? 'NEW SKRIB FOR' : 'REOPENED SKRIB FOR'}
+              {isNewNote ? 'NEW SKRIB FOR' : openAction === 'detached' ? 'SAVED SKRIB' : 'REOPENED SKRIB FOR'}
             </span>
             <strong data-tauri-drag-region>{contextLabel}</strong>
             <span id="composer-open-state" className="sr-only">
@@ -661,6 +697,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
             <button
               type="button"
               className="composer-reposition"
+              hidden={openAction === 'detached'}
               onClick={() => void handleReposition()}
               disabled={!isTauriAvailable || isRepositioning || isFinishing || hasPendingRichOperation}
               aria-label="Reposition Skribli beside the target application"
@@ -679,8 +716,8 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
               disabled={
                 isFinishing || isRepositioning || hasPendingRichOperation || hasUnsavedInk
               }
-              aria-label={storageWritable ? 'Save and collapse this Skrib' : 'Storage recovery required'}
-              title={storageWritable ? 'Save and collapse' : 'Storage recovery required'}
+              aria-label={storageWritable ? openAction === 'detached' ? 'Save and close this Skrib' : 'Save and collapse this Skrib' : 'Storage recovery required'}
+              title={storageWritable ? openAction === 'detached' ? 'Save and close' : 'Save and collapse' : 'Storage recovery required'}
             >
               <X size={15} aria-hidden="true" />
             </button>

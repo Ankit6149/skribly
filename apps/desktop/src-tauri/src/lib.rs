@@ -20,7 +20,9 @@ use core::models::{
 };
 use core::storage;
 use core::{account, license};
-use note_lifecycle::{reopened_open_request, shortcut_open_request, OpenNoteRequest};
+use note_lifecycle::{
+    detached_open_request, reopened_open_request, shortcut_open_request, OpenNoteRequest,
+};
 
 #[cfg(target_os = "windows")]
 use platform::windows::{
@@ -36,9 +38,10 @@ use platform::windows_events::{WinEventPipeline, WIN_EVENT_QUEUE_CAPACITY};
 use platform::windows_focus::focus_external_window;
 #[cfg(target_os = "windows")]
 use platform::windows_placement::{
-    initialize_compact_window, position_compact_window_for_target, position_note_window_for_target,
-    position_note_workspace_for_target, prepare_standard_compact_surface,
-    restore_standard_window_surface, COMPACT_WINDOW_LOGICAL_HEIGHT, COMPACT_WINDOW_LOGICAL_WIDTH,
+    initialize_compact_window, position_compact_window_for_target, position_detached_note_window,
+    position_note_window_for_target, position_note_workspace_for_target,
+    prepare_standard_compact_surface, restore_standard_window_surface,
+    COMPACT_WINDOW_LOGICAL_HEIGHT, COMPACT_WINDOW_LOGICAL_WIDTH,
 };
 #[cfg(target_os = "windows")]
 use platform::windows_target_capture::{
@@ -74,6 +77,7 @@ struct DismissedCollapsedWindow {
 #[derive(Debug, Default)]
 pub(crate) struct NoteWindowRuntime {
     active_note_id: Option<String>,
+    detached: bool,
     workspace_expanded: bool,
     pending_programmatic_placement: Option<ProgrammaticNotePlacement>,
     dismissed_collapsed_window: Option<DismissedCollapsedWindow>,
@@ -101,6 +105,7 @@ struct RailWindowRuntime {
     movement_generation: AtomicU64,
     pending_programmatic_positions: Mutex<VecDeque<(i32, i32)>>,
     has_docked_position: AtomicBool,
+    expanded: AtomicBool,
 }
 
 impl RailWindowRuntime {
@@ -265,6 +270,10 @@ impl NoteWindowRuntime {
         self.active_note_id.as_deref()
     }
 
+    fn detached_note_id(&self) -> Option<&str> {
+        self.active_note_id.as_deref().filter(|_| self.detached)
+    }
+
     fn workspace_expanded_for(&self, note_id: &str) -> bool {
         self.active_note_id.as_deref() == Some(note_id) && self.workspace_expanded
     }
@@ -275,6 +284,7 @@ impl NoteWindowRuntime {
 
     fn clear(&mut self) {
         self.active_note_id = None;
+        self.detached = false;
         self.workspace_expanded = false;
         self.pending_programmatic_placement = None;
         self.dismissed_collapsed_window = None;
@@ -338,6 +348,7 @@ impl NoteWindowRuntime {
         metrics: &OverlayMetrics,
     ) {
         self.active_note_id = Some(note_id.to_string());
+        self.detached = false;
         self.workspace_expanded = workspace_expanded;
         self.dismissed_collapsed_window = None;
         self.pending_programmatic_placement = Some(ProgrammaticNotePlacement {
@@ -345,6 +356,11 @@ impl NoteWindowRuntime {
             physical_x: metrics.overlay_physical_x,
             physical_y: metrics.overlay_physical_y,
         });
+    }
+
+    fn record_detached_placement(&mut self, note_id: &str, metrics: &OverlayMetrics) {
+        self.record_programmatic_placement(note_id, true, metrics);
+        self.detached = true;
     }
 
     fn record_open_request(&mut self, request: OpenNoteRequest) {
@@ -374,6 +390,9 @@ impl NoteWindowRuntime {
         physical_x: i32,
         physical_y: i32,
     ) -> bool {
+        if self.detached_note_id() == Some(note_id) {
+            return true;
+        }
         if self.active_note_id.is_some() && self.active_note_id.as_deref() != Some(note_id) {
             return true;
         }
@@ -670,8 +689,8 @@ fn show_global_note_rail(app_handle: AppHandle) -> Result<(), String> {
     let rail = app_handle
         .get_webview_window("rail")
         .ok_or_else(|| "My Skribs rail is unavailable.".to_string())?;
-    let width = RAIL_COLLAPSED_WIDTH;
-    let height = RAIL_COLLAPSED_HEIGHT;
+    let (width, height) =
+        rail_surface_dimensions(rail_window_runtime().expanded.load(Ordering::Acquire));
     rail.set_always_on_top(true)
         .map_err(|error| format!("Skribli could not dock the desktop note pill: {error}"))?;
     size_and_dock_rail(&app_handle, &rail, width, height)?;
@@ -711,8 +730,8 @@ fn show_context_rail_for_target(
     let Some(rail) = app_handle.get_webview_window("rail") else {
         return Ok(false);
     };
-    let width = RAIL_COLLAPSED_WIDTH;
-    let height = RAIL_COLLAPSED_HEIGHT;
+    let (width, height) =
+        rail_surface_dimensions(rail_window_runtime().expanded.load(Ordering::Acquire));
     rail.set_always_on_top(true)
         .map_err(|error| format!("Skribli could not attach the note rail to this app: {error}"))?;
     size_and_dock_rail(app_handle, &rail, width, height)?;
@@ -1352,7 +1371,7 @@ fn build_overlay_payload(
     is_ambiguous: bool,
 ) -> OverlayStatePayload {
     let active_target = state.coordinator.get_active_target();
-    let skribs = visible_skribs(&state.coordinator, active_target.as_ref());
+    let skribs = runtime_visible_skribs(state, active_target.as_ref());
     let available_windows = list_target_windows();
     let overlay_metrics = get_current_overlay_metrics(app_handle);
     let init_status = state.get_init_status();
@@ -1374,7 +1393,7 @@ fn build_mutation_payload(
     is_ambiguous: bool,
 ) -> OverlayStatePayload {
     let active_target = state.coordinator.get_active_target();
-    let skribs = visible_skribs(&state.coordinator, active_target.as_ref());
+    let skribs = runtime_visible_skribs(state, active_target.as_ref());
     let overlay_metrics = get_current_overlay_metrics(app_handle);
     let init_status = state.get_init_status();
 
@@ -1386,6 +1405,34 @@ fn build_mutation_payload(
         is_ambiguous,
         overlay_metrics,
         init_status,
+    }
+}
+
+fn runtime_visible_skribs(state: &AppState, target: Option<&TargetWindowInfo>) -> Vec<SkribNote> {
+    let detached_id = state
+        .note_window_runtime
+        .lock()
+        .ok()
+        .and_then(|runtime| runtime.detached_note_id().map(str::to_owned));
+    if let Some(id) = detached_id {
+        return state
+            .coordinator
+            .get_skrib(&id)
+            .filter(|note| note.deleted_at.is_none())
+            .map(|mut note| {
+                note.collapsed = false;
+                vec![note]
+            })
+            .unwrap_or_default();
+    }
+    visible_skribs(&state.coordinator, target)
+}
+
+fn rail_surface_dimensions(expanded: bool) -> (f64, f64) {
+    if expanded {
+        (336.0, 500.0)
+    } else {
+        (RAIL_COLLAPSED_WIDTH, RAIL_COLLAPSED_HEIGHT)
     }
 }
 
@@ -1642,6 +1689,9 @@ fn set_active_target(
     target: Option<TargetWindowInfo>,
 ) -> OverlayStatePayload {
     if let Some(target) = target {
+        if let Ok(mut runtime) = state.note_window_runtime.lock() {
+            runtime.clear();
+        }
         set_runtime_active_target(&state, Some(target));
     } else {
         clear_active_target_and_hide_note(&app_handle, &state);
@@ -1779,16 +1829,108 @@ fn set_context_rail_expanded(
     let rail = app_handle
         .get_webview_window("rail")
         .ok_or_else(|| "My Skribs rail is unavailable.".to_string())?;
-    let (width, height) = if expanded {
-        (336.0, (260 + note_count.min(4) * 54).clamp(424, 500) as f64)
-    } else {
-        (RAIL_COLLAPSED_WIDTH, RAIL_COLLAPSED_HEIGHT)
-    };
+    let _ = note_count;
+    let (width, height) = rail_surface_dimensions(expanded);
     rail.set_always_on_top(true)
         .map_err(|error| format!("Skribli could not update the note rail layer: {error}"))?;
     size_and_dock_rail(&app_handle, &rail, width, height)?;
+    rail_window_runtime()
+        .expanded
+        .store(expanded, Ordering::Release);
     rail.show()
         .map_err(|error| format!("Skribli could not show the note rail: {error}"))?;
+    Ok(())
+}
+
+#[tauri::command]
+fn get_open_skrib_note_id(app_handle: AppHandle, state: State<'_, AppState>) -> Option<String> {
+    let visible = app_handle
+        .get_webview_window("main")
+        .and_then(|window| window.is_visible().ok())
+        .unwrap_or(false);
+    if !visible {
+        return None;
+    }
+    let runtime = state.note_window_runtime.lock().ok()?;
+    let id = runtime.active_note_id()?;
+    let note = state.coordinator.get_skrib(id)?;
+    // Collapsed dots have no draft editor to flush.
+    (runtime.detached || !note.collapsed).then(|| id.to_string())
+}
+
+#[tauri::command]
+fn open_skrib_note_here(
+    app_handle: AppHandle,
+    state: State<'_, AppState>,
+    id: String,
+) -> Result<(), String> {
+    let note = state
+        .coordinator
+        .get_skrib(&id)
+        .filter(|note| note.deleted_at.is_none())
+        .ok_or_else(|| "This note is no longer available.".to_string())?;
+    let window = app_handle
+        .get_webview_window("main")
+        .ok_or_else(|| "The note window is unavailable.".to_string())?;
+    let rail = app_handle
+        .get_webview_window("rail")
+        .ok_or_else(|| "The note rail is unavailable.".to_string())?;
+    let _operation_guard = state.native_window_operation_gate.lock()?;
+    begin_native_lifecycle_action(&state)?;
+    #[cfg(target_os = "windows")]
+    let metrics = position_detached_note_window(&window, &rail, &note)?;
+    #[cfg(not(target_os = "windows"))]
+    let metrics = {
+        let _ = (&rail, &note);
+        OverlayMetrics::default()
+    };
+    set_runtime_active_target_locked(&state, None);
+    let request = detached_open_request(id.clone());
+    {
+        let mut runtime = state
+            .note_window_runtime
+            .lock()
+            .map_err(|_| "The note window state is unavailable.".to_string())?;
+        runtime.record_detached_placement(&id, &metrics);
+        runtime.record_open_request(request.clone());
+    }
+    let payload = build_mutation_payload(&app_handle, &state, false);
+    app_handle
+        .emit("skribly://overlay-update", payload)
+        .map_err(|error| error.to_string())?;
+    app_handle
+        .emit("skribly://open-note-request", request)
+        .map_err(|error| error.to_string())?;
+    window.show().map_err(|error| error.to_string())?;
+    window.set_focus().map_err(|error| error.to_string())?;
+    rail.show().map_err(|error| error.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+fn close_skrib_note_here(app_handle: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
+    let _operation_guard = state.native_window_operation_gate.lock()?;
+    let detached = state
+        .note_window_runtime
+        .lock()
+        .map(|runtime| runtime.detached)
+        .unwrap_or(false);
+    if !detached {
+        return Err("This is a contextual note, not an Open here window.".into());
+    }
+    begin_native_lifecycle_action(&state)?;
+    if let Some(window) = app_handle.get_webview_window("main") {
+        window.hide().map_err(|error| error.to_string())?;
+    }
+    state
+        .note_window_runtime
+        .lock()
+        .map_err(|_| "The note window state is unavailable.".to_string())?
+        .clear();
+    let _ = app_handle.emit(
+        "skribly://overlay-update",
+        build_mutation_payload(&app_handle, &state, false),
+    );
     Ok(())
 }
 
@@ -1834,26 +1976,33 @@ fn set_skrib_window_collapsed(
         .lock()
         .map(|runtime| runtime.workspace_expanded_for(&id))
         .unwrap_or(false);
-    let current_position = if was_workspace_expanded {
-        None
-    } else {
-        let current_position = window
-            .outer_position()
-            .map_err(|error| format!("Skribli could not read the note position: {error}"))?;
-        Some(current_position)
-    };
+    let was_active_note = state
+        .note_window_runtime
+        .lock()
+        .map(|runtime| runtime.active_note_id() == Some(id.as_str()) && !runtime.detached)
+        .unwrap_or(false);
+    let current_position =
+        if was_workspace_expanded || !was_active_note || !window.is_visible().unwrap_or(false) {
+            None
+        } else {
+            let current_position = window
+                .outer_position()
+                .map_err(|error| format!("Skribli could not read the note position: {error}"))?;
+            Some(current_position)
+        };
     // Opening a larger tool workspace is a native layout operation, not a user move of the
     // compact note. Keep the last saved compact/dot anchor when Done collapses the note.
-    let (physical_x, physical_y) = current_position
-        .map(|position| (position.x, position.y))
-        .unwrap_or((0, 0));
-    let (rel_x, rel_y) = position_to_persist(
-        &target,
-        &note,
-        physical_x,
-        physical_y,
-        was_workspace_expanded,
-    );
+    let (rel_x, rel_y) = current_position
+        .map(|position| {
+            position_to_persist(
+                &target,
+                &note,
+                position.x,
+                position.y,
+                was_workspace_expanded,
+            )
+        })
+        .unwrap_or((note.rel_x, note.rel_y));
     let mut positioned_note = note.clone();
     positioned_note.rel_x = rel_x;
     positioned_note.rel_y = rel_y;
@@ -2032,6 +2181,14 @@ fn save_skrib_window_position(
     state: State<'_, AppState>,
     id: String,
 ) -> Result<OverlayStatePayload, String> {
+    if state
+        .note_window_runtime
+        .lock()
+        .map(|runtime| runtime.detached_note_id() == Some(id.as_str()))
+        .unwrap_or(false)
+    {
+        return Ok(build_mutation_payload(&app_handle, &state, false));
+    }
     let note = state
         .coordinator
         .get_skrib(&id)
@@ -2127,7 +2284,7 @@ fn note_surface_dimensions(size: &str) -> Result<(f64, f64), String> {
     match size {
         "compact" => Ok((420.0, 360.0)),
         "medium" => Ok((560.0, 480.0)),
-        "large" => Ok((760.0, 680.0)),
+        "large" => Ok((820.0, 760.0)),
         _ => Err("Choose compact, medium, or large for the Skrib size.".into()),
     }
 }
@@ -2144,8 +2301,44 @@ fn set_skrib_window_size(
         .coordinator
         .get_skrib(&id)
         .ok_or_else(|| "Skrib note was not found or is not writable".to_string())?;
-    if note.collapsed || note.deleted_at.is_some() {
+    let detached = state
+        .note_window_runtime
+        .lock()
+        .map(|runtime| runtime.detached_note_id() == Some(id.as_str()))
+        .unwrap_or(false);
+    if (note.collapsed && !detached) || note.deleted_at.is_some() {
         return Err("Expand this Skrib before changing its size.".into());
+    }
+    #[cfg(target_os = "windows")]
+    if detached {
+        let window = app_handle
+            .get_webview_window("main")
+            .ok_or_else(|| "The note window is unavailable.".to_string())?;
+        let rail = app_handle
+            .get_webview_window("rail")
+            .ok_or_else(|| "The note rail is unavailable.".to_string())?;
+        let _operation_guard = state.native_window_operation_gate.lock()?;
+        begin_native_lifecycle_action(&state)?;
+        let mut resized = note.clone();
+        resized.width = width;
+        resized.height = height;
+        let metrics = position_detached_note_window(&window, &rail, &resized)?;
+        run_persisted_mutation(&state, |coordinator| {
+            coordinator
+                .update_skrib_position(&id, note.rel_x, note.rel_y, width, height)
+                .then_some(())
+                .ok_or_else(|| "Skribli could not save the requested note size.".to_string())
+        })?;
+        state
+            .note_window_runtime
+            .lock()
+            .map_err(|_| "The note window state is unavailable.".to_string())?
+            .record_detached_placement(&id, &metrics);
+        let _ = app_handle.emit(
+            "skribly://overlay-update",
+            build_mutation_payload(&app_handle, &state, false),
+        );
+        return Ok(metrics);
     }
     let target = state
         .coordinator
@@ -2477,6 +2670,9 @@ pub fn run() {
             get_context_rail_notes,
             launch_supported_target_application,
             set_context_rail_expanded,
+            open_skrib_note_here,
+            get_open_skrib_note_id,
+            close_skrib_note_here,
             show_global_note_rail,
             toggle_skrib_collapse,
             set_skrib_window_collapsed,
@@ -2801,6 +2997,11 @@ pub fn run() {
                     if let Ok(mut notice) = event_receiver.recv_timeout(Duration::from_millis(500)) {
                         notice.mark_processing_started();
                         let state_ev = app_handle_ev.state::<AppState>();
+                        // Open here is a free note window. External focus changes must neither
+                        // rebind it nor move its original context/anchor.
+                        if state_ev.note_window_runtime.lock().map(|runtime| runtime.detached).unwrap_or(false) {
+                            continue;
+                        }
                         let note_window_visible = app_handle_ev
                             .get_webview_window("main")
                             .and_then(|window| window.is_visible().ok())
@@ -3243,6 +3444,34 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn detached_note_moves_never_rewrite_the_saved_context_anchor() {
+        let mut runtime = NoteWindowRuntime::default();
+        runtime.record_detached_placement("note-a", &OverlayMetrics::default());
+        assert_eq!(runtime.detached_note_id(), Some("note-a"));
+        assert!(runtime.should_ignore_position_save("note-a", 100, 200));
+        assert!(runtime.should_ignore_position_save("note-a", 700, 800));
+        runtime.record_programmatic_placement("note-a", false, &OverlayMetrics::default());
+        assert_eq!(runtime.detached_note_id(), None);
+        assert!(!runtime.should_ignore_position_save("note-a", 700, 800));
+    }
+
+    #[test]
+    fn clearing_a_detached_note_removes_its_transient_state() {
+        let mut runtime = NoteWindowRuntime::default();
+        runtime.record_detached_placement("note-a", &OverlayMetrics::default());
+        runtime.record_open_request(detached_open_request("note-a".into()));
+        runtime.clear();
+        assert_eq!(runtime.detached_note_id(), None);
+        assert_eq!(runtime.pending_open_request(), None);
+    }
+
+    #[test]
+    fn expanded_rail_has_a_stable_size_across_note_and_context_changes() {
+        assert_eq!(rail_surface_dimensions(true), (336.0, 500.0));
+        assert_eq!(rail_surface_dimensions(false), (64.0, 64.0));
+    }
 
     fn color_note(id: &str, color: &str, created_at: u64) -> SkribNote {
         SkribNote {
@@ -4036,7 +4265,7 @@ mod tests {
     fn note_surface_sizes_are_bounded_product_presets() {
         assert_eq!(note_surface_dimensions("compact"), Ok((420.0, 360.0)));
         assert_eq!(note_surface_dimensions("medium"), Ok((560.0, 480.0)));
-        assert_eq!(note_surface_dimensions("large"), Ok((760.0, 680.0)));
+        assert_eq!(note_surface_dimensions("large"), Ok((820.0, 760.0)));
         assert!(note_surface_dimensions("fullscreen").is_err());
     }
 }

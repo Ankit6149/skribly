@@ -1,6 +1,6 @@
 import type { SkribNote } from '../../lib/geometry';
 
-export type OpenNoteAction = 'created' | 'reopened';
+export type OpenNoteAction = 'created' | 'reopened' | 'detached';
 
 export interface OpenNoteRequest {
   action: OpenNoteAction;
@@ -17,7 +17,7 @@ export function isOpenNoteRequest(value: unknown): value is OpenNoteRequest {
   if (Object.keys(record).some((key) => !OPEN_NOTE_REQUEST_KEYS.has(key))) return false;
 
   return (
-    (record.action === 'created' || record.action === 'reopened') &&
+    (record.action === 'created' || record.action === 'reopened' || record.action === 'detached') &&
     typeof record.noteId === 'string' &&
     record.noteId.length > 0 &&
     Number.isInteger(record.matchingNoteCount) &&

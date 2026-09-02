@@ -1,6 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { emit } from '@tauri-apps/api/event';
-import { CalendarClock, ChevronDown, ChevronLeft, ChevronRight, Repeat2 } from 'lucide-react';
+import {
+  CalendarClock,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Clock3,
+  Repeat2,
+} from 'lucide-react';
 import {
   ensureReminderNotificationPermission,
   type ReminderNotificationPermission,
@@ -214,15 +221,14 @@ export const NoteReminderPanel: React.FC<NoteReminderPanelProps> = ({
             </span>
             Set a reminder
           </strong>
-          <span>Private to this device · visible in Skribli Calendar</span>
         </div>
       </header>
 
       <div className="note-reminder-scheduler">
         <div className="note-reminder-presets" aria-label="Quick reminder times">
-          <span>Quick pick</span>
+          <span>Quick choices</span>
           <button type="button" disabled={disabled || panelBusy} onClick={() => applyPreset('hour')}>In 1 hour</button>
-          <button type="button" disabled={disabled || panelBusy} onClick={() => applyPreset('tomorrowMorning')}>Tomorrow, 9:00</button>
+          <button type="button" disabled={disabled || panelBusy} onClick={() => applyPreset('tomorrowMorning')}>Tomorrow morning</button>
           <button type="button" disabled={disabled || panelBusy} onClick={() => applyPreset('nextWeek')}>Next week</button>
         </div>
 
@@ -256,45 +262,52 @@ export const NoteReminderPanel: React.FC<NoteReminderPanelProps> = ({
           </div>
 
           <div className="note-reminder-time">
-            <span className="note-reminder-time-kicker">Time</span>
+            <div className="note-reminder-time-heading">
+              <span className="note-reminder-time-kicker">Reminder for</span>
+              <strong className="note-reminder-selected-date">
+                {new Intl.DateTimeFormat(undefined, { weekday: 'long', month: 'short', day: 'numeric' }).format(
+                  new Date(`${dueSelection.date}T12:00:00`)
+                )}
+              </strong>
+            </div>
             <label className="note-reminder-select-field">
-              <span className="sr-only">Reminder time</span>
-              <select
-                value={dueSelection.time}
-                disabled={disabled || panelBusy}
-                aria-label="Reminder time"
-                onChange={(event) => setDueSelection((current) => ({ ...current, time: event.target.value }))}
-              >
-                {timeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-              </select>
-              <ChevronDown size={14} aria-hidden="true" />
+              <span className="note-reminder-field-label">Time</span>
+              <span className="note-reminder-select-control">
+                <Clock3 size={15} aria-hidden="true" />
+                <select
+                  value={dueSelection.time}
+                  disabled={disabled || panelBusy}
+                  aria-label="Reminder time"
+                  onChange={(event) => setDueSelection((current) => ({ ...current, time: event.target.value }))}
+                >
+                  {timeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                </select>
+                <ChevronDown size={14} aria-hidden="true" />
+              </span>
             </label>
             <label className="note-reminder-select-field repeat-field">
-              <span className="sr-only">Repeat reminder</span>
-              <Repeat2 size={14} aria-hidden="true" />
-              <select
-                value={repeat}
-                disabled={disabled || panelBusy}
-                aria-label="Repeat reminder"
-                onChange={(event) => setRepeat(event.target.value as ReminderRepeat)}
-              >
-                <option value="none">Does not repeat</option>
-                <option value="daily">Every day</option>
-                <option value="weekdays">Weekdays</option>
-                <option value="weekly">Every week</option>
-                <option value="monthly">Every month</option>
-              </select>
-              <ChevronDown size={14} aria-hidden="true" />
+              <span className="note-reminder-field-label">Repeat</span>
+              <span className="note-reminder-select-control">
+                <Repeat2 size={15} aria-hidden="true" />
+                <select
+                  value={repeat}
+                  disabled={disabled || panelBusy}
+                  aria-label="Repeat reminder"
+                  onChange={(event) => setRepeat(event.target.value as ReminderRepeat)}
+                >
+                  <option value="none">Does not repeat</option>
+                  <option value="daily">Every day</option>
+                  <option value="weekdays">Weekdays</option>
+                  <option value="weekly">Every week</option>
+                  <option value="monthly">Every month</option>
+                </select>
+                <ChevronDown size={14} aria-hidden="true" />
+              </span>
             </label>
-            <span className="note-reminder-selected-date">
-              {new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric' }).format(
-                new Date(`${dueSelection.date}T12:00:00`)
-              )}
-            </span>
             <button type="button" className="primary" disabled={disabled || panelBusy} onClick={() => void schedule()}>
               {isScheduling ? 'Saving…' : activeReminder ? 'Save new time' : 'Set reminder'}
             </button>
-            <small>Saved locally. Windows alerts can be enabled separately.</small>
+            <small>Saved on this device · available in Calendar</small>
           </div>
         </div>
       </div>
@@ -309,12 +322,7 @@ export const NoteReminderPanel: React.FC<NoteReminderPanelProps> = ({
 
       {isLoading ? (
         <div className="note-panel-empty" role="status">Reading local reminders…</div>
-      ) : reminders.length === 0 ? (
-        <div className="note-panel-empty">
-          <strong>No reminder set</strong>
-          <span>Choose a future date and time. It will also appear in the Skribli calendar.</span>
-        </div>
-      ) : (
+      ) : reminders.length > 0 ? (
         <div className="note-reminder-list">
           {reminders.map((reminder) => (
             <article key={reminder.id} className={`note-reminder-row ${reminder.status}`}>
@@ -357,7 +365,7 @@ export const NoteReminderPanel: React.FC<NoteReminderPanelProps> = ({
             </article>
           ))}
         </div>
-      )}
+      ) : null}
     </section>
   );
 };

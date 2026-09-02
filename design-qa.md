@@ -73,4 +73,30 @@ The matched captures were reviewed together in the same comparison input.
 - Native edge-docking tests verify nearest-edge snapping, negative-origin monitors, growth inward from either wall, preservation of vertical position, and suppression of stale move events.
 - Final automated verification: 27 desktop test files / 150 tests, 137 native library tests, 3 native binary tests, 37 schema migration tests, production build, desktop theme validation, compact-surface validation, and Rust format check all passed.
 
-final result: passed
+## v0.1.15 rail actions and calendar refinement — 2026-09-02
+
+This section supersedes the in-rail reading interaction described above. The user rejected that interaction; previous screenshots are not evidence for this revision.
+
+### Source and intended changes
+
+- User screenshot: `codex-clipboard-33c38d0f-c556-4f35-86c1-2d1024a609ba.png`, supplied in this task. It shows note content consuming the bottom half of the rail.
+- Remove the embedded reading panel. The row body and note icon open the actual note beside the rail, without navigating. The separate location icon opens the note in its matching saved application context.
+- Keep the existing logo, pastel paper colours, typography, circular controls, and small collapsed rail.
+- Preserve expanded rail state through note opens, saves, and context refreshes. Background refreshes no longer replace the list with a loading screen.
+- Keep detached reading transient: opening, moving, or closing it must not rewrite its original location or collapse state. Flush pending text and block switching while rich content is unsaved.
+- Give reminders a bounded 820 x 760 requested workspace (previous native maximum was 760 x 620), clamped to the monitor work area. Use fixed-size circular dates, readable labels, spaced time/repeat controls, and one outer scroll fallback on smaller displays.
+
+### Automated evidence
+
+- Desktop tests: 155 passing, including separate Open here/Open at location command paths and draft-save handshake success/failure.
+- Native tests: 141 library tests, 3 binary tests, and 37 schema migration tests passed.
+- TypeScript, production build, product lifecycle validation, theme/compact-surface checks, repository governance, and site validation are tracked for the release candidate.
+- No production account credentials, installed note data, or website design were changed for this revision.
+
+### Visual verification limitation
+
+The Windows Computer Use helper failed during initialization with `failed to write kernel assets: The system cannot find the path specified. (os error 3)`. Resetting the session and retrying produced the same failure. No current-build screenshot or installed-app click-through was obtained. No old screenshot is presented as current evidence; no visual pass is claimed.
+
+Pending: open both row actions in Windows, compare the rail with the source screenshot, and check the calendar at 100%, 125%, and 150% display scaling. Exact closed browser-tab or folder reopening remains dependent on future durable URL/path context support; this revision uses the existing process/window-title matcher and reports missing contexts instead of guessing.
+
+final result: blocked

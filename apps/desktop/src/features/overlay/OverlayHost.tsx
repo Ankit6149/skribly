@@ -131,7 +131,7 @@ export const OverlayHost: React.FC = () => {
   }, [initStatus.type, storageSurface]);
 
   useEffect(() => {
-    if (!composerNoteId || !isTauriAvailable) return;
+    if (!composerNoteId || !isTauriAvailable || composerOpenAction === 'detached') return;
 
     let disposed = false;
     let saveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -156,7 +156,7 @@ export const OverlayHost: React.FC = () => {
       if (saveTimer) clearTimeout(saveTimer);
       unlisten?.();
     };
-  }, [composerNoteId, isTauriAvailable]);
+  }, [composerNoteId, composerOpenAction, isTauriAvailable]);
 
   if (primarySurface === 'composer' && composerNote) {
     if (composerNote.collapsed) {

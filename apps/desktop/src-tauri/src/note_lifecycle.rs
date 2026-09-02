@@ -5,6 +5,7 @@ use crate::core::models::SkribNote;
 pub enum OpenNoteAction {
     Created,
     Reopened,
+    Detached,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
@@ -27,6 +28,14 @@ pub fn created_open_request(note_id: String, matching_note_count: usize) -> Open
 /// the note library, but they must never change what Ctrl+Shift+Space opens.
 pub fn shortcut_open_request(note_id: String, matching_note_count: usize) -> OpenNoteRequest {
     created_open_request(note_id, matching_note_count)
+}
+
+pub fn detached_open_request(note_id: String) -> OpenNoteRequest {
+    OpenNoteRequest {
+        action: OpenNoteAction::Detached,
+        note_id,
+        matching_note_count: 0,
+    }
 }
 
 pub fn reopened_open_request(mut notes: Vec<SkribNote>) -> Option<OpenNoteRequest> {
@@ -118,6 +127,18 @@ mod tests {
                 action: OpenNoteAction::Created,
                 note_id: "new-note".into(),
                 matching_note_count: 1,
+            }
+        );
+    }
+
+    #[test]
+    fn open_here_does_not_claim_to_navigate_to_a_context() {
+        assert_eq!(
+            detached_open_request("saved-note".into()),
+            OpenNoteRequest {
+                action: OpenNoteAction::Detached,
+                note_id: "saved-note".into(),
+                matching_note_count: 0,
             }
         );
     }

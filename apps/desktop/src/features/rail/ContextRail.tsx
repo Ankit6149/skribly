@@ -1,24 +1,22 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { LogicalSize } from '@tauri-apps/api/dpi';
 import { listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import {
   AppWindow,
-  ArrowUpRight,
-  ChevronRight,
   GripVertical,
   MapPin,
+  MapPinned,
   PanelRightClose,
   RefreshCw,
   StickyNote,
-  X,
 } from 'lucide-react';
 import type { SkribNote } from '../../lib/geometry';
 import '../../styles/context-rail.css';
 import skribliLogo from '../../../src-tauri/icons/128x128.png';
 import { applicationLabel, groupNotesForRail, railPillCount } from './contextRailModel';
-import { openNoteInSavedContext } from './openNoteContext';
+import { openNoteHere, openNoteInSavedContext } from './openNoteContext';
 
 type RailScope = 'context' | 'all';
 
@@ -30,12 +28,13 @@ function noteTitle(note: SkribNote): string {
 export const ContextRail: React.FC = () => {
   const [allNotes, setAllNotes] = useState<SkribNote[]>([]);
   const [contextNotes, setContextNotes] = useState<SkribNote[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [scope, setScope] = useState<RailScope>('context');
   const [contextualDock, setContextualDock] = useState(false);
   const [collapsed, setCollapsed] = useState(true);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
+  const opening = useRef(false);
+  const refreshGeneration = useRef(0);
 
   const activeNotes = useMemo(
     () => allNotes.filter((note) => note.deleted_at == null),
@@ -43,33 +42,23 @@ export const ContextRail: React.FC = () => {
   );
   const visibleNotes = scope === 'context' && contextNotes.length > 0 ? contextNotes : activeNotes;
   const groups = useMemo(() => groupNotesForRail(visibleNotes), [visibleNotes]);
-  const selected = selectedId
-    ? visibleNotes.find((note) => note.id === selectedId) ?? null
-    : null;
   const pillCount = railPillCount(activeNotes.length, contextNotes.length, contextualDock);
 
   const refresh = useCallback(async () => {
-    setLoading(true);
+    const generation = ++refreshGeneration.current;
     try {
       const [nextAllNotes, nextContextNotes] = await Promise.all([
         invoke<SkribNote[]>('get_all_skribs'),
         invoke<SkribNote[]>('get_context_rail_notes'),
       ]);
-      const nextActive = nextAllNotes.filter((note) => note.deleted_at == null);
+      if (generation !== refreshGeneration.current) return;
       setAllNotes(nextAllNotes);
       setContextNotes(nextContextNotes);
       setScope((current) => nextContextNotes.length > 0 ? current : 'all');
-      setSelectedId((current) => {
-        const candidates = nextContextNotes.length > 0 ? nextContextNotes : nextActive;
-        return current && candidates.some((note) => note.id === current)
-          ? current
-          : candidates[0]?.id ?? null;
-      });
-      setMessage(null);
     } catch (reason) {
-      setMessage(reason instanceof Error ? reason.message : String(reason));
+      if (generation === refreshGeneration.current) setMessage(reason instanceof Error ? reason.message : String(reason));
     } finally {
-      setLoading(false);
+      if (generation === refreshGeneration.current) setLoading(false);
     }
   }, []);
 
@@ -77,18 +66,14 @@ export const ContextRail: React.FC = () => {
     void getCurrentWindow().setSize(new LogicalSize(64, 64)).catch(() => undefined);
     void refresh();
     const subscriptions = [
-      listen('skribly://overlay-state', () => void refresh()),
+      listen('skribly://overlay-update', () => void refresh()),
       listen('skribly://rich-content-updated', () => void refresh()),
       listen('skribly://context-rail-refresh', () => {
         setContextualDock(true);
-        setScope('context');
-        setCollapsed(true);
         void refresh();
       }),
       listen('skribly://global-rail-refresh', () => {
         setContextualDock(false);
-        setScope('all');
-        setCollapsed(true);
         void refresh();
       }),
     ];
@@ -114,11 +99,43 @@ export const ContextRail: React.FC = () => {
   };
 
   const openContext = async (note: SkribNote) => {
+    if (opening.current) return;
+    opening.current = true;
     setMessage(null);
     try {
-      setMessage(await openNoteInSavedContext(note));
+      const result = await openNoteInSavedContext(note);
+      await invoke('set_context_rail_expanded', {
+        expanded: true,
+        contextual: contextualDock,
+        noteCount: visibleNotes.length,
+      });
+      setCollapsed(false);
+      setMessage(result);
     } catch (reason) {
       setMessage(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      opening.current = false;
+    }
+  };
+
+  const openHere = async (note: SkribNote) => {
+    if (opening.current) return;
+    opening.current = true;
+    setMessage(null);
+    try {
+      await openNoteHere(note);
+      setContextualDock(false);
+      await invoke('set_context_rail_expanded', {
+        expanded: true,
+        contextual: false,
+        noteCount: visibleNotes.length,
+      });
+      setCollapsed(false);
+      setMessage('Opened this Skrib here.');
+    } catch (reason) {
+      setMessage(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      opening.current = false;
     }
   };
 
@@ -196,51 +213,38 @@ export const ContextRail: React.FC = () => {
                 </div>
                 <div className="context-rail-group-notes">
                   {group.notes.map((note) => (
-                    <button
-                      key={note.id}
-                      type="button"
-                      className={`context-rail-note ${selected?.id === note.id ? 'active' : ''}`}
-                      onClick={() => setSelectedId((current) => current === note.id ? null : note.id)}
-                      title={note.text.trim().slice(0, 100) || note.target_title}
-                      aria-pressed={selected?.id === note.id}
-                      aria-expanded={selected?.id === note.id}
-                    >
+                    <article className="context-rail-note" key={note.id}>
                       <i className={`skrib-color-${note.color}`} aria-hidden="true" />
-                      <span>
-                        <strong>{noteTitle(note)}</strong>
-                        <small><MapPin size={11} aria-hidden="true" /> {note.target_title || applicationLabel(note.target_process_name)}</small>
-                      </span>
-                      <ChevronRight className="context-rail-note-arrow" size={13} aria-hidden="true" />
-                    </button>
+                      <button
+                        type="button"
+                        className="context-rail-note-open"
+                        onClick={() => void openHere(note)}
+                        title="Open this note here"
+                        aria-label={`Open ${noteTitle(note)} here`}
+                      >
+                        <span className="context-rail-note-copy">
+                          <strong>{noteTitle(note)}</strong>
+                          <small><MapPin size={11} aria-hidden="true" /> {note.target_title || applicationLabel(note.target_process_name)}</small>
+                        </span>
+                        <span className="context-rail-note-action-icon" aria-hidden="true">
+                          <StickyNote size={13} strokeWidth={1.9} />
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        className="context-rail-note-location"
+                        onClick={() => void openContext(note)}
+                        title="Open at saved location"
+                        aria-label={`Open ${noteTitle(note)} at its saved location`}
+                      >
+                        <MapPinned size={13} strokeWidth={1.9} aria-hidden="true" />
+                      </button>
+                    </article>
                   ))}
                 </div>
               </section>
             ))}
           </div>
-        )}
-
-        {selected && (
-          <article className={`context-rail-preview skrib-color-${selected.color}`}>
-            <div className="context-rail-preview-copy">
-              <div className="context-rail-preview-heading">
-                <small><StickyNote size={12} aria-hidden="true" /> Read Skrib</small>
-                <button
-                  type="button"
-                  className="context-rail-preview-close"
-                  onClick={() => setSelectedId(null)}
-                  aria-label="Close note preview"
-                  title="Close preview"
-                >
-                  <X size={13} aria-hidden="true" />
-                </button>
-              </div>
-              <p>{selected.text.trim() || 'Drawing, attachment, or reminder saved on this Skrib.'}</p>
-              <small><MapPin size={11} aria-hidden="true" /> {selected.target_title || applicationLabel(selected.target_process_name)}</small>
-            </div>
-            <button className="context-rail-open-context" type="button" onClick={() => void openContext(selected)}>
-              <ArrowUpRight size={13} aria-hidden="true" /> Open in app
-            </button>
-          </article>
         )}
         {message && <div className="context-rail-message" role="status">{message}</div>}
       </div>
