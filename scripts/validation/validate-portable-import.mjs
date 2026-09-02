@@ -161,7 +161,6 @@ for (const marker of [
   '<LibraryImportPanel canApply={canMutate}',
   'handleImportApplied',
   'Read-only: notes, previews, and exports remain available',
-  'Restoring and importing change only local records',
 ]) {
   if (!libraryHost.includes(marker)) failures.push(`All Skribs import integration is missing: ${marker}`);
 }

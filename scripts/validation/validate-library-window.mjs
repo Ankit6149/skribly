@@ -144,7 +144,9 @@ const requiredLibraryHost = [
   'READ-ONLY LIBRARY VIEW',
   'Export this note',
   'Export note records',
-  'All Skribs never launches or guesses the original application',
+  'openNoteInSavedContext(note)',
+  'Open original',
+  'Open original focuses a matching live window.',
   'LIBRARY_EXPORT_REQUEST_EVENT',
   'LIBRARY_EXPORT_RESULT_EVENT',
 ];
