@@ -97,6 +97,14 @@ This section supersedes the in-rail reading interaction described above. The use
 
 The Windows Computer Use helper failed during initialization with `failed to write kernel assets: The system cannot find the path specified. (os error 3)`. Resetting the session and retrying produced the same failure. No current-build screenshot or installed-app click-through was obtained. No old screenshot is presented as current evidence; no visual pass is claimed.
 
-Pending: open both row actions in Windows, compare the rail with the source screenshot, and check the calendar at 100%, 125%, and 150% display scaling. Exact closed browser-tab or folder reopening remains dependent on future durable URL/path context support; this revision uses the existing process/window-title matcher and reports missing contexts instead of guessing.
+Pending owner testing: the user explicitly requested no further app checking and will download and test the installer. Open both row actions in Windows, compare the rail with the source screenshot, and check the calendar at 100%, 125%, and 150% display scaling. Exact closed browser-tab or folder reopening remains dependent on future durable URL/path context support; this revision uses the existing process/window-title matcher and reports missing contexts instead of guessing.
+
+### Installer delivery
+
+- Windows workflow `33653893600` succeeded for exact app commit `55b02f9d28f4c98845d89c4a412269f5bcf98a6b`.
+- Installer: `Skribli_0.1.15_x64-setup.exe`, 3,468,583 bytes.
+- Installer SHA-256: `7124aec1e61906720ad570c57ac77225553c16251022dce2fe32e2dc82b249c6`.
+- GitHub artifact `9856379342`; installer encrypted into the existing owner-key website asset. The key and website layout are unchanged.
+- Issue #177 remains open for the owner's visual/interaction acceptance; code and packaging are complete, not a claim of visual QA approval.
 
 final result: blocked
