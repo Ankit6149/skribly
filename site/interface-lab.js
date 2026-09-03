@@ -129,13 +129,10 @@
 
   $$('[data-add-object]').forEach((button) => button.addEventListener('click', () => {
     $('#attachedObjectRow').hidden = false;
-    if (button.dataset.addObject === 'image') {
-      $('#attachedObjectRow small').textContent = '3 photos';
-    } else if (button.dataset.addObject === 'document') {
-      $('#attachedObjectRow small').textContent = '1 document · represented here with the object grammar';
-    } else {
-      $('#attachedObjectRow small').textContent = '1 video · represented here with the object grammar';
-    }
+    const label = $('#attachedObjectRow small');
+    if (button.dataset.addObject === 'image') label.textContent = '3 photos';
+    else if (button.dataset.addObject === 'document') label.textContent = '1 document · object treatment shown in Attachments';
+    else label.textContent = '1 video · object treatment shown in Attachments';
     scheduleSave();
   }));
 
@@ -145,17 +142,9 @@
   }));
 
   $('#repositionNote').addEventListener('click', () => {
-    noteMock.animate([
-      { transform: 'translate(0,0)' },
-      { transform: 'translate(8px,-5px)' },
-      { transform: 'translate(0,0)' },
-    ], { duration: 280, easing: 'ease-out' });
+    noteMock.animate([{ transform: 'translate(0,0)' }, { transform: 'translate(8px,-5px)' }, { transform: 'translate(0,0)' }], { duration: 280, easing: 'ease-out' });
   });
-
-  $('#closeNote').addEventListener('click', () => {
-    setSaveState('Saved', 'Close waits for pending local data, then hides the note');
-  });
-
+  $('#closeNote').addEventListener('click', () => setSaveState('Saved', 'Close waits for pending local data, then hides the note'));
   $('#deleteNote').addEventListener('click', (event) => {
     const button = event.currentTarget;
     if (runtime.value === 'readonly') return;
@@ -168,27 +157,26 @@
     button.dataset.confirm = 'true';
     button.textContent = 'Move to Trash?';
   });
-
   $('#doneNote').addEventListener('click', () => {
     if (runtime.value === 'readonly' || runtime.value === 'attention') return;
     noteMock.animate([
       { opacity: 1, transform: 'scale(1)' },
-      { opacity: .72, transform: 'scale(.9) translate(70px, 25px)' },
-      { opacity: 0, transform: 'scale(.18) translate(220px, 40px)' },
+      { opacity: .72, transform: 'scale(.9) translate(70px,25px)' },
+      { opacity: 0, transform: 'scale(.18) translate(220px,40px)' },
     ], { duration: 330, easing: 'cubic-bezier(.2,.75,.25,1)' }).finished.then(() => {
       noteMock.hidden = true;
       $('#postDoneDot').hidden = false;
     });
   });
-
   $('#postDoneDot').addEventListener('click', () => {
     $('#postDoneDot').hidden = true;
     noteMock.hidden = false;
     noteMock.animate([{ opacity: .4, transform: 'scale(.85)' }, { opacity: 1, transform: 'scale(1)' }], { duration: 230, easing: 'ease-out' });
   });
-
-  $('[data-open-attachment]', noteMock).addEventListener('click', (event) => event.currentTarget.classList.toggle('forced-fan'));
-  $('#photoStackDemo').addEventListener('click', (event) => event.currentTarget.classList.toggle('forced-fan'));
+  const noteAttachment = $('[data-open-attachment]', noteMock);
+  if (noteAttachment) noteAttachment.addEventListener('click', (event) => event.currentTarget.classList.toggle('forced-fan'));
+  const photoStackDemo = $('#photoStackDemo');
+  if (photoStackDemo) photoStackDemo.addEventListener('click', (event) => event.currentTarget.classList.toggle('forced-fan'));
 
   // Drawing canvas
   const drawingCanvas = $('#drawingCanvas');
@@ -202,12 +190,8 @@
 
   function pointerPoint(event) {
     const rect = drawingCanvas.getBoundingClientRect();
-    return {
-      x: (event.clientX - rect.left) * (drawingCanvas.width / rect.width),
-      y: (event.clientY - rect.top) * (drawingCanvas.height / rect.height),
-    };
+    return { x: (event.clientX - rect.left) * (drawingCanvas.width / rect.width), y: (event.clientY - rect.top) * (drawingCanvas.height / rect.height) };
   }
-
   function drawSegment(segment) {
     drawingContext.save();
     drawingContext.lineCap = 'round';
@@ -222,12 +206,10 @@
     drawingContext.stroke();
     drawingContext.restore();
   }
-
   function redrawInk() {
     drawingContext.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
     strokes.flat().forEach(drawSegment);
   }
-
   drawingCanvas.addEventListener('pointerdown', (event) => {
     if (drawTool === 'select') return;
     drawing = true;
@@ -266,7 +248,6 @@
       sizeLabel.hidden = false;
     }
   }
-
   $$('[data-draw-tool]').forEach((button) => button.addEventListener('click', () => {
     drawTool = button.dataset.drawTool;
     $$('[data-draw-tool]').forEach((candidate) => candidate.classList.toggle('is-active', candidate === button));
@@ -280,24 +261,21 @@
   $('#clearInk').addEventListener('click', () => { strokes = []; redrawInk(); $('.drawing-hint').hidden = false; });
   $('#undoInk').addEventListener('click', () => { strokes.pop(); redrawInk(); if (!strokes.length) $('.drawing-hint').hidden = false; });
 
-  // Calendars
+  // Calendar fixtures
   function createCalendarGrid(container, options = {}) {
     const start = new Date(Date.UTC(2026, 8, 1));
     const offset = start.getUTCDay();
-    const daysInPrevMonth = 31;
     const totalCells = 42;
     for (let index = 0; index < totalCells; index += 1) {
       const relativeDay = index - offset + 1;
       const button = document.createElement('button');
       button.type = 'button';
       if (relativeDay < 1) {
-        button.textContent = String(daysInPrevMonth + relativeDay);
+        button.textContent = String(31 + relativeDay);
         button.className = 'outside';
-        button.dataset.day = String(relativeDay);
       } else if (relativeDay > 30) {
         button.textContent = String(relativeDay - 30);
         button.className = 'outside';
-        button.dataset.day = String(relativeDay);
       } else {
         button.textContent = String(relativeDay);
         button.dataset.day = String(relativeDay);
@@ -309,22 +287,26 @@
   }
 
   const reminderGrid = $('#reminderCalendarGrid');
-  createCalendarGrid(reminderGrid, { selectDay: true, reminderDays: [4, 8, 15] });
   const globalGrid = $('#globalCalendarGrid');
+  createCalendarGrid(reminderGrid, { selectDay: true, reminderDays: [4, 8, 15] });
   createCalendarGrid(globalGrid, { selectDay: true, reminderDays: [4, 8, 15, 21] });
 
   function reminderSummary() {
-    const selected = $('.calendar-grid button.is-selected', $('.reminder-calendar'));
-    const day = selected && !selected.classList.contains('outside') ? selected.dataset.day : '4';
+    const selected = $('button.is-selected', reminderGrid);
+    const day = selected?.dataset.day || '4';
     $('#selectedReminderDate').textContent = `${day} September 2026`;
     $('#reminderSummary').textContent = `${day} Sep · ${$('#reminderTime').value} · ${$('#reminderRepeat').value}`;
   }
-
-  $$('.calendar-grid button', reminderGrid).forEach((button) => button.addEventListener('click', () => {
+  $$('button', reminderGrid).forEach((button) => button.addEventListener('click', () => {
     if (button.classList.contains('outside')) return;
-    $$('.calendar-grid button', reminderGrid).forEach((candidate) => candidate.classList.remove('is-selected'));
+    $$('button', reminderGrid).forEach((candidate) => candidate.classList.remove('is-selected'));
     button.classList.add('is-selected');
     reminderSummary();
+  }));
+  $$('button', globalGrid).forEach((button) => button.addEventListener('click', () => {
+    if (button.classList.contains('outside')) return;
+    $$('button', globalGrid).forEach((candidate) => candidate.classList.remove('is-selected'));
+    button.classList.add('is-selected');
   }));
   $('#reminderTime').addEventListener('input', reminderSummary);
   $('#reminderRepeat').addEventListener('change', reminderSummary);
@@ -335,16 +317,18 @@
   $('#prevReminderMonth').addEventListener('click', () => { $('#reminderMonthLabel').textContent = 'August 2026'; });
   $('#nextReminderMonth').addEventListener('click', () => { $('#reminderMonthLabel').textContent = 'October 2026'; });
 
-  // Dot
+  // Dot. The HTML parser intentionally keeps dismiss as a sibling rather than an invalid nested button.
   const dotDemo = $('#dotDemo');
-  if (dotDemo) {
-    dotDemo.addEventListener('click', (event) => {
-      if (event.target.closest('.dot-dismiss')) return;
-      showView('note');
+  const dotDismiss = $('.dot-dismiss');
+  if (dotDemo) dotDemo.addEventListener('click', () => showView('note'));
+  if (dotDismiss) {
+    Object.assign(dotDismiss.style, {
+      position: 'absolute', zIndex: '8', right: 'calc(12% - 8px)', top: 'calc(43% - 8px)', opacity: '1',
     });
-    $('.dot-dismiss', dotDemo).addEventListener('click', (event) => {
+    dotDismiss.addEventListener('click', (event) => {
       event.stopPropagation();
-      dotDemo.animate([{ opacity: 1, transform: 'scale(1)' }, { opacity: 0, transform: 'scale(.65)' }], { duration: 180, easing: 'ease-in' });
+      dotDemo?.animate([{ opacity: 1, transform: 'scale(1)' }, { opacity: 0, transform: 'scale(.65)' }], { duration: 180, easing: 'ease-in' });
+      dotDismiss.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160, easing: 'ease-in' });
     });
   }
 
@@ -390,13 +374,11 @@
     if (button.dataset.libraryTab === 'calendar' || button.dataset.libraryTab === 'trash') showView('calendar');
   }));
 
-  // Account mock
   $('#accountForm').addEventListener('submit', (event) => {
     event.preventDefault();
     $('#accountFormStatus').textContent = 'Signed-in state simulated. No Skrib content was uploaded.';
   });
 
-  // Button micro feedback for visible review affordance.
   document.addEventListener('click', (event) => {
     const button = event.target.closest('button');
     if (!button || button.disabled) return;
