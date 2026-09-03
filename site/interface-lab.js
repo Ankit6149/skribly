@@ -2,599 +2,408 @@
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 
-  const viewCopy = {
-    editor: ['Surface 01 · Note editor', 'A focused canvas with tools that make room.'],
-    rail: ['Surface 02 · Pill and rail', 'Notes stay visible, grouped, and anchored to a real place.'],
-    library: ['Surface 03 · All Skribs', 'A quiet library built for reading before reopening.'],
-    reminder: ['Surface 04 · Reminder flow', 'Scheduling is explicit, readable, and hard to mis-set.'],
-    system: ['Surface 05 · Interaction map', 'Every primary click has one predictable result.'],
+  const views = {
+    overview: ['Foundation 00 · Design DNA', 'Soft paper. Precise software.', 'Skribli should feel like physical thoughts living inside a disciplined Windows utility—not a dashboard decorated with sticky notes.'],
+    structure: ['Foundation 01 · Product structure', 'Four visible windows, one background product.', 'Each surface has one primary job. The user should never have to understand Tauri windows, HWNDs, storage revisions, or entitlement plumbing to use Skribli.'],
+    motion: ['Foundation 02 · Hover & motion', 'The resting state stays quiet. The pointer wakes up the right detail.', 'Hover adds acknowledgement, revelation, and occasional transformation without becoming the only way to discover primary behavior.'],
+    note: ['Daily 01 · Core Skrib', 'Capture first. Everything else waits for intent.', 'The compact Skrib keeps context, thought, save confidence, and Done visually dominant while advanced capabilities reveal themselves only when used.'],
+    attachments: ['Daily 02 · Attachments', 'Files should feel like the things people believe they are.', 'Images become photographic objects, documents become paper, and video begins as a visual frame. Technical metadata stays secondary.'],
+    drawing: ['Daily 03 · Drawing', 'Powerful tools, contextual controls.', 'Drawing expands the same Skrib and shows only properties relevant to the selected tool.'],
+    reminder: ['Daily 04 · Reminder', 'The Skrib grows into the scheduling workspace it needs.', 'Quick reminders remain tiny. Custom date, time, and recurrence use the same note object instead of an unrelated modal.'],
+    dot: ['Daily 05 · Collapsed dot', 'A folded thought, not a generic button.', 'The dot is a tiny contextual presence. Hover reveals dismissal; the primary action remains reopening the saved Skrib.'],
+    rail: ['Daily 06 · My Skribs rail', 'Read it here, or return to where it belonged.', 'The rail makes Skribli’s contextual retrieval model explicit without embedding duplicate editors or flooding each row with controls.'],
+    library: ['Daily 07 · All Skribs', 'Reading first. Data management second.', 'Search, read, and return dominate. Import, export, Trash, and recovery stay available without turning the library into an admin console.'],
+    calendar: ['Daily 08 · Calendar & Trash', 'Global lenses over local Skribs.', 'The calendar gathers reminder state. Trash manages lifecycle. Neither becomes an independent productivity product.'],
+    home: ['Low-frequency 01 · Home', 'Skribli is ready. Go back to your work.', 'Home is a readiness and entry surface rather than a dashboard that competes with the applications where thoughts originate.'],
+    onboarding: ['Low-frequency 02 · Onboarding', 'Teach the mental model before the feature set.', 'A first successful contextual thought matters more than a tour of every capability.'],
+    account: ['Low-frequency 03 · Account & tray', 'Identity is connected. Content stays local.', 'Account and entitlement trust remain visually and conceptually separate from local Skrib persistence.'],
+    recovery: ['Trust surface · Recovery', 'Protect aggressively underneath. Speak calmly on the surface.', 'Exceptional states translate technical machinery into Saving, Saved, Needs attention, read-only recovery, and clear next actions.'],
+    matrix: ['Acceptance environment', 'Every approved surface gets the same state coverage.', 'The Interface Lab is the review gate for hierarchy, behavior, scale, keyboard use, failure states, and product truth before production UI work.'],
   };
 
   function showView(view) {
-    const navigationButtons = $$('.lab-surface-nav button');
-    navigationButtons.forEach((button) => button.classList.remove('is-active'));
-    navigationButtons
-      .find((button) => button.dataset.showView === view && !button.hasAttribute('data-open-note-calendar'))
-      ?.classList.add('is-active');
-    $$('.lab-view').forEach((panel) => panel.classList.toggle('is-active', panel.dataset.view === view));
-    const copy = viewCopy[view] || viewCopy.editor;
+    const target = views[view] ? view : 'overview';
+    $$('.lab-view').forEach((panel) => panel.classList.toggle('is-active', panel.dataset.view === target));
+    $$('.lab-surface-nav > button').forEach((button) => button.classList.toggle('is-active', button.dataset.showView === target));
+    const copy = views[target];
     $('#viewEyebrow').textContent = copy[0];
     $('#viewTitle').textContent = copy[1];
-    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    $('#viewSummary').textContent = copy[2];
+    window.scrollTo({ top: 0, behavior: 'auto' });
   }
 
   $$('[data-show-view]').forEach((button) => button.addEventListener('click', () => showView(button.dataset.showView)));
+  $$('[data-jump-view]').forEach((button) => button.addEventListener('click', () => showView(button.dataset.jumpView)));
 
-  $$('.view-notes').forEach((panel) => {
-    panel.classList.add('is-collapsed');
-    const toggle = document.createElement('button');
-    toggle.type = 'button';
-    toggle.className = 'view-notes-toggle';
-    toggle.setAttribute('aria-expanded', 'false');
-    toggle.innerHTML = '<span><i class="ph ph-info"></i> Design notes</span><i class="ph ph-caret-down"></i>';
-    panel.prepend(toggle);
-    toggle.addEventListener('click', () => {
-      const expanded = toggle.getAttribute('aria-expanded') === 'true';
-      toggle.setAttribute('aria-expanded', String(!expanded));
-      panel.classList.toggle('is-collapsed', expanded);
+  const scale = $('#labScale');
+  const runtime = $('#labRuntime');
+  const runtimeBadge = $('#runtimeBadge');
+  const scaleClasses = ['scale-125', 'scale-150'];
+  const runtimeClasses = ['runtime-offline', 'runtime-readonly', 'runtime-attention'];
+
+  scale.addEventListener('change', () => {
+    document.body.classList.remove(...scaleClasses);
+    if (scale.value !== '100') document.body.classList.add(`scale-${scale.value}`);
+  });
+
+  function syncRuntime() {
+    document.body.classList.remove(...runtimeClasses);
+    if (runtime.value !== 'normal') document.body.classList.add(`runtime-${runtime.value}`);
+    const labels = {
+      normal: 'Normal runtime',
+      offline: 'Offline account path',
+      readonly: 'Read-only local data',
+      attention: 'Needs attention',
+    };
+    runtimeBadge.textContent = labels[runtime.value];
+    const saveLabel = $('#saveStateLabel');
+    const saveDetail = $('#saveStateDetail');
+    if (!saveLabel || !saveDetail) return;
+    if (runtime.value === 'readonly') {
+      saveLabel.textContent = 'Read-only';
+      saveDetail.textContent = 'Verified local Skrib is protected';
+    } else if (runtime.value === 'attention') {
+      saveLabel.textContent = 'Needs attention';
+      saveDetail.textContent = 'Retry before folding this Skrib';
+    } else {
+      saveLabel.textContent = 'Saved';
+      saveDetail.textContent = runtime.value === 'offline' ? 'Saved locally · account offline' : 'Latest text is safe';
+    }
+  }
+  runtime.addEventListener('change', syncRuntime);
+
+  $('#toggleNotes').addEventListener('click', (event) => {
+    const button = event.currentTarget;
+    const next = button.getAttribute('aria-pressed') !== 'true';
+    button.setAttribute('aria-pressed', String(next));
+    document.body.classList.toggle('hide-review-notes', !next);
+  });
+
+  // Core Skrib
+  const noteMock = $('#noteMock');
+  const noteWriting = $('#noteWriting');
+  const noteTray = $('#noteToolTray');
+  let activeNoteTool = null;
+  let saveTimer = null;
+
+  function setSaveState(label, detail) {
+    if (runtime.value === 'readonly') return;
+    $('#saveStateLabel').textContent = label;
+    $('#saveStateDetail').textContent = detail;
+  }
+
+  function scheduleSave() {
+    if (runtime.value === 'readonly') return;
+    window.clearTimeout(saveTimer);
+    setSaveState('Saving…', 'Keeping the latest edit safe');
+    saveTimer = window.setTimeout(() => setSaveState('Saved', runtime.value === 'offline' ? 'Saved locally · account offline' : 'Latest text is safe'), 520);
+  }
+
+  noteWriting.addEventListener('input', scheduleSave);
+
+  function openNoteTool(tool) {
+    const same = activeNoteTool === tool && !noteTray.hidden;
+    activeNoteTool = same ? null : tool;
+    $$('[data-note-tool]').forEach((button) => button.classList.toggle('is-active', button.dataset.noteTool === activeNoteTool));
+    $$('[data-tool-panel]', noteTray).forEach((panel) => { panel.hidden = panel.dataset.toolPanel !== activeNoteTool; });
+    noteTray.hidden = !activeNoteTool;
+  }
+
+  $$('[data-note-tool]').forEach((button) => button.addEventListener('click', () => {
+    if (runtime.value === 'readonly') return;
+    openNoteTool(button.dataset.noteTool);
+  }));
+
+  $$('[data-note-color]').forEach((button) => button.addEventListener('click', () => {
+    ['yellow', 'peach', 'mint', 'sky', 'lavender'].forEach((color) => noteMock.classList.remove(`note-${color}`));
+    noteMock.classList.add(`note-${button.dataset.noteColor}`);
+    scheduleSave();
+  }));
+
+  $$('[data-text-size]').forEach((button) => button.addEventListener('click', () => {
+    noteWriting.classList.remove('size-small', 'size-large');
+    if (button.dataset.textSize === 'small') noteWriting.classList.add('size-small');
+    if (button.dataset.textSize === 'large') noteWriting.classList.add('size-large');
+    scheduleSave();
+  }));
+
+  $$('[data-add-object]').forEach((button) => button.addEventListener('click', () => {
+    $('#attachedObjectRow').hidden = false;
+    if (button.dataset.addObject === 'image') {
+      $('#attachedObjectRow small').textContent = '3 photos';
+    } else if (button.dataset.addObject === 'document') {
+      $('#attachedObjectRow small').textContent = '1 document · represented here with the object grammar';
+    } else {
+      $('#attachedObjectRow small').textContent = '1 video · represented here with the object grammar';
+    }
+    scheduleSave();
+  }));
+
+  $$('[data-quick-reminder]').forEach((button) => button.addEventListener('click', () => {
+    setSaveState('Saving…', `${button.dataset.quickReminder} reminder added`);
+    window.setTimeout(() => setSaveState('Saved', `${button.dataset.quickReminder} · reminder linked`), 420);
+  }));
+
+  $('#repositionNote').addEventListener('click', () => {
+    noteMock.animate([
+      { transform: 'translate(0,0)' },
+      { transform: 'translate(8px,-5px)' },
+      { transform: 'translate(0,0)' },
+    ], { duration: 280, easing: 'ease-out' });
+  });
+
+  $('#closeNote').addEventListener('click', () => {
+    setSaveState('Saved', 'Close waits for pending local data, then hides the note');
+  });
+
+  $('#deleteNote').addEventListener('click', (event) => {
+    const button = event.currentTarget;
+    if (runtime.value === 'readonly') return;
+    if (button.dataset.confirm === 'true') {
+      button.textContent = 'Moved to Trash';
+      button.disabled = true;
+      setSaveState('Saved', 'Moved to Trash · reversible in All Skribs');
+      return;
+    }
+    button.dataset.confirm = 'true';
+    button.textContent = 'Move to Trash?';
+  });
+
+  $('#doneNote').addEventListener('click', () => {
+    if (runtime.value === 'readonly' || runtime.value === 'attention') return;
+    noteMock.animate([
+      { opacity: 1, transform: 'scale(1)' },
+      { opacity: .72, transform: 'scale(.9) translate(70px, 25px)' },
+      { opacity: 0, transform: 'scale(.18) translate(220px, 40px)' },
+    ], { duration: 330, easing: 'cubic-bezier(.2,.75,.25,1)' }).finished.then(() => {
+      noteMock.hidden = true;
+      $('#postDoneDot').hidden = false;
     });
   });
 
+  $('#postDoneDot').addEventListener('click', () => {
+    $('#postDoneDot').hidden = true;
+    noteMock.hidden = false;
+    noteMock.animate([{ opacity: .4, transform: 'scale(.85)' }, { opacity: 1, transform: 'scale(1)' }], { duration: 230, easing: 'ease-out' });
+  });
+
+  $('[data-open-attachment]', noteMock).addEventListener('click', (event) => event.currentTarget.classList.toggle('forced-fan'));
+  $('#photoStackDemo').addEventListener('click', (event) => event.currentTarget.classList.toggle('forced-fan'));
+
+  // Drawing canvas
+  const drawingCanvas = $('#drawingCanvas');
+  const drawingContext = drawingCanvas.getContext('2d');
+  let drawing = false;
+  let drawTool = 'pen';
+  let drawInk = '#262923';
+  let drawSize = 4;
+  let lastPoint = null;
+  let strokes = [];
+
+  function pointerPoint(event) {
+    const rect = drawingCanvas.getBoundingClientRect();
+    return {
+      x: (event.clientX - rect.left) * (drawingCanvas.width / rect.width),
+      y: (event.clientY - rect.top) * (drawingCanvas.height / rect.height),
+    };
+  }
+
+  function drawSegment(segment) {
+    drawingContext.save();
+    drawingContext.lineCap = 'round';
+    drawingContext.lineJoin = 'round';
+    drawingContext.globalCompositeOperation = segment.tool === 'eraser' ? 'destination-out' : 'source-over';
+    drawingContext.globalAlpha = segment.tool === 'highlighter' ? .32 : 1;
+    drawingContext.strokeStyle = segment.ink;
+    drawingContext.lineWidth = segment.tool === 'eraser' ? segment.size * 3 : segment.tool === 'highlighter' ? segment.size * 2.2 : segment.size;
+    drawingContext.beginPath();
+    drawingContext.moveTo(segment.from.x, segment.from.y);
+    drawingContext.lineTo(segment.to.x, segment.to.y);
+    drawingContext.stroke();
+    drawingContext.restore();
+  }
+
+  function redrawInk() {
+    drawingContext.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+    strokes.flat().forEach(drawSegment);
+  }
+
+  drawingCanvas.addEventListener('pointerdown', (event) => {
+    if (drawTool === 'select') return;
+    drawing = true;
+    lastPoint = pointerPoint(event);
+    strokes.push([]);
+    drawingCanvas.setPointerCapture(event.pointerId);
+    $('.drawing-hint').hidden = true;
+  });
+  drawingCanvas.addEventListener('pointermove', (event) => {
+    if (!drawing) return;
+    const next = pointerPoint(event);
+    const segment = { from: lastPoint, to: next, tool: drawTool, ink: drawInk, size: drawSize };
+    strokes[strokes.length - 1].push(segment);
+    drawSegment(segment);
+    lastPoint = next;
+  });
+  const endDrawing = () => { drawing = false; lastPoint = null; };
+  drawingCanvas.addEventListener('pointerup', endDrawing);
+  drawingCanvas.addEventListener('pointercancel', endDrawing);
+
+  function syncDrawProperties() {
+    const name = $('#drawPropertyName');
+    const chips = $$('.ink-chip', $('#drawingProperties'));
+    const sizeLabel = $('label', $('#drawingProperties'));
+    if (drawTool === 'eraser') {
+      name.textContent = 'Eraser size';
+      chips.forEach((chip) => { chip.hidden = true; });
+      sizeLabel.hidden = false;
+    } else if (drawTool === 'select') {
+      name.textContent = 'Select and move strokes';
+      chips.forEach((chip) => { chip.hidden = true; });
+      sizeLabel.hidden = true;
+    } else {
+      name.textContent = `${drawTool[0].toUpperCase()}${drawTool.slice(1)} properties`;
+      chips.forEach((chip) => { chip.hidden = false; });
+      sizeLabel.hidden = false;
+    }
+  }
+
+  $$('[data-draw-tool]').forEach((button) => button.addEventListener('click', () => {
+    drawTool = button.dataset.drawTool;
+    $$('[data-draw-tool]').forEach((candidate) => candidate.classList.toggle('is-active', candidate === button));
+    syncDrawProperties();
+  }));
+  $$('[data-ink]').forEach((button) => button.addEventListener('click', () => {
+    drawInk = button.dataset.ink;
+    $$('[data-ink]').forEach((candidate) => candidate.classList.toggle('is-active', candidate === button));
+  }));
+  $('#drawSize').addEventListener('input', (event) => { drawSize = Number(event.target.value); });
+  $('#clearInk').addEventListener('click', () => { strokes = []; redrawInk(); $('.drawing-hint').hidden = false; });
+  $('#undoInk').addEventListener('click', () => { strokes.pop(); redrawInk(); if (!strokes.length) $('.drawing-hint').hidden = false; });
+
+  // Calendars
+  function createCalendarGrid(container, options = {}) {
+    const start = new Date(Date.UTC(2026, 8, 1));
+    const offset = start.getUTCDay();
+    const daysInPrevMonth = 31;
+    const totalCells = 42;
+    for (let index = 0; index < totalCells; index += 1) {
+      const relativeDay = index - offset + 1;
+      const button = document.createElement('button');
+      button.type = 'button';
+      if (relativeDay < 1) {
+        button.textContent = String(daysInPrevMonth + relativeDay);
+        button.className = 'outside';
+        button.dataset.day = String(relativeDay);
+      } else if (relativeDay > 30) {
+        button.textContent = String(relativeDay - 30);
+        button.className = 'outside';
+        button.dataset.day = String(relativeDay);
+      } else {
+        button.textContent = String(relativeDay);
+        button.dataset.day = String(relativeDay);
+        if (options.reminderDays?.includes(relativeDay)) button.classList.add('has-reminder');
+        if (relativeDay === 4 && options.selectDay) button.classList.add('is-selected');
+      }
+      container.appendChild(button);
+    }
+  }
+
+  const reminderGrid = $('#reminderCalendarGrid');
+  createCalendarGrid(reminderGrid, { selectDay: true, reminderDays: [4, 8, 15] });
+  const globalGrid = $('#globalCalendarGrid');
+  createCalendarGrid(globalGrid, { selectDay: true, reminderDays: [4, 8, 15, 21] });
+
+  function reminderSummary() {
+    const selected = $('.calendar-grid button.is-selected', $('.reminder-calendar'));
+    const day = selected && !selected.classList.contains('outside') ? selected.dataset.day : '4';
+    $('#selectedReminderDate').textContent = `${day} September 2026`;
+    $('#reminderSummary').textContent = `${day} Sep · ${$('#reminderTime').value} · ${$('#reminderRepeat').value}`;
+  }
+
+  $$('.calendar-grid button', reminderGrid).forEach((button) => button.addEventListener('click', () => {
+    if (button.classList.contains('outside')) return;
+    $$('.calendar-grid button', reminderGrid).forEach((candidate) => candidate.classList.remove('is-selected'));
+    button.classList.add('is-selected');
+    reminderSummary();
+  }));
+  $('#reminderTime').addEventListener('input', reminderSummary);
+  $('#reminderRepeat').addEventListener('change', reminderSummary);
+  $('#saveReminder').addEventListener('click', (event) => {
+    event.currentTarget.textContent = 'Saved ✓';
+    window.setTimeout(() => { event.currentTarget.textContent = 'Save reminder'; }, 900);
+  });
+  $('#prevReminderMonth').addEventListener('click', () => { $('#reminderMonthLabel').textContent = 'August 2026'; });
+  $('#nextReminderMonth').addEventListener('click', () => { $('#reminderMonthLabel').textContent = 'October 2026'; });
+
+  // Dot
+  const dotDemo = $('#dotDemo');
+  if (dotDemo) {
+    dotDemo.addEventListener('click', (event) => {
+      if (event.target.closest('.dot-dismiss')) return;
+      showView('note');
+    });
+    $('.dot-dismiss', dotDemo).addEventListener('click', (event) => {
+      event.stopPropagation();
+      dotDemo.animate([{ opacity: 1, transform: 'scale(1)' }, { opacity: 0, transform: 'scale(.65)' }], { duration: 180, easing: 'ease-in' });
+    });
+  }
+
+  // Rail
+  $$('[data-rail-scope]').forEach((button) => button.addEventListener('click', () => {
+    $$('[data-rail-scope]').forEach((candidate) => candidate.classList.toggle('is-active', candidate === button));
+    $('.rail-all-only').hidden = button.dataset.railScope !== 'all';
+  }));
+  $('#railSearch').addEventListener('input', (event) => {
+    const query = event.target.value.trim().toLowerCase();
+    $$('.rail-note-row').forEach((row) => { row.hidden = !row.dataset.railTitle.toLowerCase().includes(query); });
+  });
+  $$('[data-rail-action]').forEach((button) => button.addEventListener('click', (event) => {
+    const row = event.currentTarget.closest('.rail-note-row');
+    if (button.dataset.railAction === 'here') {
+      $('#railStatus').textContent = `“${row.dataset.railTitle}” opens as the real Skrib beside the current place. The saved anchor remains unchanged.`;
+      window.setTimeout(() => showView('note'), 280);
+    } else {
+      $('#railStatus').textContent = `Return attempts the saved application/window for “${row.dataset.railTitle}”. Exact closed URLs or paths are not promised.`;
+    }
+  }));
+  $$('.rail-note-main').forEach((button) => button.addEventListener('click', () => showView('note')));
+
+  // Library
+  const libraryRows = $$('.library-row');
+  libraryRows.forEach((button) => button.addEventListener('click', () => {
+    libraryRows.forEach((candidate) => candidate.classList.toggle('is-active', candidate === button));
+    $('#libraryDetailTitle').textContent = button.dataset.noteTitle;
+    $('#libraryDetailContext').textContent = button.dataset.noteContext.toUpperCase();
+    $('#libraryLocation').textContent = button.dataset.noteContext;
+    $('#libraryPaper').textContent = button.dataset.noteCopy;
+  }));
+  $('#librarySearch').addEventListener('input', (event) => {
+    const query = event.target.value.trim().toLowerCase();
+    libraryRows.forEach((row) => { row.hidden = !row.textContent.toLowerCase().includes(query); });
+  });
+  $('#libraryReturn').addEventListener('click', (event) => {
+    const original = event.currentTarget.innerHTML;
+    event.currentTarget.innerHTML = 'Returning… <i class="ph ph-arrow-up-right"></i>';
+    window.setTimeout(() => { event.currentTarget.innerHTML = original; }, 900);
+  });
+  $$('[data-library-tab]').forEach((button) => button.addEventListener('click', () => {
+    if (button.dataset.libraryTab === 'calendar' || button.dataset.libraryTab === 'trash') showView('calendar');
+  }));
+
+  // Account mock
+  $('#accountForm').addEventListener('submit', (event) => {
+    event.preventDefault();
+    $('#accountFormStatus').textContent = 'Signed-in state simulated. No Skrib content was uploaded.';
+  });
+
+  // Button micro feedback for visible review affordance.
   document.addEventListener('click', (event) => {
     const button = event.target.closest('button');
-    if (!button || button.classList.contains('resize-handle')) return;
+    if (!button || button.disabled) return;
     button.classList.remove('is-clicked');
     requestAnimationFrame(() => button.classList.add('is-clicked'));
     window.setTimeout(() => button.classList.remove('is-clicked'), 150);
   });
 
-  const noteMock = $('#noteMock');
-  const toolTray = $('#noteToolTray');
-  const inkCanvas = $('#inkCanvas');
-  const noteWriting = $('#noteWriting');
-  const noteInlineCalendar = $('#noteInlineCalendar');
-  let activeTool = 'attach';
-
-  function setTool(tool, forceOpen = true) {
-    const isAlreadyOpen = activeTool === tool && !noteMock.classList.contains('tray-closed');
-    const shouldOpen = forceOpen ? true : !isAlreadyOpen;
-    activeTool = tool;
-    noteMock.classList.toggle('tray-closed', !shouldOpen);
-    toolTray.classList.toggle('is-open', shouldOpen);
-    noteMock.classList.toggle('is-drawing', shouldOpen && tool === 'draw');
-    $$('[data-tool]').forEach((button) => button.classList.toggle('is-active', shouldOpen && button.dataset.tool === tool));
-    $$('[data-tool-panel]').forEach((panel) => panel.classList.toggle('is-active', shouldOpen && panel.dataset.toolPanel === tool));
-    if (shouldOpen && (tool === 'draw' || tool === 'remind') && sizeIndex !== 1) {
-      sizeIndex = 1;
-      applySize(sizeIndex);
-    }
-    if (tool !== 'remind') {
-      noteInlineCalendar.hidden = true;
-      noteMock.classList.remove('has-inline-calendar');
-      $$('.lab-surface-nav button').forEach((button) => button.classList.remove('is-active'));
-      $('.lab-surface-nav button[data-show-view="editor"]:not([data-open-note-calendar])')?.classList.add('is-active');
-    }
-    if (tool === 'draw' && shouldOpen) resizeInkCanvas();
-  }
-
-  $$('[data-tool]').forEach((button) => button.addEventListener('click', () => setTool(button.dataset.tool, false)));
-  $$('[data-close-tray]').forEach((button) => button.addEventListener('click', () => {
-    noteMock.classList.add('tray-closed');
-    toolTray.classList.remove('is-open');
-    noteMock.classList.remove('is-drawing');
-    noteInlineCalendar.hidden = true;
-    noteMock.classList.remove('has-inline-calendar');
-    $$('[data-tool]').forEach((item) => item.classList.remove('is-active'));
-  }));
-
-  const noteColors = ['yellow', 'peach', 'mint', 'sky', 'lavender'];
-  $$('[data-note-color]').forEach((button) => button.addEventListener('click', () => {
-    noteColors.forEach((color) => noteMock.classList.remove(`note-${color}`));
-    noteMock.classList.add(`note-${button.dataset.noteColor}`);
-    $$('[data-note-color]').forEach((item) => item.classList.toggle('is-selected', item === button));
-    noteMock.classList.remove('is-color-changing');
-    requestAnimationFrame(() => noteMock.classList.add('is-color-changing'));
-    window.setTimeout(() => noteMock.classList.remove('is-color-changing'), 190);
-  }));
-
-  const sizePresets = [
-    { name: 'Comfortable', width: 520, height: 430, icon: 'ph-arrows-out-simple', label: 'Increase to canvas' },
-    { name: 'Canvas', width: 640, height: 540, icon: 'ph-arrows-in-simple', label: 'Compact note' },
-    { name: 'Compact', width: 420, height: 360, icon: 'ph-arrows-out-simple', label: 'Increase to comfortable' },
-  ];
-  let sizeIndex = 0;
-  const cycleSize = $('#cycleSize');
-
-  function applySize(index, custom = false) {
-    const preset = sizePresets[index];
-    noteMock.style.width = `${preset.width}px`;
-    noteMock.style.height = `${preset.height}px`;
-    noteMock.classList.remove('size-comfortable', 'size-canvas', 'size-compact');
-    noteMock.classList.add(`size-${preset.name.toLowerCase()}`);
-    $('#noteSizeLabel').textContent = `${custom ? 'Custom' : preset.name} · drag a corner`;
-    const icon = $('i', cycleSize);
-    icon.className = `ph ${preset.icon}`;
-    cycleSize.title = preset.label;
-    cycleSize.setAttribute('aria-label', preset.label);
-    noteMock.classList.add('is-resizing');
-    window.setTimeout(() => noteMock.classList.remove('is-resizing'), 200);
-    requestAnimationFrame(resizeInkCanvas);
-  }
-
-  cycleSize.addEventListener('click', () => {
-    sizeIndex = (sizeIndex + 1) % sizePresets.length;
-    applySize(sizeIndex);
-  });
-
-  $$('[data-resize-corner]').forEach((handle) => {
-    let didDrag = false;
-    handle.addEventListener('pointerdown', (event) => {
-      event.preventDefault();
-      didDrag = false;
-      noteMock.classList.add('is-resizing');
-      handle.setPointerCapture(event.pointerId);
-      const start = { x: event.clientX, y: event.clientY, width: noteMock.offsetWidth, height: noteMock.offsetHeight };
-      const corner = handle.dataset.resizeCorner;
-
-      function move(pointerEvent) {
-        const horizontal = corner.includes('left') ? start.x - pointerEvent.clientX : pointerEvent.clientX - start.x;
-        const vertical = corner.includes('top') ? start.y - pointerEvent.clientY : pointerEvent.clientY - start.y;
-        if (Math.abs(horizontal) > 2 || Math.abs(vertical) > 2) didDrag = true;
-        const width = Math.max(400, Math.min(680, start.width + horizontal));
-        const height = Math.max(340, Math.min(560, start.height + vertical));
-        noteMock.style.width = `${Math.round(width)}px`;
-        noteMock.style.height = `${Math.round(height)}px`;
-        $('#noteSizeLabel').textContent = `Custom · ${Math.round(width)} × ${Math.round(height)}`;
-        resizeInkCanvas();
-      }
-
-      function stop(pointerEvent) {
-        handle.releasePointerCapture(pointerEvent.pointerId);
-        window.setTimeout(() => noteMock.classList.remove('is-resizing'), 120);
-        handle.removeEventListener('pointermove', move);
-        handle.removeEventListener('pointerup', stop);
-        handle.removeEventListener('pointercancel', stop);
-      }
-
-      handle.addEventListener('pointermove', move);
-      handle.addEventListener('pointerup', stop);
-      handle.addEventListener('pointercancel', stop);
-    });
-
-    handle.addEventListener('click', () => {
-      if (didDrag) {
-        didDrag = false;
-        return;
-      }
-      const grows = handle.dataset.resizeCorner === 'bottom-right';
-      const width = Math.max(400, Math.min(680, noteMock.offsetWidth + (grows ? 16 : -16)));
-      const height = Math.max(340, Math.min(560, noteMock.offsetHeight + (grows ? 16 : -16)));
-      noteMock.style.width = `${width}px`;
-      noteMock.style.height = `${height}px`;
-      $('#noteSizeLabel').textContent = `Custom · ${width} × ${height}`;
-      noteMock.classList.add('is-resizing');
-      window.setTimeout(() => noteMock.classList.remove('is-resizing'), 180);
-      resizeInkCanvas();
-    });
-  });
-
-  const attachmentIcons = { Image: 'ph-image', Video: 'ph-video-camera', Document: 'ph-file-text', Link: 'ph-link' };
-  let attachmentCount = 0;
-  $$('[data-add-attachment]').forEach((button) => button.addEventListener('click', () => {
-    attachmentCount += 1;
-    const type = button.dataset.addAttachment;
-    const chip = document.createElement('span');
-    chip.className = 'attachment-chip';
-    chip.innerHTML = `<i class="ph ${attachmentIcons[type]}"></i>${type.toLowerCase()}-${attachmentCount}.${type === 'Image' ? 'png' : type === 'Video' ? 'mp4' : type === 'Link' ? 'url' : 'pdf'}`;
-    $('#noteChips').append(chip);
-    chip.classList.add('is-entering');
-  }));
-
-  const noteReminderChip = $('#noteReminderChip');
-  $$('[data-reminder-quick]').forEach((button) => button.addEventListener('click', () => {
-    $('span', noteReminderChip).textContent = `${button.dataset.reminderQuick} · 09:30`;
-    noteReminderChip.hidden = false;
-    noteReminderChip.classList.remove('is-entering');
-    requestAnimationFrame(() => noteReminderChip.classList.add('is-entering'));
-  }));
-  $('button', noteReminderChip).addEventListener('click', () => { noteReminderChip.hidden = true; });
-
-  let textSize = 18;
-  $$('[data-text-step]').forEach((button) => button.addEventListener('click', () => {
-    textSize = Math.max(14, Math.min(28, textSize + Number(button.dataset.textStep)));
-    noteWriting.style.fontSize = `${textSize}px`;
-    $('#textSizeValue').textContent = textSize;
-  }));
-  $$('[data-text-align]').forEach((button) => button.addEventListener('click', () => {
-    noteWriting.style.textAlign = button.dataset.textAlign;
-    $$('[data-text-align]').forEach((item) => item.classList.toggle('is-selected', item === button));
-  }));
-
-  const noteMore = $('#moreNote');
-  const noteMoreMenu = $('#noteMoreMenu');
-  noteMore.addEventListener('click', () => {
-    const isOpen = noteMore.getAttribute('aria-expanded') === 'true';
-    noteMore.setAttribute('aria-expanded', String(!isOpen));
-    noteMoreMenu.hidden = isOpen;
-  });
-  $$('button', noteMoreMenu).forEach((button) => button.addEventListener('click', () => {
-    noteMore.setAttribute('aria-expanded', 'false');
-    noteMoreMenu.hidden = true;
-  }));
-
-  const collapsedDot = $('#collapsedDot');
-  function collapseEditor(complete = false) {
-    noteMock.classList.add(complete ? 'is-completing' : 'is-collapsing');
-    window.setTimeout(() => {
-      noteMock.hidden = true;
-      noteMock.classList.remove('is-collapsing', 'is-completing');
-      collapsedDot.hidden = false;
-      collapsedDot.classList.remove('is-entering');
-      requestAnimationFrame(() => collapsedDot.classList.add('is-entering'));
-    }, 150);
-  }
-  $('#collapseNote').addEventListener('click', () => collapseEditor(false));
-  $('#closeNote').addEventListener('click', () => collapseEditor(false));
-  $('#doneNote').addEventListener('click', () => collapseEditor(true));
-  let dotDragged = false;
-  collapsedDot.addEventListener('click', () => {
-    if (dotDragged) {
-      dotDragged = false;
-      return;
-    }
-    collapsedDot.hidden = true;
-    noteMock.hidden = false;
-    noteMock.classList.remove('is-entering');
-    requestAnimationFrame(() => noteMock.classList.add('is-entering'));
-    window.setTimeout(() => noteMock.classList.remove('is-entering'), 190);
-  });
-
-  const editorStage = $('.editor-stage');
-  function makeDraggable(handle, surface, isDot = false) {
-    handle.addEventListener('pointerdown', (event) => {
-      event.preventDefault();
-      const stageRect = editorStage.getBoundingClientRect();
-      const surfaceRect = surface.getBoundingClientRect();
-      const start = { x: event.clientX, y: event.clientY, left: surfaceRect.left - stageRect.left, top: surfaceRect.top - stageRect.top };
-      let moved = false;
-      surface.style.position = 'absolute';
-      surface.style.right = 'auto';
-      surface.style.marginTop = '0';
-      surface.style.transform = 'none';
-      surface.style.left = `${start.left}px`;
-      surface.style.top = `${start.top}px`;
-      handle.setPointerCapture(event.pointerId);
-
-      function move(pointerEvent) {
-        const dx = pointerEvent.clientX - start.x;
-        const dy = pointerEvent.clientY - start.y;
-        if (Math.abs(dx) > 3 || Math.abs(dy) > 3) moved = true;
-        const left = Math.max(10, Math.min(stageRect.width - surface.offsetWidth - 10, start.left + dx));
-        const top = Math.max(10, Math.min(stageRect.height - surface.offsetHeight - 10, start.top + dy));
-        surface.style.left = `${Math.round(left)}px`;
-        surface.style.top = `${Math.round(top)}px`;
-      }
-
-      function stop(pointerEvent) {
-        handle.releasePointerCapture(pointerEvent.pointerId);
-        if (isDot && moved) dotDragged = true;
-        handle.removeEventListener('pointermove', move);
-        handle.removeEventListener('pointerup', stop);
-        handle.removeEventListener('pointercancel', stop);
-      }
-
-      handle.addEventListener('pointermove', move);
-      handle.addEventListener('pointerup', stop);
-      handle.addEventListener('pointercancel', stop);
-    });
-  }
-  makeDraggable($('.note-drag', noteMock), noteMock);
-  makeDraggable(collapsedDot, collapsedDot, true);
-
-  let drawMode = 'pen';
-  let strokeWidth = 2;
-  let inkColor = '#262923';
-  let drawing = false;
-  let lastPoint = null;
-  const inkContext = inkCanvas.getContext('2d');
-
-  function resizeInkCanvas() {
-    const rect = inkCanvas.getBoundingClientRect();
-    const ratio = window.devicePixelRatio || 1;
-    if (!rect.width || !rect.height) return;
-    const snapshot = document.createElement('canvas');
-    snapshot.width = inkCanvas.width;
-    snapshot.height = inkCanvas.height;
-    snapshot.getContext('2d').drawImage(inkCanvas, 0, 0);
-    inkCanvas.width = Math.round(rect.width * ratio);
-    inkCanvas.height = Math.round(rect.height * ratio);
-    inkContext.setTransform(ratio, 0, 0, ratio, 0, 0);
-    if (snapshot.width && snapshot.height) inkContext.drawImage(snapshot, 0, 0, snapshot.width, snapshot.height, 0, 0, rect.width, rect.height);
-  }
-
-  $$('[data-draw-mode]').forEach((button) => button.addEventListener('click', () => {
-    drawMode = button.dataset.drawMode;
-    $$('[data-draw-mode]').forEach((item) => item.classList.toggle('is-selected', item === button));
-    inkCanvas.style.cursor = drawMode === 'select' ? 'default' : 'crosshair';
-  }));
-  const strokeOptions = [
-    { name: 'Thin', value: 2, key: 'thin' },
-    { name: 'Medium', value: 5, key: 'medium' },
-    { name: 'Thick', value: 9, key: 'thick' },
-  ];
-  let strokeIndex = 0;
-  $('#cycleStroke').addEventListener('click', () => {
-    strokeIndex = (strokeIndex + 1) % strokeOptions.length;
-    const option = strokeOptions[strokeIndex];
-    strokeWidth = option.value;
-    $('#strokeLabel').textContent = option.name;
-    $('#cycleStroke').dataset.size = option.key;
-    $('#cycleStroke').setAttribute('aria-label', `Stroke size: ${option.name.toLowerCase()}`);
-  });
-  $('#clearInk').addEventListener('click', () => inkContext.clearRect(0, 0, inkCanvas.width, inkCanvas.height));
-  $$('[data-ink-color]').forEach((button) => button.addEventListener('click', () => {
-    inkColor = button.dataset.inkColor;
-    $$('[data-ink-color]').forEach((item) => item.classList.toggle('is-selected', item === button));
-  }));
-
-  function pointFromEvent(event) {
-    const rect = inkCanvas.getBoundingClientRect();
-    return { x: event.clientX - rect.left, y: event.clientY - rect.top };
-  }
-  inkCanvas.addEventListener('pointerdown', (event) => {
-    if (drawMode === 'select') return;
-    drawing = true;
-    lastPoint = pointFromEvent(event);
-    inkCanvas.setPointerCapture(event.pointerId);
-  });
-  inkCanvas.addEventListener('pointermove', (event) => {
-    if (!drawing) return;
-    const point = pointFromEvent(event);
-    inkContext.beginPath();
-    inkContext.moveTo(lastPoint.x, lastPoint.y);
-    inkContext.lineTo(point.x, point.y);
-    inkContext.lineCap = 'round';
-    inkContext.lineJoin = 'round';
-    inkContext.lineWidth = drawMode === 'highlight' ? strokeWidth * 3 : strokeWidth;
-    inkContext.strokeStyle = drawMode === 'highlight' ? 'rgba(248, 203, 65, 0.5)' : inkColor;
-    inkContext.globalCompositeOperation = drawMode === 'erase' ? 'destination-out' : 'source-over';
-    inkContext.stroke();
-    lastPoint = point;
-  });
-  function stopDrawing() { drawing = false; lastPoint = null; }
-  inkCanvas.addEventListener('pointerup', stopDrawing);
-  inkCanvas.addEventListener('pointercancel', stopDrawing);
-  new ResizeObserver(resizeInkCanvas).observe($('#noteCanvas'));
-
-  const notes = {
-    'target-close': { title: 'v0.1.12 target-close smoke', location: 'GitHub › skribly › Issue #168', app: 'Chrome · GitHub', color: 'mint' },
-    'interface-plan': { title: 'Plan note and rail refinement', location: 'ChatGPT › Skribli build', app: 'ChatGPT · Skribli build', color: 'peach' },
-    'payment-list': { title: 'Payment readiness list', location: 'Notion › Launch plan', app: 'Notion · Launch plan', color: 'yellow' },
-    'token-pass': { title: 'Token cleanup', location: 'skribly › context-rail.css', app: 'VS Code · skribly', color: 'sky' },
-    'release-check': { title: 'Release check', location: 'skribly › v0.1.14', app: 'VS Code · skribly', color: 'lavender' },
-    'invoice-folder': { title: 'Licence documents', location: 'Documents › Skribli › Finance', app: 'File Explorer · Documents', color: 'peach' },
-  };
-
-  const railMock = $('#railMock');
-  const railDragHandle = $('#railDragHandle');
-  let railY = 16;
-  let railDrag = null;
-
-  function clampRailY(value) {
-    const stageHeight = railMock.parentElement.getBoundingClientRect().height;
-    const maxY = Math.max(16, stageHeight - railMock.offsetHeight - 16);
-    return Math.min(Math.max(value, 16), maxY);
-  }
-
-  function settleRail() {
-    railMock.classList.remove('is-dragging');
-    railMock.style.setProperty('--rail-drag-x', '0px');
-    railMock.classList.add('is-settling');
-    window.setTimeout(() => railMock.classList.remove('is-settling'), 220);
-  }
-
-  railDragHandle.addEventListener('pointerdown', (event) => {
-    if (event.button !== 0) return;
-    railDrag = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, startRailY: railY };
-    railDragHandle.setPointerCapture(event.pointerId);
-    railMock.classList.add('is-dragging');
-  });
-
-  railDragHandle.addEventListener('pointermove', (event) => {
-    if (!railDrag || event.pointerId !== railDrag.pointerId) return;
-    const pullX = Math.min(14, Math.max(-190, event.clientX - railDrag.startX));
-    railY = clampRailY(railDrag.startRailY + event.clientY - railDrag.startY);
-    railMock.style.setProperty('--rail-drag-x', `${pullX}px`);
-    railMock.style.setProperty('--rail-y', `${railY}px`);
-  });
-
-  const finishRailDrag = (event) => {
-    if (!railDrag || event.pointerId !== railDrag.pointerId) return;
-    railDrag = null;
-    settleRail();
-  };
-  railDragHandle.addEventListener('pointerup', finishRailDrag);
-  railDragHandle.addEventListener('pointercancel', finishRailDrag);
-  railDragHandle.addEventListener('keydown', (event) => {
-    if (!['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return;
-    event.preventDefault();
-    const stageHeight = railMock.parentElement.getBoundingClientRect().height;
-    const maxY = Math.max(16, stageHeight - railMock.offsetHeight - 16);
-    if (event.key === 'Home') railY = 16;
-    if (event.key === 'End') railY = maxY;
-    if (event.key === 'ArrowUp') railY = clampRailY(railY - 16);
-    if (event.key === 'ArrowDown') railY = clampRailY(railY + 16);
-    railMock.style.setProperty('--rail-y', `${railY}px`);
-    settleRail();
-  });
-  window.addEventListener('resize', () => {
-    railY = clampRailY(railY);
-    railMock.style.setProperty('--rail-y', `${railY}px`);
-  });
-
-  function setRailOpen(open) {
-    railMock.classList.toggle('is-open', open);
-    railMock.classList.add('is-settling');
-    window.setTimeout(() => railMock.classList.remove('is-settling'), 190);
-    $('#globalRailPill').classList.toggle('is-rail-open', open);
-  }
-  $('#globalRailPill').addEventListener('click', () => setRailOpen(true));
-  $('#collapseRail').addEventListener('click', () => setRailOpen(false));
-
-  $$('[data-rail-scope]').forEach((button) => button.addEventListener('click', () => {
-    const isAll = button.dataset.railScope === 'all';
-    $$('[data-rail-scope]').forEach((item) => {
-      const selected = item === button;
-      item.classList.toggle('is-active', selected);
-      item.setAttribute('aria-selected', String(selected));
-    });
-    $$('.all-only').forEach((group) => group.hidden = !isAll);
-  }));
-  $$('.all-only').forEach((group) => group.hidden = true);
-
-  function selectRailNote(button) {
-    $$('.rail-note-row').forEach((row) => row.classList.toggle('is-selected', row === button));
-    const note = notes[button.dataset.noteId];
-    const inspector = $('#railInspector');
-    noteColors.forEach((color) => inspector.classList.remove(`note-${color}`));
-    inspector.classList.add(`note-${note.color}`);
-    $('.rail-inspector-location', inspector).innerHTML = `<i class="ph ph-map-pin"></i> ${note.location}`;
-    $('p', inspector).textContent = note.title;
-    inspector.classList.remove('is-refreshing');
-    requestAnimationFrame(() => inspector.classList.add('is-refreshing'));
-    window.setTimeout(() => inspector.classList.remove('is-refreshing'), 180);
-    setRailOpen(true);
-  }
-  $$('.rail-note-row').forEach((button) => button.addEventListener('click', () => selectRailNote(button)));
-
-  const railSearch = $('#railSearch');
-  const railSearchInput = $('input', railSearch);
-  $('#railSearchToggle').addEventListener('click', () => {
-    railSearch.hidden = false;
-    railSearchInput.focus();
-  });
-  $('button', railSearch).addEventListener('click', () => {
-    railSearchInput.value = '';
-    railSearch.hidden = true;
-    $$('.rail-note-row').forEach((row) => row.hidden = false);
-  });
-  railSearchInput.addEventListener('input', () => {
-    const query = railSearchInput.value.toLowerCase().trim();
-    $$('.rail-note-row').forEach((row) => row.hidden = query && !row.textContent.toLowerCase().includes(query));
-  });
-
-  let toastTimer;
-  function showToast(element, text) {
-    clearTimeout(toastTimer);
-    $('span', element).textContent = text;
-    element.hidden = false;
-    toastTimer = setTimeout(() => { element.hidden = true; }, 2600);
-  }
-  $('#readRailNote').addEventListener('click', () => showToast($('#railToast'), 'Reading in the rail · it stays pinned'));
-  $('#openRailContext').addEventListener('click', () => showToast($('#railToast'), 'Original location opened · rail stays pinned'));
-
-  $$('[data-library-note]').forEach((button) => button.addEventListener('click', () => {
-    $$('[data-library-note]').forEach((item) => item.classList.toggle('is-selected', item === button));
-    const note = notes[button.dataset.libraryNote];
-    $('#libraryTitle').textContent = note.title;
-    $('#libraryLocation').textContent = note.location;
-    const paper = $('#libraryPaper');
-    paper.textContent = note.title;
-    noteColors.forEach((color) => paper.classList.remove(`note-${color}`));
-    paper.classList.add(`note-${note.color}`);
-    const detail = $('.library-detail');
-    detail.classList.remove('is-refreshing');
-    requestAnimationFrame(() => detail.classList.add('is-refreshing'));
-    window.setTimeout(() => detail.classList.remove('is-refreshing'), 180);
-  }));
-
-  const calendarDays = $('#calendarDays');
-  const noteCalendarDays = $('#noteCalendarDays');
-  const days = [31, ...Array.from({ length: 30 }, (_, index) => index + 1), 1, 2, 3, 4];
-  let reminderHour = 9;
-  let reminderMinute = 30;
-  let reminderDay = 8;
-  let repeatValue = 'once';
-
-  function populateCalendar(container, compact = false) {
-    days.forEach((day, index) => {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.textContent = day;
-      button.dataset.calendarDay = String(day);
-      if (index === 0 || index > 30) button.classList.add(compact ? 'is-muted' : 'is-outside');
-      if (day === 8 && index === 8) button.classList.add('is-selected');
-      if (index > 0 && index <= 30) {
-        button.addEventListener('click', () => {
-          $$('[data-calendar-day]').forEach((item) => item.classList.toggle('is-selected', item.dataset.calendarDay === String(day) && !item.classList.contains('is-outside') && !item.classList.contains('is-muted')));
-          updateReminderSummary(day);
-        });
-      }
-      container.append(button);
-    });
-  }
-
-  populateCalendar(calendarDays);
-  populateCalendar(noteCalendarDays, true);
-
-  function updateReminderSummary(day = reminderDay) {
-    reminderDay = day;
-    const date = new Date(2026, 8, reminderDay);
-    const weekday = date.toLocaleDateString('en-GB', { weekday: 'long' });
-    const time = `${String(reminderHour).padStart(2, '0')}:${String(reminderMinute).padStart(2, '0')}`;
-    $('#reminderTime').textContent = time;
-    $('#noteReminderTime').textContent = time;
-    $('#reminderSummary').textContent = `${weekday}, ${reminderDay} September at ${time} · ${repeatValue}`;
-    $('#noteReminderInlineSummary').textContent = `${weekday}, ${reminderDay} September · ${time} · ${repeatValue}`;
-  }
-  $$('[data-time-step]').forEach((button) => button.addEventListener('click', () => {
-    reminderHour = button.dataset.timeStep === 'hour-up' ? (reminderHour + 1) % 24 : (reminderHour + 23) % 24;
-    updateReminderSummary();
-  }));
-  $$('[data-repeat]').forEach((button) => button.addEventListener('click', () => {
-    repeatValue = button.dataset.repeat;
-    $$('[data-repeat]').forEach((item) => item.classList.toggle('is-active', item.dataset.repeat === repeatValue));
-    updateReminderSummary();
-  }));
-
-  function openNoteCalendar() {
-    showView('editor');
-    setTool('remind', true);
-    noteInlineCalendar.hidden = false;
-    noteMock.classList.add('has-inline-calendar');
-    sizeIndex = 1;
-    applySize(sizeIndex);
-    $$('.lab-surface-nav button').forEach((button) => button.classList.remove('is-active'));
-    $('.lab-surface-nav button[data-open-note-calendar]')?.classList.add('is-active');
-  }
-
-  $$('[data-open-note-calendar]').forEach((button) => button.addEventListener('click', openNoteCalendar));
-  $('#closeNoteCalendar').addEventListener('click', () => {
-    noteInlineCalendar.hidden = true;
-    noteMock.classList.remove('has-inline-calendar');
-  });
-  $('#saveInlineReminder').addEventListener('click', () => {
-    const summary = $('#noteReminderInlineSummary').textContent;
-    $('span', noteReminderChip).textContent = summary;
-    noteReminderChip.hidden = false;
-    noteReminderChip.classList.remove('is-entering');
-    requestAnimationFrame(() => noteReminderChip.classList.add('is-entering'));
-    noteInlineCalendar.hidden = true;
-    noteMock.classList.remove('has-inline-calendar');
-  });
-  $('#saveReminder').addEventListener('click', () => {
-    const button = $('#saveReminder');
-    button.classList.add('is-success');
-    button.innerHTML = '<i class="ph ph-check-circle"></i> Saved';
-    showToast($('#reminderToast'), 'Reminder added to the note');
-    window.setTimeout(() => {
-      button.classList.remove('is-success');
-      button.innerHTML = '<i class="ph ph-check"></i> Save reminder';
-    }, 1200);
-  });
-
-  window.addEventListener('resize', resizeInkCanvas);
-  setRailOpen(true);
-  applySize(0);
-  updateReminderSummary();
+  syncRuntime();
 })();
