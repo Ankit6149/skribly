@@ -295,18 +295,40 @@ if (/supabase|\/api\/download|accessToken/i.test(ownerDownloadScript)) {
   failures.push('Owner v0 client must use only local key decryption.');
 }
 
+// The Interface Lab is a present-tense design/review contract, not a compatibility target for
+// retired prototype concepts. Validate the surfaces and review fixtures we expect to keep current.
 const interfaceLab = await readFile(join(root, 'interface-lab.html'), 'utf8');
-for (const marker of [
-  'data-view="editor"',
+const requiredInterfaceLabMarkers = [
+  'data-view="overview"',
+  'data-view="structure"',
+  'data-view="motion"',
+  'data-view="note"',
+  'data-view="attachments"',
+  'data-view="drawing"',
+  'data-view="reminder"',
+  'data-view="dot"',
   'data-view="rail"',
   'data-view="library"',
-  'data-view="reminder"',
-  'data-view="system"',
-  'data-resize-corner',
-  'data-rail-scope',
+  'data-view="calendar"',
+  'data-view="home"',
+  'data-view="onboarding"',
+  'data-view="account"',
+  'data-view="recovery"',
+  'data-view="matrix"',
+  'data-note-tool="attach"',
+  'data-note-tool="draw"',
+  'data-note-tool="remind"',
+  'data-rail-scope="here"',
+  'data-rail-scope="all"',
+  'id="labScale"',
+  'id="labRuntime"',
   './interface-lab.js',
-]) {
-  if (!interfaceLab.includes(marker)) failures.push(`Interface lab is missing interactive marker: ${marker}`);
+];
+for (const marker of requiredInterfaceLabMarkers) {
+  if (!interfaceLab.includes(marker)) failures.push(`Interface lab is missing current review marker: ${marker}`);
+}
+for (const retiredMarker of ['data-resize-corner', 'Pill and rail', 'data-add-attachment="Link"']) {
+  if (interfaceLab.includes(retiredMarker)) failures.push(`Interface lab reintroduced retired prototype marker: ${retiredMarker}`);
 }
 
 const encryptedArtifact = await readFile(join(root, 'assets/skribli-v0-windows.enc'));
