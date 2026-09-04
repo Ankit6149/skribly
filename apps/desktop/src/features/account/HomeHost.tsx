@@ -407,7 +407,7 @@ export const HomeHost: React.FC = () => {
     let disposed = false;
     let unlisten: (() => void) | undefined;
     void listen('skribly://show-onboarding', () => {
-      if (!disposed) setGuideVisible(true);
+      if (!disposed) { setWorkspace('home'); setGuideVisible(true); }
     }).then((callback) => {
       if (disposed) callback();
       else unlisten = callback;
@@ -423,14 +423,16 @@ export const HomeHost: React.FC = () => {
     if (readOnboardingStatus(window.localStorage) !== 'completed') setGuideVisible(true);
   }, [phase]);
 
-  if (phase === 'loading') return <BusySurface label="Opening Skribli…" />;
-  if (phase === 'claiming') return <BusySurface label="Verifying this device…" />;
-  if (phase !== 'ready') return <AccountSetupSurface />;
-
+  // Local reading/export must remain reachable from the tray even when account services
+  // are unavailable. Native licence/storage checks continue to guard every write.
   return (
     <>
-      <ReminderNotificationMonitor />
-      {guideVisible && (
+      {phase === 'ready' && <ReminderNotificationMonitor />}
+      <div className="desktop-workspace-page" hidden={workspace !== 'home'}>
+      {phase === 'loading' ? <BusySurface label="Opening Skribli…" />
+        : phase === 'claiming' ? <BusySurface label="Verifying this device…" />
+        : phase !== 'ready' ? <AccountSetupSurface />
+        : guideVisible ? (
       <OnboardingSurface
         onComplete={() => {
           if (typeof window !== 'undefined') completeOnboarding(window.localStorage);
@@ -440,12 +442,12 @@ export const HomeHost: React.FC = () => {
           if (typeof window !== 'undefined') markOnboardingShown(window.localStorage);
           setGuideVisible(false);
         }}
-      />)}
-      <div className="desktop-workspace-page" hidden={guideVisible || workspace !== 'home'}>
+      />) : (
         <HomeSurface onShowGuide={() => setGuideVisible(true)} />
+      )}
       </div>
-      <div className="desktop-workspace-page" hidden={guideVisible || workspace !== 'library'}>
-        <LibraryHost active={!guideVisible && workspace === 'library'} request={libraryRequest} onBack={() => setWorkspace('home')} />
+      <div className="desktop-workspace-page" hidden={workspace !== 'library'}>
+        <LibraryHost active={workspace === 'library'} request={libraryRequest} onBack={() => setWorkspace('home')} />
       </div>
     </>
   );
