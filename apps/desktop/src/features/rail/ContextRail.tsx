@@ -1,8 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { LogicalSize } from '@tauri-apps/api/dpi';
 import { listen } from '@tauri-apps/api/event';
-import { getCurrentWindow } from '@tauri-apps/api/window';
 import {
   AppWindow,
   GripVertical,
@@ -11,12 +9,14 @@ import {
   PanelRightClose,
   RefreshCw,
   StickyNote,
+  LoaderCircle,
 } from 'lucide-react';
 import type { SkribNote } from '../../lib/geometry';
 import '../../styles/context-rail.css';
 import skribliLogo from '../../../src-tauri/icons/128x128.png';
 import { applicationLabel, groupNotesForRail, railPillCount } from './contextRailModel';
 import { openNoteHere, openNoteInSavedContext } from './openNoteContext';
+import { useNativeDrag } from '../../lib/useNativeDrag';
 
 type RailScope = 'context' | 'all';
 
@@ -34,6 +34,8 @@ export const ContextRail: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
   const opening = useRef(false);
+  const resizing = useRef(false);
+  const [openingId, setOpeningId] = useState<string | null>(null);
   const refreshGeneration = useRef(0);
 
   const activeNotes = useMemo(
@@ -63,7 +65,6 @@ export const ContextRail: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    void getCurrentWindow().setSize(new LogicalSize(64, 64)).catch(() => undefined);
     void refresh();
     const subscriptions = [
       listen('skribly://overlay-update', () => void refresh()),
@@ -83,6 +84,8 @@ export const ContextRail: React.FC = () => {
   }, [refresh]);
 
   const toggleCollapsed = async () => {
+    if (resizing.current || opening.current) return;
+    resizing.current = true;
     const next = !collapsed;
     setMessage(null);
     try {
@@ -91,16 +94,20 @@ export const ContextRail: React.FC = () => {
         contextual: contextualDock,
         noteCount: visibleNotes.length,
       });
-    } catch {
-      const expandedHeight = Math.min(500, Math.max(424, 260 + Math.min(visibleNotes.length, 4) * 54));
-      await getCurrentWindow().setSize(new LogicalSize(next ? 64 : 336, next ? 64 : expandedHeight));
+      setCollapsed(next);
+    } catch (reason) {
+      setMessage(String(reason));
+    } finally {
+      resizing.current = false;
     }
-    setCollapsed(next);
   };
+
+  const pillDrag = useNativeDrag(() => void toggleCollapsed(), (reason) => setMessage(String(reason)));
 
   const openContext = async (note: SkribNote) => {
     if (opening.current) return;
     opening.current = true;
+    setOpeningId(note.id);
     setMessage(null);
     try {
       const result = await openNoteInSavedContext(note);
@@ -115,12 +122,14 @@ export const ContextRail: React.FC = () => {
       setMessage(reason instanceof Error ? reason.message : String(reason));
     } finally {
       opening.current = false;
+      setOpeningId(null);
     }
   };
 
   const openHere = async (note: SkribNote) => {
     if (opening.current) return;
     opening.current = true;
+    setOpeningId(note.id);
     setMessage(null);
     try {
       await openNoteHere(note);
@@ -131,11 +140,11 @@ export const ContextRail: React.FC = () => {
         noteCount: visibleNotes.length,
       });
       setCollapsed(false);
-      setMessage('Opened this Skrib here.');
     } catch (reason) {
       setMessage(reason instanceof Error ? reason.message : String(reason));
     } finally {
       opening.current = false;
+      setOpeningId(null);
     }
   };
 
@@ -145,9 +154,9 @@ export const ContextRail: React.FC = () => {
         <button
           type="button"
           className="context-rail-pill"
-          onClick={() => void toggleCollapsed()}
+          {...pillDrag}
           aria-label={`Open My Skribs rail with ${pillCount} notes`}
-          title={`My Skribs · ${pillCount} note${pillCount === 1 ? '' : 's'}`}
+          title={message || `My Skribs · ${pillCount} notes · Click to open, drag to move`}
         >
           <span className="context-rail-pill-sheet context-rail-pill-sheet-back" aria-hidden="true" />
           <span className="context-rail-pill-sheet context-rail-pill-sheet-middle" aria-hidden="true" />
@@ -213,12 +222,13 @@ export const ContextRail: React.FC = () => {
                 </div>
                 <div className="context-rail-group-notes">
                   {group.notes.map((note) => (
-                    <article className="context-rail-note" key={note.id}>
+                    <article className="context-rail-note" key={note.id} aria-busy={openingId === note.id}>
                       <i className={`skrib-color-${note.color}`} aria-hidden="true" />
                       <button
                         type="button"
                         className="context-rail-note-open"
                         onClick={() => void openHere(note)}
+                        disabled={openingId !== null}
                         title="Open this note here"
                         aria-label={`Open ${noteTitle(note)} here`}
                       >
@@ -227,17 +237,18 @@ export const ContextRail: React.FC = () => {
                           <small><MapPin size={11} aria-hidden="true" /> {note.target_title || applicationLabel(note.target_process_name)}</small>
                         </span>
                         <span className="context-rail-note-action-icon" aria-hidden="true">
-                          <StickyNote size={13} strokeWidth={1.9} />
+                          {openingId === note.id ? <LoaderCircle className="rail-opening-spinner" size={16} /> : <StickyNote size={16} strokeWidth={1.9} />}
                         </span>
                       </button>
                       <button
                         type="button"
                         className="context-rail-note-location"
                         onClick={() => void openContext(note)}
+                        disabled={openingId !== null}
                         title="Open at saved location"
                         aria-label={`Open ${noteTitle(note)} at its saved location`}
                       >
-                        <MapPinned size={13} strokeWidth={1.9} aria-hidden="true" />
+                        <MapPinned size={16} strokeWidth={1.9} aria-hidden="true" />
                       </button>
                     </article>
                   ))}

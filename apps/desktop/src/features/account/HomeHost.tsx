@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { emit, listen } from '@tauri-apps/api/event';
-import { getCurrentWindow, Window } from '@tauri-apps/api/window';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import React, { useEffect, useMemo, useState } from 'react';
 import skriblyMarkUrl from '../../../../../assets/branding/skribly-app-icon.svg?url';
 import { useAccountStore } from '../../stores/accountStore';
@@ -11,28 +11,12 @@ import {
 } from '../onboarding/onboardingState';
 import { OnboardingSurface } from '../onboarding/OnboardingSurface';
 import { ReminderNotificationMonitor } from '../skribs/ReminderNotificationMonitor';
+import { LibraryHost } from '../library/LibraryHost';
 
 type AccountMode = 'signIn' | 'create';
 
 async function openLibrary(view: 'notes' | 'calendar' = 'notes'): Promise<void> {
-  const home = getCurrentWindow();
-  const library = await Window.getByLabel('library');
-  if (!library) throw new Error('All Skribs is unavailable. Restart Skribli and try again.');
-  let homeHidden = false;
-  try {
-    await home.hide();
-    homeHidden = true;
-    await library.unminimize();
-    await library.show();
-    await library.setFocus();
-    await emit('skribly://library-view', { view });
-  } catch (error) {
-    if (homeHidden) {
-      await home.show().catch(() => undefined);
-      await home.setFocus().catch(() => undefined);
-    }
-    throw error;
-  }
+  await emit('skribly://library-view', { view });
 }
 
 async function openNoteRail(): Promise<void> {
@@ -391,6 +375,29 @@ const HomeSurface: React.FC<{ onShowGuide: () => void }> = ({ onShowGuide }) => 
 export const HomeHost: React.FC = () => {
   const { phase, init } = useAccountStore();
   const [guideVisible, setGuideVisible] = useState(false);
+  const [workspace, setWorkspace] = useState<'home' | 'library'>('home');
+  const [libraryRequest, setLibraryRequest] = useState<{ view: 'notes' | 'calendar' | 'trash' }>({ view: 'notes' });
+
+  useEffect(() => {
+    let disposed = false;
+    const subscriptions = [
+      listen<{ view?: string }>('skribly://library-view', ({ payload }) => {
+        if (!disposed) {
+          const view = payload?.view;
+          setLibraryRequest({ view: view === 'calendar' || view === 'trash' ? view : 'notes' });
+          setGuideVisible(false);
+          setWorkspace('library');
+        }
+      }),
+      listen('skribly://home-view', () => {
+        if (!disposed) { setGuideVisible(false); setWorkspace('home'); }
+      }),
+    ];
+    return () => {
+      disposed = true;
+      void Promise.all(subscriptions).then((callbacks) => callbacks.forEach((callback) => callback()));
+    };
+  }, []);
 
   useEffect(() => {
     void init();
@@ -420,8 +427,10 @@ export const HomeHost: React.FC = () => {
   if (phase === 'claiming') return <BusySurface label="Verifying this device…" />;
   if (phase !== 'ready') return <AccountSetupSurface />;
 
-  if (guideVisible) {
-    return (
+  return (
+    <>
+      <ReminderNotificationMonitor />
+      {guideVisible && (
       <OnboardingSurface
         onComplete={() => {
           if (typeof window !== 'undefined') completeOnboarding(window.localStorage);
@@ -431,14 +440,13 @@ export const HomeHost: React.FC = () => {
           if (typeof window !== 'undefined') markOnboardingShown(window.localStorage);
           setGuideVisible(false);
         }}
-      />
-    );
-  }
-
-  return (
-    <>
-      <ReminderNotificationMonitor />
-      <HomeSurface onShowGuide={() => setGuideVisible(true)} />
+      />)}
+      <div className="desktop-workspace-page" hidden={guideVisible || workspace !== 'home'}>
+        <HomeSurface onShowGuide={() => setGuideVisible(true)} />
+      </div>
+      <div className="desktop-workspace-page" hidden={guideVisible || workspace !== 'library'}>
+        <LibraryHost active={!guideVisible && workspace === 'library'} request={libraryRequest} onBack={() => setWorkspace('home')} />
+      </div>
     </>
   );
 };

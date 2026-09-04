@@ -815,13 +815,13 @@ html[data-skribly-window="library"] #root,
 }
 
 .home-sidebar-status strong {
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .home-sidebar-status small {
   margin-top: 2px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 11px;
   line-height: 1.35;
 }
 
@@ -835,7 +835,7 @@ html[data-skribly-window="library"] #root,
 .home-section-label,
 .home-command-label {
   color: rgb(38 41 35 / 52%);
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.14em;
 }
@@ -873,12 +873,12 @@ html[data-skribly-window="library"] #root,
 }
 
 .home-navigation button strong {
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .home-navigation button span {
   color: var(--muted);
-  font-size: 9px;
+  font-size: 11px;
   line-height: 1.35;
 }
 
@@ -892,7 +892,7 @@ html[data-skribly-window="library"] #root,
 .home-account-summary strong {
   overflow: hidden;
   color: var(--ink);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 650;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -900,14 +900,14 @@ html[data-skribly-window="library"] #root,
 
 .home-account-summary small {
   color: var(--muted);
-  font-size: 8px;
+  font-size: 10px;
 }
 
 .home-account-summary .account-text-button {
   width: fit-content;
   margin-top: 6px;
   padding: 0;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .home-main {
@@ -1069,7 +1069,7 @@ html[data-skribly-window="library"] #root,
 .home-overview-grid p {
   margin: 4px 0 0;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.45;
 }
 
@@ -1097,7 +1097,7 @@ html[data-skribly-window="library"] #root,
   padding-top: 12px;
   justify-content: flex-start;
   border-top: 1px solid var(--line);
-  font-size: 8px;
+  font-size: 10px;
 }
 
 /* Kalam is reserved for actual note content. */

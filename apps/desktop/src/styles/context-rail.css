@@ -28,6 +28,7 @@ html[data-skribly-window='rail'] #root,
 }
 
 .context-rail-pill {
+  touch-action: none;
   position: relative;
   width: 64px;
   height: 64px;
@@ -215,14 +216,14 @@ html[data-skribly-window='rail'] #root,
 
 .context-rail-heading strong {
   font-family: var(--font-display);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 760;
   letter-spacing: -0.02em;
 }
 
 .context-rail-heading small {
   color: rgb(38 41 35 / 55%);
-  font-size: 9.5px;
+  font-size: 11px;
   font-weight: 550;
 }
 
@@ -233,8 +234,8 @@ html[data-skribly-window='rail'] #root,
 }
 
 .context-rail-actions button {
-  width: 29px;
-  height: 29px;
+  width: 34px;
+  height: 34px;
   display: grid;
   padding: 0;
   place-items: center;
@@ -281,7 +282,7 @@ html[data-skribly-window='rail'] #root,
   background: transparent;
   color: rgb(38 41 35 / 61%);
   cursor: pointer;
-  font: 700 10px/1 var(--font-ui);
+  font: 700 12px/1 var(--font-ui);
   transition: background 130ms ease, box-shadow 130ms ease, color 130ms ease, transform 130ms ease;
 }
 
@@ -379,7 +380,7 @@ html[data-skribly-window='rail'] #root,
   gap: 5px;
   overflow: hidden;
   color: rgb(38 41 35 / 74%);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 760;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -387,7 +388,7 @@ html[data-skribly-window='rail'] #root,
 
 .context-rail-group-heading small {
   flex: 0 0 auto;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 650;
 }
 
@@ -399,10 +400,10 @@ html[data-skribly-window='rail'] #root,
 .context-rail-note {
   width: 100%;
   min-width: 0;
-  min-height: 48px;
+  min-height: 64px;
   padding: 5px 6px;
   display: grid;
-  grid-template-columns: 9px minmax(0, 1fr) 28px;
+  grid-template-columns: 9px minmax(0, 1fr) 32px;
   align-items: center;
   gap: 6px;
   border: 1px solid transparent;
@@ -439,7 +440,7 @@ html[data-skribly-window='rail'] #root,
   height: 100%;
   padding: 1px 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 26px;
+  grid-template-columns: minmax(0, 1fr) 30px;
   align-items: center;
   gap: 5px;
   border: 0;
@@ -465,7 +466,8 @@ html[data-skribly-window='rail'] #root,
 }
 
 .context-rail-note-copy strong {
-  font-size: 11px;
+  font-size: 13px;
+  line-height: 1.4;
   font-weight: 750;
   letter-spacing: -0.01em;
 }
@@ -474,8 +476,8 @@ html[data-skribly-window='rail'] #root,
   display: flex;
   align-items: center;
   gap: 3px;
-  color: rgb(38 41 35 / 54%);
-  font-size: 9.5px;
+  color: rgb(38 41 35 / 70%);
+  font-size: 11px;
   font-weight: 530;
 }
 
@@ -485,14 +487,14 @@ html[data-skribly-window='rail'] #root,
 
 .context-rail-note-action-icon,
 .context-rail-note-location {
-  width: 26px;
-  height: 26px;
+  width: 30px;
+  height: 30px;
   display: grid;
   place-items: center;
   border: 1px solid rgb(38 41 35 / 8%);
   border-radius: 50%;
   background: rgb(255 255 255 / 48%);
-  color: rgb(38 41 35 / 48%);
+  color: rgb(38 41 35 / 72%);
   transition: background 130ms ease, border-color 130ms ease, color 130ms ease, transform 130ms ease;
 }
 
@@ -534,7 +536,7 @@ html[data-skribly-window='rail'] #root,
   border-radius: 11px;
   background: rgb(255 255 255 / 52%);
   color: rgb(38 41 35 / 63%);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.4;
 }
 
@@ -542,7 +544,24 @@ html[data-skribly-window='rail'] #root,
   align-self: start;
 }
 
+.context-rail-note[aria-busy='true'] {
+  border-color: color-mix(in srgb, var(--olive) 35%, transparent);
+  background: color-mix(in srgb, var(--mint) 40%, var(--paper));
+}
+
+.context-rail-note button:disabled { cursor: progress; }
+.rail-opening-spinner { animation: rail-opening 800ms linear infinite; }
+@keyframes rail-opening { to { transform: rotate(360deg); } }
+
+@media (hover: hover) {
+  .context-rail-note-action-icon { opacity: 0; }
+  .context-rail-note:hover .context-rail-note-action-icon,
+  .context-rail-note:focus-within .context-rail-note-action-icon,
+  .context-rail-note[aria-busy='true'] .context-rail-note-action-icon { opacity: 1; }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .rail-opening-spinner { animation: none; }
   .context-rail-pill-sheet,
   .context-rail-pill-count,
   .context-rail-actions button,

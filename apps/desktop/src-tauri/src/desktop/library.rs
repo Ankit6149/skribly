@@ -5,9 +5,10 @@ use std::fs::{self, OpenOptions};
 use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
-use tauri::{App, AppHandle, Emitter, Listener, Manager, Runtime, WindowEvent};
+use tauri::{App, AppHandle, Emitter, Listener, Manager, Runtime};
 
-pub const LIBRARY_WINDOW_LABEL: &str = "library";
+// Library and account surfaces share one persistent desktop window.
+pub const LIBRARY_WINDOW_LABEL: &str = "home";
 pub const LIBRARY_EXPORT_REQUEST_EVENT: &str = "skribly://library-export-request";
 pub const LIBRARY_EXPORT_RESULT_EVENT: &str = "skribly://library-export-result";
 pub const LIBRARY_EXPORT_SCHEMA_VERSION: u32 = 2;
@@ -68,22 +69,6 @@ struct LibraryExportResult {
 }
 
 pub fn install_library_bridge<R: Runtime>(app: &App<R>) -> tauri::Result<()> {
-    if let Some(window) = app.get_webview_window(LIBRARY_WINDOW_LABEL) {
-        let window_to_hide = window.clone();
-        let app_handle = app.handle().clone();
-        window.on_window_event(move |event| {
-            if let WindowEvent::CloseRequested { api, .. } = event {
-                api.prevent_close();
-                let _ = window_to_hide.hide();
-                if let Some(home) = app_handle.get_webview_window("home") {
-                    let _ = home.unminimize();
-                    let _ = home.show();
-                    let _ = home.set_focus();
-                }
-            }
-        });
-    }
-
     let app_handle = app.handle().clone();
     app.listen(LIBRARY_EXPORT_REQUEST_EVENT, move |event| {
         let raw_payload = event.payload();

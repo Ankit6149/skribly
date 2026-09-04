@@ -494,6 +494,19 @@ fn schedule_rail_edge_dock(app_handle: &AppHandle, position: PhysicalPosition<i3
     let app_handle = app_handle.clone();
     std::thread::spawn(move || {
         std::thread::sleep(RAIL_DOCK_DEBOUNCE);
+        // A pause during a drag is not a drop. Snap only after the user releases the mouse.
+        #[cfg(target_os = "windows")]
+        while unsafe {
+            windows::Win32::UI::Input::KeyboardAndMouse::GetAsyncKeyState(
+                windows::Win32::UI::Input::KeyboardAndMouse::VK_LBUTTON.0 as i32,
+            )
+        } < 0
+        {
+            if !rail_window_runtime().movement_is_current(generation) {
+                return;
+            }
+            std::thread::sleep(Duration::from_millis(50));
+        }
         if !rail_window_runtime().movement_is_current(generation) {
             return;
         }
@@ -2381,7 +2394,8 @@ fn set_skrib_window_size(
                 .note_window_runtime
                 .lock()
                 .map_err(|_| "The native note window state is unavailable.".to_string())?
-                .record_programmatic_placement(&id, size != "compact", &metrics);
+                // Preset sizes are stored geometry, not the temporary auto-centred workspace.
+                .record_programmatic_placement(&id, false, &metrics);
         }
         Ok(metrics)
     }

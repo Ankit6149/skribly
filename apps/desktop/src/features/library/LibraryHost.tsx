@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { emit, listen } from '@tauri-apps/api/event';
-import { getCurrentWindow, Window } from '@tauri-apps/api/window';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { SkribNote } from '../../lib/geometry';
 import { deleteOrphanedRichContent } from '../../lib/richContentStore';
@@ -61,7 +61,7 @@ function timestampDateTime(timestampSeconds: number): string | undefined {
   return dateFromTimestamp(timestampSeconds)?.toISOString();
 }
 
-export const LibraryHost: React.FC = () => {
+export const LibraryHost: React.FC<{ active?: boolean; request?: { view: LibraryView }; onBack?: () => void }> = ({ active = true, request, onBack }) => {
   const [notes, setNotes] = useState<SkribNote[]>([]);
   const [lifecycleView, setLifecycleView] = useState<LibraryView>('notes');
   const [query, setQuery] = useState('');
@@ -79,6 +79,8 @@ export const LibraryHost: React.FC = () => {
   const pendingExportRequest = useRef<string | null>(null);
   const pendingExportTimeout = useRef<number | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const refreshGeneration = useRef(0);
+  const hasLoaded = useRef(false);
   const licenseStatus = useLicenseStore((state) => state.status);
   const licenceAllowsWrite = !licenseStatus.enforcementEnabled || licenseStatus.canWrite;
   const canMutate = storageWritable && licenceAllowsWrite;
@@ -91,20 +93,24 @@ export const LibraryHost: React.FC = () => {
   }, []);
 
   const refreshNotes = useCallback(async () => {
-    setIsLoading(true);
+    const generation = ++refreshGeneration.current;
+    if (!hasLoaded.current) setIsLoading(true);
     try {
       const [loaded, storageHealth] = await Promise.all([
         invoke<SkribNote[]>('get_all_skribs'),
         invoke<StorageHealthPayload>('get_storage_health'),
       ]);
+      if (generation !== refreshGeneration.current) return;
+      hasLoaded.current = true;
       setNotes(sortLibraryNotes(loaded));
       setStorageWritable(storageHealth.writable);
       setLoadError(null);
     } catch (error) {
+      if (generation !== refreshGeneration.current) return;
       const message = error instanceof Error ? error.message : String(error);
       setLoadError(`Skribli could not read the local note library: ${message}`);
     } finally {
-      setIsLoading(false);
+      if (generation === refreshGeneration.current) setIsLoading(false);
     }
   }, []);
 
@@ -115,8 +121,8 @@ export const LibraryHost: React.FC = () => {
   }, [refreshNotes]);
 
   useEffect(() => {
-    void refreshNotes();
-  }, [refreshNotes]);
+    if (active) void refreshNotes();
+  }, [active, refreshNotes]);
 
   useEffect(() => {
     let disposed = false;
@@ -124,7 +130,7 @@ export const LibraryHost: React.FC = () => {
 
     void getCurrentWindow()
       .onFocusChanged(({ payload: focused }) => {
-        if (!disposed && focused) void refreshNotes();
+        if (!disposed && focused && active) void refreshNotes();
       })
       .then((callback) => {
         if (disposed) callback();
@@ -135,24 +141,11 @@ export const LibraryHost: React.FC = () => {
       disposed = true;
       unlisten?.();
     };
-  }, [refreshNotes]);
+  }, [active, refreshNotes]);
 
   useEffect(() => {
-    let disposed = false;
-    let unlisten: (() => void) | null = null;
-    void listen<unknown>('skribly://library-view', (event) => {
-      if (disposed || !event.payload || typeof event.payload !== 'object') return;
-      const view = (event.payload as { view?: unknown }).view;
-      if (view === 'notes' || view === 'calendar' || view === 'trash') setLifecycleView(view);
-    }).then((callback) => {
-      if (disposed) callback();
-      else unlisten = callback;
-    });
-    return () => {
-      disposed = true;
-      unlisten?.();
-    };
-  }, []);
+    if (request) setLifecycleView(request.view);
+  }, [request]);
 
   useEffect(() => {
     let disposed = false;
@@ -211,6 +204,7 @@ export const LibraryHost: React.FC = () => {
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (!active) return;
       const target = event.target as HTMLElement | null;
       const isTyping =
         target instanceof HTMLInputElement ||
@@ -238,7 +232,7 @@ export const LibraryHost: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [permanentDeleteNoteId, query]);
+  }, [active, permanentDeleteNoteId, query]);
 
   const requestExport = async (noteIds: string[] | null) => {
     if (isExporting) return;
@@ -328,16 +322,8 @@ export const LibraryHost: React.FC = () => {
   };
 
   const returnToHome = async () => {
-    try {
-      await getCurrentWindow().hide();
-      const home = await Window.getByLabel('home');
-      if (!home) return;
-      await home.unminimize();
-      await home.show();
-      await home.setFocus();
-    } catch {
-      // The process may already be exiting from the tray.
-    }
+    if (onBack) onBack();
+    else await emit('skribly://home-view');
   };
 
   const openSelectedNote = async (note: SkribNote) => {
@@ -446,7 +432,7 @@ export const LibraryHost: React.FC = () => {
             ref={searchInputRef}
             type="search"
             value={query}
-            autoFocus
+            autoFocus={active}
             placeholder={`Search ${lifecycleView === 'trash' ? 'Trash' : 'notes'}, application, or context…`}
             onChange={(event) => setQuery(event.target.value)}
           />

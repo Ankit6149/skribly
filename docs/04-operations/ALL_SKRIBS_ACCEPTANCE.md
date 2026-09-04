@@ -4,19 +4,19 @@ This document defines the implemented scope and required evidence for issue #126
 
 ## Product contract
 
-Skribli has two separate Windows surfaces:
+Skribli has one shared desktop workspace plus its contextual overlay:
 
 1. `main` — the transient compact contextual editor. It is borderless, topmost, taskbar-hidden, and shown only for onboarding, recovery, capture errors, or an explicit shortcut-open note request.
-2. `library` — the normal **All Skribs** window. It is decorated, resizable, taskbar-visible, non-topmost, and opened deliberately from the tray.
+2. `home` — the decorated, resizable, taskbar-visible, non-topmost workspace. Home, All Skribs, Calendar, and the guide navigate inside this same window. The separate `library` HWND has been retired.
 
 The library never becomes a floating widget, attached tab, dot, toolbar, or full-screen overlay.
 
 ## Entry and lifecycle
 
 - The tray contains **All Skribs**, **Quick guide**, and **Quit Skribli**.
-- **All Skribs** shows, unminimizes, and focuses the one statically configured `library` window.
+- **All Skribs** selects the library view inside the shared `home` window and brings that window forward.
 - Repeated activation never creates another library window.
-- Closing the decorated library window is intercepted and hides it so the tray can reopen the same instance.
+- Closing the workspace hides it to the tray. It must not open Home or any other window as a side effect.
 - Hiding or closing the library does not quit Skribli, mutate a note, or alter the compact editor's active target.
 - Focusing the library refreshes its data from the native `get_all_skribs` command.
 

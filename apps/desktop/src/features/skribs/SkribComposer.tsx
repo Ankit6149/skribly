@@ -11,6 +11,8 @@ import {
   Paperclip,
   PenLine,
   Type,
+  Check,
+  Trash2,
   X,
 } from 'lucide-react';
 import { OverlayMetrics, SkribNote, TargetWindowInfo } from '../../lib/geometry';
@@ -116,6 +118,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
     INITIAL_DELETE_CONFIRMATION_STATE
   );
   const operationInProgress = useRef(false);
+  const resizeInProgress = useRef(false);
   const richOperationsInProgress = useRef(new Map<string, number>());
   const inkPersistenceStateRef = useRef<InkPersistenceState>(inkPersistenceState);
 
@@ -271,7 +274,8 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
 
   const changeSurfaceSize = useCallback(
     async (nextSize: NoteSurfaceSize, force = false) => {
-      if ((!force && nextSize === surfaceSize) || isResizing) return false;
+      if ((!force && nextSize === surfaceSize) || resizeInProgress.current) return false;
+      resizeInProgress.current = true;
       setIsResizing(true);
       setComposerError(null);
       try {
@@ -290,10 +294,11 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
           }`
         );
       } finally {
+        resizeInProgress.current = false;
         setIsResizing(false);
       }
     },
-    [isResizing, isTauriAvailable, note.id, surfaceSize]
+    [isTauriAvailable, note.id, surfaceSize]
   );
 
   const changeTextSize = useCallback(
@@ -313,7 +318,11 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
   const cycleSurfaceSize = useCallback(async () => {
     const currentIndex = NOTE_SURFACE_SIZES.indexOf(surfaceSize);
     const nextSize = NOTE_SURFACE_SIZES[(currentIndex + 1) % NOTE_SURFACE_SIZES.length]!;
-    await changeSurfaceSize(nextSize);
+    if (await changeSurfaceSize(nextSize)) {
+      setActivePanel(null);
+      setDrawingEnabled(false);
+      setColorPickerOpen(false);
+    }
   }, [changeSurfaceSize, surfaceSize]);
 
   const cycleTextSize = useCallback(async () => {
@@ -324,6 +333,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
 
   const openRoomyTool = useCallback(
     async (tool: 'draw' | 'reminder') => {
+      setColorPickerOpen(false);
       if (tool === 'draw') {
         const nextEnabled = !drawingEnabled;
         if (nextEnabled && !await changeSurfaceSize('large', true)) return;
@@ -453,6 +463,18 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
         return;
       }
 
+      if (event.key === 'Escape' && (colorPickerOpen || activePanel || drawingEnabled)) {
+        event.preventDefault();
+        if (richOperationsInProgress.current.size > 0 || inkPersistenceStateRef.current.hasUnsavedChanges) {
+          setComposerError('Wait for the current save before closing this tool.');
+          return;
+        }
+        setColorPickerOpen(false);
+        setActivePanel(null);
+        setDrawingEnabled(false);
+        return;
+      }
+
       const shouldFinish =
         event.key === 'Escape' ||
         (event.key === 'Enter' && (event.ctrlKey || event.metaKey));
@@ -463,7 +485,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [cancelDeleteConfirmation, deleteConfirmation, finishAndHide]);
+  }, [activePanel, colorPickerOpen, drawingEnabled, cancelDeleteConfirmation, deleteConfirmation, finishAndHide]);
 
   const handleTextChange = (value: string) => {
     if (!canWrite) {
@@ -679,20 +701,6 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
               >
                 <span aria-hidden="true" />
               </button>
-              {colorPickerOpen && (
-                <div className="composer-color-popover" role="group" aria-label="Note color">
-                  {NOTE_COLORS.map((color) => (
-                    <button
-                      key={color}
-                      type="button"
-                      className={`color-swatch skrib-color-${color} ${note.color === color ? 'active' : ''}`}
-                      aria-label={`${color} note`}
-                      aria-pressed={note.color === color}
-                      onClick={() => void handleColorChange(color)}
-                    />
-                  ))}
-                </div>
-              )}
             </div>
             <button
               type="button"
@@ -771,6 +779,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
             type="button"
             className={`composer-tool-button ${drawingEnabled ? 'active' : ''}`}
             aria-pressed={drawingEnabled}
+            aria-label="Draw over your text"
             title="Draw over your text"
             disabled={!canWrite || isFinishing || isInkLoading}
             onClick={() => void openRoomyTool('draw')}
@@ -781,6 +790,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
             type="button"
             className={`composer-tool-button ${activePanel === 'reminder' ? 'active' : ''}`}
             aria-expanded={activePanel === 'reminder'}
+            aria-label="Set a reminder or repeating task"
             title="Set a reminder or repeating task"
             disabled={!canWrite || isFinishing || hasPendingRichOperation}
             onClick={() => void openRoomyTool('reminder')}
@@ -817,6 +827,19 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
             )}
           </button>
         </div>
+
+        {colorPickerOpen && (
+          <div className="composer-color-popover" role="group" aria-label="Note color">
+            <span>Paper color</span>
+            {NOTE_COLORS.map((color) => (
+              <button key={color} type="button"
+                className={`color-swatch skrib-color-${color} ${note.color === color ? 'active' : ''}`}
+                aria-label={`${color} note`} aria-pressed={note.color === color}
+                title={`${color} paper`} onClick={() => void handleColorChange(color)}
+              >{note.color === color && <Check size={14} aria-hidden="true" />}</button>
+            ))}
+          </div>
+        )}
 
         <div className={`composer-unified-workspace ${activePanel ? 'panel-open' : ''}`}>
           <div
@@ -871,6 +894,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
 
           {activePanel === 'reminder' && (
             <div className="composer-inline-panel">
+              <button className="composer-panel-close" type="button" title="Back to note" aria-label="Close reminder panel" onClick={() => setActivePanel(null)} disabled={hasPendingRichOperation}><X size={16} /></button>
               <NoteReminderPanel
                 noteId={note.id}
                 noteText={text}
@@ -924,8 +948,8 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
                 aria-live="polite"
               >
                 <span>{saveLabel}</span>
-                <small>{saveDetail}</small>
-                <small id="composer-character-count" className="composer-character-count">
+                <small className="sr-only">{saveDetail}</small>
+                <small id="composer-character-count" className={saveSnapshot.characterCount > MAX_NOTE_CHARACTERS * 0.9 ? 'composer-character-count' : 'sr-only'}>
                   {saveSnapshot.characterCount.toLocaleString()} /{' '}
                   {MAX_NOTE_CHARACTERS.toLocaleString()}
                 </small>
@@ -934,10 +958,12 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
                 <button
                   type="button"
                   className="secondary danger"
+                  aria-label="Move note to Trash"
+                  title="Move to Trash"
                   disabled={!canWrite || isFinishing || hasPendingRichOperation}
                   onClick={requestDeleteConfirmation}
                 >
-                  Delete
+                  <Trash2 size={16} aria-hidden="true" />
                 </button>
                 <button
                   type="button"

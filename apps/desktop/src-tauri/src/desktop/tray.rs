@@ -1,4 +1,3 @@
-use crate::desktop::library::LIBRARY_WINDOW_LABEL;
 use tauri::{
     menu::{Menu, MenuItem},
     tray::TrayIconBuilder,
@@ -68,9 +67,7 @@ pub fn install_tray<R: Runtime>(app: &App<R>) -> tauri::Result<()> {
             }
             match action {
                 TrayAction::OpenSkribli => {
-                    if let Some(window) = app.get_webview_window(LIBRARY_WINDOW_LABEL) {
-                        let _ = window.hide();
-                    }
+                    // Preserve the workspace the user was last reading.
                     if let Some(window) = app.get_webview_window("home") {
                         let _ = window.unminimize();
                         let _ = window.show();
@@ -78,10 +75,11 @@ pub fn install_tray<R: Runtime>(app: &App<R>) -> tauri::Result<()> {
                     }
                 }
                 TrayAction::OpenAllSkribs => {
+                    let _ = app.emit(
+                        "skribly://library-view",
+                        serde_json::json!({ "view": "notes" }),
+                    );
                     if let Some(window) = app.get_webview_window("home") {
-                        let _ = window.hide();
-                    }
-                    if let Some(window) = app.get_webview_window(LIBRARY_WINDOW_LABEL) {
                         let _ = window.unminimize();
                         let _ = window.show();
                         let _ = window.set_focus();

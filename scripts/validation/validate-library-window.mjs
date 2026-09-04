@@ -25,6 +25,8 @@ const capabilities = JSON.parse(
   await read('apps/desktop/src-tauri/capabilities/default.json')
 );
 const app = await read('apps/desktop/src/App.tsx');
+const homeHost = await read('apps/desktop/src/features/account/HomeHost.tsx');
+const nativeRuntime = await read('apps/desktop/src-tauri/src/lib.rs');
 const tray = await read('apps/desktop/src-tauri/src/desktop/tray.rs');
 const nativeLibrary = await read('apps/desktop/src-tauri/src/desktop/library.rs');
 const libraryHost = await read('apps/desktop/src/features/library/LibraryHost.tsx');
@@ -42,12 +44,12 @@ const acceptance = await read('docs/04-operations/ALL_SKRIBS_ACCEPTANCE.md');
 
 const windows = tauriConfig?.app?.windows ?? [];
 const mainWindow = windows.find((window) => window.label === 'main');
-const libraryWindow = windows.find((window) => window.label === 'library');
+const libraryWindow = windows.find((window) => window.label === 'home');
 
 if (!mainWindow) failures.push('Tauri config is missing the compact main window.');
 if (!libraryWindow) failures.push('Tauri config is missing the normal library window.');
-if (windows.filter((window) => window.label === 'library').length !== 1) {
-  failures.push('Tauri config must define exactly one library window.');
+if (windows.filter((window) => window.skipTaskbar === false).length !== 1 || windows.some((window) => window.label === 'library')) {
+  failures.push('Home and All Skribs must share exactly one taskbar window, without a separate library HWND.');
 }
 
 if (libraryWindow) {
@@ -69,20 +71,30 @@ if (libraryWindow) {
   }
 }
 
-for (const label of ['main', 'library']) {
+for (const label of ['main', 'home']) {
   if (!capabilities.windows?.includes(label)) {
     failures.push(`Desktop capability must include the ${label} window.`);
   }
 }
 
 const requiredAppRouting = [
-  "windowLabel === 'library'",
-  '<LibraryHost />',
+  "windowLabel === 'home'",
+  '<HomeHost />',
   '<OverlayHost />',
   "document.documentElement.dataset.skriblyWindow = windowLabel",
 ];
 for (const marker of requiredAppRouting) {
   if (!app.includes(marker)) failures.push(`App window routing is missing: ${marker}`);
+}
+for (const marker of ['<LibraryHost active=', 'request={libraryRequest}', 'desktop-workspace-page', "listen<{ view?: string }>('skribly://library-view'"]) {
+  if (!homeHost.includes(marker)) failures.push(`Single workspace navigation is missing: ${marker}`);
+}
+if (homeHost.includes("Window.getByLabel('library')") || libraryHost.includes("Window.getByLabel('home')")) {
+  failures.push('Workspace navigation must not swap native windows.');
+}
+if (!nativeLibrary.includes('LIBRARY_WINDOW_LABEL: &str = "home"')) failures.push('Export/import results must return to the shared home window.');
+for (const marker of ['api.prevent_close()', 'window.hide()']) {
+  if (!nativeRuntime.includes(marker)) failures.push(`Native close-to-tray contract is missing: ${marker}`);
 }
 
 const requiredTrayContract = [
@@ -113,9 +125,6 @@ const requiredNativeExport = [
   'sort_notes_for_library',
   'repeated_timestamp_never_overwrites_an_existing_export',
   'export_round_trips_versioned_json',
-  'CloseRequested',
-  'api.prevent_close()',
-  'window_to_hide.hide()',
 ];
 for (const marker of requiredNativeExport) {
   if (!nativeLibrary.includes(marker)) {
@@ -235,7 +244,7 @@ for (const marker of [
 }
 
 for (const marker of [
-  'two separate Windows surfaces',
+  'one shared desktop workspace',
   'never becomes a floating widget',
   'create_new` semantics',
   'Physical Windows acceptance matrix',

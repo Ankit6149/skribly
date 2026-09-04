@@ -3,6 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { X } from 'lucide-react';
 import type { SkribNote } from '../../lib/geometry';
 import { useSkribStore } from '../../stores/skribStore';
+import { useNativeDrag } from '../../lib/useNativeDrag';
 
 interface CollapsedSkribDotProps {
   note: SkribNote;
@@ -67,6 +68,8 @@ export const CollapsedSkribDot: React.FC<CollapsedSkribDotProps> = ({ note }) =>
     }
   };
 
+  const drag = useNativeDrag(() => void expand(), () => setError({ action: 'open', message: 'Could not reopen' }));
+
   return (
     <div className="collapsed-skrib-surface" data-overlay-surface="collapsed">
       <section
@@ -101,8 +104,7 @@ export const CollapsedSkribDot: React.FC<CollapsedSkribDotProps> = ({ note }) =>
           type="button"
           className="collapsed-skrib-open"
           onMouseDown={(event) => event.stopPropagation()}
-          onPointerDown={(event) => event.stopPropagation()}
-          onClick={() => void expand()}
+          {...drag}
           disabled={isOpening || isDismissing}
           aria-describedby={error?.action === 'open' ? 'collapsed-skrib-error' : undefined}
           aria-label={isOpening ? 'Reopening this Skrib' : 'Reopen this Skrib'}
