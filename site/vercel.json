@@ -3,15 +3,6 @@
   "ignoreCommand": "node ../scripts/validation/vercel-ignore.mjs",
   "cleanUrls": true,
   "trailingSlash": false,
-  "routes": [
-    {
-      "src": "/interface-lab",
-      "dest": "/interface-lab-v3.html"
-    },
-    {
-      "handle": "filesystem"
-    }
-  ],
   "headers": [
     {
       "source": "/api/(.*)",
