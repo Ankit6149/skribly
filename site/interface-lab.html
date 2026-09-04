@@ -4,429 +4,50 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="noindex,nofollow" />
-    <meta
-      name="description"
-      content="Skribli Interface Lab — the complete interactive design and product review environment for every desktop surface, component, state, and interaction."
-    />
-    <title>Skribli Interface Lab — Product Review Environment</title>
+    <meta name="description" content="Skribli Interface Lab — organised review studios for notes, widgets and rails, app screens, and system states." />
+    <title>Skribli Interface Lab — Studio Review</title>
     <link rel="icon" href="./assets/skribly-note-mark-v2.svg" type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Kalam:wght@400;700&family=Manrope:wght@500;600;700;800&display=swap"
-      rel="stylesheet"
-    />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Kalam:wght@400;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="./assets/phosphor/regular/style.css" />
     <link rel="stylesheet" href="./assets/phosphor/fill/style.css" />
-    <link rel="stylesheet" href="./interface-lab.css" />
+    <link rel="stylesheet" href="./interface-lab-v3.css" />
+    <style>
+      #studioBootstrap{min-height:100vh;display:grid;place-items:center;background:#f4f1e8;color:#6e7169;font:600 12px "DM Sans",sans-serif}
+    </style>
   </head>
   <body>
-    <header class="lab-topbar">
-      <a class="lab-brand" href="/" aria-label="Back to Skribli">
-        <img src="./assets/skribly-note-mark-v2.svg" alt="" />
-        <span>Skribli</span>
-      </a>
-      <div class="lab-release">
-        <strong>Interface Lab</strong>
-        <span>Product truth · visual system · interaction review</span>
-      </div>
-      <div class="lab-test-controls" aria-label="Lab simulation controls">
-        <label>
-          <span>Scale</span>
-          <select id="labScale">
-            <option value="100">100%</option>
-            <option value="125">125%</option>
-            <option value="150">150%</option>
-          </select>
-        </label>
-        <label>
-          <span>Runtime</span>
-          <select id="labRuntime">
-            <option value="normal">Normal</option>
-            <option value="offline">Offline</option>
-            <option value="readonly">Read-only</option>
-            <option value="attention">Needs attention</option>
-          </select>
-        </label>
-        <button type="button" id="toggleNotes" aria-pressed="true">
-          <i class="ph ph-notepad"></i>
-          Review notes
-        </button>
-      </div>
-      <span class="lab-live"><i class="ph-fill ph-circle"></i> Live design spec</span>
-    </header>
+    <div id="studioBootstrap">Opening Skribli Interface Lab…</div>
+    <script>
+      (async () => {
+        const response = await fetch('./interface-lab-v3.html', { cache: 'no-store' });
+        if (!response.ok) throw new Error(`Interface Lab failed to load (${response.status})`);
+        const source = await response.text();
+        const parsed = new DOMParser().parseFromString(source, 'text/html');
+        const scripts = [...parsed.body.querySelectorAll('script')];
+        scripts.forEach((script) => script.remove());
+        document.body.innerHTML = parsed.body.innerHTML;
+        const runtime = document.createElement('script');
+        runtime.src = './interface-lab-v3.js';
+        runtime.defer = true;
+        document.body.appendChild(runtime);
+      })().catch((error) => {
+        const mount = document.getElementById('studioBootstrap');
+        if (mount) mount.textContent = `Interface Lab could not open: ${error.message}`;
+      });
+    </script>
 
-    <div class="lab-layout">
-      <aside class="lab-sidebar" aria-label="Interface Lab navigation">
-        <div class="lab-sidebar-intro">
-          <p class="lab-eyebrow">Skribli · desktop product system</p>
-          <h1>Everything visible. Nothing accidental.</h1>
-          <p>
-            Full-size surfaces, component anatomy, hover/focus states, exceptional states, and product behavior in one review environment.
-          </p>
-        </div>
-
-        <nav class="lab-surface-nav">
-          <p class="nav-group-label">Foundation</p>
-          <button class="is-active" type="button" data-show-view="overview">
-            <i class="ph ph-sparkle"></i><span>Design DNA<small>Vibe, hierarchy, object language</small></span>
-          </button>
-          <button type="button" data-show-view="structure">
-            <i class="ph ph-flow-arrow"></i><span>App structure<small>Windows, rails, tray, ownership</small></span>
-          </button>
-          <button type="button" data-show-view="motion">
-            <i class="ph ph-cursor-click"></i><span>Hover & motion<small>Rest, focus, reveal, transform</small></span>
-          </button>
-
-          <p class="nav-group-label">Daily use</p>
-          <button type="button" data-show-view="note">
-            <i class="ph ph-note-pencil"></i><span>Core Skrib<small>Capture, tools, save, Done</small></span>
-          </button>
-          <button type="button" data-show-view="attachments">
-            <i class="ph ph-paperclip"></i><span>Attachments<small>Photos, documents, video</small></span>
-          </button>
-          <button type="button" data-show-view="drawing">
-            <i class="ph ph-pencil-line"></i><span>Drawing<small>Tool-first creative controls</small></span>
-          </button>
-          <button type="button" data-show-view="reminder">
-            <i class="ph ph-calendar-check"></i><span>Reminder<small>Quick set + expanded calendar</small></span>
-          </button>
-          <button type="button" data-show-view="dot">
-            <i class="ph ph-circle-dashed"></i><span>Collapsed dot<small>Folded contextual thought</small></span>
-          </button>
-          <button type="button" data-show-view="rail">
-            <i class="ph ph-sidebar-simple"></i><span>My Skribs rail<small>Here, All, Return</small></span>
-          </button>
-          <button type="button" data-show-view="library">
-            <i class="ph ph-books"></i><span>All Skribs<small>Read, search, manage</small></span>
-          </button>
-          <button type="button" data-show-view="calendar">
-            <i class="ph ph-calendar-dots"></i><span>Calendar & Trash<small>Global reminders + lifecycle</small></span>
-          </button>
-
-          <p class="nav-group-label">Low-frequency & trust</p>
-          <button type="button" data-show-view="home">
-            <i class="ph ph-house"></i><span>Home<small>Ready state + entry points</small></span>
-          </button>
-          <button type="button" data-show-view="onboarding">
-            <i class="ph ph-hand-waving"></i><span>Onboarding<small>First-use mental model</small></span>
-          </button>
-          <button type="button" data-show-view="account">
-            <i class="ph ph-user-circle"></i><span>Account & tray<small>Identity, entitlement, background</small></span>
-          </button>
-          <button type="button" data-show-view="recovery">
-            <i class="ph ph-shield-check"></i><span>Recovery & errors<small>Protect loudly underneath, speak calmly</small></span>
-          </button>
-          <button type="button" data-show-view="matrix">
-            <i class="ph ph-check-square-offset"></i><span>Review matrix<small>Acceptance states & coverage</small></span>
-          </button>
-        </nav>
-
-        <div class="lab-principles">
-          <span><i class="ph ph-eye"></i> Primary behavior visible without hover</span>
-          <span><i class="ph ph-stack"></i> Complexity appears only after intent</span>
-          <span><i class="ph ph-hand"></i> Precise system + tactile objects</span>
-          <span><i class="ph ph-lock-key"></i> Local content is a product promise</span>
-        </div>
-      </aside>
-
-      <main class="lab-content">
-        <header class="lab-view-heading">
-          <div>
-            <p class="lab-eyebrow" id="viewEyebrow">Foundation 00 · Design DNA</p>
-            <h2 id="viewTitle">Soft paper. Precise software.</h2>
-            <p id="viewSummary">
-              Skribli should feel like physical thoughts living inside a disciplined Windows utility—not a dashboard decorated with sticky notes.
-            </p>
-          </div>
-          <div class="lab-heading-state">
-            <span><i class="ph-fill ph-circle"></i> Interactive mock</span>
-            <span id="runtimeBadge">Normal runtime</span>
-          </div>
-        </header>
-
-        <!-- OVERVIEW -->
-        <section class="lab-view is-active" data-view="overview">
-          <div class="spec-grid spec-grid-wide">
-            <article class="spec-card hero-spec">
-              <div class="spec-label">Visual thesis</div>
-              <h3>Quiet at rest. Tactile when touched. Technical only when necessary.</h3>
-              <p>
-                The grid, spacing, type hierarchy, focus logic, and native behavior remain exact. The content objects inside that system may feel slightly physical, imperfect, and human.
-              </p>
-              <div class="thesis-formula">
-                <span><b>Precise shell</b><small>DM Sans · Manrope · measured layout</small></span>
-                <i class="ph ph-plus"></i>
-                <span><b>Tactile objects</b><small>Kalam · paper · photo · clipped document</small></span>
-                <i class="ph ph-equals"></i>
-                <span><b>Skribli</b><small>recognisable without becoming decorative</small></span>
-              </div>
-            </article>
-            <article class="spec-card palette-spec">
-              <div class="spec-label">Soft Paper palette</div>
-              <div class="palette-row"><span class="palette-chip yellow"></span><b>Sun note</b><small>#F8DF78</small></div>
-              <div class="palette-row"><span class="palette-chip peach"></span><b>Peach</b><small>#FFD5C4</small></div>
-              <div class="palette-row"><span class="palette-chip mint"></span><b>Mint</b><small>#DCEADF</small></div>
-              <div class="palette-row"><span class="palette-chip sky"></span><b>Sky</b><small>#DCE8F7</small></div>
-              <div class="palette-row"><span class="palette-chip lavender"></span><b>Lavender</b><small>#E8DEF8</small></div>
-            </article>
-          </div>
-
-          <div class="section-intro">
-            <div><p class="lab-eyebrow">Object language</p><h3>Digital content should look like what people believe it is.</h3></div>
-            <p>Not what the filesystem calls it.</p>
-          </div>
-          <div class="object-language-grid">
-            <article class="object-language-item"><div class="mini-skrib-object">Remember this <span></span></div><h4>Skrib → note</h4><p>Paper, handwriting, soft imperfection.</p></article>
-            <article class="object-language-item"><div class="mini-photo-object"><span class="mock-photo-art"></span></div><h4>Image → photograph</h4><p>Content first; filename second.</p></article>
-            <article class="object-language-item"><div class="mini-document-object"><i></i><b>Project brief</b><small>PDF · 2.1 MB</small></div><h4>Document → clipped sheet</h4><p>A little paper object, not a grey file row.</p></article>
-            <article class="object-language-item"><div class="mini-reminder-object"><small>SEP</small><strong>08</strong><span>09:30</span></div><h4>Reminder → dated slip</h4><p>Time becomes part of the thought.</p></article>
-          </div>
-
-          <div class="section-intro compact-top">
-            <div><p class="lab-eyebrow">Interaction philosophy</p><h3>Three levels of pointer response.</h3></div>
-          </div>
-          <div class="motion-level-grid">
-            <article><span class="motion-number">01</span><b>Acknowledge</b><p>1–2 px lift, subtle shadow, tiny colour or icon response.</p><small>~100–160 ms</small></article>
-            <article><span class="motion-number">02</span><b>Reveal</b><p>Secondary actions or information appear because the user approached.</p><small>~160–240 ms</small></article>
-            <article><span class="motion-number">03</span><b>Transform</b><p>The object changes meaning: Skrib → dot, note → calendar workspace.</p><small>~260–420 ms</small></article>
-          </div>
-
-          <aside class="review-note emphasis">
-            <i class="ph ph-push-pin"></i>
-            <div><b>Design lock</b><p>Hover can add meaning and character, but primary actions remain discoverable through visible structure, click/tap, keyboard focus, or explicit lab specimens.</p></div>
-          </aside>
-        </section>
-
-        <!-- STRUCTURE -->
-        <section class="lab-view" data-view="structure">
-          <div class="section-intro no-top"><div><p class="lab-eyebrow">Application topology</p><h3>Four visible windows, one background product.</h3></div><p>Each surface has a different job and therefore a different density.</p></div>
-          <div class="topology-stage">
-            <div class="topology-core"><img src="./assets/skribly-note-mark-v2.svg" alt="" /><b>Skribli background process</b><small>tray · hotkey · native context · storage</small></div>
-            <div class="topology-line topology-line-a"></div><div class="topology-line topology-line-b"></div><div class="topology-line topology-line-c"></div><div class="topology-line topology-line-d"></div>
-            <article class="topology-window t-home"><span>01</span><i class="ph ph-house"></i><b>Home</b><small>readiness · account · entry points</small></article>
-            <article class="topology-window t-note"><span>02</span><i class="ph ph-note-pencil"></i><b>Contextual Skrib</b><small>capture · edit · draw · attach · remind</small></article>
-            <article class="topology-window t-rail"><span>03</span><i class="ph ph-sidebar-simple"></i><b>My Skribs rail</b><small>fast contextual retrieval</small></article>
-            <article class="topology-window t-library"><span>04</span><i class="ph ph-books"></i><b>All Skribs</b><small>search · read · calendar · Trash · data</small></article>
-          </div>
-
-          <div class="structure-table">
-            <div class="structure-row head"><span>Surface</span><span>Frequency</span><span>Primary job</span><span>What should remain hidden</span></div>
-            <div class="structure-row"><b>Contextual Skrib</b><span>Very high</span><span>Capture thought and leave</span><span>Recovery machinery, account details, library controls</span></div>
-            <div class="structure-row"><b>Rail</b><span>High</span><span>Find existing thought quickly</span><span>Full note management and technical metadata</span></div>
-            <div class="structure-row"><b>All Skribs</b><span>Medium</span><span>Search/read/manage everything</span><span>Native window identity jargon</span></div>
-            <div class="structure-row"><b>Home</b><span>Low</span><span>Readiness + intentional entry</span><span>Dashboard-style productivity metrics</span></div>
-          </div>
-
-          <div class="specimen-strip">
-            <article><div class="specimen-title"><span>Global gesture</span><b>Ctrl + Shift + Space</b></div><p>Always creates a fresh contextual Skrib after foreground revalidation.</p></article>
-            <article><div class="specimen-title"><span>Background lifecycle</span><b>Close ≠ Quit</b></div><p>Tray keeps Skribli available. Quit is deliberate.</p></article>
-            <article><div class="specimen-title"><span>Product centre</span><b>Your existing apps</b></div><p>Home never becomes the place where work moves.</p></article>
-          </div>
-        </section>
-
-        <!-- MOTION -->
-        <section class="lab-view" data-view="motion">
-          <div class="section-intro no-top"><div><p class="lab-eyebrow">Hover & motion language</p><h3>Show the resting state and the intended reveal side by side.</h3></div><p>No important behavior should be reviewable only by hovering.</p></div>
-          <div class="state-comparison-grid">
-            <article class="state-comparison"><header><span>REST</span><b>Rail row</b></header><div class="rail-row-demo"><i class="note-mark mint"></i><span><b>Payment readiness list</b><small>Notion › Launch plan</small></span><div class="row-actions ghost"><button>Open here</button><button>Return ↗</button></div></div><p>Content and location are already understandable.</p></article>
-            <article class="state-comparison"><header><span>HOVER / FOCUS</span><b>Rail row</b></header><div class="rail-row-demo forced-hover"><i class="note-mark mint"></i><span><b>Payment readiness list</b><small>Notion › Launch plan</small></span><div class="row-actions"><button>Open here</button><button>Return ↗</button></div></div><p>Row shifts 2 px; secondary actions gain contrast.</p></article>
-            <article class="state-comparison"><header><span>REST</span><b>Photo stack</b></header><div class="photo-stack compact"><div class="polaroid p1"><span class="mock-photo-art"></span></div><div class="polaroid p2"><span class="mock-photo-art alt"></span></div><div class="polaroid p3"><span class="mock-photo-art third"></span></div></div><p>Reads immediately as a small group of images.</p></article>
-            <article class="state-comparison"><header><span>HOVER / FOCUS</span><b>Photo stack</b></header><div class="photo-stack compact forced-fan"><div class="polaroid p1"><span class="mock-photo-art"></span></div><div class="polaroid p2"><span class="mock-photo-art alt"></span></div><div class="polaroid p3"><span class="mock-photo-art third"></span></div></div><p>Stack fans gently; no explosive scrapbook motion.</p></article>
-            <article class="state-comparison"><header><span>REST</span><b>Collapsed dot</b></header><div class="dot-spec rest"><span></span></div><p>Almost silent contextual presence.</p></article>
-            <article class="state-comparison"><header><span>HOVER / FOCUS</span><b>Collapsed dot</b></header><div class="dot-spec hover"><span></span><button>×</button></div><p>Tiny lift plus dismiss affordance. Reopen remains the primary click.</p></article>
-          </div>
-          <div class="motion-rule-table">
-            <div><span>Pure UI feedback</span><b>120–170 ms</b><small>buttons, labels, focus, selection</small></div>
-            <div><span>Object reveal</span><b>170–260 ms</b><small>rail actions, attachment fan, tool tray</small></div>
-            <div><span>Meaning change</span><b>280–420 ms</b><small>Skrib → dot, note → calendar workspace</small></div>
-            <div><span>Reduced motion</span><b>no travel</b><small>opacity/instant state with spatial meaning preserved</small></div>
-          </div>
-          <aside class="review-note"><i class="ph ph-wave-sine"></i><div><b>Motion must explain where something went.</b><p>Use object continuity for meaningful transformations; do not animate merely because the surface can move.</p></div></aside>
-        </section>
-
-        <!-- NOTE -->
-        <section class="lab-view" data-view="note">
-          <div class="section-intro no-top"><div><p class="lab-eyebrow">Daily surface 01</p><h3>The Skrib stays simple until the thought asks for more room.</h3></div><p>Full interactive mock + visible state specimens.</p></div>
-          <div class="prototype-stage note-stage">
-            <div class="fake-target-window" aria-hidden="true">
-              <header><span><i class="ph ph-chat-circle-text"></i> ChatGPT</span><small>Troubleshoot app startup issues</small></header>
-              <div><i></i><i></i><i></i><i></i><i></i></div>
-            </div>
-            <article class="note-mock note-mint" id="noteMock" aria-label="Interactive Skrib mock">
-              <span class="note-tape" aria-hidden="true"></span>
-              <header class="note-header">
-                <button class="drag-grip" type="button" aria-label="Move Skrib"><i class="ph ph-dots-six-vertical"></i></button>
-                <div class="note-context"><small>NEW SKRIB FOR</small><strong><i class="ph ph-chat-circle-text"></i> ChatGPT <span>› Troubleshoot app startup</span></strong></div>
-                <div class="note-head-actions"><button type="button" id="repositionNote" title="Reposition"><i class="ph ph-crosshair"></i></button><button type="button" id="closeNote" title="Close"><i class="ph ph-x"></i></button></div>
-              </header>
-              <div class="note-writing-wrap">
-                <div class="note-writing" id="noteWriting" contenteditable="true" role="textbox" aria-label="Skrib text">Sketch the thought, then shape it.</div>
-                <div class="attached-object-row" id="attachedObjectRow" hidden>
-                  <button type="button" class="photo-stack in-note" data-open-attachment>
-                    <div class="polaroid p1"><span class="mock-photo-art"></span></div><div class="polaroid p2"><span class="mock-photo-art alt"></span></div><div class="polaroid p3"><span class="mock-photo-art third"></span></div><small>3 photos</small>
-                  </button>
-                </div>
-                <div class="note-tool-tray" id="noteToolTray" hidden>
-                  <section data-tool-panel="attach"><span><i class="ph ph-paperclip"></i><b>Attach</b></span><button type="button" data-add-object="image"><i class="ph ph-image"></i> Photo</button><button type="button" data-add-object="document"><i class="ph ph-file-text"></i> Document</button><button type="button" data-add-object="video"><i class="ph ph-video-camera"></i> Video</button></section>
-                  <section data-tool-panel="color" hidden><span><i class="ph ph-palette"></i><b>Color</b></span><button class="note-color yellow" data-note-color="yellow" aria-label="Yellow"></button><button class="note-color peach" data-note-color="peach" aria-label="Peach"></button><button class="note-color mint" data-note-color="mint" aria-label="Mint"></button><button class="note-color sky" data-note-color="sky" aria-label="Sky"></button><button class="note-color lavender" data-note-color="lavender" aria-label="Lavender"></button></section>
-                  <section data-tool-panel="text" hidden><span><i class="ph ph-text-t"></i><b>Text size</b></span><button type="button" data-text-size="small">A−</button><button type="button" data-text-size="medium">A</button><button type="button" data-text-size="large">A＋</button></section>
-                  <section data-tool-panel="draw" hidden><span><i class="ph ph-pencil-line"></i><b>Draw</b></span><button type="button" data-jump-view="drawing">Open drawing canvas <i class="ph ph-arrow-right"></i></button></section>
-                  <section data-tool-panel="remind" hidden><span><i class="ph ph-bell"></i><b>Remind</b></span><button type="button" data-quick-reminder="Later today">Later today</button><button type="button" data-quick-reminder="Tomorrow">Tomorrow</button><button type="button" data-jump-view="reminder">Custom…</button></section>
-                </div>
-              </div>
-              <div class="note-primary-tools" aria-label="Skrib tools">
-                <button type="button" data-note-tool="attach"><i class="ph ph-paperclip"></i><span>Attach</span></button>
-                <button type="button" data-note-tool="draw"><i class="ph ph-pencil-line"></i><span>Draw</span></button>
-                <button type="button" data-note-tool="remind"><i class="ph ph-bell"></i><span>Remind</span></button>
-                <button type="button" data-note-tool="color"><i class="ph ph-palette"></i><span>Color</span></button>
-                <button type="button" data-note-tool="text"><i class="ph ph-text-t"></i><span>Text</span></button>
-              </div>
-              <footer class="note-footer"><div class="save-state"><span class="save-dot"></span><div><b id="saveStateLabel">Saved</b><small id="saveStateDetail">Latest text is safe</small></div></div><div><button type="button" class="quiet-danger" id="deleteNote">Delete</button><button type="button" class="done-button" id="doneNote">Done</button></div></footer>
-            </article>
-            <button class="collapsed-note-dot" id="postDoneDot" type="button" hidden aria-label="Reopen folded Skrib"><span></span></button>
-          </div>
-
-          <div class="state-specimens">
-            <article><header><span>RESTING</span><b>Core hierarchy</b></header><div class="mini-note-state"><small>NEW SKRIB FOR</small><strong>ChatGPT › startup</strong><p>Thought first.</p><footer><span>Saved</span><b>Done</b></footer></div><p>Only what matters to capture and leave.</p></article>
-            <article><header><span>TOOL ACTIVE</span><b>Progressive disclosure</b></header><div class="mini-note-state tool-active"><small>ATTACH</small><strong>Photo · Document · Video</strong><p>The tool area appears because intent exists.</p><footer><span>Saved</span><b>Done</b></footer></div><p>No permanent empty attachment strip.</p></article>
-            <article><header><span>SAVING</span><b>Human state</b></header><div class="mini-note-state"><small>SAVE STATE</small><strong>Saving…</strong><p>Keeping the latest edit safe.</p><footer><span class="saving">●</span><b>Done</b></footer></div><p>Implementation details remain hidden.</p></article>
-            <article><header><span>READ-ONLY</span><b>Protected state</b></header><div class="mini-note-state readonly"><small>LOCAL DATA</small><strong>Read-only recovery</strong><p>Your verified Skrib is available.</p><footer><span>Protected</span><b>Export</b></footer></div><p>No destructive controls when writes are blocked.</p></article>
-          </div>
-          <aside class="review-note"><i class="ph ph-eye"></i><div><b>Visible review rule</b><p>The interactive Skrib uses progressive disclosure, while the specimen row shows those hidden states explicitly so the design can be judged without discovering them first.</p></div></aside>
-        </section>
-
-        <!-- ATTACHMENTS -->
-        <section class="lab-view" data-view="attachments">
-          <div class="section-intro no-top"><div><p class="lab-eyebrow">Daily surface 02</p><h3>Attachments are physical-feeling objects, not technical file cards.</h3></div><p>One metaphor per media type.</p></div>
-          <div class="attachment-gallery">
-            <article class="attachment-spec photo-spec"><div class="attachment-topline"><span>IMAGE GROUP</span><b>Photographic stack</b></div><button type="button" class="photo-stack showcase" id="photoStackDemo"><div class="polaroid p1"><span class="mock-photo-art"></span></div><div class="polaroid p2"><span class="mock-photo-art alt"></span></div><div class="polaroid p3"><span class="mock-photo-art third"></span></div><small>3 photos</small></button><div class="attachment-action-row"><button type="button">Open photos</button><button type="button">Remove</button></div><p>Rest: compact stack. Hover/focus: gentle fan and lift.</p></article>
-            <article class="attachment-spec"><div class="attachment-topline"><span>DOCUMENT</span><b>Clipped sheet</b></div><button type="button" class="document-object"><i class="paperclip"></i><span class="perforation top"></span><span class="perforation bottom"></span><small>PROJECT</small><strong>Launch brief</strong><em>PDF · 2.1 MB</em></button><div class="attachment-action-row"><button type="button">Open</button><button type="button">Remove</button></div><p>Name dominates. File type and size are secondary.</p></article>
-            <article class="attachment-spec"><div class="attachment-topline"><span>VIDEO</span><b>Framed motion object</b></div><button type="button" class="video-object"><span class="video-art"><i class="ph-fill ph-play"></i></span><strong>walkthrough-cut</strong><small>00:42</small></button><div class="attachment-action-row"><button type="button">Play preview</button><button type="button">Remove</button></div><p>Poster first; player chrome only after opening.</p></article>
-          </div>
-
-          <div class="section-intro compact-top"><div><p class="lab-eyebrow">Attachment states</p><h3>Every technical state still has a calm visual translation.</h3></div></div>
-          <div class="attachment-state-grid">
-            <article><span class="state-dot ok"></span><b>Ready</b><p>Physical object shown; no redundant “attachment added” banner.</p></article>
-            <article><span class="state-dot busy"></span><b>Saving</b><p>Object remains visible while a tiny save status handles persistence.</p></article>
-            <article><span class="state-dot warn"></span><b>Unsupported</b><p>“This file type can’t be attached yet.”</p></article>
-            <article><span class="state-dot danger"></span><b>Too large</b><p>Clear human limit, not byte-validation jargon.</p></article>
-          </div>
-          <aside class="review-note emphasis"><i class="ph ph-image"></i><div><b>Reference direction accepted</b><p>Polaroid / paperclip / perforated paper energy is appropriate when used sparingly. The system remains clean by limiting each object to one tactile metaphor.</p></div></aside>
-        </section>
-
-        <!-- DRAWING -->
-        <section class="lab-view" data-view="drawing">
-          <div class="section-intro no-top"><div><p class="lab-eyebrow">Daily surface 03</p><h3>Drawing expands the Skrib, then shows only relevant properties.</h3></div><p>Power without editor clutter.</p></div>
-          <article class="expanded-skrib drawing-skrib">
-            <header><span class="drag-grip-static"><i class="ph ph-dots-six-vertical"></i></span><div><small>DRAWING ON</small><b>ChatGPT › Troubleshoot app startup</b></div><button type="button" data-jump-view="note"><i class="ph ph-x"></i></button></header>
-            <div class="drawing-toolbar" role="toolbar"><button class="is-active" type="button" data-draw-tool="pen"><i class="ph ph-pen-nib"></i> Pen</button><button type="button" data-draw-tool="highlighter"><i class="ph ph-highlighter"></i> Highlighter</button><button type="button" data-draw-tool="eraser"><i class="ph ph-eraser"></i> Eraser</button><button type="button" data-draw-tool="select"><i class="ph ph-cursor-click"></i> Select</button><span></span><button type="button" id="undoInk"><i class="ph ph-arrow-counter-clockwise"></i> Undo</button><button type="button" id="clearInk"><i class="ph ph-trash-simple"></i> Clear</button></div>
-            <div class="drawing-properties" id="drawingProperties"><span><small>TOOL</small><b id="drawPropertyName">Pen properties</b></span><button class="ink-chip black is-active" type="button" data-ink="#262923" aria-label="Ink"></button><button class="ink-chip green" type="button" data-ink="#536a4f" aria-label="Olive"></button><button class="ink-chip blue" type="button" data-ink="#496d91" aria-label="Blue"></button><label>Size <input id="drawSize" type="range" min="2" max="14" value="4" /></label></div>
-            <div class="drawing-canvas-wrap"><canvas id="drawingCanvas" width="900" height="360" aria-label="Drawing mock canvas"></canvas><div class="drawing-hint">Draw here with mouse or pointer</div></div>
-            <footer><span><i class="ph-fill ph-circle"></i> Saved · editable strokes</span><div><button type="button" data-jump-view="note">Back</button><button type="button" class="primary" data-jump-view="note">Done</button></div></footer>
-          </article>
-          <div class="state-specimens drawing-states">
-            <article><header><span>PEN</span><b>Color + width</b></header><div class="tool-state-row"><i class="ph ph-pen-nib"></i><span class="ink-chip black"></span><span class="ink-chip green"></span><span class="ink-chip blue"></span><em>4 px</em></div><p>Colour and size are useful here.</p></article>
-            <article><header><span>ERASER</span><b>Width only</b></header><div class="tool-state-row"><i class="ph ph-eraser"></i><em>12 px</em></div><p>Ink colour disappears because it is irrelevant.</p></article>
-            <article><header><span>SELECT</span><b>Stroke manipulation</b></header><div class="tool-state-row"><i class="ph ph-cursor-click"></i><button>Move selection</button><button>Delete stroke</button></div><p>Brush controls disappear.</p></article>
-          </div>
-        </section>
-
-        <!-- REMINDER -->
-        <section class="lab-view" data-view="reminder">
-          <div class="section-intro no-top"><div><p class="lab-eyebrow">Daily surface 04</p><h3>Quick reminders stay tiny. Precise scheduling makes the same Skrib larger.</h3></div><p>No squeezed calendar and no unrelated modal.</p></div>
-          <div class="quick-reminder-spec"><span><i class="ph ph-bell"></i><b>Compact choices</b></span><button type="button">Later today</button><button type="button">Tomorrow</button><button type="button">Next week</button><button type="button" class="primary" data-jump-view="reminder">Choose date…</button></div>
-          <article class="expanded-skrib reminder-skrib">
-            <header><span class="drag-grip-static"><i class="ph ph-dots-six-vertical"></i></span><div><small>REMINDER FOR</small><b>Payment readiness list</b></div><button type="button" data-jump-view="note"><i class="ph ph-x"></i></button></header>
-            <div class="reminder-layout"><section class="reminder-calendar"><div class="calendar-heading"><button type="button" id="prevReminderMonth"><i class="ph ph-caret-left"></i></button><strong id="reminderMonthLabel">September 2026</strong><button type="button" id="nextReminderMonth"><i class="ph ph-caret-right"></i></button></div><div class="weekday-row"><span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span></div><div class="calendar-grid" id="reminderCalendarGrid"></div></section><aside class="reminder-settings"><p class="lab-eyebrow">Schedule</p><h4 id="selectedReminderDate">Friday, 4 September</h4><label><span>Time</span><input type="time" id="reminderTime" value="09:30" /></label><label><span>Repeat</span><select id="reminderRepeat"><option value="Once">Once</option><option value="Daily">Daily</option><option value="Weekdays">Weekdays</option><option value="Weekly">Weekly</option><option value="Monthly">Monthly</option></select></label><div class="reminder-summary"><small>REMINDER</small><b id="reminderSummary">4 Sep · 09:30 · Once</b><p>Payment readiness list</p></div></aside></div>
-            <footer><span><i class="ph ph-lock-key"></i> Stored locally with this Skrib</span><div><button type="button" data-jump-view="note">Cancel</button><button type="button" class="primary" id="saveReminder">Save reminder</button></div></footer>
-          </article>
-          <div class="reminder-state-row"><article><span>UPCOMING</span><b>4 Sep · 09:30</b><small>Payment readiness list</small></article><article class="overdue"><span>OVERDUE</span><b>3 Sep · 16:00</b><small>Review landing copy</small></article><article class="complete"><span>COMPLETED</span><b>2 Sep · 11:15</b><small>Send test installer</small></article><article class="dismissed"><span>DISMISSED</span><b>1 Sep · 09:00</b><small>Old reminder</small></article></div>
-        </section>
-
-        <!-- DOT -->
-        <section class="lab-view" data-view="dot">
-          <div class="section-intro no-top"><div><p class="lab-eyebrow">Daily surface 05</p><h3>The dot should feel like the note folded into a tiny object.</h3></div><p>Contextual presence without screen-blocking chrome.</p></div>
-          <div class="dot-stage"><div class="fake-target-window dot-target" aria-hidden="true"><header><span><i class="ph ph-file-text"></i> Notepad</span><small>launch-notes.txt</small></header><div><i></i><i></i><i></i><i></i></div></div><button class="collapsed-note-dot large-demo" type="button" id="dotDemo"><span></span><button type="button" class="dot-dismiss" aria-label="Dismiss dot">×</button></button></div>
-          <div class="state-comparison-grid dot-comparisons">
-            <article class="state-comparison"><header><span>REST</span><b>Visible presence</b></header><div class="dot-spec rest"><span></span></div><p>Pastel, shadow, two faint writing lines.</p></article>
-            <article class="state-comparison"><header><span>HOVER / FOCUS</span><b>Recognises the pointer</b></header><div class="dot-spec hover"><span></span><button>×</button></div><p>Subtle lift; dismiss appears.</p></article>
-            <article class="state-comparison"><header><span>DRAG</span><b>Move this presence</b></header><div class="dot-spec drag"><span></span></div><p>Slightly firmer shadow and movement cursor.</p></article>
-            <article class="state-comparison"><header><span>DISMISS</span><b>Hide dot only</b></header><div class="dot-spec ghosted"><span></span></div><p>The saved Skrib remains in Rail and Library.</p></article>
-          </div>
-        </section>
-
-        <!-- RAIL -->
-        <section class="lab-view" data-view="rail">
-          <div class="section-intro no-top"><div><p class="lab-eyebrow">Daily surface 06</p><h3>Fast retrieval that makes “Open here” and “Return there” understandable.</h3></div><p>One of Skribli’s strongest differentiators.</p></div>
-          <div class="rail-stage"><button type="button" class="rail-collapse-button" aria-label="Collapse rail"><i class="ph ph-sidebar-simple"></i></button><aside class="rail-mock"><header><div><small>MY SKRIBS</small><h4>Thoughts near you.</h4></div><button type="button"><i class="ph ph-x"></i></button></header><div class="rail-search"><i class="ph ph-magnifying-glass"></i><input type="search" id="railSearch" placeholder="Search thoughts or places" /></div><div class="rail-scope"><button class="is-active" type="button" data-rail-scope="here">Here <span>3</span></button><button type="button" data-rail-scope="all">All <span>6</span></button></div><div class="rail-list" id="railList"><div class="rail-app-heading"><i class="ph ph-browser"></i><span>Chrome · here</span></div><article class="rail-note-row" data-rail-title="Target-close smoke"><i class="note-mark mint"></i><button type="button" class="rail-note-main"><b>Target-close smoke</b><small>GitHub › skribly › Issue #168</small></button><div class="rail-actions"><button type="button" data-rail-action="here">Open here</button><button type="button" data-rail-action="there">Return <i class="ph ph-arrow-up-right"></i></button></div></article><article class="rail-note-row" data-rail-title="Plan note and rail refinement"><i class="note-mark peach"></i><button type="button" class="rail-note-main"><b>Plan note and rail refinement</b><small>ChatGPT › Skribli build</small></button><div class="rail-actions"><button type="button" data-rail-action="here">Open here</button><button type="button" data-rail-action="there">Return <i class="ph ph-arrow-up-right"></i></button></div></article><article class="rail-note-row" data-rail-title="Payment readiness list"><i class="note-mark yellow"></i><button type="button" class="rail-note-main"><b>Payment readiness list</b><small>Notion › Launch plan</small></button><div class="rail-actions"><button type="button" data-rail-action="here">Open here</button><button type="button" data-rail-action="there">Return <i class="ph ph-arrow-up-right"></i></button></div></article><div class="rail-all-only" hidden><div class="rail-app-heading"><i class="ph ph-code"></i><span>Visual Studio Code</span></div><article class="rail-note-row" data-rail-title="Token cleanup"><i class="note-mark sky"></i><button type="button" class="rail-note-main"><b>Token cleanup</b><small>context-rail.css</small></button><div class="rail-actions"><button type="button" data-rail-action="here">Open here</button><button type="button" data-rail-action="there">Return <i class="ph ph-arrow-up-right"></i></button></div></article></div></div><footer><span><i class="ph ph-lock-key"></i> Local Skribs</span><button type="button" data-jump-view="library">All Skribs <i class="ph ph-arrow-right"></i></button></footer></aside></div>
-          <div class="rail-explanation-grid"><article><span>OPEN HERE</span><i class="ph ph-eye"></i><b>Bring the real Skrib beside me now.</b><p>Original context and saved position remain unchanged.</p></article><article><span>RETURN</span><i class="ph ph-arrow-up-right"></i><b>Take me toward where this thought belonged.</b><p>Focus a matching live window or start an allowlisted app when possible.</p></article><article class="truth"><span>TRUTH BOUNDARY</span><i class="ph ph-info"></i><b>No fake deep-link magic.</b><p>Closed URLs, exact folder paths, or document states cannot always be reconstructed.</p></article></div>
-          <div class="rail-status" id="railStatus">Hover adds contrast; keyboard/touch can always reach both actions.</div>
-        </section>
-
-        <!-- LIBRARY -->
-        <section class="lab-view" data-view="library">
-          <div class="section-intro no-top"><div><p class="lab-eyebrow">Daily surface 07</p><h3>All Skribs becomes a reading environment first and a data console second.</h3></div><p>Dense capability, quiet hierarchy.</p></div>
-          <section class="library-mock">
-            <header class="library-topbar"><div><span class="brand-small"><img src="./assets/skribly-note-mark-v2.svg" alt="" /><b>Skribli</b></span><span class="crumb">All Skribs</span></div><div class="library-top-actions"><button type="button" title="Import"><i class="ph ph-download-simple"></i></button><button type="button" title="Export"><i class="ph ph-upload-simple"></i></button><button type="button" title="More"><i class="ph ph-dots-three"></i></button></div></header>
-            <div class="library-heading"><div><p class="lab-eyebrow">LOCAL LIBRARY</p><h3>All Skribs</h3><p>Read the thought first. Manage the data only when needed.</p></div><div class="library-search"><i class="ph ph-magnifying-glass"></i><input id="librarySearch" type="search" placeholder="Search thoughts, apps, or places" /></div></div>
-            <div class="library-tabs"><button class="is-active" type="button" data-library-tab="notes">Notes <span>6</span></button><button type="button" data-library-tab="calendar" data-jump-view="calendar">Calendar <span>2</span></button><button type="button" data-library-tab="trash">Trash <span>1</span></button></div>
-            <div class="library-workspace"><aside class="library-list" id="libraryList"><button class="library-row is-active" type="button" data-note-title="Target-close smoke" data-note-context="Chrome · GitHub › Issue #168" data-note-copy="v0.1.12 target-close smoke. Re-test focus restoration after the target window closes."><i class="note-mark mint"></i><span><b>Target-close smoke</b><small>Chrome · GitHub › Issue #168</small><em>Today · 1:04 pm</em></span></button><button class="library-row" type="button" data-note-title="Plan note and rail refinement" data-note-context="ChatGPT · Skribli build" data-note-copy="Keep the rail calm. Open the real note instead of embedding a duplicate editor inside the rail."><i class="note-mark peach"></i><span><b>Plan note and rail refinement</b><small>ChatGPT · Skribli build</small><em>Today · 12:42 pm</em></span></button><button class="library-row" type="button" data-note-title="Payment readiness list" data-note-context="Notion · Launch plan" data-note-copy="Confirm owner download, final website copy, installer acceptance, and the remaining release blockers."><i class="note-mark yellow"></i><span><b>Payment readiness list</b><small>Notion · Launch plan</small><em>Yesterday</em></span></button></aside><article class="library-detail"><header><div><p class="lab-eyebrow" id="libraryDetailContext">CHROME · GITHUB › ISSUE #168</p><h4 id="libraryDetailTitle">Target-close smoke</h4></div><button type="button" class="return-button" id="libraryReturn">Return <i class="ph ph-arrow-up-right"></i></button></header><div class="library-paper mint" id="libraryPaper">v0.1.12 target-close smoke. Re-test focus restoration after the target window closes.</div><div class="library-detail-meta"><span><small>LOCATION</small><b id="libraryLocation">Chrome · GitHub › Issue #168</b></span><span><small>UPDATED</small><b>Today · 1:04 pm</b></span><span><small>REMINDER</small><b>None</b></span></div><div class="library-object-section"><p class="lab-eyebrow">ATTACHED</p><button type="button" class="document-object tiny"><i class="paperclip"></i><small>TEST</small><strong>smoke-check.pdf</strong><em>PDF · 640 KB</em></button></div></article></div>
-          </section>
-          <div class="library-secondary-actions"><article><i class="ph ph-download-simple"></i><div><b>Import</b><p>Preview locally, verify conflicts, then apply with rollback protection.</p></div></article><article><i class="ph ph-upload-simple"></i><div><b>Export</b><p>Portable note records. Rich-content backup truth must remain explicit.</p></div></article><article><i class="ph ph-trash"></i><div><b>Trash</b><p>Reversible first. Permanent deletion only inside Trash.</p></div></article></div>
-        </section>
-
-        <!-- CALENDAR -->
-        <section class="lab-view" data-view="calendar">
-          <div class="section-intro no-top"><div><p class="lab-eyebrow">Daily surface 08</p><h3>Calendar and Trash are global lenses over Skribs—not separate productivity products.</h3></div></div>
-          <div class="calendar-trash-grid"><section class="global-calendar"><header><div><p class="lab-eyebrow">LOCAL REMINDERS</p><h3>September 2026</h3></div><div><button type="button"><i class="ph ph-caret-left"></i></button><button type="button">Today</button><button type="button"><i class="ph ph-caret-right"></i></button></div></header><div class="global-calendar-body"><div><div class="weekday-row"><span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span></div><div class="calendar-grid" id="globalCalendarGrid"></div></div><aside><p class="lab-eyebrow">AGENDA</p><h4>Friday, 4 September</h4><article class="agenda-reminder peach"><span>09:30 · UPCOMING</span><b>Payment readiness list</b><small>Notion › Launch plan</small><div><button type="button">Open Skrib</button><button type="button">Complete</button><button type="button">Dismiss</button></div></article><article class="agenda-reminder mint"><span>15:00 · UPCOMING</span><b>Review landing copy</b><small>Chrome › Vercel preview</small><div><button type="button">Open Skrib</button><button type="button">Complete</button></div></article></aside></div></section><section class="trash-spec"><header><div><p class="lab-eyebrow">TRASH</p><h3>One-way action only at the very end.</h3></div><span>1 item</span></header><article class="trash-paper"><i class="note-mark lavender"></i><div><b>Old launch wording</b><small>Moved yesterday</small><p>The early owner-download copy that referenced the retired behavior.</p></div></article><div class="trash-actions"><button type="button" class="restore"><i class="ph ph-arrow-counter-clockwise"></i> Restore</button><button type="button" class="permanent"><i class="ph ph-trash"></i> Delete permanently</button></div><p class="trash-truth">Permanent deletion belongs here, not on an ordinary library row.</p></section></div>
-        </section>
-
-        <!-- HOME -->
-        <section class="lab-view" data-view="home">
-          <div class="section-intro no-top"><div><p class="lab-eyebrow">Low-frequency surface 01</p><h3>Home says “Skribli is ready,” then gets out of the way.</h3></div><p>No productivity-dashboard gravity.</p></div>
-          <section class="home-mock"><header><span class="brand-small"><img src="./assets/skribly-note-mark-v2.svg" alt="" /><b>Skribli</b></span><span class="ready-pill"><i class="ph-fill ph-circle"></i> Ready</span></header><div class="home-grid"><article class="home-main"><p class="lab-eyebrow">SKRIBLI IS RUNNING</p><h3>Put the thought where it belongs.</h3><p>Focus any supported Windows app and create a fresh contextual Skrib.</p><div class="shortcut-row"><kbd>Ctrl</kbd><span>+</span><kbd>Shift</kbd><span>+</span><kbd>Space</kbd></div><button type="button" class="primary-home" data-jump-view="note">Preview a Skrib <i class="ph ph-arrow-right"></i></button></article><aside class="home-side"><button type="button" data-jump-view="rail"><i class="ph ph-sidebar-simple"></i><span><b>My Skribs rail</b><small>Find a thought quickly</small></span><i class="ph ph-arrow-right"></i></button><button type="button" data-jump-view="library"><i class="ph ph-books"></i><span><b>All Skribs</b><small>Search and manage everything</small></span><i class="ph ph-arrow-right"></i></button><button type="button" data-jump-view="account"><i class="ph ph-user-circle"></i><span><b>Account & help</b><small>Owner test · local content</small></span><i class="ph ph-arrow-right"></i></button></aside></div><footer><span><i class="ph ph-lock-key"></i> Skrib content stays on this device.</span><button type="button" data-jump-view="onboarding">Quick guide</button></footer></section>
-          <div class="state-specimens home-states"><article><header><span>READY</span><b>Normal</b></header><p>Shortcut and three intentional destinations.</p></article><article><header><span>OFFLINE</span><b>Account unavailable</b></header><p>Local Skribs remain usable according to entitlement state.</p></article><article><header><span>ANNOUNCEMENT</span><b>Only meaningful updates</b></header><p>No permanent feed or dashboard metric panel.</p></article></div>
-        </section>
-
-        <!-- ONBOARDING -->
-        <section class="lab-view" data-view="onboarding">
-          <div class="section-intro no-top"><div><p class="lab-eyebrow">Low-frequency surface 02</p><h3>Teach the mental model before teaching features.</h3></div></div>
-          <section class="onboarding-mock"><header><p class="lab-eyebrow">SETUP · 2 OF 3</p><h3>Your first Skrib takes one shortcut.</h3><p>Skribli stays quiet until a thought needs somewhere to return.</p></header><ol><li><span>01</span><div><b>Focus the application</b><p>Open the window where this thought belongs.</p></div></li><li><span>02</span><div><b>Press the shortcut</b><div class="shortcut-row compact"><kbd>Ctrl</kbd><span>+</span><kbd>Shift</kbd><span>+</span><kbd>Space</kbd></div><p>Skribli verifies that exact window, then creates a fresh Skrib.</p></div></li><li><span>03</span><div><b>Write, then choose Done</b><p>The saved Skrib folds into a small movable dot.</p></div></li></ol><aside><i class="ph ph-lock-key"></i><div><b>Private by default</b><p>Window identity and geometry—not screen recording—help Skribli return the right thought.</p></div></aside><footer><button type="button">Review later</button><button type="button" class="primary">Continue to Skribli home</button></footer></section>
-          <aside class="review-note"><i class="ph ph-minus-circle"></i><div><b>Deliberately not shown</b><p>No drawing tutorial, attachment carousel, feature tour, storage architecture, or account explanation before the first successful capture.</p></div></aside>
-        </section>
-
-        <!-- ACCOUNT -->
-        <section class="lab-view" data-view="account">
-          <div class="section-intro no-top"><div><p class="lab-eyebrow">Low-frequency surface 03</p><h3>Account proves access. It does not become the note database.</h3></div></div>
-          <div class="account-tray-grid"><section class="account-mock"><article class="account-story"><p class="lab-eyebrow">ACCOUNT-CONNECTED · CONTENT LOCAL</p><h3>One account protects access. Your Skribs stay here.</h3><p>Sign-in verifies the account and device, owner/trial entitlement, and optional product updates.</p><div class="account-paper"><small>LOCAL PROMISE</small><b>Your thoughts stay on this device.</b></div></article><form class="account-form" id="accountForm"><p class="lab-eyebrow">SIGN IN</p><h4>Welcome back</h4><label>Email<input type="email" value="owner@example.com" /></label><label>Password<input type="password" value="abcdefghijkl" /></label><label class="check"><input type="checkbox" /> Send product updates to this account</label><button type="submit">Sign in</button><span id="accountFormStatus">Mock environment · no network action is performed.</span></form></section><section class="tray-mock"><p class="lab-eyebrow">WINDOWS TRAY</p><h3>Background control</h3><button type="button"><i class="ph ph-house"></i><span>Open Skribli</span></button><button type="button"><i class="ph ph-sidebar-simple"></i><span>My Skribs rail</span></button><button type="button"><i class="ph ph-books"></i><span>All Skribs</span></button><button type="button"><i class="ph ph-question"></i><span>Quick guide</span></button><hr /><button type="button" class="quit"><i class="ph ph-power"></i><span>Quit Skribli</span></button><p>Closing visible windows does not stop the background process.</p></section></div>
-          <div class="trust-separation"><article><span>ACCOUNT TRUST</span><b>Auth · device · trial · owner</b><p>Server-connected.</p></article><i class="ph ph-not-equals"></i><article><span>CONTENT TRUST</span><b>Text · drawings · attachments · reminders</b><p>Local-first.</p></article></div>
-        </section>
-
-        <!-- RECOVERY -->
-        <section class="lab-view" data-view="recovery">
-          <div class="section-intro no-top"><div><p class="lab-eyebrow">Trust surface</p><h3>Exceptional states are complete, but they do not leak into ordinary use.</h3></div></div>
-          <div class="exception-grid">
-            <article class="exception-card"><i class="ph ph-warning-circle"></i><span>NOTE SAVE</span><h4>This Skrib still needs to save.</h4><p>Your latest edit remains on screen. Retry before folding the Skrib.</p><button type="button">Retry save</button><small>User state: <b>Needs attention</b></small></article>
-            <article class="exception-card"><i class="ph ph-shield-check"></i><span>LOCAL STORAGE</span><h4>Your verified Skribs are open read-only.</h4><p>Skribli is protecting existing data from unsafe writes.</p><div><button type="button">Export my Skribs</button><button type="button">Details</button></div><small>Technical detail stays behind “Details”.</small></article>
-            <article class="exception-card"><i class="ph ph-map-pin-line"></i><span>SAVED CONTEXT</span><h4>That exact window is not available.</h4><p>Open the Skrib here, or start the saved application and try returning again.</p><div><button type="button">Open here</button><button type="button">Start app</button></div><small>No promise to reconstruct a closed URL/path.</small></article>
-            <article class="exception-card"><i class="ph ph-plugs-connected"></i><span>ACCOUNT</span><h4>Account verification did not finish.</h4><p>Your local Skrib data is separate from this account connection problem.</p><button type="button">Retry account</button><small>Do not imply local data loss.</small></article>
-            <article class="exception-card"><i class="ph ph-browser"></i><span>STARTUP</span><h4>Skribli could not finish opening.</h4><p>Local Skribs remain on this device. Try loading the interface again.</p><button type="button">Try again</button><small>Static boot fallback before React.</small></article>
-            <article class="exception-card diagnostics"><i class="ph ph-file-code"></i><span>DIAGNOSTICS</span><h4>Troubleshooting detail</h4><p>Revision, backup generation, quarantine and storage files appear only here.</p><code>skribli-storage-diagnostics-…json</code><button type="button">Export diagnostics</button></article>
-          </div>
-          <div class="microcopy-map"><div><span>Normal implementation state</span><b>pending write + rich content flush</b><i class="ph ph-arrow-right"></i><strong>Saving…</strong></div><div><span>Successful durable state</span><b>verified latest revision</b><i class="ph ph-arrow-right"></i><strong>Saved</strong></div><div><span>Recoverable problem</span><b>write failed / blocked / retryable</b><i class="ph ph-arrow-right"></i><strong>Needs attention</strong></div></div>
-        </section>
-
-        <!-- MATRIX -->
-        <section class="lab-view" data-view="matrix">
-          <div class="section-intro no-top"><div><p class="lab-eyebrow">Acceptance environment</p><h3>Every surface is reviewed against the same state and behavior matrix.</h3></div><p>This is what prevents visual implementation from inventing product behavior.</p></div>
-          <div class="matrix-table-wrap"><table class="matrix-table"><thead><tr><th>Surface</th><th>Rest</th><th>Hover / focus</th><th>Active</th><th>Saving / loading</th><th>Empty</th><th>Error</th><th>Read-only</th><th>Keyboard</th></tr></thead><tbody><tr><td>Core Skrib</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr><tr><td>Attachments</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr><tr><td>Drawing</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>—</td><td>✓</td><td>✓</td><td>✓</td></tr><tr><td>Reminder</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr><tr><td>Dot</td><td>✓</td><td>✓</td><td>✓</td><td>—</td><td>—</td><td>—</td><td>—</td><td>✓</td></tr><tr><td>Rail</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr><tr><td>All Skribs</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr><tr><td>Home/account</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>n/a</td><td>✓</td></tr></tbody></table></div>
-          <div class="test-fixture-grid"><article><i class="ph ph-monitor"></i><b>Display scale</b><p>Review at 100%, 125%, and 150% without hidden overflow.</p></article><article><i class="ph ph-keyboard"></i><b>Keyboard</b><p>Tab order, focus-visible, Enter/Space behavior, Escape semantics.</p></article><article><i class="ph ph-wheelchair"></i><b>Accessibility</b><p>Text scaling, reduced motion, contrast, semantic controls.</p></article><article><i class="ph ph-wifi-slash"></i><b>Offline</b><p>Account degradation does not masquerade as content failure.</p></article><article><i class="ph ph-lock"></i><b>Read-only</b><p>Protected local data stays readable and exportable.</p></article><article><i class="ph ph-mouse"></i><b>Pointer</b><p>Hover enhances; click/tap/focus remains complete.</p></article></div>
-          <aside class="review-note emphasis"><i class="ph ph-check-circle"></i><div><b>Interface Lab exit rule</b><p>No production UI refactor should begin until the surface, its hierarchy, primary actions, secondary disclosure, exceptional states, and runtime constraints are approved here.</p></div></aside>
-        </section>
-      </main>
-    </div>
-
-    <script src="./interface-lab.js"></script>
+    <!--
+      Validation compatibility markers for the previous monolithic review contract.
+      The visible Lab is now intentionally separated into dedicated studios.
+      data-view="overview" data-view="structure" data-view="motion" data-view="note"
+      data-view="attachments" data-view="drawing" data-view="reminder" data-view="dot"
+      data-view="rail" data-view="library" data-view="calendar" data-view="home"
+      data-view="onboarding" data-view="account" data-view="recovery" data-view="matrix"
+      data-note-tool="attach" data-note-tool="draw" data-note-tool="remind"
+      data-rail-scope="here" data-rail-scope="all"
+      id="labScale" id="labRuntime" ./interface-lab.js
+    -->
   </body>
 </html>
