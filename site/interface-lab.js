@@ -2,599 +2,243 @@
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 
-  const viewCopy = {
-    editor: ['Surface 01 · Note editor', 'A focused canvas with tools that make room.'],
-    rail: ['Surface 02 · Pill and rail', 'Notes stay visible, grouped, and anchored to a real place.'],
-    library: ['Surface 03 · All Skribs', 'A quiet library built for reading before reopening.'],
-    reminder: ['Surface 04 · Reminder flow', 'Scheduling is explicit, readable, and hard to mis-set.'],
-    system: ['Surface 05 · Interaction map', 'Every primary click has one predictable result.'],
+  const views = {
+    overview: ['Foundation 00 · Design DNA', 'Soft paper. Precise software.', 'Skribli should feel like physical thoughts living inside a disciplined Windows utility—not a dashboard decorated with sticky notes.'],
+    structure: ['Foundation 01 · Product structure', 'Four visible windows, one background product.', 'Each surface has one primary job. The user should never have to understand native window handles, storage revisions, or entitlement plumbing to use Skribli.'],
+    motion: ['Foundation 02 · Hover & motion', 'The resting state stays quiet. The pointer wakes up the right detail.', 'Hover adds acknowledgement, revelation, and occasional transformation without becoming the only way to discover primary behavior.'],
+    note: ['Daily 01 · Core Skrib', 'A light note and a heavily loaded note must both feel like the same product.', 'This view now includes the compact everyday Skrib and a full stress-test Skrib with photos, document, video, drawing, reminder, text, context, save state, tools, and lifecycle actions together.'],
+    attachments: ['Daily 02 · Attachments', 'Files should feel like the things people believe they are.', 'Images become photographic objects, documents become paper, and video begins as a visual frame. Technical metadata stays secondary.'],
+    drawing: ['Daily 03 · Drawing', 'Powerful tools, contextual controls.', 'Drawing expands the same Skrib and shows only properties relevant to the selected tool.'],
+    reminder: ['Daily 04 · Reminder', 'The Skrib grows into the scheduling workspace it needs.', 'Quick reminders remain tiny. Custom date, time, and recurrence use the same note object instead of an unrelated modal.'],
+    dot: ['Daily 05 · Collapsed dot', 'A folded thought, not a generic button.', 'The dot is a tiny contextual presence. Hover reveals dismissal; the primary action remains reopening the saved Skrib.'],
+    rail: ['Daily 06 · My Skribs rail', 'Keep the production rail’s strongest interaction model.', 'The Lab now mirrors the current layered-paper launcher, compact branded header, Here/All scope, grouped app sections, open-here row action, and separate saved-location control.'],
+    library: ['Daily 07 · All Skribs', 'Reading first. Data management second.', 'Search, read, and return dominate. Import, export, Trash, and recovery stay available without turning the library into an admin console.'],
+    calendar: ['Daily 08 · Calendar & Trash', 'A calendar made from the same visual language as the notes.', 'Dates now sit in open space with soft paper-like selection and hover states instead of generic tall square cells.'],
+    home: ['Low-frequency 01 · Home', 'Skribli is ready. Go back to your work.', 'Home is a readiness and entry surface rather than a dashboard that competes with the applications where thoughts originate.'],
+    onboarding: ['Low-frequency 02 · Onboarding', 'Teach the mental model before the feature set.', 'A first successful contextual thought matters more than a tour of every capability.'],
+    account: ['Low-frequency 03 · Account & tray', 'Identity is connected. Content stays local.', 'Account and entitlement trust remain visually and conceptually separate from local Skrib persistence.'],
+    recovery: ['Trust surface · Recovery', 'Protect aggressively underneath. Speak calmly on the surface.', 'Exceptional states translate technical machinery into Saving, Saved, Needs attention, read-only recovery, and clear next actions.'],
+    matrix: ['Acceptance environment', 'Every approved surface gets the same state coverage.', 'The Interface Lab is the review gate for hierarchy, behavior, scale, keyboard use, failure states, and product truth before production UI work.'],
   };
 
+  const style = document.createElement('style');
+  style.id = 'interface-lab-product-refinement';
+  style.textContent = `
+    .lab-toast{position:fixed;right:22px;bottom:22px;z-index:999;max-width:360px;padding:11px 14px;border:1px solid var(--line);border-radius:13px;background:rgb(255 253 247 / 97%);box-shadow:var(--shadow-md);color:var(--ink);font-size:9px;line-height:1.45;opacity:0;transform:translateY(8px);pointer-events:none;transition:opacity 160ms ease,transform 180ms ease}.lab-toast.is-visible{opacity:1;transform:translateY(0)}
+    .stress-toggle{margin:0 0 12px;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:11px 13px;border:1px solid var(--line);border-radius:14px;background:var(--paper)}.stress-toggle>div{min-width:0}.stress-toggle small,.stress-toggle b{display:block}.stress-toggle small{color:var(--muted);font-size:6px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}.stress-toggle b{margin-top:4px;font-size:10px}.stress-toggle-nav{display:flex;gap:4px}.stress-toggle-nav button{height:31px;padding:0 10px;border:1px solid var(--line);border-radius:999px;background:white;font-size:7px;font-weight:750}.stress-toggle-nav button.is-active{border-color:var(--ink);background:var(--ink);color:white}
+    .heavy-note-stage{position:relative;min-height:890px;padding:42px;border:1px solid var(--line);border-radius:22px;background:linear-gradient(145deg,#eef0ed,#e1e7e1);overflow:hidden}.heavy-note-stage::before{content:'';position:absolute;inset:32px;border:1px solid rgb(38 41 35 / 8%);border-radius:18px;background:#f9faf8;box-shadow:0 18px 54px rgb(38 41 35 / 8%)}
+    .heavy-note{--note:var(--yellow);position:relative;z-index:2;width:min(720px,calc(100% - 20px));height:760px;margin:38px auto 0;display:grid;grid-template-rows:64px minmax(0,1fr) auto 60px;overflow:hidden;border:1px solid rgb(38 41 35 / 15%);border-radius:20px 20px 38px 20px;background:linear-gradient(rgb(38 41 35 / 3.1%) 1px,transparent 1px),var(--note);background-size:100% 31px;box-shadow:0 28px 70px rgb(28 31 26 / 18%)}
+    .heavy-note::before{content:'';position:absolute;z-index:4;top:-4px;left:50%;width:96px;height:21px;transform:translateX(-50%) rotate(-1.8deg);background:rgb(255 246 205 / 74%);box-shadow:0 3px 9px rgb(64 58 31 / 7%)}
+    .heavy-note-header{padding:15px 14px 10px;display:grid;grid-template-columns:29px minmax(0,1fr) auto;gap:9px;align-items:center;border-bottom:1px dashed var(--line)}.heavy-note-header .drag-grip{height:36px}.heavy-context small,.heavy-context strong{display:block}.heavy-context small{color:rgb(38 41 35 / 48%);font-size:6px;font-weight:800;letter-spacing:.12em}.heavy-context strong{margin-top:3px;font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.heavy-context strong span{color:var(--muted);font-weight:550}.heavy-head-actions{display:flex;gap:4px}.heavy-head-actions button{width:31px;height:31px;border:1px solid transparent;border-radius:50%;background:transparent}.heavy-head-actions button:hover{border-color:var(--line);background:rgb(255 255 255 / 45%);transform:translateY(-1px)}
+    .heavy-note-scroll{min-height:0;overflow:auto;overscroll-behavior:contain;padding:18px 20px 18px;scrollbar-width:thin;scrollbar-color:color-mix(in srgb,var(--olive) 38%,var(--paper)) transparent}.heavy-note-scroll::-webkit-scrollbar{width:7px}.heavy-note-scroll::-webkit-scrollbar-thumb{border:2px solid transparent;border-radius:999px;background:color-mix(in srgb,var(--olive) 40%,var(--paper));background-clip:padding-box}
+    .heavy-writing{max-width:650px;font-family:var(--font-hand);font-size:19px;line-height:1.52;outline:0}.heavy-writing p{margin:0 0 10px}.heavy-writing .soft-mark{background:linear-gradient(transparent 53%,rgb(255 255 255 / 48%) 53% 88%,transparent 88%)}
+    .heavy-section{margin-top:15px}.heavy-section-title{margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:12px;color:rgb(38 41 35 / 52%);font-size:6px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}.heavy-section-title span:last-child{font-weight:650;letter-spacing:.04em;text-transform:none}
+    .heavy-media-grid{display:grid;grid-template-columns:1.2fr .9fr .9fr;gap:10px;align-items:stretch}.heavy-media-card{position:relative;min-height:154px;padding:10px;border:1px solid rgb(38 41 35 / 10%);border-radius:14px;background:rgb(255 255 255 / 31%);overflow:hidden;transition:background 150ms ease,box-shadow 160ms ease,transform 150ms ease}.heavy-media-card:hover{background:rgb(255 255 255 / 47%);box-shadow:var(--shadow-xs);transform:translateY(-1px)}.heavy-media-label{position:absolute;left:10px;top:9px;z-index:3;padding:4px 6px;border-radius:999px;background:rgb(255 253 247 / 85%);font-size:5.5px;font-weight:800;letter-spacing:.08em}.heavy-media-actions{position:absolute;z-index:4;right:8px;top:8px;display:flex;gap:3px;opacity:.15;transition:opacity 150ms ease}.heavy-media-card:hover .heavy-media-actions,.heavy-media-card:focus-within .heavy-media-actions{opacity:1}.heavy-media-actions button{width:25px;height:25px;border:1px solid var(--line);border-radius:50%;background:white;font-size:10px}.heavy-media-card.photo-card{display:grid;place-items:center}.heavy-media-card .photo-stack{transform:scale(.82);transform-origin:center}.heavy-media-card .document-object{width:116px;min-height:126px;margin:16px auto 0;padding:36px 13px 18px}.heavy-media-card .video-object{width:135px;margin:16px auto 0;padding:6px 6px 17px}.heavy-media-card .video-art{height:78px}.heavy-media-card .video-object strong,.heavy-media-card .video-object small{font-size:6px}
+    .heavy-drawing{position:relative;height:185px;border:1px solid rgb(38 41 35 / 11%);border-radius:14px;background:rgb(255 255 255 / 24%);overflow:hidden}.heavy-drawing::before{content:'';position:absolute;left:7%;top:38%;width:70%;height:2px;background:var(--ink);border-radius:999px;transform:rotate(-4deg);box-shadow:44px 24px 0 0 rgb(83 106 79 / 72%),110px -25px 0 1px rgb(73 109 145 / 48%)}.heavy-drawing::after{content:'flow → review → ship';position:absolute;left:9%;top:53%;font-family:var(--font-hand);font-size:18px;transform:rotate(-2deg)}.heavy-drawing button{position:absolute;right:9px;bottom:9px;height:29px;padding:0 9px;border:1px solid var(--line);border-radius:999px;background:rgb(255 255 255 / 78%);font-size:6.5px;font-weight:750}
+    .heavy-reminder{display:grid;grid-template-columns:82px minmax(0,1fr) auto;gap:12px;align-items:center;padding:11px 12px;border:1px solid rgb(38 41 35 / 11%);border-radius:13px 13px 22px 13px;background:var(--peach);box-shadow:var(--shadow-xs);transform:rotate(-.35deg)}.heavy-reminder-date{display:grid;place-items:center;min-height:66px;border-right:1px dashed rgb(38 41 35 / 16%)}.heavy-reminder-date small,.heavy-reminder-date strong{display:block}.heavy-reminder-date small{font-size:6px;font-weight:800;letter-spacing:.13em}.heavy-reminder-date strong{margin-top:-4px;font-family:var(--font-display);font-size:30px;letter-spacing:-.07em}.heavy-reminder-copy b,.heavy-reminder-copy small{display:block}.heavy-reminder-copy b{font-size:9px}.heavy-reminder-copy small{margin-top:4px;color:var(--muted);font-size:6.5px}.heavy-reminder>button{height:30px;padding:0 9px;border:1px solid var(--line);border-radius:999px;background:rgb(255 255 255 / 55%);font-size:6.5px;font-weight:750}
+    .heavy-tool-dock{padding:8px 14px;display:flex;align-items:center;gap:4px;border-top:1px dashed var(--line);background:rgb(255 255 255 / 9%)}.heavy-tool-dock button{height:31px;padding:0 8px;display:inline-flex;align-items:center;gap:5px;border:0;border-radius:9px;background:transparent;color:rgb(38 41 35 / 62%);font-size:7px;font-weight:700}.heavy-tool-dock button:hover{background:rgb(255 255 255 / 40%);color:var(--ink);transform:translateY(-1px)}.heavy-tool-dock .heavy-count{margin-left:auto;color:rgb(38 41 35 / 44%);font-size:6.5px}
+    .heavy-footer{padding:9px 11px 10px 15px;display:flex;align-items:center;justify-content:space-between;gap:12px;border-top:1px dashed var(--line);background:rgb(255 255 255 / 11%)}.heavy-save{display:flex;align-items:center;gap:7px}.heavy-save i{color:var(--ok);font-size:7px}.heavy-save b,.heavy-save small{display:block}.heavy-save b{font-size:8px}.heavy-save small{margin-top:2px;color:var(--muted);font-size:6px}.heavy-footer>div:last-child{display:flex;gap:5px}.heavy-footer button{height:34px;padding:0 12px;border:1px solid transparent;border-radius:999px;background:transparent;font-size:7px;font-weight:750}.heavy-footer .heavy-done{border-color:var(--ink);background:var(--ink);color:white}.heavy-footer .heavy-trash{color:var(--danger)}
+    .stress-summary{margin-top:12px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.stress-summary article{padding:12px;border:1px solid var(--line);border-radius:13px;background:var(--paper)}.stress-summary small,.stress-summary b{display:block}.stress-summary small{color:var(--muted);font-size:5.5px;font-weight:800;letter-spacing:.1em}.stress-summary b{margin-top:6px;font-size:8px}.stress-summary p{margin:5px 0 0;color:var(--muted);font-size:6.5px;line-height:1.45}
+    .production-rail-stage{min-height:610px;padding:34px;display:grid;grid-template-columns:128px 336px;justify-content:center;align-items:start;gap:30px;border:1px solid var(--line);border-radius:22px;background:linear-gradient(145deg,#e8ece8,#dde4de)}.rail-pill-spec{display:grid;justify-items:center;gap:10px;padding-top:58px}.rail-pill-spec>small{color:var(--muted);font-size:6px;font-weight:800;letter-spacing:.1em}.prod-rail-pill{position:relative;width:64px;height:64px;border:0;background:transparent}.prod-sheet{position:absolute;width:42px;height:47px;display:grid;place-items:center;border:1px solid rgb(38 41 35 / 17%);border-radius:10px;transition:transform 160ms cubic-bezier(.22,1,.36,1),box-shadow 160ms ease}.prod-sheet.back{top:6px;left:18px;background:color-mix(in srgb,var(--sky) 72%,var(--lavender));box-shadow:0 2px 5px rgb(38 41 35 / 5%)}.prod-sheet.middle{top:9px;left:13px;background:color-mix(in srgb,var(--peach) 86%,var(--paper));box-shadow:0 3px 7px rgb(38 41 35 / 7%)}.prod-sheet.front{top:13px;left:7px;background:var(--yellow);box-shadow:0 7px 15px rgb(38 41 35 / 15%),0 2px 4px rgb(38 41 35 / 10%);font-size:15px}.prod-pill-count{position:absolute;top:2px;right:1px;z-index:4;min-width:20px;height:20px;padding:0 4px;display:grid;place-items:center;border:1px solid rgb(255 253 247 / 90%);border-radius:999px;background:var(--ink);color:var(--paper);font-size:8px;font-weight:800;box-shadow:0 3px 8px rgb(38 41 35 / 21%)}.prod-rail-pill:hover .front{transform:translate(-1px,-2px);box-shadow:0 10px 20px rgb(38 41 35 / 18%)}.prod-rail-pill:hover .middle{transform:translate(1px,-1px)}.prod-rail-pill:hover .back{transform:translate(2px,-1px)}.prod-rail-pill:hover .prod-pill-count{transform:translate(1px,-2px)}
+    .prod-rail{height:510px;display:grid;grid-template-rows:56px 42px minmax(0,1fr);overflow:hidden;border:1px solid rgb(38 41 35 / 15%);border-radius:20px;background:linear-gradient(150deg,rgb(248 223 120 / 8%),transparent 30%),color-mix(in srgb,var(--paper) 96%,var(--mint));box-shadow:0 18px 40px rgb(38 41 35 / 17%),0 4px 12px rgb(38 41 35 / 8%)}.prod-rail-head{padding:0 9px 0 8px;display:flex;align-items:center;justify-content:space-between;gap:6px;border-bottom:1px solid rgb(38 41 35 / 9%)}.prod-rail-heading{min-width:0;display:flex;align-items:center;gap:7px}.prod-grip{color:rgb(38 41 35 / 29%);font-size:15px}.prod-brand{width:29px;height:29px;display:grid;place-items:center;border-radius:9px;background:var(--yellow);box-shadow:0 3px 6px rgb(38 41 35 / 10%);font-family:var(--font-hand);font-size:12px;font-weight:700}.prod-rail-heading span:last-child{min-width:0}.prod-rail-heading strong,.prod-rail-heading small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.prod-rail-heading strong{font-family:var(--font-display);font-size:13px}.prod-rail-heading small{color:rgb(38 41 35 / 55%);font-size:9px}.prod-rail-actions{display:flex;gap:3px}.prod-rail-actions button{width:29px;height:29px;display:grid;place-items:center;border:1px solid transparent;border-radius:50%;background:transparent;color:rgb(38 41 35 / 62%)}.prod-rail-actions button:hover{border-color:rgb(38 41 35 / 9%);background:rgb(255 255 255 / 68%);color:var(--ink)}.prod-rail-tabs{margin:7px 9px 6px;padding:3px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:3px;border:1px solid rgb(38 41 35 / 9%);border-radius:12px;background:rgb(255 255 255 / 34%)}.prod-rail-tabs button{border:0;border-radius:9px;background:transparent;color:rgb(38 41 35 / 61%);font-size:10px;font-weight:700}.prod-rail-tabs button.is-active{background:rgb(255 255 255 / 86%);box-shadow:0 2px 7px rgb(38 41 35 / 8%);color:var(--ink)}.prod-rail-tabs span{margin-left:3px;color:rgb(38 41 35 / 47%)}.prod-rail-body{min-height:0;padding:7px 8px 8px;overflow:hidden}.prod-rail-list{height:100%;overflow:auto;display:grid;align-content:start;gap:9px;scrollbar-width:thin}.prod-group-heading{min-height:24px;padding:0 6px 4px;display:flex;align-items:center;justify-content:space-between;color:rgb(38 41 35 / 58%)}.prod-group-heading span{display:inline-flex;align-items:center;gap:5px;color:rgb(38 41 35 / 74%);font-size:10px;font-weight:760}.prod-group-heading small{font-size:9px;font-weight:650}.prod-group-notes{display:grid;gap:4px}.prod-note{min-height:48px;padding:5px 6px;display:grid;grid-template-columns:9px minmax(0,1fr) 28px;align-items:center;gap:6px;border:1px solid transparent;border-radius:13px;transition:background 130ms ease,border-color 130ms ease,transform 130ms ease}.prod-note:hover,.prod-note:focus-within{border-color:rgb(38 41 35 / 10%);background:rgb(255 255 255 / 52%);transform:translateX(-1px)}.prod-note>i{width:9px;height:27px;border:1px solid rgb(38 41 35 / 11%);border-radius:999px}.prod-note-main{height:100%;min-width:0;padding:1px 0;display:grid;grid-template-columns:minmax(0,1fr) 26px;align-items:center;gap:5px;border:0;background:transparent;text-align:left}.prod-note-copy{min-width:0}.prod-note-copy strong,.prod-note-copy small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.prod-note-copy strong{font-size:11px}.prod-note-copy small{margin-top:3px;color:rgb(38 41 35 / 54%);font-size:9px}.prod-open-icon,.prod-location{width:26px;height:26px;display:grid;place-items:center;border:1px solid rgb(38 41 35 / 8%);border-radius:50%;background:rgb(255 255 255 / 48%);color:rgb(38 41 35 / 48%)}.prod-note-main:hover .prod-open-icon,.prod-note-main:focus-visible .prod-open-icon,.prod-location:hover,.prod-location:focus-visible{border-color:var(--ink);background:var(--ink);color:var(--paper);transform:translateY(-1px)}.prod-location{padding:0}.prod-rail-message{margin-top:7px;padding:8px 9px;border:1px solid var(--line);border-radius:10px;background:rgb(255 255 255 / 52%);color:var(--muted);font-size:7px;line-height:1.4}
+    .rail-product-notes{margin-top:12px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.rail-product-notes article{padding:13px;border:1px solid var(--line);border-radius:13px;background:var(--paper)}.rail-product-notes small,.rail-product-notes b{display:block}.rail-product-notes small{color:var(--muted);font-size:5.5px;font-weight:800;letter-spacing:.1em}.rail-product-notes b{margin-top:7px;font-size:8px}.rail-product-notes p{margin:5px 0 0;color:var(--muted);font-size:6.5px;line-height:1.45}
+    .calendar-grid{gap:6px!important;place-items:center}.calendar-grid button{width:36px!important;height:36px!important;min-height:36px!important;padding:0!important;justify-self:center;border:0!important;border-radius:50% 47% 52% 46%!important;background:transparent!important;color:var(--ink);font-size:7.5px!important;box-shadow:none!important;transform:rotate(0);transition:transform 140ms ease,background 150ms ease,box-shadow 150ms ease,color 150ms ease!important}.calendar-grid button:hover:not(.outside){background:rgb(255 255 255 / 62%)!important;box-shadow:0 5px 12px rgb(38 41 35 / 8%)!important;transform:translateY(-1px) rotate(-1deg)}.calendar-grid button.is-selected{background:var(--yellow)!important;box-shadow:0 6px 13px rgb(38 41 35 / 13%)!important;transform:rotate(-2deg);font-weight:800}.reminder-skrib .calendar-grid button.is-selected{background:rgb(255 255 255 / 72%)!important;box-shadow:0 0 0 1px rgb(38 41 35 / 16%),0 7px 15px rgb(38 41 35 / 10%)!important}.calendar-grid button.outside{opacity:.22}.calendar-grid button.has-reminder::after{width:5px!important;height:3px!important;bottom:2px!important;border-radius:999px!important;background:var(--olive)!important}.weekday-row span{font-size:6.5px!important;letter-spacing:.02em}.global-calendar-body .calendar-grid{row-gap:8px!important}.global-calendar-body .calendar-grid button{width:34px!important;height:34px!important;min-height:34px!important}
+    .agenda-reminder{transition:transform 150ms ease,box-shadow 160ms ease}.agenda-reminder:hover{transform:translateY(-1px) rotate(-.25deg);box-shadow:var(--shadow-xs)}
+    .video-object.is-playing .video-art{background:radial-gradient(circle at 50% 50%,rgb(248 223 120 / 75%),transparent 65px),linear-gradient(145deg,#536a4f,#25332d)}.video-object.is-playing .video-art i{animation:labPulse 850ms ease-in-out infinite alternate}@keyframes labPulse{to{transform:scale(1.14);opacity:.65}}
+    .agenda-reminder.is-complete{opacity:.5;filter:saturate(.55)}.agenda-reminder.is-dismissed{opacity:.28;filter:grayscale(.45)}.trash-paper.is-restored{opacity:.35}.trash-paper.is-deleted{opacity:.12;transform:scale(.96)}
+    @media(max-width:1020px){.heavy-note-stage{padding:24px}.heavy-note{width:min(720px,100%)}.production-rail-stage{grid-template-columns:110px 336px}.stress-summary,.rail-product-notes{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:700px){.heavy-note-stage{min-height:880px;padding:14px}.heavy-note{height:760px;margin-top:28px}.heavy-media-grid{grid-template-columns:1fr 1fr}.heavy-media-card.photo-card{grid-column:1/-1}.stress-summary,.rail-product-notes{grid-template-columns:1fr}.production-rail-stage{grid-template-columns:1fr;padding:18px;justify-items:center}.rail-pill-spec{padding-top:0}.heavy-reminder{grid-template-columns:70px minmax(0,1fr)}.heavy-reminder>button{grid-column:1/-1}.calendar-grid{gap:4px!important}.calendar-grid button{width:32px!important;height:32px!important;min-height:32px!important}}
+  `;
+  document.head.appendChild(style);
+
+  const toast = document.createElement('div');
+  toast.className = 'lab-toast';
+  toast.setAttribute('role', 'status');
+  document.body.appendChild(toast);
+  let toastTimer;
+  function notify(message) {
+    toast.textContent = message;
+    toast.classList.add('is-visible');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('is-visible'), 2200);
+  }
+
   function showView(view) {
-    const navigationButtons = $$('.lab-surface-nav button');
-    navigationButtons.forEach((button) => button.classList.remove('is-active'));
-    navigationButtons
-      .find((button) => button.dataset.showView === view && !button.hasAttribute('data-open-note-calendar'))
-      ?.classList.add('is-active');
-    $$('.lab-view').forEach((panel) => panel.classList.toggle('is-active', panel.dataset.view === view));
-    const copy = viewCopy[view] || viewCopy.editor;
+    const target = views[view] ? view : 'overview';
+    $$('.lab-view').forEach((panel) => panel.classList.toggle('is-active', panel.dataset.view === target));
+    $$('.lab-surface-nav > button').forEach((button) => button.classList.toggle('is-active', button.dataset.showView === target));
+    const copy = views[target];
     $('#viewEyebrow').textContent = copy[0];
     $('#viewTitle').textContent = copy[1];
-    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    $('#viewSummary').textContent = copy[2];
+    window.scrollTo({ top: 0, behavior: 'auto' });
   }
 
   $$('[data-show-view]').forEach((button) => button.addEventListener('click', () => showView(button.dataset.showView)));
+  $$('[data-jump-view]').forEach((button) => button.addEventListener('click', () => showView(button.dataset.jumpView)));
 
-  $$('.view-notes').forEach((panel) => {
-    panel.classList.add('is-collapsed');
-    const toggle = document.createElement('button');
-    toggle.type = 'button';
-    toggle.className = 'view-notes-toggle';
-    toggle.setAttribute('aria-expanded', 'false');
-    toggle.innerHTML = '<span><i class="ph ph-info"></i> Design notes</span><i class="ph ph-caret-down"></i>';
-    panel.prepend(toggle);
-    toggle.addEventListener('click', () => {
-      const expanded = toggle.getAttribute('aria-expanded') === 'true';
-      toggle.setAttribute('aria-expanded', String(!expanded));
-      panel.classList.toggle('is-collapsed', expanded);
+  const scale = $('#labScale');
+  const runtime = $('#labRuntime');
+  const runtimeBadge = $('#runtimeBadge');
+  scale?.addEventListener('change', () => {
+    document.body.classList.remove('scale-125', 'scale-150');
+    if (scale.value !== '100') document.body.classList.add(`scale-${scale.value}`);
+  });
+  function syncRuntime() {
+    document.body.classList.remove('runtime-offline', 'runtime-readonly', 'runtime-attention');
+    if (runtime.value !== 'normal') document.body.classList.add(`runtime-${runtime.value}`);
+    const labels = { normal: 'Normal runtime', offline: 'Offline account path', readonly: 'Read-only local data', attention: 'Needs attention' };
+    runtimeBadge.textContent = labels[runtime.value];
+    const label = $('#saveStateLabel');
+    const detail = $('#saveStateDetail');
+    if (label && detail) {
+      if (runtime.value === 'readonly') { label.textContent = 'Read-only'; detail.textContent = 'Verified local Skrib is protected'; }
+      else if (runtime.value === 'attention') { label.textContent = 'Needs attention'; detail.textContent = 'Retry before folding this Skrib'; }
+      else { label.textContent = 'Saved'; detail.textContent = runtime.value === 'offline' ? 'Saved locally · account offline' : 'Latest text is safe'; }
+    }
+  }
+  runtime?.addEventListener('change', syncRuntime);
+  $('#toggleNotes')?.addEventListener('click', (event) => {
+    const next = event.currentTarget.getAttribute('aria-pressed') !== 'true';
+    event.currentTarget.setAttribute('aria-pressed', String(next));
+    document.body.classList.toggle('hide-review-notes', !next);
+  });
+
+  const noteView = $('.lab-view[data-view="note"]');
+  const prototypeStage = $('.prototype-stage', noteView);
+  if (noteView && prototypeStage) {
+    const toggle = document.createElement('div');
+    toggle.className = 'stress-toggle';
+    toggle.innerHTML = `<div><small>NOTE CAPACITY REVIEW</small><b>Compare the everyday note with a deliberately heavy, feature-rich Skrib.</b></div><div class="stress-toggle-nav"><button type="button" data-note-mode="compact" class="is-active">Everyday</button><button type="button" data-note-mode="heavy">Heavy load</button><button type="button" data-note-mode="both">Show both</button></div>`;
+    prototypeStage.before(toggle);
+
+    const heavyWrap = document.createElement('div');
+    heavyWrap.id = 'heavyNoteReview';
+    heavyWrap.hidden = true;
+    heavyWrap.innerHTML = `
+      <div class="heavy-note-stage">
+        <article class="heavy-note" aria-label="Heavily loaded Skrib mock">
+          <header class="heavy-note-header">
+            <button class="drag-grip" type="button" title="Move Skrib"><i class="ph ph-dots-six-vertical"></i></button>
+            <div class="heavy-context"><small>SKRIB FOR</small><strong><i class="ph ph-browser"></i> Chrome <span>› Skribli release checklist · Vercel preview</span></strong></div>
+            <div class="heavy-head-actions"><button type="button" data-heavy-action="reposition" title="Reposition"><i class="ph ph-crosshair"></i></button><button type="button" data-heavy-action="close" title="Close"><i class="ph ph-x"></i></button></div>
+          </header>
+          <div class="heavy-note-scroll">
+            <div class="heavy-writing" contenteditable="true" role="textbox" aria-label="Heavy Skrib text"><p>Before release: check the <span class="soft-mark">owner download, rail behavior, reminder visuals, and final copy</span>.</p><p>Keep the result calm even when the thought carries a lot of supporting material.</p></div>
+            <section class="heavy-section"><div class="heavy-section-title"><span>ATTACHED MATERIAL</span><span>5 items · local</span></div><div class="heavy-media-grid">
+              <article class="heavy-media-card photo-card"><span class="heavy-media-label">3 PHOTOS</span><div class="heavy-media-actions"><button type="button" data-heavy-action="open-photos" title="Open photos"><i class="ph ph-arrows-out-simple"></i></button><button type="button" data-heavy-action="remove-photos" title="Remove"><i class="ph ph-x"></i></button></div><button type="button" class="photo-stack showcase" data-heavy-photo-stack><div class="polaroid p1"><span class="mock-photo-art"></span></div><div class="polaroid p2"><span class="mock-photo-art alt"></span></div><div class="polaroid p3"><span class="mock-photo-art third"></span></div><small>3 photos</small></button></article>
+              <article class="heavy-media-card"><span class="heavy-media-label">DOCUMENT</span><div class="heavy-media-actions"><button type="button" data-heavy-action="open-doc" title="Open"><i class="ph ph-arrow-square-out"></i></button><button type="button" data-heavy-action="remove-doc" title="Remove"><i class="ph ph-x"></i></button></div><button type="button" class="document-object"><i class="paperclip"></i><small>PROJECT</small><strong>release-check.pdf</strong><em>PDF · 2.1 MB</em></button></article>
+              <article class="heavy-media-card"><span class="heavy-media-label">VIDEO</span><div class="heavy-media-actions"><button type="button" data-heavy-action="play-video" title="Play"><i class="ph ph-play"></i></button><button type="button" data-heavy-action="remove-video" title="Remove"><i class="ph ph-x"></i></button></div><button type="button" class="video-object"><span class="video-art"><i class="ph-fill ph-play"></i></span><strong>walkthrough</strong><small>00:42</small></button></article>
+            </div></section>
+            <section class="heavy-section"><div class="heavy-section-title"><span>DRAWING</span><span>8 editable strokes</span></div><div class="heavy-drawing"><button type="button" data-jump-view="drawing"><i class="ph ph-pencil-line"></i> Continue drawing</button></div></section>
+            <section class="heavy-section"><div class="heavy-section-title"><span>REMINDER</span><span>Repeats weekdays</span></div><div class="heavy-reminder"><div class="heavy-reminder-date"><small>SEP</small><strong>08</strong></div><div class="heavy-reminder-copy"><b>09:30 · Weekdays</b><small>Finish release review · Windows notification</small></div><button type="button" data-jump-view="reminder">Edit reminder</button></div></section>
+          </div>
+          <div class="heavy-tool-dock"><button type="button" data-heavy-tool="attach"><i class="ph ph-paperclip"></i> Attach</button><button type="button" data-jump-view="drawing"><i class="ph ph-pencil-line"></i> Draw</button><button type="button" data-jump-view="reminder"><i class="ph ph-bell"></i> Remind</button><button type="button" data-heavy-tool="color"><i class="ph ph-palette"></i> Color</button><button type="button" data-heavy-tool="text"><i class="ph ph-text-t"></i> Text</button><span class="heavy-count">2,184 chars · 5 attachments · 1 reminder</span></div>
+          <footer class="heavy-footer"><div class="heavy-save"><i class="ph-fill ph-circle"></i><div><b id="heavySaveLabel">Saved</b><small id="heavySaveDetail">Text + rich content are safe</small></div></div><div><button type="button" class="heavy-trash" data-heavy-action="trash">Delete</button><button type="button" class="heavy-done" data-heavy-action="done">Done</button></div></footer>
+        </article>
+      </div>
+      <div class="stress-summary"><article><small>LAYOUT RULE</small><b>One scrollable content body</b><p>Header, tools, and save/lifecycle controls remain stable while dense content scrolls inside the paper.</p></article><article><small>OBJECT RULE</small><b>Media stays visual</b><p>Photos, document, video, drawing and reminder are recognisable before metadata is read.</p></article><article><small>DISCLOSURE RULE</small><b>Management stays secondary</b><p>Open/remove actions intensify on hover or focus instead of occupying the entire resting state.</p></article><article><small>CAPACITY RULE</small><b>Feature-rich ≠ visually overloaded</b><p>The note can carry many features because each section has a clear visual job and spacing rhythm.</p></article></div>`;
+    toggle.after(heavyWrap);
+    $$('[data-note-mode]', toggle).forEach((button) => button.addEventListener('click', () => {
+      $$('[data-note-mode]', toggle).forEach((candidate) => candidate.classList.toggle('is-active', candidate === button));
+      const mode = button.dataset.noteMode;
+      prototypeStage.hidden = mode === 'heavy';
+      heavyWrap.hidden = mode === 'compact';
+    }));
+    $$('[data-jump-view]', heavyWrap).forEach((button) => button.addEventListener('click', () => showView(button.dataset.jumpView)));
+    $('[data-heavy-photo-stack]', heavyWrap)?.addEventListener('click', (event) => event.currentTarget.classList.toggle('forced-fan'));
+    $('[contenteditable="true"]', heavyWrap)?.addEventListener('input', () => {
+      $('#heavySaveLabel').textContent = 'Saving…';
+      $('#heavySaveDetail').textContent = 'Keeping text and rich content safe';
+      clearTimeout(heavyWrap._saveTimer);
+      heavyWrap._saveTimer = setTimeout(() => { $('#heavySaveLabel').textContent = 'Saved'; $('#heavySaveDetail').textContent = 'Text + rich content are safe'; }, 520);
     });
-  });
-
-  document.addEventListener('click', (event) => {
-    const button = event.target.closest('button');
-    if (!button || button.classList.contains('resize-handle')) return;
-    button.classList.remove('is-clicked');
-    requestAnimationFrame(() => button.classList.add('is-clicked'));
-    window.setTimeout(() => button.classList.remove('is-clicked'), 150);
-  });
+    $$('[data-heavy-action]', heavyWrap).forEach((button) => button.addEventListener('click', () => {
+      const action = button.dataset.heavyAction;
+      if (action === 'reposition') { $('.heavy-note', heavyWrap).animate([{transform:'translate(0,0)'},{transform:'translate(7px,-4px)'},{transform:'translate(0,0)'}],{duration:280,easing:'ease-out'}); return; }
+      if (action === 'close') { notify('Close waits for pending local text, attachments, drawing and reminder state, then hides the Skrib.'); return; }
+      if (action === 'open-photos') { $('[data-heavy-photo-stack]', heavyWrap).classList.toggle('forced-fan'); notify('Photo viewer opened in the product flow.'); return; }
+      if (action === 'open-doc') { notify('Document opens with its local file association.'); return; }
+      if (action === 'play-video') { const video=$('.video-object',button.closest('.heavy-media-card')); video.classList.toggle('is-playing'); notify(video.classList.contains('is-playing')?'Video preview playing.':'Video preview paused.'); return; }
+      if (action?.startsWith('remove-')) { button.closest('.heavy-media-card')?.remove(); $('#heavySaveLabel').textContent='Saving…'; setTimeout(()=>$('#heavySaveLabel').textContent='Saved',400); return; }
+      if (action === 'trash') { button.textContent = button.dataset.confirm ? 'Moved to Trash' : 'Move to Trash?'; button.dataset.confirm = '1'; notify('Ordinary delete is reversible through Trash.'); return; }
+      if (action === 'done') { const note=$('.heavy-note',heavyWrap); note.animate([{opacity:1,transform:'scale(1)'},{opacity:.55,transform:'scale(.72) translate(160px,40px)'},{opacity:0,transform:'scale(.14) translate(420px,80px)'}],{duration:380,easing:'cubic-bezier(.2,.75,.25,1)'}).finished.then(()=>{notify('Heavy Skrib durably saved, then folded to its contextual dot.'); button.textContent='Done ✓';}); }
+    }));
+    $$('[data-heavy-tool]', heavyWrap).forEach((button) => button.addEventListener('click', () => notify(`${button.textContent.trim()} stays available without adding permanent chrome to the content body.`)));
+  }
 
   const noteMock = $('#noteMock');
-  const toolTray = $('#noteToolTray');
-  const inkCanvas = $('#inkCanvas');
   const noteWriting = $('#noteWriting');
-  const noteInlineCalendar = $('#noteInlineCalendar');
-  let activeTool = 'attach';
+  const noteTray = $('#noteToolTray');
+  let activeNoteTool = null;
+  let saveTimer = null;
+  function setSaveState(label, detail) { if (runtime?.value === 'readonly') return; if ($('#saveStateLabel')) $('#saveStateLabel').textContent = label; if ($('#saveStateDetail')) $('#saveStateDetail').textContent = detail; }
+  function scheduleSave() { if (runtime?.value === 'readonly') return; clearTimeout(saveTimer); setSaveState('Saving…', 'Keeping the latest edit safe'); saveTimer = setTimeout(() => setSaveState('Saved', runtime?.value === 'offline' ? 'Saved locally · account offline' : 'Latest text is safe'), 520); }
+  noteWriting?.addEventListener('input', scheduleSave);
+  function openNoteTool(tool) { if (!noteTray) return; const same = activeNoteTool === tool && !noteTray.hidden; activeNoteTool = same ? null : tool; $$('[data-note-tool]').forEach((button) => button.classList.toggle('is-active', button.dataset.noteTool === activeNoteTool)); $$('[data-tool-panel]', noteTray).forEach((panel) => { panel.hidden = panel.dataset.toolPanel !== activeNoteTool; }); noteTray.hidden = !activeNoteTool; }
+  $$('[data-note-tool]').forEach((button) => button.addEventListener('click', () => { if (runtime?.value !== 'readonly') openNoteTool(button.dataset.noteTool); }));
+  $$('[data-note-color]').forEach((button) => button.addEventListener('click', () => { ['yellow','peach','mint','sky','lavender'].forEach((color)=>noteMock?.classList.remove(`note-${color}`)); noteMock?.classList.add(`note-${button.dataset.noteColor}`); scheduleSave(); }));
+  $$('[data-text-size]').forEach((button) => button.addEventListener('click', () => { noteWriting?.classList.remove('size-small','size-large'); if(button.dataset.textSize==='small')noteWriting?.classList.add('size-small'); if(button.dataset.textSize==='large')noteWriting?.classList.add('size-large'); scheduleSave(); }));
+  $$('[data-add-object]').forEach((button) => button.addEventListener('click', () => { const row=$('#attachedObjectRow'); if(row){row.hidden=false;const label=$('small',row);label.textContent=button.dataset.addObject==='image'?'3 photos':button.dataset.addObject==='document'?'1 document':'1 video';} scheduleSave(); }));
+  $$('[data-quick-reminder]').forEach((button)=>button.addEventListener('click',()=>{setSaveState('Saving…',`${button.dataset.quickReminder} reminder added`);setTimeout(()=>setSaveState('Saved',`${button.dataset.quickReminder} · reminder linked`),420);}));
+  $('#repositionNote')?.addEventListener('click',()=>noteMock?.animate([{transform:'translate(0,0)'},{transform:'translate(8px,-5px)'},{transform:'translate(0,0)'}],{duration:280,easing:'ease-out'}));
+  $('#closeNote')?.addEventListener('click',()=>setSaveState('Saved','Close waits for pending local data, then hides the note'));
+  $('#deleteNote')?.addEventListener('click',(event)=>{if(runtime?.value==='readonly')return;const button=event.currentTarget;if(button.dataset.confirm==='true'){button.textContent='Moved to Trash';button.disabled=true;setSaveState('Saved','Moved to Trash · reversible in All Skribs');}else{button.dataset.confirm='true';button.textContent='Move to Trash?';}});
+  $('#doneNote')?.addEventListener('click',()=>{if(runtime?.value==='readonly'||runtime?.value==='attention')return;noteMock?.animate([{opacity:1,transform:'scale(1)'},{opacity:.72,transform:'scale(.9) translate(70px,25px)'},{opacity:0,transform:'scale(.18) translate(220px,40px)'}],{duration:330,easing:'cubic-bezier(.2,.75,.25,1)'}).finished.then(()=>{noteMock.hidden=true;$('#postDoneDot').hidden=false;});});
+  $('#postDoneDot')?.addEventListener('click',()=>{$('#postDoneDot').hidden=true;noteMock.hidden=false;noteMock.animate([{opacity:.4,transform:'scale(.85)'},{opacity:1,transform:'scale(1)'}],{duration:230,easing:'ease-out'});});
+  $('[data-open-attachment]',noteMock)?.addEventListener('click',(event)=>event.currentTarget.classList.toggle('forced-fan'));
+  $('#photoStackDemo')?.addEventListener('click',(event)=>event.currentTarget.classList.toggle('forced-fan'));
 
-  function setTool(tool, forceOpen = true) {
-    const isAlreadyOpen = activeTool === tool && !noteMock.classList.contains('tray-closed');
-    const shouldOpen = forceOpen ? true : !isAlreadyOpen;
-    activeTool = tool;
-    noteMock.classList.toggle('tray-closed', !shouldOpen);
-    toolTray.classList.toggle('is-open', shouldOpen);
-    noteMock.classList.toggle('is-drawing', shouldOpen && tool === 'draw');
-    $$('[data-tool]').forEach((button) => button.classList.toggle('is-active', shouldOpen && button.dataset.tool === tool));
-    $$('[data-tool-panel]').forEach((panel) => panel.classList.toggle('is-active', shouldOpen && panel.dataset.toolPanel === tool));
-    if (shouldOpen && (tool === 'draw' || tool === 'remind') && sizeIndex !== 1) {
-      sizeIndex = 1;
-      applySize(sizeIndex);
-    }
-    if (tool !== 'remind') {
-      noteInlineCalendar.hidden = true;
-      noteMock.classList.remove('has-inline-calendar');
-      $$('.lab-surface-nav button').forEach((button) => button.classList.remove('is-active'));
-      $('.lab-surface-nav button[data-show-view="editor"]:not([data-open-note-calendar])')?.classList.add('is-active');
-    }
-    if (tool === 'draw' && shouldOpen) resizeInkCanvas();
+  const railView = $('.lab-view[data-view="rail"]');
+  const oldRailStage = $('.rail-stage', railView);
+  if (railView && oldRailStage) {
+    const prod = document.createElement('div');
+    prod.className = 'production-rail-stage';
+    prod.innerHTML = `<div class="rail-pill-spec"><small>COLLAPSED LAUNCHER</small><button type="button" class="prod-rail-pill" id="prodRailPill" title="My Skribs · 6 notes"><span class="prod-sheet back"></span><span class="prod-sheet middle"></span><span class="prod-sheet front"><i class="ph ph-note"></i></span><span class="prod-pill-count">6</span></button><small>Layered saved thoughts</small></div><aside class="prod-rail" id="prodRail"><header class="prod-rail-head"><span class="prod-rail-heading"><i class="ph ph-dots-six-vertical prod-grip"></i><span class="prod-brand">S</span><span><strong>My Skribs</strong><small>6 saved locally</small></span></span><span class="prod-rail-actions"><button type="button" id="prodRailRefresh" title="Refresh"><i class="ph ph-arrows-clockwise"></i></button><button type="button" id="prodRailCollapse" title="Collapse"><i class="ph ph-sidebar-simple"></i></button></span></header><nav class="prod-rail-tabs"><button type="button" class="is-active" data-prod-scope="here">Here <span>3</span></button><button type="button" data-prod-scope="all">All <span>6</span></button></nav><div class="prod-rail-body"><div class="prod-rail-list" id="prodRailList"><section class="prod-group"><div class="prod-group-heading"><span><i class="ph ph-app-window"></i> Chrome</span><small data-here-label>3 here</small></div><div class="prod-group-notes"><article class="prod-note" data-prod-title="Target-close smoke"><i style="background:var(--mint)"></i><button type="button" class="prod-note-main"><span class="prod-note-copy"><strong>Target-close smoke</strong><small><i class="ph ph-map-pin"></i> GitHub › skribly › Issue #168</small></span><span class="prod-open-icon"><i class="ph ph-note"></i></span></button><button type="button" class="prod-location" title="Open at saved location"><i class="ph ph-map-pin-line"></i></button></article><article class="prod-note" data-prod-title="Plan note and rail refinement"><i style="background:var(--peach)"></i><button type="button" class="prod-note-main"><span class="prod-note-copy"><strong>Plan note and rail refinement</strong><small><i class="ph ph-map-pin"></i> ChatGPT › Skribli build</small></span><span class="prod-open-icon"><i class="ph ph-note"></i></span></button><button type="button" class="prod-location" title="Open at saved location"><i class="ph ph-map-pin-line"></i></button></article><article class="prod-note" data-prod-title="Payment readiness list"><i style="background:var(--yellow)"></i><button type="button" class="prod-note-main"><span class="prod-note-copy"><strong>Payment readiness list</strong><small><i class="ph ph-map-pin"></i> Notion › Launch plan</small></span><span class="prod-open-icon"><i class="ph ph-note"></i></span></button><button type="button" class="prod-location" title="Open at saved location"><i class="ph ph-map-pin-line"></i></button></article></div></section><section class="prod-group prod-all-only" hidden><div class="prod-group-heading"><span><i class="ph ph-app-window"></i> Visual Studio Code</span><small>2 notes</small></div><div class="prod-group-notes"><article class="prod-note" data-prod-title="Token cleanup"><i style="background:var(--sky)"></i><button type="button" class="prod-note-main"><span class="prod-note-copy"><strong>Token cleanup</strong><small><i class="ph ph-map-pin"></i> context-rail.css</small></span><span class="prod-open-icon"><i class="ph ph-note"></i></span></button><button type="button" class="prod-location"><i class="ph ph-map-pin-line"></i></button></article><article class="prod-note" data-prod-title="Release build checks"><i style="background:var(--lavender)"></i><button type="button" class="prod-note-main"><span class="prod-note-copy"><strong>Release build checks</strong><small><i class="ph ph-map-pin"></i> CI workflow</small></span><span class="prod-open-icon"><i class="ph ph-note"></i></span></button><button type="button" class="prod-location"><i class="ph ph-map-pin-line"></i></button></article></div></section></div><div class="prod-rail-message" id="prodRailMessage">Click the note body to open here. Use the location button to return toward its saved context.</div></div></aside>`;
+    oldRailStage.replaceWith(prod);
+    const oldExplainer = $('.rail-explanation-grid', railView);
+    if (oldExplainer) { oldExplainer.className = 'rail-product-notes'; oldExplainer.innerHTML = `<article><small>OPEN HERE</small><b>The note body is the primary action.</b><p>Open the real Skrib beside the current place without rewriting its saved anchor.</p></article><article><small>SAVED LOCATION</small><b>The separate map-pin control is deliberate.</b><p>Focus a matching live window or start an allowlisted app when possible.</p></article><article><small>HOVER</small><b>Enhance the existing controls, do not replace them.</b><p>Row movement and icon contrast communicate interactivity while the resting structure stays clean.</p></article>`; }
+    $('#prodRailPill')?.addEventListener('click',()=>{const rail=$('#prodRail');rail.hidden=!rail.hidden;notify(rail.hidden?'Rail collapsed to the layered-paper launcher.':'My Skribs rail expanded.');});
+    $('#prodRailCollapse')?.addEventListener('click',()=>{$('#prodRail').hidden=true;notify('Rail collapsed. The layered paper launcher remains.');});
+    $('#prodRailRefresh')?.addEventListener('click',(event)=>{event.currentTarget.animate([{transform:'rotate(0)'},{transform:'rotate(360deg)'}],{duration:450,easing:'ease-out'});$('#prodRailMessage').textContent='Refreshed local Skribs.';});
+    $$('[data-prod-scope]').forEach((button)=>button.addEventListener('click',()=>{$$('[data-prod-scope]').forEach((candidate)=>candidate.classList.toggle('is-active',candidate===button));$$('.prod-all-only').forEach((group)=>group.hidden=button.dataset.prodScope!=='all');$('[data-here-label]').textContent=button.dataset.prodScope==='all'?'3 notes':'3 here';}));
+    $$('.prod-note-main').forEach((button)=>button.addEventListener('click',()=>{const title=button.closest('.prod-note').dataset.prodTitle;$('#prodRailMessage').textContent=`Opened “${title}” here. Its saved anchor remains unchanged.`;setTimeout(()=>showView('note'),260);}));
+    $$('.prod-location').forEach((button)=>button.addEventListener('click',()=>{const title=button.closest('.prod-note').dataset.prodTitle;$('#prodRailMessage').textContent=`Returning toward the saved application/window for “${title}”. Exact closed URLs or document state are not promised.`;notify('Saved-context return previewed in the Rail.');}));
   }
 
-  $$('[data-tool]').forEach((button) => button.addEventListener('click', () => setTool(button.dataset.tool, false)));
-  $$('[data-close-tray]').forEach((button) => button.addEventListener('click', () => {
-    noteMock.classList.add('tray-closed');
-    toolTray.classList.remove('is-open');
-    noteMock.classList.remove('is-drawing');
-    noteInlineCalendar.hidden = true;
-    noteMock.classList.remove('has-inline-calendar');
-    $$('[data-tool]').forEach((item) => item.classList.remove('is-active'));
-  }));
+  const drawingCanvas = $('#drawingCanvas');
+  const drawingContext = drawingCanvas?.getContext('2d');
+  let drawing = false, drawTool = 'pen', drawInk = '#262923', drawSize = 4, lastPoint = null, strokes = [];
+  function pointerPoint(event) { const rect=drawingCanvas.getBoundingClientRect(); return {x:(event.clientX-rect.left)*(drawingCanvas.width/rect.width),y:(event.clientY-rect.top)*(drawingCanvas.height/rect.height)}; }
+  function drawSegment(segment) { if(!drawingContext)return; drawingContext.save();drawingContext.lineCap='round';drawingContext.lineJoin='round';drawingContext.globalCompositeOperation=segment.tool==='eraser'?'destination-out':'source-over';drawingContext.globalAlpha=segment.tool==='highlighter'?.32:1;drawingContext.strokeStyle=segment.ink;drawingContext.lineWidth=segment.tool==='eraser'?segment.size*3:segment.tool==='highlighter'?segment.size*2.2:segment.size;drawingContext.beginPath();drawingContext.moveTo(segment.from.x,segment.from.y);drawingContext.lineTo(segment.to.x,segment.to.y);drawingContext.stroke();drawingContext.restore(); }
+  function redrawInk(){if(!drawingContext)return;drawingContext.clearRect(0,0,drawingCanvas.width,drawingCanvas.height);strokes.flat().forEach(drawSegment);}
+  drawingCanvas?.addEventListener('pointerdown',(event)=>{if(drawTool==='select')return;drawing=true;lastPoint=pointerPoint(event);strokes.push([]);drawingCanvas.setPointerCapture(event.pointerId);$('.drawing-hint').hidden=true;});
+  drawingCanvas?.addEventListener('pointermove',(event)=>{if(!drawing)return;const next=pointerPoint(event);const segment={from:lastPoint,to:next,tool:drawTool,ink:drawInk,size:drawSize};strokes[strokes.length-1].push(segment);drawSegment(segment);lastPoint=next;});
+  drawingCanvas?.addEventListener('pointerup',()=>{drawing=false;lastPoint=null;}); drawingCanvas?.addEventListener('pointercancel',()=>{drawing=false;lastPoint=null;});
+  function syncDrawProperties(){const name=$('#drawPropertyName'),chips=$$('.ink-chip',$('#drawingProperties')),sizeLabel=$('label',$('#drawingProperties'));if(drawTool==='eraser'){name.textContent='Eraser size';chips.forEach(c=>c.hidden=true);sizeLabel.hidden=false;}else if(drawTool==='select'){name.textContent='Select and move strokes';chips.forEach(c=>c.hidden=true);sizeLabel.hidden=true;}else{name.textContent=`${drawTool[0].toUpperCase()}${drawTool.slice(1)} properties`;chips.forEach(c=>c.hidden=false);sizeLabel.hidden=false;}}
+  $$('[data-draw-tool]').forEach((button)=>button.addEventListener('click',()=>{drawTool=button.dataset.drawTool;$$('[data-draw-tool]').forEach(c=>c.classList.toggle('is-active',c===button));syncDrawProperties();}));
+  $$('[data-ink]').forEach((button)=>button.addEventListener('click',()=>{drawInk=button.dataset.ink;$$('[data-ink]').forEach(c=>c.classList.toggle('is-active',c===button));}));
+  $('#drawSize')?.addEventListener('input',(event)=>{drawSize=Number(event.target.value);}); $('#clearInk')?.addEventListener('click',()=>{strokes=[];redrawInk();$('.drawing-hint').hidden=false;}); $('#undoInk')?.addEventListener('click',()=>{strokes.pop();redrawInk();if(!strokes.length)$('.drawing-hint').hidden=false;});
 
-  const noteColors = ['yellow', 'peach', 'mint', 'sky', 'lavender'];
-  $$('[data-note-color]').forEach((button) => button.addEventListener('click', () => {
-    noteColors.forEach((color) => noteMock.classList.remove(`note-${color}`));
-    noteMock.classList.add(`note-${button.dataset.noteColor}`);
-    $$('[data-note-color]').forEach((item) => item.classList.toggle('is-selected', item === button));
-    noteMock.classList.remove('is-color-changing');
-    requestAnimationFrame(() => noteMock.classList.add('is-color-changing'));
-    window.setTimeout(() => noteMock.classList.remove('is-color-changing'), 190);
-  }));
+  function createCalendarGrid(container, options = {}) { if (!container || container.children.length) return; const offset = new Date(Date.UTC(2026,8,1)).getUTCDay(); for (let index=0; index<42; index+=1) { const day=index-offset+1; const button=document.createElement('button'); button.type='button'; if(day<1){button.textContent=String(31+day);button.className='outside';} else if(day>30){button.textContent=String(day-30);button.className='outside';} else{button.textContent=String(day);button.dataset.day=String(day);if(options.reminderDays?.includes(day))button.classList.add('has-reminder');if(day===4&&options.selectDay)button.classList.add('is-selected');} container.appendChild(button); } }
+  const reminderGrid=$('#reminderCalendarGrid'), globalGrid=$('#globalCalendarGrid'); createCalendarGrid(reminderGrid,{selectDay:true,reminderDays:[4,8,15]}); createCalendarGrid(globalGrid,{selectDay:true,reminderDays:[4,8,15,21]});
+  function reminderSummary(){const selected=$('button.is-selected',reminderGrid),day=selected?.dataset.day||'4';if($('#selectedReminderDate'))$('#selectedReminderDate').textContent=`${day} September 2026`;if($('#reminderSummary'))$('#reminderSummary').textContent=`${day} Sep · ${$('#reminderTime')?.value||'09:30'} · ${$('#reminderRepeat')?.value||'Once'}`;}
+  $$('button',reminderGrid).forEach((button)=>button.addEventListener('click',()=>{if(button.classList.contains('outside'))return;$$('button',reminderGrid).forEach(c=>c.classList.remove('is-selected'));button.classList.add('is-selected');reminderSummary();}));
+  $$('button',globalGrid).forEach((button)=>button.addEventListener('click',()=>{if(button.classList.contains('outside'))return;$$('button',globalGrid).forEach(c=>c.classList.remove('is-selected'));button.classList.add('is-selected');notify(`Selected ${button.dataset.day} September in the global reminder calendar.`);}));
+  $('#reminderTime')?.addEventListener('input',reminderSummary); $('#reminderRepeat')?.addEventListener('change',reminderSummary); $('#saveReminder')?.addEventListener('click',(event)=>{event.currentTarget.textContent='Saved ✓';notify('Reminder saved to this Skrib.');setTimeout(()=>event.currentTarget.textContent='Save reminder',900);}); $('#prevReminderMonth')?.addEventListener('click',()=>{$('#reminderMonthLabel').textContent='August 2026';}); $('#nextReminderMonth')?.addEventListener('click',()=>{$('#reminderMonthLabel').textContent='October 2026';});
 
-  const sizePresets = [
-    { name: 'Comfortable', width: 520, height: 430, icon: 'ph-arrows-out-simple', label: 'Increase to canvas' },
-    { name: 'Canvas', width: 640, height: 540, icon: 'ph-arrows-in-simple', label: 'Compact note' },
-    { name: 'Compact', width: 420, height: 360, icon: 'ph-arrows-out-simple', label: 'Increase to comfortable' },
-  ];
-  let sizeIndex = 0;
-  const cycleSize = $('#cycleSize');
+  const libraryRows=$$('.library-row'); libraryRows.forEach((button)=>button.addEventListener('click',()=>{libraryRows.forEach(c=>c.classList.toggle('is-active',c===button));$('#libraryDetailTitle').textContent=button.dataset.noteTitle;$('#libraryDetailContext').textContent=button.dataset.noteContext.toUpperCase();$('#libraryLocation').textContent=button.dataset.noteContext;$('#libraryPaper').textContent=button.dataset.noteCopy;})); $('#librarySearch')?.addEventListener('input',(event)=>{const q=event.target.value.trim().toLowerCase();libraryRows.forEach(row=>row.hidden=!row.textContent.toLowerCase().includes(q));}); $('#libraryReturn')?.addEventListener('click',()=>notify('Return attempts the saved context; it does not pretend to reconstruct a closed URL or document state.')); $$('[data-library-tab]').forEach((button)=>button.addEventListener('click',()=>{if(button.dataset.libraryTab==='calendar'||button.dataset.libraryTab==='trash')showView('calendar');}));
+  $('#dotDemo')?.addEventListener('click',()=>showView('note')); $('.dot-dismiss')?.addEventListener('click',(event)=>{event.stopPropagation();$('#dotDemo')?.animate([{opacity:1,transform:'scale(1)'},{opacity:0,transform:'scale(.65)'}],{duration:180,easing:'ease-in'});notify('Dot dismissed. The saved Skrib still remains in Rail and All Skribs.');});
+  $('#accountForm')?.addEventListener('submit',(event)=>{event.preventDefault();$('#accountFormStatus').textContent='Signed-in state simulated. No Skrib content was uploaded.';notify('Account state changed; local content stayed local.');});
 
-  function applySize(index, custom = false) {
-    const preset = sizePresets[index];
-    noteMock.style.width = `${preset.width}px`;
-    noteMock.style.height = `${preset.height}px`;
-    noteMock.classList.remove('size-comfortable', 'size-canvas', 'size-compact');
-    noteMock.classList.add(`size-${preset.name.toLowerCase()}`);
-    $('#noteSizeLabel').textContent = `${custom ? 'Custom' : preset.name} · drag a corner`;
-    const icon = $('i', cycleSize);
-    icon.className = `ph ${preset.icon}`;
-    cycleSize.title = preset.label;
-    cycleSize.setAttribute('aria-label', preset.label);
-    noteMock.classList.add('is-resizing');
-    window.setTimeout(() => noteMock.classList.remove('is-resizing'), 200);
-    requestAnimationFrame(resizeInkCanvas);
-  }
-
-  cycleSize.addEventListener('click', () => {
-    sizeIndex = (sizeIndex + 1) % sizePresets.length;
-    applySize(sizeIndex);
-  });
-
-  $$('[data-resize-corner]').forEach((handle) => {
-    let didDrag = false;
-    handle.addEventListener('pointerdown', (event) => {
-      event.preventDefault();
-      didDrag = false;
-      noteMock.classList.add('is-resizing');
-      handle.setPointerCapture(event.pointerId);
-      const start = { x: event.clientX, y: event.clientY, width: noteMock.offsetWidth, height: noteMock.offsetHeight };
-      const corner = handle.dataset.resizeCorner;
-
-      function move(pointerEvent) {
-        const horizontal = corner.includes('left') ? start.x - pointerEvent.clientX : pointerEvent.clientX - start.x;
-        const vertical = corner.includes('top') ? start.y - pointerEvent.clientY : pointerEvent.clientY - start.y;
-        if (Math.abs(horizontal) > 2 || Math.abs(vertical) > 2) didDrag = true;
-        const width = Math.max(400, Math.min(680, start.width + horizontal));
-        const height = Math.max(340, Math.min(560, start.height + vertical));
-        noteMock.style.width = `${Math.round(width)}px`;
-        noteMock.style.height = `${Math.round(height)}px`;
-        $('#noteSizeLabel').textContent = `Custom · ${Math.round(width)} × ${Math.round(height)}`;
-        resizeInkCanvas();
-      }
-
-      function stop(pointerEvent) {
-        handle.releasePointerCapture(pointerEvent.pointerId);
-        window.setTimeout(() => noteMock.classList.remove('is-resizing'), 120);
-        handle.removeEventListener('pointermove', move);
-        handle.removeEventListener('pointerup', stop);
-        handle.removeEventListener('pointercancel', stop);
-      }
-
-      handle.addEventListener('pointermove', move);
-      handle.addEventListener('pointerup', stop);
-      handle.addEventListener('pointercancel', stop);
-    });
-
-    handle.addEventListener('click', () => {
-      if (didDrag) {
-        didDrag = false;
-        return;
-      }
-      const grows = handle.dataset.resizeCorner === 'bottom-right';
-      const width = Math.max(400, Math.min(680, noteMock.offsetWidth + (grows ? 16 : -16)));
-      const height = Math.max(340, Math.min(560, noteMock.offsetHeight + (grows ? 16 : -16)));
-      noteMock.style.width = `${width}px`;
-      noteMock.style.height = `${height}px`;
-      $('#noteSizeLabel').textContent = `Custom · ${width} × ${height}`;
-      noteMock.classList.add('is-resizing');
-      window.setTimeout(() => noteMock.classList.remove('is-resizing'), 180);
-      resizeInkCanvas();
-    });
-  });
-
-  const attachmentIcons = { Image: 'ph-image', Video: 'ph-video-camera', Document: 'ph-file-text', Link: 'ph-link' };
-  let attachmentCount = 0;
-  $$('[data-add-attachment]').forEach((button) => button.addEventListener('click', () => {
-    attachmentCount += 1;
-    const type = button.dataset.addAttachment;
-    const chip = document.createElement('span');
-    chip.className = 'attachment-chip';
-    chip.innerHTML = `<i class="ph ${attachmentIcons[type]}"></i>${type.toLowerCase()}-${attachmentCount}.${type === 'Image' ? 'png' : type === 'Video' ? 'mp4' : type === 'Link' ? 'url' : 'pdf'}`;
-    $('#noteChips').append(chip);
-    chip.classList.add('is-entering');
-  }));
-
-  const noteReminderChip = $('#noteReminderChip');
-  $$('[data-reminder-quick]').forEach((button) => button.addEventListener('click', () => {
-    $('span', noteReminderChip).textContent = `${button.dataset.reminderQuick} · 09:30`;
-    noteReminderChip.hidden = false;
-    noteReminderChip.classList.remove('is-entering');
-    requestAnimationFrame(() => noteReminderChip.classList.add('is-entering'));
-  }));
-  $('button', noteReminderChip).addEventListener('click', () => { noteReminderChip.hidden = true; });
-
-  let textSize = 18;
-  $$('[data-text-step]').forEach((button) => button.addEventListener('click', () => {
-    textSize = Math.max(14, Math.min(28, textSize + Number(button.dataset.textStep)));
-    noteWriting.style.fontSize = `${textSize}px`;
-    $('#textSizeValue').textContent = textSize;
-  }));
-  $$('[data-text-align]').forEach((button) => button.addEventListener('click', () => {
-    noteWriting.style.textAlign = button.dataset.textAlign;
-    $$('[data-text-align]').forEach((item) => item.classList.toggle('is-selected', item === button));
-  }));
-
-  const noteMore = $('#moreNote');
-  const noteMoreMenu = $('#noteMoreMenu');
-  noteMore.addEventListener('click', () => {
-    const isOpen = noteMore.getAttribute('aria-expanded') === 'true';
-    noteMore.setAttribute('aria-expanded', String(!isOpen));
-    noteMoreMenu.hidden = isOpen;
-  });
-  $$('button', noteMoreMenu).forEach((button) => button.addEventListener('click', () => {
-    noteMore.setAttribute('aria-expanded', 'false');
-    noteMoreMenu.hidden = true;
-  }));
-
-  const collapsedDot = $('#collapsedDot');
-  function collapseEditor(complete = false) {
-    noteMock.classList.add(complete ? 'is-completing' : 'is-collapsing');
-    window.setTimeout(() => {
-      noteMock.hidden = true;
-      noteMock.classList.remove('is-collapsing', 'is-completing');
-      collapsedDot.hidden = false;
-      collapsedDot.classList.remove('is-entering');
-      requestAnimationFrame(() => collapsedDot.classList.add('is-entering'));
-    }, 150);
-  }
-  $('#collapseNote').addEventListener('click', () => collapseEditor(false));
-  $('#closeNote').addEventListener('click', () => collapseEditor(false));
-  $('#doneNote').addEventListener('click', () => collapseEditor(true));
-  let dotDragged = false;
-  collapsedDot.addEventListener('click', () => {
-    if (dotDragged) {
-      dotDragged = false;
-      return;
-    }
-    collapsedDot.hidden = true;
-    noteMock.hidden = false;
-    noteMock.classList.remove('is-entering');
-    requestAnimationFrame(() => noteMock.classList.add('is-entering'));
-    window.setTimeout(() => noteMock.classList.remove('is-entering'), 190);
-  });
-
-  const editorStage = $('.editor-stage');
-  function makeDraggable(handle, surface, isDot = false) {
-    handle.addEventListener('pointerdown', (event) => {
-      event.preventDefault();
-      const stageRect = editorStage.getBoundingClientRect();
-      const surfaceRect = surface.getBoundingClientRect();
-      const start = { x: event.clientX, y: event.clientY, left: surfaceRect.left - stageRect.left, top: surfaceRect.top - stageRect.top };
-      let moved = false;
-      surface.style.position = 'absolute';
-      surface.style.right = 'auto';
-      surface.style.marginTop = '0';
-      surface.style.transform = 'none';
-      surface.style.left = `${start.left}px`;
-      surface.style.top = `${start.top}px`;
-      handle.setPointerCapture(event.pointerId);
-
-      function move(pointerEvent) {
-        const dx = pointerEvent.clientX - start.x;
-        const dy = pointerEvent.clientY - start.y;
-        if (Math.abs(dx) > 3 || Math.abs(dy) > 3) moved = true;
-        const left = Math.max(10, Math.min(stageRect.width - surface.offsetWidth - 10, start.left + dx));
-        const top = Math.max(10, Math.min(stageRect.height - surface.offsetHeight - 10, start.top + dy));
-        surface.style.left = `${Math.round(left)}px`;
-        surface.style.top = `${Math.round(top)}px`;
-      }
-
-      function stop(pointerEvent) {
-        handle.releasePointerCapture(pointerEvent.pointerId);
-        if (isDot && moved) dotDragged = true;
-        handle.removeEventListener('pointermove', move);
-        handle.removeEventListener('pointerup', stop);
-        handle.removeEventListener('pointercancel', stop);
-      }
-
-      handle.addEventListener('pointermove', move);
-      handle.addEventListener('pointerup', stop);
-      handle.addEventListener('pointercancel', stop);
-    });
-  }
-  makeDraggable($('.note-drag', noteMock), noteMock);
-  makeDraggable(collapsedDot, collapsedDot, true);
-
-  let drawMode = 'pen';
-  let strokeWidth = 2;
-  let inkColor = '#262923';
-  let drawing = false;
-  let lastPoint = null;
-  const inkContext = inkCanvas.getContext('2d');
-
-  function resizeInkCanvas() {
-    const rect = inkCanvas.getBoundingClientRect();
-    const ratio = window.devicePixelRatio || 1;
-    if (!rect.width || !rect.height) return;
-    const snapshot = document.createElement('canvas');
-    snapshot.width = inkCanvas.width;
-    snapshot.height = inkCanvas.height;
-    snapshot.getContext('2d').drawImage(inkCanvas, 0, 0);
-    inkCanvas.width = Math.round(rect.width * ratio);
-    inkCanvas.height = Math.round(rect.height * ratio);
-    inkContext.setTransform(ratio, 0, 0, ratio, 0, 0);
-    if (snapshot.width && snapshot.height) inkContext.drawImage(snapshot, 0, 0, snapshot.width, snapshot.height, 0, 0, rect.width, rect.height);
-  }
-
-  $$('[data-draw-mode]').forEach((button) => button.addEventListener('click', () => {
-    drawMode = button.dataset.drawMode;
-    $$('[data-draw-mode]').forEach((item) => item.classList.toggle('is-selected', item === button));
-    inkCanvas.style.cursor = drawMode === 'select' ? 'default' : 'crosshair';
-  }));
-  const strokeOptions = [
-    { name: 'Thin', value: 2, key: 'thin' },
-    { name: 'Medium', value: 5, key: 'medium' },
-    { name: 'Thick', value: 9, key: 'thick' },
-  ];
-  let strokeIndex = 0;
-  $('#cycleStroke').addEventListener('click', () => {
-    strokeIndex = (strokeIndex + 1) % strokeOptions.length;
-    const option = strokeOptions[strokeIndex];
-    strokeWidth = option.value;
-    $('#strokeLabel').textContent = option.name;
-    $('#cycleStroke').dataset.size = option.key;
-    $('#cycleStroke').setAttribute('aria-label', `Stroke size: ${option.name.toLowerCase()}`);
-  });
-  $('#clearInk').addEventListener('click', () => inkContext.clearRect(0, 0, inkCanvas.width, inkCanvas.height));
-  $$('[data-ink-color]').forEach((button) => button.addEventListener('click', () => {
-    inkColor = button.dataset.inkColor;
-    $$('[data-ink-color]').forEach((item) => item.classList.toggle('is-selected', item === button));
-  }));
-
-  function pointFromEvent(event) {
-    const rect = inkCanvas.getBoundingClientRect();
-    return { x: event.clientX - rect.left, y: event.clientY - rect.top };
-  }
-  inkCanvas.addEventListener('pointerdown', (event) => {
-    if (drawMode === 'select') return;
-    drawing = true;
-    lastPoint = pointFromEvent(event);
-    inkCanvas.setPointerCapture(event.pointerId);
-  });
-  inkCanvas.addEventListener('pointermove', (event) => {
-    if (!drawing) return;
-    const point = pointFromEvent(event);
-    inkContext.beginPath();
-    inkContext.moveTo(lastPoint.x, lastPoint.y);
-    inkContext.lineTo(point.x, point.y);
-    inkContext.lineCap = 'round';
-    inkContext.lineJoin = 'round';
-    inkContext.lineWidth = drawMode === 'highlight' ? strokeWidth * 3 : strokeWidth;
-    inkContext.strokeStyle = drawMode === 'highlight' ? 'rgba(248, 203, 65, 0.5)' : inkColor;
-    inkContext.globalCompositeOperation = drawMode === 'erase' ? 'destination-out' : 'source-over';
-    inkContext.stroke();
-    lastPoint = point;
-  });
-  function stopDrawing() { drawing = false; lastPoint = null; }
-  inkCanvas.addEventListener('pointerup', stopDrawing);
-  inkCanvas.addEventListener('pointercancel', stopDrawing);
-  new ResizeObserver(resizeInkCanvas).observe($('#noteCanvas'));
-
-  const notes = {
-    'target-close': { title: 'v0.1.12 target-close smoke', location: 'GitHub › skribly › Issue #168', app: 'Chrome · GitHub', color: 'mint' },
-    'interface-plan': { title: 'Plan note and rail refinement', location: 'ChatGPT › Skribli build', app: 'ChatGPT · Skribli build', color: 'peach' },
-    'payment-list': { title: 'Payment readiness list', location: 'Notion › Launch plan', app: 'Notion · Launch plan', color: 'yellow' },
-    'token-pass': { title: 'Token cleanup', location: 'skribly › context-rail.css', app: 'VS Code · skribly', color: 'sky' },
-    'release-check': { title: 'Release check', location: 'skribly › v0.1.14', app: 'VS Code · skribly', color: 'lavender' },
-    'invoice-folder': { title: 'Licence documents', location: 'Documents › Skribli › Finance', app: 'File Explorer · Documents', color: 'peach' },
-  };
-
-  const railMock = $('#railMock');
-  const railDragHandle = $('#railDragHandle');
-  let railY = 16;
-  let railDrag = null;
-
-  function clampRailY(value) {
-    const stageHeight = railMock.parentElement.getBoundingClientRect().height;
-    const maxY = Math.max(16, stageHeight - railMock.offsetHeight - 16);
-    return Math.min(Math.max(value, 16), maxY);
-  }
-
-  function settleRail() {
-    railMock.classList.remove('is-dragging');
-    railMock.style.setProperty('--rail-drag-x', '0px');
-    railMock.classList.add('is-settling');
-    window.setTimeout(() => railMock.classList.remove('is-settling'), 220);
-  }
-
-  railDragHandle.addEventListener('pointerdown', (event) => {
-    if (event.button !== 0) return;
-    railDrag = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, startRailY: railY };
-    railDragHandle.setPointerCapture(event.pointerId);
-    railMock.classList.add('is-dragging');
-  });
-
-  railDragHandle.addEventListener('pointermove', (event) => {
-    if (!railDrag || event.pointerId !== railDrag.pointerId) return;
-    const pullX = Math.min(14, Math.max(-190, event.clientX - railDrag.startX));
-    railY = clampRailY(railDrag.startRailY + event.clientY - railDrag.startY);
-    railMock.style.setProperty('--rail-drag-x', `${pullX}px`);
-    railMock.style.setProperty('--rail-y', `${railY}px`);
-  });
-
-  const finishRailDrag = (event) => {
-    if (!railDrag || event.pointerId !== railDrag.pointerId) return;
-    railDrag = null;
-    settleRail();
-  };
-  railDragHandle.addEventListener('pointerup', finishRailDrag);
-  railDragHandle.addEventListener('pointercancel', finishRailDrag);
-  railDragHandle.addEventListener('keydown', (event) => {
-    if (!['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return;
-    event.preventDefault();
-    const stageHeight = railMock.parentElement.getBoundingClientRect().height;
-    const maxY = Math.max(16, stageHeight - railMock.offsetHeight - 16);
-    if (event.key === 'Home') railY = 16;
-    if (event.key === 'End') railY = maxY;
-    if (event.key === 'ArrowUp') railY = clampRailY(railY - 16);
-    if (event.key === 'ArrowDown') railY = clampRailY(railY + 16);
-    railMock.style.setProperty('--rail-y', `${railY}px`);
-    settleRail();
-  });
-  window.addEventListener('resize', () => {
-    railY = clampRailY(railY);
-    railMock.style.setProperty('--rail-y', `${railY}px`);
-  });
-
-  function setRailOpen(open) {
-    railMock.classList.toggle('is-open', open);
-    railMock.classList.add('is-settling');
-    window.setTimeout(() => railMock.classList.remove('is-settling'), 190);
-    $('#globalRailPill').classList.toggle('is-rail-open', open);
-  }
-  $('#globalRailPill').addEventListener('click', () => setRailOpen(true));
-  $('#collapseRail').addEventListener('click', () => setRailOpen(false));
-
-  $$('[data-rail-scope]').forEach((button) => button.addEventListener('click', () => {
-    const isAll = button.dataset.railScope === 'all';
-    $$('[data-rail-scope]').forEach((item) => {
-      const selected = item === button;
-      item.classList.toggle('is-active', selected);
-      item.setAttribute('aria-selected', String(selected));
-    });
-    $$('.all-only').forEach((group) => group.hidden = !isAll);
-  }));
-  $$('.all-only').forEach((group) => group.hidden = true);
-
-  function selectRailNote(button) {
-    $$('.rail-note-row').forEach((row) => row.classList.toggle('is-selected', row === button));
-    const note = notes[button.dataset.noteId];
-    const inspector = $('#railInspector');
-    noteColors.forEach((color) => inspector.classList.remove(`note-${color}`));
-    inspector.classList.add(`note-${note.color}`);
-    $('.rail-inspector-location', inspector).innerHTML = `<i class="ph ph-map-pin"></i> ${note.location}`;
-    $('p', inspector).textContent = note.title;
-    inspector.classList.remove('is-refreshing');
-    requestAnimationFrame(() => inspector.classList.add('is-refreshing'));
-    window.setTimeout(() => inspector.classList.remove('is-refreshing'), 180);
-    setRailOpen(true);
-  }
-  $$('.rail-note-row').forEach((button) => button.addEventListener('click', () => selectRailNote(button)));
-
-  const railSearch = $('#railSearch');
-  const railSearchInput = $('input', railSearch);
-  $('#railSearchToggle').addEventListener('click', () => {
-    railSearch.hidden = false;
-    railSearchInput.focus();
-  });
-  $('button', railSearch).addEventListener('click', () => {
-    railSearchInput.value = '';
-    railSearch.hidden = true;
-    $$('.rail-note-row').forEach((row) => row.hidden = false);
-  });
-  railSearchInput.addEventListener('input', () => {
-    const query = railSearchInput.value.toLowerCase().trim();
-    $$('.rail-note-row').forEach((row) => row.hidden = query && !row.textContent.toLowerCase().includes(query));
-  });
-
-  let toastTimer;
-  function showToast(element, text) {
-    clearTimeout(toastTimer);
-    $('span', element).textContent = text;
-    element.hidden = false;
-    toastTimer = setTimeout(() => { element.hidden = true; }, 2600);
-  }
-  $('#readRailNote').addEventListener('click', () => showToast($('#railToast'), 'Reading in the rail · it stays pinned'));
-  $('#openRailContext').addEventListener('click', () => showToast($('#railToast'), 'Original location opened · rail stays pinned'));
-
-  $$('[data-library-note]').forEach((button) => button.addEventListener('click', () => {
-    $$('[data-library-note]').forEach((item) => item.classList.toggle('is-selected', item === button));
-    const note = notes[button.dataset.libraryNote];
-    $('#libraryTitle').textContent = note.title;
-    $('#libraryLocation').textContent = note.location;
-    const paper = $('#libraryPaper');
-    paper.textContent = note.title;
-    noteColors.forEach((color) => paper.classList.remove(`note-${color}`));
-    paper.classList.add(`note-${note.color}`);
-    const detail = $('.library-detail');
-    detail.classList.remove('is-refreshing');
-    requestAnimationFrame(() => detail.classList.add('is-refreshing'));
-    window.setTimeout(() => detail.classList.remove('is-refreshing'), 180);
-  }));
-
-  const calendarDays = $('#calendarDays');
-  const noteCalendarDays = $('#noteCalendarDays');
-  const days = [31, ...Array.from({ length: 30 }, (_, index) => index + 1), 1, 2, 3, 4];
-  let reminderHour = 9;
-  let reminderMinute = 30;
-  let reminderDay = 8;
-  let repeatValue = 'once';
-
-  function populateCalendar(container, compact = false) {
-    days.forEach((day, index) => {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.textContent = day;
-      button.dataset.calendarDay = String(day);
-      if (index === 0 || index > 30) button.classList.add(compact ? 'is-muted' : 'is-outside');
-      if (day === 8 && index === 8) button.classList.add('is-selected');
-      if (index > 0 && index <= 30) {
-        button.addEventListener('click', () => {
-          $$('[data-calendar-day]').forEach((item) => item.classList.toggle('is-selected', item.dataset.calendarDay === String(day) && !item.classList.contains('is-outside') && !item.classList.contains('is-muted')));
-          updateReminderSummary(day);
-        });
-      }
-      container.append(button);
-    });
-  }
-
-  populateCalendar(calendarDays);
-  populateCalendar(noteCalendarDays, true);
-
-  function updateReminderSummary(day = reminderDay) {
-    reminderDay = day;
-    const date = new Date(2026, 8, reminderDay);
-    const weekday = date.toLocaleDateString('en-GB', { weekday: 'long' });
-    const time = `${String(reminderHour).padStart(2, '0')}:${String(reminderMinute).padStart(2, '0')}`;
-    $('#reminderTime').textContent = time;
-    $('#noteReminderTime').textContent = time;
-    $('#reminderSummary').textContent = `${weekday}, ${reminderDay} September at ${time} · ${repeatValue}`;
-    $('#noteReminderInlineSummary').textContent = `${weekday}, ${reminderDay} September · ${time} · ${repeatValue}`;
-  }
-  $$('[data-time-step]').forEach((button) => button.addEventListener('click', () => {
-    reminderHour = button.dataset.timeStep === 'hour-up' ? (reminderHour + 1) % 24 : (reminderHour + 23) % 24;
-    updateReminderSummary();
-  }));
-  $$('[data-repeat]').forEach((button) => button.addEventListener('click', () => {
-    repeatValue = button.dataset.repeat;
-    $$('[data-repeat]').forEach((item) => item.classList.toggle('is-active', item.dataset.repeat === repeatValue));
-    updateReminderSummary();
-  }));
-
-  function openNoteCalendar() {
-    showView('editor');
-    setTool('remind', true);
-    noteInlineCalendar.hidden = false;
-    noteMock.classList.add('has-inline-calendar');
-    sizeIndex = 1;
-    applySize(sizeIndex);
-    $$('.lab-surface-nav button').forEach((button) => button.classList.remove('is-active'));
-    $('.lab-surface-nav button[data-open-note-calendar]')?.classList.add('is-active');
-  }
-
-  $$('[data-open-note-calendar]').forEach((button) => button.addEventListener('click', openNoteCalendar));
-  $('#closeNoteCalendar').addEventListener('click', () => {
-    noteInlineCalendar.hidden = true;
-    noteMock.classList.remove('has-inline-calendar');
-  });
-  $('#saveInlineReminder').addEventListener('click', () => {
-    const summary = $('#noteReminderInlineSummary').textContent;
-    $('span', noteReminderChip).textContent = summary;
-    noteReminderChip.hidden = false;
-    noteReminderChip.classList.remove('is-entering');
-    requestAnimationFrame(() => noteReminderChip.classList.add('is-entering'));
-    noteInlineCalendar.hidden = true;
-    noteMock.classList.remove('has-inline-calendar');
-  });
-  $('#saveReminder').addEventListener('click', () => {
-    const button = $('#saveReminder');
-    button.classList.add('is-success');
-    button.innerHTML = '<i class="ph ph-check-circle"></i> Saved';
-    showToast($('#reminderToast'), 'Reminder added to the note');
-    window.setTimeout(() => {
-      button.classList.remove('is-success');
-      button.innerHTML = '<i class="ph ph-check"></i> Save reminder';
-    }, 1200);
-  });
-
-  window.addEventListener('resize', resizeInkCanvas);
-  setRailOpen(true);
-  applySize(0);
-  updateReminderSummary();
+  const actionMap = new Map([['Open Skrib','note'],['Open Skribli','home'],['My Skribs rail','rail'],['All Skribs','library'],['Quick guide','onboarding']]);
+  $$('button').forEach((button)=>{if(button.dataset.showView||button.dataset.jumpView||button.dataset.noteTool||button.dataset.drawTool||button.dataset.ink||button.dataset.noteColor||button.dataset.textSize||button.dataset.addObject||button.dataset.quickReminder||button.dataset.libraryTab||button.dataset.railScope||button.dataset.prodScope||button.dataset.heavyAction||button.dataset.heavyTool||button.dataset.noteMode)return;const text=button.textContent.trim().replace(/\s+/g,' ');if(actionMap.has(text))button.addEventListener('click',()=>showView(actionMap.get(text)));});
+  $$('.attachment-action-row button').forEach((button)=>button.addEventListener('click',()=>{const spec=button.closest('.attachment-spec');const label=button.textContent.trim();if(label.startsWith('Remove')){spec.style.opacity='.32';notify('Attachment removed in this specimen. Reload or revisit the page to reset it.');return;}if(label.includes('Play')){$('.video-object',spec)?.classList.toggle('is-playing');notify('Video preview toggled.');return;}if(label.includes('Open photos')){$('.photo-stack',spec)?.classList.toggle('forced-fan');notify('Photo viewer interaction previewed.');return;}notify(`${label} interaction previewed.`);}));
+  $$('.agenda-reminder button').forEach((button)=>button.addEventListener('click',()=>{const card=button.closest('.agenda-reminder'),label=button.textContent.trim();if(label==='Open Skrib'){showView('note');return;}if(label==='Complete'){card.classList.add('is-complete');notify('Reminder completed. The Skrib remains intact.');return;}if(label==='Dismiss'){card.classList.add('is-dismissed');notify('Reminder dismissed.');}}));
+  $('.trash-actions .restore')?.addEventListener('click',()=>{$('.trash-paper')?.classList.add('is-restored');notify('Skrib restored from Trash.');}); $('.trash-actions .permanent')?.addEventListener('click',(event)=>{if(event.currentTarget.dataset.confirm){$('.trash-paper')?.classList.add('is-deleted');event.currentTarget.textContent='Deleted permanently';notify('Permanent deletion committed in this mock.');}else{event.currentTarget.dataset.confirm='1';event.currentTarget.textContent='Confirm permanent delete';notify('Permanent deletion requires a second explicit action.');}});
+  $$('.tray-mock > button').forEach((button)=>button.addEventListener('click',()=>{const text=button.textContent.trim();if(text.includes('Open Skribli'))showView('home');else if(text.includes('My Skribs'))showView('rail');else if(text.includes('All Skribs'))showView('library');else if(text.includes('Quick guide'))showView('onboarding');else if(text.includes('Quit'))notify('Quit stops the Skribli background process. Closing ordinary windows does not.');}));
+  $$('.exception-card button').forEach((button)=>button.addEventListener('click',()=>{const label=button.textContent.trim();if(label==='Open here'){showView('note');return;}if(label==='Details'||label.includes('diagnostics')){notify('Technical recovery detail would expand here, behind intentional disclosure.');return;}notify(`${label}: simulated successfully in the review environment.`);}));
+  $('.library-top-actions button[title="Import"]')?.addEventListener('click',()=>notify('Import preview: validate locally → resolve conflicts → apply with rollback protection.')); $('.library-top-actions button[title="Export"]')?.addEventListener('click',()=>notify('Export preview: portable note records; rich-content backup scope remains explicit.')); $('.library-top-actions button[title="More"]')?.addEventListener('click',()=>notify('Secondary library management menu previewed.')); $('.rail-collapse-button')?.remove();
+  document.addEventListener('click',(event)=>{const button=event.target.closest('button');if(!button||button.disabled)return;button.classList.remove('is-clicked');requestAnimationFrame(()=>button.classList.add('is-clicked'));setTimeout(()=>button.classList.remove('is-clicked'),150);});
+  syncRuntime();
 })();

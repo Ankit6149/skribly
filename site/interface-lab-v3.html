@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex,nofollow" />
+    <meta name="description" content="Skribli Interface Lab — organised product review studios for notes, widgets, rails, app screens, and system states." />
+    <title>Skribli Interface Lab — Studio Review</title>
+    <link rel="icon" href="./assets/skribly-note-mark-v2.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Kalam:wght@400;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./assets/phosphor/regular/style.css" />
+    <link rel="stylesheet" href="./assets/phosphor/fill/style.css" />
+    <link rel="stylesheet" href="./interface-lab-v3.css" />
+  </head>
+  <body>
+    <header class="lab-topbar">
+      <a class="brand" href="/" aria-label="Back to Skribli"><img src="./assets/skribly-note-mark-v2.svg" alt="" /><span>Skribli</span></a>
+      <div class="top-copy"><strong>Interface Lab</strong><span>Separated review studios · product truth · interaction QA</span></div>
+      <div class="runtime-tools">
+        <label><span>Scale</span><select id="scaleSelect"><option>100%</option><option>125%</option><option>150%</option></select></label>
+        <label><span>Runtime</span><select id="runtimeSelect"><option value="normal">Normal</option><option value="offline">Offline</option><option value="readonly">Read-only</option><option value="attention">Needs attention</option></select></label>
+        <span class="live-dot"><i class="ph-fill ph-circle"></i> Live design spec</span>
+      </div>
+    </header>
+
+    <div class="studio-layout">
+      <aside class="studio-sidebar">
+        <div class="side-intro"><p class="eyebrow">REVIEW ENVIRONMENT</p><h1>One product. Four clear studios.</h1><p>Notes are reviewed with notes. Widgets with widgets. Full app screens with full app screens. System rules stay separate.</p></div>
+        <nav class="studio-switcher" aria-label="Interface Lab studios">
+          <button type="button" class="studio-button is-active" data-studio="notes"><i class="ph ph-note-pencil"></i><span><b>Notes Studio</b><small>Complete note design & tools</small></span><em>01</em></button>
+          <button type="button" class="studio-button" data-studio="widgets"><i class="ph ph-sidebar-simple"></i><span><b>Widgets & Rails</b><small>Dot, rail, tray, hover states</small></span><em>02</em></button>
+          <button type="button" class="studio-button" data-studio="screens"><i class="ph ph-layout"></i><span><b>App Screens</b><small>Home, library, calendar, account</small></span><em>03</em></button>
+          <button type="button" class="studio-button" data-studio="system"><i class="ph ph-sliders-horizontal"></i><span><b>System & States</b><small>DNA, motion, recovery, QA</small></span><em>04</em></button>
+        </nav>
+        <div class="side-rule"><i class="ph ph-eye"></i><span><b>Review rule</b><small>Every primary behavior must be visible without needing hover to discover it.</small></span></div>
+      </aside>
+
+      <main class="studio-main">
+        <!-- NOTES STUDIO -->
+        <section class="studio is-active" data-studio-panel="notes">
+          <header class="studio-heading"><div><p class="eyebrow">STUDIO 01 · NOTES</p><h2>Design the complete Skrib as one object.</h2><p>From a one-line thought to a heavily loaded note, every tool and state must still feel like the same calm paper object.</p></div><span class="studio-badge">Primary daily surface</span></header>
+          <nav class="subnav" aria-label="Notes Studio sections">
+            <button type="button" class="is-active" data-note-view="anatomy">Full note</button>
+            <button type="button" data-note-view="heavy">Heavy load</button>
+            <button type="button" data-note-view="attachments">Attachments</button>
+            <button type="button" data-note-view="drawing">Drawing</button>
+            <button type="button" data-note-view="reminder">Reminder</button>
+            <button type="button" data-note-view="resize">Manual resize <span class="proposed">PROPOSED</span></button>
+          </nav>
+
+          <div class="note-view is-active" data-note-panel="anatomy">
+            <div class="review-title"><div><p class="eyebrow">FULL NOTE DESIGN</p><h3>The everyday Skrib</h3></div><p>Persistent hierarchy: context → thought → optional tools → save confidence → Done.</p></div>
+            <div class="desktop-stage">
+              <div class="fake-app"><header><span><i class="ph ph-browser"></i> Chrome</span><small>Release checklist · Vercel preview</small></header><div class="fake-lines"><i></i><i></i><i></i><i></i></div></div>
+              <article class="skrib note-mint" id="everydayNote">
+                <span class="tape"></span>
+                <header class="skrib-head"><button type="button" class="grip" aria-label="Move note"><i class="ph ph-dots-six-vertical"></i></button><div class="context"><small>NEW SKRIB FOR</small><strong><i class="ph ph-browser"></i> Chrome <span>› Release checklist</span></strong></div><div class="head-actions"><button type="button" title="Reposition"><i class="ph ph-crosshair"></i></button><button type="button" title="Close"><i class="ph ph-x"></i></button></div></header>
+                <div class="skrib-scroll"><div class="writing" contenteditable="true" role="textbox">Keep the launch wording clear. Test the rail once more before shipping.</div><div class="tool-panel" id="everydayToolPanel" hidden></div></div>
+                <div class="tool-dock"><button type="button" data-tool="attach"><i class="ph ph-paperclip"></i><span>Attach</span></button><button type="button" data-tool="draw"><i class="ph ph-pencil-line"></i><span>Draw</span></button><button type="button" data-tool="remind"><i class="ph ph-bell"></i><span>Remind</span></button><button type="button" data-tool="color"><i class="ph ph-palette"></i><span>Color</span></button><button type="button" data-tool="text"><i class="ph ph-text-t"></i><span>Text</span></button></div>
+                <footer class="skrib-foot"><div class="save-state"><i class="ph-fill ph-circle"></i><span><b>Saved</b><small>Latest text is safe</small></span></div><div><button type="button" class="delete">Delete</button><button type="button" class="done">Done</button></div></footer>
+              </article>
+            </div>
+            <div class="principle-grid"><article><small>ALWAYS VISIBLE</small><b>Context + writing + save + Done</b><p>The note never makes the user hunt for the core loop.</p></article><article><small>ON INTENT</small><b>Attach · Draw · Remind · Color · Text</b><p>Tools appear because the user asks for them.</p></article><article><small>EXCEPTION ONLY</small><b>Recovery · diagnostics · account problems</b><p>Reliability machinery stays out of ordinary capture.</p></article></div>
+          </div>
+
+          <div class="note-view" data-note-panel="heavy">
+            <div class="review-title"><div><p class="eyebrow">CAPACITY STRESS TEST</p><h3>A loaded Skrib with everything</h3></div><p>Text, photos, PDF, video, drawing, recurring reminder, tool access, save state, and lifecycle controls in one believable note.</p></div>
+            <div class="heavy-stage">
+              <article class="skrib heavy-skrib note-yellow" id="heavyNote">
+                <span class="tape"></span>
+                <header class="skrib-head"><button type="button" class="grip"><i class="ph ph-dots-six-vertical"></i></button><div class="context"><small>SKRIB FOR</small><strong><i class="ph ph-browser"></i> Chrome <span>› Skribli release review · Vercel</span></strong></div><div class="head-actions"><button type="button"><i class="ph ph-crosshair"></i></button><button type="button"><i class="ph ph-x"></i></button></div></header>
+                <div class="skrib-scroll heavy-scroll">
+                  <div class="writing heavy-writing" contenteditable="true"><p>Before release, verify the <mark>owner download, rail behavior, reminder visuals, and final copy</mark>.</p><p>The note should stay calm even when it carries a lot of supporting material.</p></div>
+                  <section class="content-section"><header><span>ATTACHED MATERIAL</span><small>5 local items</small></header><div class="media-grid">
+                    <article class="media-object photo-object"><span class="object-label">3 PHOTOS</span><div class="photo-stack"><div class="polaroid a"><span></span></div><div class="polaroid b"><span></span></div><div class="polaroid c"><span></span></div></div><div class="object-actions"><button>Open</button><button>Remove</button></div></article>
+                    <article class="media-object doc-object"><span class="paperclip"></span><small>PROJECT</small><b>release-check.pdf</b><em>PDF · 2.1 MB</em><div class="object-actions"><button>Open</button><button>Remove</button></div></article>
+                    <article class="media-object video-object"><span class="video-art"><i class="ph-fill ph-play"></i></span><b>walkthrough-cut</b><em>00:42</em><div class="object-actions"><button>Play</button><button>Remove</button></div></article>
+                  </div></section>
+                  <section class="content-section"><header><span>DRAWING</span><small>8 editable strokes</small></header><div class="drawing-preview"><span>flow → review → ship</span><button type="button" data-note-jump="drawing"><i class="ph ph-pencil-line"></i> Continue drawing</button></div></section>
+                  <section class="content-section"><header><span>REMINDER</span><small>Repeats weekdays</small></header><div class="reminder-slip"><div><small>SEP</small><strong>08</strong></div><span><b>09:30 · Weekdays</b><small>Finish release review · Windows notification</small></span><button type="button" data-note-jump="reminder">Edit</button></div></section>
+                </div>
+                <div class="tool-dock"><button><i class="ph ph-paperclip"></i><span>Attach</span></button><button data-note-jump="drawing"><i class="ph ph-pencil-line"></i><span>Draw</span></button><button data-note-jump="reminder"><i class="ph ph-bell"></i><span>Remind</span></button><button><i class="ph ph-palette"></i><span>Color</span></button><button><i class="ph ph-text-t"></i><span>Text</span></button><small class="content-count">2,184 chars · 5 attachments · 1 reminder</small></div>
+                <footer class="skrib-foot"><div class="save-state"><i class="ph-fill ph-circle"></i><span><b>Saved</b><small>Text + rich content are safe</small></span></div><div><button class="delete">Delete</button><button class="done">Done</button></div></footer>
+              </article>
+            </div>
+            <div class="principle-grid"><article><small>STABLE CHROME</small><b>Header, tools, lifecycle stay fixed</b><p>Only the content body scrolls when the note becomes dense.</p></article><article><small>VISUAL OBJECTS</small><b>Media remains recognisable</b><p>No grey technical rows competing with the thought.</p></article><article><small>SCALABLE DENSITY</small><b>Rich does not mean cluttered</b><p>Sections appear only because actual content exists.</p></article></div>
+          </div>
+
+          <div class="note-view" data-note-panel="attachments">
+            <div class="review-title"><div><p class="eyebrow">ATTACHMENT LANGUAGE</p><h3>Objects, not file-system rows</h3></div><p>Each media type gets one restrained physical metaphor.</p></div>
+            <div class="attachment-showcase">
+              <article><div class="photo-stack large"><div class="polaroid a"><span></span></div><div class="polaroid b"><span></span></div><div class="polaroid c"><span></span></div></div><header><span>IMAGE GROUP</span><b>Photographic stack</b></header><p>Hover/focus gently fans the photos. Filename and size remain secondary.</p><div class="show-actions"><button>Open photos</button><button>Remove</button></div></article>
+              <article><div class="doc-object large"><span class="paperclip"></span><small>PROJECT</small><b>Launch brief</b><em>PDF · 2.1 MB</em></div><header><span>DOCUMENT</span><b>Clipped paper</b></header><p>The document title dominates. Type and size sit quietly underneath.</p><div class="show-actions"><button>Open</button><button>Remove</button></div></article>
+              <article><div class="video-object large"><span class="video-art"><i class="ph-fill ph-play"></i></span><b>walkthrough-cut</b><em>00:42</em></div><header><span>VIDEO</span><b>Framed motion object</b></header><p>Poster frame first. Player controls appear only after opening.</p><div class="show-actions"><button>Play preview</button><button>Remove</button></div></article>
+            </div>
+          </div>
+
+          <div class="note-view" data-note-panel="drawing">
+            <div class="review-title"><div><p class="eyebrow">EXPANDED NOTE STATE</p><h3>Drawing stays inside the Skrib</h3></div><p>Tool first; only the relevant properties remain visible.</p></div>
+            <article class="expanded-paper note-sky"><header><span><i class="ph ph-dots-six-vertical"></i></span><div><small>DRAWING ON</small><b>Chrome › Release checklist</b></div><button data-note-jump="anatomy"><i class="ph ph-x"></i></button></header><nav class="draw-tools"><button class="is-active" data-draw="pen">Pen</button><button data-draw="highlighter">Highlighter</button><button data-draw="eraser">Eraser</button><button data-draw="select">Select</button><span></span><button>Undo</button><button>Clear</button></nav><div class="draw-props" id="drawProps"><b>Pen properties</b><button class="ink black"></button><button class="ink olive"></button><button class="ink blue"></button><label>Size <input type="range" min="2" max="14" value="4" /></label></div><div class="canvas-paper"><canvas id="drawingCanvas" width="900" height="330"></canvas><span>Draw here</span></div><footer><small>Saved · editable strokes</small><button data-note-jump="anatomy">Done</button></footer></article>
+          </div>
+
+          <div class="note-view" data-note-panel="reminder">
+            <div class="review-title"><div><p class="eyebrow">EXPANDED NOTE STATE</p><h3>Scheduling makes room instead of squeezing</h3></div><p>Quick reminders stay compact; custom scheduling expands the same paper.</p></div>
+            <article class="expanded-paper note-peach reminder-paper"><header><span><i class="ph ph-dots-six-vertical"></i></span><div><small>REMINDER FOR</small><b>Payment readiness list</b></div><button data-note-jump="anatomy"><i class="ph ph-x"></i></button></header><div class="reminder-layout"><section><div class="month-head"><button><i class="ph ph-caret-left"></i></button><b>September 2026</b><button><i class="ph ph-caret-right"></i></button></div><div class="weekday"><span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span></div><div class="date-grid" id="dateGrid"></div></section><aside><p class="eyebrow">SCHEDULE</p><h4>Friday, 4 September</h4><label>Time<input type="time" value="09:30" /></label><label>Repeat<select><option>Once</option><option>Daily</option><option>Weekdays</option><option>Weekly</option><option>Monthly</option></select></label><div class="schedule-summary"><small>REMINDER</small><b>4 Sep · 09:30 · Once</b><p>Payment readiness list</p></div></aside></div><footer><small>Stored locally with this Skrib</small><button data-note-jump="anatomy">Save reminder</button></footer></article>
+          </div>
+
+          <div class="note-view" data-note-panel="resize">
+            <div class="review-title"><div><p class="eyebrow">PROPOSED INTERACTION</p><h3>Manual resize without turning the Skrib into a generic window</h3></div><p>One subtle paper-corner handle plus explicit size presets gives control without four permanent system handles.</p></div>
+            <div class="resize-layout">
+              <div class="resize-stage" id="resizeStage">
+                <article class="resizable-skrib note-lavender" id="resizableNote" style="width:560px;height:460px">
+                  <span class="tape"></span>
+                  <header class="skrib-head"><button class="grip"><i class="ph ph-dots-six-vertical"></i></button><div class="context"><small>CUSTOM SIZE</small><strong>Chrome <span>› research notes</span></strong></div><div class="head-actions"><button><i class="ph ph-crosshair"></i></button><button><i class="ph ph-x"></i></button></div></header>
+                  <div class="resize-content"><div class="writing">Drag the folded paper corner. The note stays within safe minimum and monitor-aware maximum sizes.</div><div class="mini-photo-row"><span></span><span></span><span></span></div></div>
+                  <div class="tool-dock compact"><button><i class="ph ph-paperclip"></i><span>Attach</span></button><button><i class="ph ph-pencil-line"></i><span>Draw</span></button><button><i class="ph ph-bell"></i><span>Remind</span></button></div>
+                  <footer class="skrib-foot"><div class="save-state"><i class="ph-fill ph-circle"></i><span><b>Saved</b><small>Custom size remembered for this Skrib</small></span></div><button class="done">Done</button></footer>
+                  <button type="button" class="paper-resize-handle" id="resizeHandle" aria-label="Resize Skrib" title="Drag to resize · double-click to reset"><i class="ph ph-caret-down-right"></i></button>
+                </article>
+                <span class="size-readout" id="sizeReadout">560 × 460</span>
+              </div>
+              <aside class="resize-controls"><p class="eyebrow">SIZE CONTROLS</p><h4>Fast presets + custom freedom</h4><div class="preset-grid"><button data-size="420x360">Compact <small>420 × 360</small></button><button class="is-active" data-size="560x460">Medium <small>560 × 460</small></button><button data-size="720x620">Large <small>720 × 620</small></button><button data-size="fit">Fit content <small>Smart height</small></button></div><div class="resize-behavior"><article><i class="ph ph-floppy-disk"></i><span><b>Remember per Skrib</b><small>Each note returns to its last user size.</small></span></article><article><i class="ph ph-magic-wand"></i><span><b>Temporary tool expansion</b><small>Drawing/Reminder can grow to a safe workspace, then restore the prior size.</small></span></article><article><i class="ph ph-monitor"></i><span><b>Monitor-safe bounds</b><small>Never resize beyond the active work area.</small></span></article><article><i class="ph ph-keyboard"></i><span><b>Accessible alternative</b><small>Presets provide keyboard control; dragging is not the only route.</small></span></article></div></aside>
+            </div>
+            <div class="recommendation"><i class="ph ph-lightbulb"></i><div><b>Recommended production behavior</b><p>Keep manual resizing, but make it controlled: one hover/focus paper-corner affordance, minimum 380×300, maximum bounded by monitor work area, snap near Compact/Medium/Large, remember size per Skrib, and restore the user’s previous size after temporary Drawing/Reminder expansion. Avoid four visible resize handles.</p></div></div>
+          </div>
+        </section>
+
+        <!-- WIDGETS STUDIO -->
+        <section class="studio" data-studio-panel="widgets">
+          <header class="studio-heading"><div><p class="eyebrow">STUDIO 02 · WIDGETS & RAILS</p><h2>Small surfaces should feel alive, not noisy.</h2><p>Collapsed presence, retrieval, hover behavior, and background controls are reviewed together here.</p></div><span class="studio-badge">Contextual utilities</span></header>
+          <div class="widgets-grid">
+            <article class="widget-card"><header><p class="eyebrow">COLLAPSED SKRIB</p><h3>Dot states</h3></header><div class="dot-state-row"><div><button class="note-dot"><span></span></button><small>Rest</small></div><div><button class="note-dot hover-state"><span></span><i>×</i></button><small>Hover/focus</small></div><div><button class="note-dot drag-state"><span></span></button><small>Drag</small></div></div><p>Dismiss hides the dot only; the saved Skrib remains in Rail and Library.</p></article>
+            <article class="widget-card tray-card"><header><p class="eyebrow">WINDOWS TRAY</p><h3>Background control</h3></header><div class="tray-menu"><button><i class="ph ph-house"></i> Open Skribli</button><button><i class="ph ph-sidebar-simple"></i> My Skribs rail</button><button><i class="ph ph-books"></i> All Skribs</button><button><i class="ph ph-question"></i> Quick guide</button><hr /><button class="quit"><i class="ph ph-power"></i> Quit Skribli</button></div><p>Close ≠ Quit. This is explained once and then stays out of ordinary use.</p></article>
+          </div>
+          <div class="review-title"><div><p class="eyebrow">MY SKRIBS RAIL</p><h3>Keep the stronger production interaction model</h3></div><p>Layered-paper launcher, compact header, Here/All scopes, grouped apps, note body = Open here, separate saved-location action.</p></div>
+          <div class="rail-stage">
+            <div class="launcher-zone"><button class="rail-launcher"><span class="sheet back"></span><span class="sheet middle"></span><span class="sheet front"><i class="ph ph-note"></i></span><b>6</b></button><small>Collapsed launcher</small></div>
+            <aside class="rail"><header><span class="rail-title"><i class="ph ph-dots-six-vertical"></i><b class="rail-brand">S</b><span><strong>My Skribs</strong><small>6 saved locally</small></span></span><span><button><i class="ph ph-arrows-clockwise"></i></button><button><i class="ph ph-sidebar-simple"></i></button></span></header><nav><button class="is-active">Here <span>3</span></button><button>All <span>6</span></button></nav><div class="rail-body"><div class="app-group"><header><span><i class="ph ph-browser"></i> Chrome</span><small>3 here</small></header><article><i class="rail-mark mint"></i><button class="rail-main"><span><b>Target-close smoke</b><small>GitHub › Issue #168</small></span><em><i class="ph ph-note"></i></em></button><button class="rail-location" title="Open at saved location"><i class="ph ph-map-pin-line"></i></button></article><article><i class="rail-mark peach"></i><button class="rail-main"><span><b>Plan rail refinement</b><small>ChatGPT › Skribli build</small></span><em><i class="ph ph-note"></i></em></button><button class="rail-location"><i class="ph ph-map-pin-line"></i></button></article><article><i class="rail-mark yellow"></i><button class="rail-main"><span><b>Payment readiness list</b><small>Notion › Launch plan</small></span><em><i class="ph ph-note"></i></em></button><button class="rail-location"><i class="ph ph-map-pin-line"></i></button></article></div></div><footer>Click note = open here · pin = return to saved context</footer></aside>
+          </div>
+        </section>
+
+        <!-- APP SCREENS -->
+        <section class="studio" data-studio-panel="screens">
+          <header class="studio-heading"><div><p class="eyebrow">STUDIO 03 · APP SCREENS</p><h2>Full windows are reviewed as full windows.</h2><p>Home, Library, Calendar/Trash, Account, and Onboarding live here—separate from contextual note surfaces.</p></div><span class="studio-badge">Normal windows</span></header>
+          <nav class="screen-tabs"><button class="is-active" data-screen="home">Home</button><button data-screen="library">All Skribs</button><button data-screen="calendar">Calendar & Trash</button><button data-screen="account">Account</button><button data-screen="onboarding">Onboarding</button></nav>
+          <div class="screen-view is-active" data-screen-panel="home"><section class="app-window home-screen"><header><span class="brand"><img src="./assets/skribly-note-mark-v2.svg" alt="" /><b>Skribli</b></span><span class="ready"><i class="ph-fill ph-circle"></i> Ready</span></header><div class="home-grid"><article><p class="eyebrow">SKRIBLI IS RUNNING</p><h3>Put the thought where it belongs.</h3><p>Focus any supported Windows app and create a fresh contextual Skrib.</p><div class="shortcut"><kbd>Ctrl</kbd><span>+</span><kbd>Shift</kbd><span>+</span><kbd>Space</kbd></div></article><aside><button><i class="ph ph-sidebar-simple"></i><span><b>My Skribs rail</b><small>Find a thought quickly</small></span><i class="ph ph-arrow-right"></i></button><button><i class="ph ph-books"></i><span><b>All Skribs</b><small>Search and manage everything</small></span><i class="ph ph-arrow-right"></i></button><button><i class="ph ph-user-circle"></i><span><b>Account & help</b><small>Owner test · local content</small></span><i class="ph ph-arrow-right"></i></button></aside></div><footer><i class="ph ph-lock-key"></i> Skrib content stays on this device.</footer></section></div>
+          <div class="screen-view" data-screen-panel="library"><section class="app-window library-screen"><header><span class="brand"><img src="./assets/skribly-note-mark-v2.svg" alt="" /><b>Skribli</b></span><span>All Skribs</span><div><button><i class="ph ph-download-simple"></i></button><button><i class="ph ph-upload-simple"></i></button><button><i class="ph ph-dots-three"></i></button></div></header><div class="library-heading"><div><p class="eyebrow">LOCAL LIBRARY</p><h3>All Skribs</h3><p>Read the thought first. Manage the data only when needed.</p></div><label><i class="ph ph-magnifying-glass"></i><input placeholder="Search thoughts, apps, or places" /></label></div><nav><button class="is-active">Notes <span>6</span></button><button>Calendar <span>2</span></button><button>Trash <span>1</span></button></nav><div class="library-workspace"><aside><button class="active"><i class="rail-mark mint"></i><span><b>Target-close smoke</b><small>Chrome · GitHub › Issue #168</small><em>Today · 1:04 pm</em></span></button><button><i class="rail-mark peach"></i><span><b>Plan rail refinement</b><small>ChatGPT · Skribli build</small><em>Today · 12:42 pm</em></span></button><button><i class="rail-mark yellow"></i><span><b>Payment readiness list</b><small>Notion · Launch plan</small><em>Yesterday</em></span></button></aside><article><header><div><p class="eyebrow">CHROME · GITHUB › ISSUE #168</p><h4>Target-close smoke</h4></div><button>Return <i class="ph ph-arrow-up-right"></i></button></header><div class="library-paper">v0.1.12 target-close smoke. Re-test focus restoration after the target window closes.</div><div class="meta-row"><span><small>LOCATION</small><b>GitHub › Issue #168</b></span><span><small>UPDATED</small><b>Today · 1:04 pm</b></span><span><small>REMINDER</small><b>None</b></span></div></article></div></section></div>
+          <div class="screen-view" data-screen-panel="calendar"><div class="calendar-trash"><section class="app-window calendar-screen"><header><div><p class="eyebrow">LOCAL REMINDERS</p><h3>September 2026</h3></div><div><button><i class="ph ph-caret-left"></i></button><button>Today</button><button><i class="ph ph-caret-right"></i></button></div></header><div><section><div class="weekday"><span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span></div><div class="date-grid" id="globalDateGrid"></div></section><aside><p class="eyebrow">AGENDA</p><h4>Friday, 4 September</h4><article class="agenda peach"><small>09:30 · UPCOMING</small><b>Payment readiness list</b><span>Notion › Launch plan</span><div><button>Open Skrib</button><button>Complete</button></div></article><article class="agenda mint"><small>15:00 · UPCOMING</small><b>Review landing copy</b><span>Chrome › Vercel preview</span><div><button>Open Skrib</button></div></article></aside></div></section><section class="trash-screen"><p class="eyebrow">TRASH</p><h3>One-way action only at the end.</h3><article><i class="rail-mark lavender"></i><span><b>Old launch wording</b><small>Moved yesterday</small></span></article><div><button>Restore</button><button class="danger">Delete permanently</button></div></section></div></div>
+          <div class="screen-view" data-screen-panel="account"><div class="account-grid"><article class="account-story"><p class="eyebrow">ACCOUNT-CONNECTED · CONTENT LOCAL</p><h3>One account protects access. Your Skribs stay here.</h3><p>Sign-in verifies account/device entitlement. Note content remains local.</p><div class="paper-note"><small>LOCAL PROMISE</small><b>Your thoughts stay on this device.</b></div></article><form class="account-form"><p class="eyebrow">SIGN IN</p><h4>Welcome back</h4><label>Email<input type="email" value="owner@example.com" /></label><label>Password<input type="password" value="abcdefghijkl" /></label><button type="button">Sign in</button></form></div></div>
+          <div class="screen-view" data-screen-panel="onboarding"><section class="onboarding-screen"><p class="eyebrow">SETUP · 2 OF 3</p><h3>Your first Skrib takes one shortcut.</h3><ol><li><span>01</span><div><b>Focus the application</b><p>Open the window where this thought belongs.</p></div></li><li><span>02</span><div><b>Press Ctrl + Shift + Space</b><p>Skribli verifies that exact window, then creates a fresh Skrib.</p></div></li><li><span>03</span><div><b>Write, then choose Done</b><p>The saved Skrib folds into a small movable dot.</p></div></li></ol><aside><i class="ph ph-lock-key"></i><span><b>Private by default</b><small>Window identity and geometry—not screen recording—help Skribli return the thought.</small></span></aside></section></div>
+        </section>
+
+        <!-- SYSTEM STUDIO -->
+        <section class="studio" data-studio-panel="system">
+          <header class="studio-heading"><div><p class="eyebrow">STUDIO 04 · SYSTEM & STATES</p><h2>Design rules and failure states stay outside the product surfaces.</h2><p>This studio holds visual DNA, motion, scaling, recovery, and acceptance checks so they do not clutter everyday mocks.</p></div><span class="studio-badge">Design governance</span></header>
+          <div class="system-grid"><article><p class="eyebrow">VISUAL DNA</p><h3>Soft paper. Precise software.</h3><p>Exact layout shell + tactile content objects. DM Sans/Manrope for UI, Kalam for thought content.</p><div class="palette"><i class="yellow"></i><i class="peach"></i><i class="mint"></i><i class="sky"></i><i class="lavender"></i></div></article><article><p class="eyebrow">HOVER</p><h3>Acknowledge → reveal → transform</h3><p>Hover enhances secondary information and character. It never becomes the only route to a primary action.</p><div class="motion-timing"><span><b>120–170ms</b><small>UI feedback</small></span><span><b>170–260ms</b><small>Object reveal</small></span><span><b>280–420ms</b><small>Meaning change</small></span></div></article></div>
+          <div class="review-title"><div><p class="eyebrow">EXCEPTION STATES</p><h3>Protect aggressively underneath, speak calmly on top</h3></div></div>
+          <div class="error-grid"><article><i class="ph ph-warning-circle"></i><small>NOTE SAVE</small><b>This Skrib still needs to save.</b><p>Your latest edit remains on screen. Retry before folding.</p><button>Retry save</button></article><article><i class="ph ph-shield-check"></i><small>LOCAL STORAGE</small><b>Verified Skribs are open read-only.</b><p>Skribli is protecting existing data from unsafe writes.</p><button>Export my Skribs</button></article><article><i class="ph ph-map-pin-line"></i><small>SAVED CONTEXT</small><b>That exact window is unavailable.</b><p>Open the Skrib here or start the saved application.</p><button>Open here</button></article><article><i class="ph ph-plugs-connected"></i><small>ACCOUNT</small><b>Account verification did not finish.</b><p>Your local Skrib data is separate from this connection problem.</p><button>Retry account</button></article></div>
+          <div class="review-title"><div><p class="eyebrow">ACCEPTANCE MATRIX</p><h3>Every production surface must survive the same review</h3></div></div>
+          <div class="qa-grid"><article><i class="ph ph-monitor"></i><b>100 / 125 / 150%</b><p>No hidden overflow or clipped actions.</p></article><article><i class="ph ph-keyboard"></i><b>Keyboard</b><p>Visible focus, logical order, accessible alternatives.</p></article><article><i class="ph ph-mouse"></i><b>Pointer</b><p>Hover enhances; click/focus stays complete.</p></article><article><i class="ph ph-wifi-slash"></i><b>Offline</b><p>Account degradation never masquerades as note loss.</p></article><article><i class="ph ph-lock"></i><b>Read-only</b><p>Protected notes remain readable and exportable.</p></article><article><i class="ph ph-wave-sine"></i><b>Reduced motion</b><p>Meaning remains clear without travel animation.</p></article></div>
+        </section>
+      </main>
+    </div>
+
+    <div class="toast" id="toast" role="status"></div>
+    <script src="./interface-lab-v3.js"></script>
+  </body>
+</html>
