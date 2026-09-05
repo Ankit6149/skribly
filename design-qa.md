@@ -108,3 +108,16 @@ Pending owner testing: the user explicitly requested no further app checking and
 - Issue #177 remains open for the owner's visual/interaction acceptance; code and packaging are complete, not a claim of visual QA approval.
 
 final result: blocked
+
+## v0.1.18 resize, calendar, and attachment refinement — 2026-09-05
+
+- Source visual truth for attachments: the accepted photo-stack, clipped-paper, and framed-video objects in `site/interface-lab-v3.html` and `site/interface-lab-v3.css`.
+- The top attachment command was removed; the quiet in-writing attachment action remains.
+- Calendar now opens the same note at the medium 640 × 600 surface, retains a side-by-side month and time layout, uses a bounded panel scroll fallback, and no longer requires the full drawing canvas.
+- Preset resizing now uses a short native cubic ease while the content surface fades gently. Calendar reveal is 180 ms and all added motion is disabled by `prefers-reduced-motion`.
+- Manual corner resizing is enabled in the Tauri window and capability policy. The saved note minimum is restored to 320 × 260 rather than being locked to its current dimensions, and the rounded native region is refreshed after resizing.
+- Attachments now render as recognizable visual objects using the actual local image/video data and the existing Lucide icon library. Actions reveal on hover and keyboard focus.
+- Automated verification: 160 frontend tests and 183 native/schema tests passed, along with TypeScript, production build, theme validation, compact-surface validation, and Rust checks.
+- Visual verification remains blocked because the Windows Computer Use helper cannot initialize in this task. No screenshot pass is claimed; the owner will test the packaged installer.
+
+final result: blocked

@@ -40,7 +40,8 @@ use platform::windows_focus::focus_external_window;
 use platform::windows_placement::{
     initialize_compact_window, position_compact_window_for_target, position_detached_note_window,
     position_note_window_for_target, position_note_workspace_for_target,
-    prepare_standard_compact_surface, restore_standard_window_surface,
+    prepare_standard_compact_surface, refresh_note_window_surface, restore_standard_window_surface,
+    transition_detached_note_window, transition_note_window_for_target,
     COMPACT_WINDOW_LOGICAL_HEIGHT, COMPACT_WINDOW_LOGICAL_WIDTH,
 };
 #[cfg(target_os = "windows")]
@@ -2238,6 +2239,11 @@ fn save_skrib_window_position(
         relative_note_position(&target, position.x, position.y)
     };
 
+    #[cfg(target_os = "windows")]
+    if !note.collapsed {
+        refresh_note_window_surface(&window)?;
+    }
+
     run_persisted_mutation(&state, |coordinator| {
         coordinator
             .update_skrib_position(&id, rel_x, rel_y, width, height)
@@ -2308,7 +2314,7 @@ fn set_skrib_workspace_mode(
 fn note_surface_dimensions(size: &str) -> Result<(f64, f64), String> {
     match size {
         "compact" => Ok((420.0, 360.0)),
-        "medium" => Ok((560.0, 480.0)),
+        "medium" => Ok((640.0, 600.0)),
         "large" => Ok((820.0, 760.0)),
         _ => Err("Choose compact, medium, or large for the Skrib size.".into()),
     }
@@ -2347,7 +2353,7 @@ fn set_skrib_window_size(
         let mut resized = note.clone();
         resized.width = width;
         resized.height = height;
-        let metrics = position_detached_note_window(&window, &rail, &resized)?;
+        let metrics = transition_detached_note_window(&window, &rail, &resized)?;
         run_persisted_mutation(&state, |coordinator| {
             coordinator
                 .update_skrib_position(&id, note.rel_x, note.rel_y, width, height)
@@ -2380,7 +2386,7 @@ fn set_skrib_window_size(
     {
         let _operation_guard = state.native_window_operation_gate.lock()?;
         let generation = begin_native_lifecycle_action(&state)?;
-        let metrics = position_note_window_for_target(&window, &target, &resized_note, false)?;
+        let metrics = transition_note_window_for_target(&window, &target, &resized_note)?;
         run_persisted_mutation(&state, |coordinator| {
             coordinator
                 .update_skrib_position(&id, resized_note.rel_x, resized_note.rel_y, width, height)
@@ -4291,7 +4297,7 @@ mod tests {
     #[test]
     fn note_surface_sizes_are_bounded_product_presets() {
         assert_eq!(note_surface_dimensions("compact"), Ok((420.0, 360.0)));
-        assert_eq!(note_surface_dimensions("medium"), Ok((560.0, 480.0)));
+        assert_eq!(note_surface_dimensions("medium"), Ok((640.0, 600.0)));
         assert_eq!(note_surface_dimensions("large"), Ok((820.0, 760.0)));
         assert!(note_surface_dimensions("fullscreen").is_err());
     }

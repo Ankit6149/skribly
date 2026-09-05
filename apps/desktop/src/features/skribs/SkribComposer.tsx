@@ -7,7 +7,6 @@ import {
   LocateFixed,
   Maximize2,
   Minimize2,
-  Paperclip,
   PenLine,
   Type,
   Check,
@@ -408,11 +407,15 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
         return;
       }
       const openingReminder = activePanel !== 'reminder';
-      if (openingReminder && !await changeSurfaceSize('large', true)) return;
+      if (
+        openingReminder &&
+        surfaceSize === 'compact' &&
+        !await changeSurfaceSize('medium', true)
+      ) return;
       setDrawingEnabled(false);
       setActivePanel(openingReminder ? 'reminder' : null);
     },
-    [activePanel, changeSurfaceSize, drawingEnabled]
+    [activePanel, changeSurfaceSize, drawingEnabled, surfaceSize]
   );
 
   const hasPersistedExtras = useCallback(async () => {
@@ -756,6 +759,8 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
     <div className="skrib-composer-backdrop" data-overlay-surface="composer">
       <section
         className={`skrib-composer skrib-color-${note.color}`}
+        data-resizing={isResizing}
+        data-surface-size={surfaceSize}
         aria-label={
           canWrite
             ? isNewNote
@@ -854,16 +859,6 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
         )}
 
         <div className="composer-command-bar" aria-label="Skrib tools">
-          <button
-            type="button"
-            className="composer-tool-button primary-tool"
-            aria-label="Attach a photo, video, or document"
-            title="Add a photo, video, or file to this Skrib"
-            disabled={!canWrite || isFinishing || hasPendingRichOperation}
-            onClick={() => setAttachmentPickerRequest((request) => request + 1)}
-          >
-            <Paperclip size={15} aria-hidden="true" />
-          </button>
           <button
             type="button"
             className={`composer-tool-button ${drawingEnabled ? 'active' : ''}`}

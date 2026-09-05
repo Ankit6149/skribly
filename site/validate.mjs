@@ -287,7 +287,7 @@ for (const marker of [
   "'PBKDF2'",
   "'AES-GCM'",
   '210_000',
-  "link.download = 'Skribli_0.1.17_x64-setup.exe'",
+  "link.download = 'Skribli_0.1.18_x64-setup.exe'",
 ]) {
   if (!ownerDownloadScript.includes(marker)) failures.push(`Owner v0 client flow is missing: ${marker}`);
 }

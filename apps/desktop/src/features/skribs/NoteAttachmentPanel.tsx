@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { emit } from '@tauri-apps/api/event';
-import { FileText, Image, Paperclip, Play, Trash2 } from 'lucide-react';
+import { FileText, Image, Paperclip, Play } from 'lucide-react';
 import {
   addFilesToNote,
   createAttachmentObjectUrl,
@@ -109,6 +109,14 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
     () => attachments.reduce((total, attachment) => total + attachment.size, 0),
     [attachments]
   );
+  const compactImages = useMemo(
+    () => attachments.filter((attachment) => attachment.kind === 'image' || attachment.kind === 'ink'),
+    [attachments]
+  );
+  const compactObjects = useMemo(
+    () => attachments.filter((attachment) => attachment.kind !== 'image' && attachment.kind !== 'ink'),
+    [attachments]
+  );
 
   useEffect(() => {
     onCountChange?.(attachments.length);
@@ -191,41 +199,74 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
         {isLoading ? (
           <span className="attachment-strip-status" role="status">Reading attachments…</span>
         ) : attachments.length > 0 ? (
-          <div className="attachment-chips">
-            {attachments.map((attachment) => {
-              const url = urls[attachment.id];
+          <div className="attachment-media-grid">
+            {compactImages.length > 0 && (() => {
+              const lead = compactImages[0]!;
+              const leadUrl = urls[lead.id];
               return (
-                <article key={attachment.id} className={`attachment-chip attachment-object ${attachment.kind}`}>
-                  <span className="attachment-chip-icon" aria-hidden="true">
-                    {(attachment.kind === 'image' || attachment.kind === 'ink') && url
-                      ? <img src={url} alt="" />
-                      : attachment.kind === 'video' && url
-                        ? <span className="attachment-video-frame"><video src={url} muted preload="metadata" /><Play size={14} /></span>
-                        : attachment.kind === 'document'
-                          ? <span className="attachment-paper"><Paperclip size={11} /><FileText size={16} /></span>
-                          : <Image size={16} />}
+                <article className="attachment-media-object attachment-photo-object" tabIndex={0}>
+                  <span className="attachment-object-label">
+                    {compactImages.length} {compactImages.length === 1 ? 'PHOTO' : 'PHOTOS'}
                   </span>
-                  <div className="attachment-chip-copy">
-                    {url ? (
-                      <a href={url} download={attachment.name} title={attachment.name}>{attachment.name}</a>
-                    ) : (
-                      <strong title={attachment.name}>{attachment.name}</strong>
-                    )}
-                    <small>{attachment.kind === 'document' ? attachment.name.split('.').pop()?.toUpperCase() : attachment.kind} · {formatAttachmentSize(attachment.size)}</small>
+                  <div className="attachment-photo-stack" aria-label={`${compactImages.length} attached photos`}>
+                    {compactImages.slice(0, 3).map((attachment, index) => {
+                      const url = urls[attachment.id];
+                      return (
+                        <span key={attachment.id} className={`attachment-polaroid photo-${index + 1}`}>
+                          {url ? <img src={url} alt={attachment.name} /> : <Image size={20} aria-hidden="true" />}
+                        </span>
+                      );
+                    })}
                   </div>
-                  <button
-                    type="button"
-                    className={confirmRemoveId === attachment.id ? 'confirm' : ''}
-                    disabled={disabled || panelBusy}
-                    aria-label={
-                      confirmRemoveId === attachment.id
-                        ? `Confirm removing ${attachment.name}`
-                        : `Remove ${attachment.name}`
-                    }
-                    onClick={() => void remove(attachment.id)}
-                  >
-                    <Trash2 size={13} aria-hidden="true" />
-                  </button>
+                  <div className="attachment-object-actions">
+                    {leadUrl && <a href={leadUrl} download={lead.name}>Open</a>}
+                    <button
+                      type="button"
+                      className={confirmRemoveId === lead.id ? 'confirm' : ''}
+                      disabled={disabled || panelBusy}
+                      onClick={() => void remove(lead.id)}
+                    >
+                      {removingId === lead.id ? 'Removing…' : confirmRemoveId === lead.id ? 'Remove?' : 'Remove'}
+                    </button>
+                  </div>
+                </article>
+              );
+            })()}
+            {compactObjects.map((attachment) => {
+              const url = urls[attachment.id];
+              const typeLabel = attachment.name.split('.').pop()?.toUpperCase() || attachment.kind.toUpperCase();
+              return (
+                <article
+                  key={attachment.id}
+                  className={`attachment-media-object attachment-${attachment.kind}-object`}
+                  tabIndex={0}
+                >
+                  {attachment.kind === 'video' ? (
+                    <span className="attachment-video-art">
+                      {url && <video src={url} muted preload="metadata" aria-label={attachment.name} />}
+                      <Play size={20} fill="currentColor" aria-hidden="true" />
+                    </span>
+                  ) : (
+                    <span className="attachment-document-paper" aria-hidden="true">
+                      <Paperclip size={17} />
+                      <FileText size={26} />
+                    </span>
+                  )}
+                  <strong title={attachment.name}>{attachment.name}</strong>
+                  <em>{typeLabel} · {formatAttachmentSize(attachment.size)}</em>
+                  <div className="attachment-object-actions">
+                    {url && <a href={url} download={attachment.name}>{attachment.kind === 'video' ? 'Play' : 'Open'}</a>}
+                    <button
+                      type="button"
+                      className={confirmRemoveId === attachment.id ? 'confirm' : ''}
+                      disabled={disabled || panelBusy}
+                      onClick={() => void remove(attachment.id)}
+                    >
+                      {removingId === attachment.id
+                        ? 'Removing…'
+                        : confirmRemoveId === attachment.id ? 'Remove?' : 'Remove'}
+                    </button>
+                  </div>
                 </article>
               );
             })}

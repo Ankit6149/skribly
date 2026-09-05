@@ -270,6 +270,33 @@ pub fn restore_standard_window_surface(window: &tauri::WebviewWindow) -> Result<
         .map_err(|error| format!("Skribli could not restore the standard window shadow: {error}"))
 }
 
+pub fn refresh_note_window_surface(window: &tauri::WebviewWindow) -> Result<(), String> {
+    let size = window
+        .inner_size()
+        .map_err(|error| format!("Skribli could not read the resized note surface: {error}"))?;
+    let position = window
+        .outer_position()
+        .map_err(|error| format!("Skribli could not read the resized note position: {error}"))?;
+    let scale_factor = window
+        .scale_factor()
+        .map_err(|error| format!("Skribli could not read the resized note scale: {error}"))?;
+    let placement = CompactWindowPlacement {
+        x: position.x,
+        y: position.y,
+        width: size.width as i32,
+        height: size.height as i32,
+        dpi: (scale_factor * 96.0).round().max(1.0) as u32,
+        scale_factor,
+        work_area: WindowRect {
+            x: position.x,
+            y: position.y,
+            width: size.width as i32,
+            height: size.height as i32,
+        },
+    };
+    apply_native_surface(window, &placement, NativeNoteSurface::Note)
+}
+
 fn standard_compact_surface_logical_size() -> (u32, u32) {
     (
         COMPACT_WINDOW_LOGICAL_WIDTH as u32,
@@ -630,6 +657,70 @@ fn apply_placement(
     })
 }
 
+fn apply_placement_with_transition(
+    window: &tauri::WebviewWindow,
+    placement: &CompactWindowPlacement,
+    surface: NativeNoteSurface,
+) -> Result<AppliedPlacement, String> {
+    let initial_size = window
+        .inner_size()
+        .map_err(|error| format!("Skribli could not read the current note size: {error}"))?;
+    let initial_position = window
+        .outer_position()
+        .map_err(|error| format!("Skribli could not read the current note position: {error}"))?;
+    let width_delta = placement.width - initial_size.width as i32;
+    let height_delta = placement.height - initial_size.height as i32;
+    let x_delta = placement.x - initial_position.x;
+    let y_delta = placement.y - initial_position.y;
+
+    if width_delta.abs() < 4 && height_delta.abs() < 4 && x_delta.abs() < 4 && y_delta.abs() < 4 {
+        return apply_placement(window, placement, surface);
+    }
+
+    window.set_shadow(false).map_err(|error| {
+        format!("Skribli could not disable the transparent window shadow: {error}")
+    })?;
+
+    const TRANSITION_FRAMES: i32 = 9;
+    for frame in 1..=TRANSITION_FRAMES {
+        let progress = frame as f64 / TRANSITION_FRAMES as f64;
+        let eased = 1.0 - (1.0 - progress).powi(3);
+        let mut intermediate = placement.clone();
+        intermediate.width =
+            initial_size.width as i32 + (width_delta as f64 * eased).round() as i32;
+        intermediate.height =
+            initial_size.height as i32 + (height_delta as f64 * eased).round() as i32;
+        intermediate.x = initial_position.x + (x_delta as f64 * eased).round() as i32;
+        intermediate.y = initial_position.y + (y_delta as f64 * eased).round() as i32;
+        window
+            .set_size(PhysicalSize::new(
+                intermediate.width.max(1) as u32,
+                intermediate.height.max(1) as u32,
+            ))
+            .map_err(|error| format!("Skribli could not animate the note size: {error}"))?;
+        window
+            .set_position(PhysicalPosition::new(intermediate.x, intermediate.y))
+            .map_err(|error| format!("Skribli could not animate the note position: {error}"))?;
+        apply_native_surface(window, &intermediate, surface)?;
+        if frame < TRANSITION_FRAMES {
+            thread::sleep(Duration::from_millis(14));
+        }
+    }
+
+    thread::sleep(Duration::from_millis(24));
+    let hwnd = window
+        .hwnd()
+        .map_err(|error| format!("Skribli could not inspect the resized note window: {error}"))?;
+    let inner_size = window
+        .inner_size()
+        .map_err(|error| format!("Skribli could not inspect the resized note content: {error}"))?;
+    Ok(AppliedPlacement {
+        outer_metrics: get_overlay_metrics(HWND(hwnd.0 as *mut _)),
+        inner_width: inner_size.width as i32,
+        inner_height: inner_size.height as i32,
+    })
+}
+
 pub fn position_compact_window_for_target(
     window: &tauri::WebviewWindow,
     target: &TargetWindowInfo,
@@ -668,11 +759,12 @@ pub fn position_compact_window_for_target(
     ))
 }
 
-pub fn position_note_window_for_target(
+fn position_note_window_for_target_internal(
     window: &tauri::WebviewWindow,
     target: &TargetWindowInfo,
     note: &SkribNote,
     collapsed: bool,
+    animate: bool,
 ) -> Result<OverlayMetrics, String> {
     let target_hwnd = reconstruct_hwnd(target.hwnd_val)
         .ok_or_else(|| "The original target application is no longer available.".to_string())?;
@@ -686,8 +778,8 @@ pub fn position_note_window_for_target(
 
     window
         .set_min_size(Some(PhysicalSize::new(
-            placement.width as u32,
-            placement.height as u32,
+            logical_to_physical(COMPACT_WINDOW_MIN_LOGICAL_WIDTH, placement.scale_factor) as u32,
+            logical_to_physical(COMPACT_WINDOW_MIN_LOGICAL_HEIGHT, placement.scale_factor) as u32,
         )))
         .map_err(|error| format!("Skribli could not prepare the note window size: {error}"))?;
     let surface = if collapsed {
@@ -695,7 +787,11 @@ pub fn position_note_window_for_target(
     } else {
         NativeNoteSurface::Note
     };
-    let applied = apply_placement(window, &placement, surface)?;
+    let applied = if animate && !collapsed {
+        apply_placement_with_transition(window, &placement, surface)?
+    } else {
+        apply_placement(window, &placement, surface)?
+    };
     if actual_matches_placement(&applied, &placement) {
         return Ok(applied.outer_metrics);
     }
@@ -706,6 +802,23 @@ pub fn position_note_window_for_target(
     }
 
     Err("Windows did not keep this Skrib inside the selected display work area.".into())
+}
+
+pub fn position_note_window_for_target(
+    window: &tauri::WebviewWindow,
+    target: &TargetWindowInfo,
+    note: &SkribNote,
+    collapsed: bool,
+) -> Result<OverlayMetrics, String> {
+    position_note_window_for_target_internal(window, target, note, collapsed, false)
+}
+
+pub fn transition_note_window_for_target(
+    window: &tauri::WebviewWindow,
+    target: &TargetWindowInfo,
+    note: &SkribNote,
+) -> Result<OverlayMetrics, String> {
+    position_note_window_for_target_internal(window, target, note, false, true)
 }
 
 pub fn position_note_workspace_for_target(
@@ -777,10 +890,11 @@ fn calculate_detached_note_window_placement(
 }
 
 /// Opens the real note beside the rail without activating or modifying its saved target.
-pub fn position_detached_note_window(
+fn position_detached_note_window_internal(
     window: &tauri::WebviewWindow,
     rail: &tauri::WebviewWindow,
     note: &SkribNote,
+    animate: bool,
 ) -> Result<OverlayMetrics, String> {
     let hwnd = rail
         .hwnd()
@@ -797,7 +911,11 @@ pub fn position_detached_note_window(
             COMPACT_WINDOW_MIN_LOGICAL_HEIGHT,
         )))
         .map_err(|error| format!("Skribli could not prepare the note size: {error}"))?;
-    let applied = apply_placement(window, &placement, NativeNoteSurface::Note)?;
+    let applied = if animate {
+        apply_placement_with_transition(window, &placement, NativeNoteSurface::Note)?
+    } else {
+        apply_placement(window, &placement, NativeNoteSurface::Note)?
+    };
     if actual_matches_placement(&applied, &placement) {
         Ok(applied.outer_metrics)
     } else {
@@ -808,6 +926,22 @@ pub fn position_detached_note_window(
             Err("Windows could not place this note beside the rail.".into())
         }
     }
+}
+
+pub fn position_detached_note_window(
+    window: &tauri::WebviewWindow,
+    rail: &tauri::WebviewWindow,
+    note: &SkribNote,
+) -> Result<OverlayMetrics, String> {
+    position_detached_note_window_internal(window, rail, note, false)
+}
+
+pub fn transition_detached_note_window(
+    window: &tauri::WebviewWindow,
+    rail: &tauri::WebviewWindow,
+    note: &SkribNote,
+) -> Result<OverlayMetrics, String> {
+    position_detached_note_window_internal(window, rail, note, true)
 }
 
 pub fn initialize_compact_window(window: &tauri::WebviewWindow) -> Result<OverlayMetrics, String> {

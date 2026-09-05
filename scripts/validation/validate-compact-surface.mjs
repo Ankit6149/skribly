@@ -79,6 +79,8 @@ for (const marker of [
 for (const [source, marker] of [
   [composer, 'data-overlay-surface="composer"'],
   [composer, 'className="composer-drag-grip" data-tauri-drag-region'],
+  [composer, "startResizeDragging(direction)"],
+  [composer, 'className={`composer-resize-handle ${direction.toLowerCase()}`}'],
   [collapsedDot, 'data-overlay-surface="collapsed"'],
   [collapsedDot, 'className="collapsed-skrib-bubble"'],
   [collapsedDot, 'collapsed-skrib-drag-zone collapsed-skrib-drag-top'],
@@ -139,8 +141,24 @@ if (!mainWindow || mainWindow.transparent !== true || mainWindow.shadow !== fals
   failures.push('The transparent main window must disable the rectangular native shadow.');
 }
 
+if (!mainWindow || mainWindow.resizable !== true) {
+  failures.push('The note window must remain natively resizable from its corner handles.');
+}
+
 if (!desktopCapabilities.permissions?.includes('core:window:allow-start-dragging')) {
   failures.push('Desktop capabilities must allow note and collapsed-dot drag regions to move the window.');
+}
+
+if (!desktopCapabilities.permissions?.includes('core:window:allow-start-resize-dragging')) {
+  failures.push('Desktop capabilities must allow the note corner handles to start native resizing.');
+}
+
+if (!composer.includes("surfaceSize === 'compact'") || !composer.includes("changeSurfaceSize('medium', true)")) {
+  failures.push('Opening Calendar from a compact note must use the medium note surface.');
+}
+
+if (composer.includes('className="composer-tool-button primary-tool"')) {
+  failures.push('Attachments must remain in the writing surface instead of returning to the top command bar.');
 }
 
 if (!globalStyles.includes('box-sizing: border-box')) {

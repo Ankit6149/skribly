@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Skribli",
-  "version": "0.1.17",
+  "version": "0.1.18",
   "identifier": "app.skribly.desktop",
   "mainBinaryName": "skribly",
   "build": {
@@ -43,7 +43,7 @@
         "alwaysOnTop": true,
         "skipTaskbar": true,
         "shadow": false,
-        "resizable": false,
+        "resizable": true,
         "fullscreen": false,
         "maximized": false
       },
