@@ -3645,8 +3645,9 @@ mod tests {
                 color_note("older", "peach", 1),
                 color_note("latest", "lavender", 2),
             ]),
-            "yellow"
+            "rose"
         );
+        assert_eq!(next_note_color(&[color_note("last", "sand", 3)]), "yellow");
     }
 
     #[test]
