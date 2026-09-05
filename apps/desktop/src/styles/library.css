@@ -43,6 +43,7 @@ html[data-skribly-window='library'] #root {
   color: var(--library-ink);
   font-family: var(--font-ui);
   user-select: text;
+  position: relative;
 }
 
 .library-standard-view {

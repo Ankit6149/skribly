@@ -1,7 +1,16 @@
 import { invoke } from '@tauri-apps/api/core';
-import { emit, listen } from '@tauri-apps/api/event';
+import { listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  CalendarDays,
+  CircleHelp,
+  House,
+  LogOut,
+  NotebookTabs,
+  PanelRightOpen,
+  Trash2,
+} from 'lucide-react';
 import skriblyMarkUrl from '../../../../../assets/branding/skribly-app-icon.svg?url';
 import { useAccountStore } from '../../stores/accountStore';
 import {
@@ -14,10 +23,14 @@ import { ReminderNotificationMonitor } from '../skribs/ReminderNotificationMonit
 import { LibraryHost } from '../library/LibraryHost';
 
 type AccountMode = 'signIn' | 'create';
+type WorkspaceDestination = 'home' | 'notes' | 'calendar' | 'trash';
 
-async function openLibrary(view: 'notes' | 'calendar' = 'notes'): Promise<void> {
-  await emit('skribly://library-view', { view });
-}
+const WORKSPACE_ITEMS = [
+  { id: 'home' as const, label: 'Home', detail: 'Status and shortcut', icon: House },
+  { id: 'notes' as const, label: 'All Skribs', detail: 'Your local notes', icon: NotebookTabs },
+  { id: 'calendar' as const, label: 'Calendar', detail: 'Reminders and repeats', icon: CalendarDays },
+  { id: 'trash' as const, label: 'Trash', detail: 'Recently removed', icon: Trash2 },
+];
 
 async function openNoteRail(): Promise<void> {
   await invoke('show_global_note_rail');
@@ -214,83 +227,81 @@ const AccountSetupSurface: React.FC = () => {
   );
 };
 
-const HomeSurface: React.FC<{ onShowGuide: () => void }> = ({ onShowGuide }) => {
-  const { email, accountRole, entitlement, productUpdatesOptIn, announcements, signOut } = useAccountStore();
-  const [actionError, setActionError] = useState<string | null>(null);
+const WorkspaceSidebar: React.FC<{
+  active: WorkspaceDestination;
+  onNavigate: (destination: WorkspaceDestination) => void;
+  onShowGuide: () => void;
+}> = ({ active, onNavigate, onShowGuide }) => {
+  const { email, accountRole, entitlement, productUpdatesOptIn, signOut } = useAccountStore();
   const trialLabel = useMemo(() => {
     if (!entitlement) return 'Account verified';
     if (entitlement.mode === 'trial') {
       return `${entitlement.trialDaysRemaining} trial day${entitlement.trialDaysRemaining === 1 ? '' : 's'} left`;
     }
-    if (entitlement.mode === 'expired') return 'Trial complete · read and export remain available';
+    if (entitlement.mode === 'expired') return 'Read and export available';
     if (entitlement.mode === 'licensed') return 'Personal licence active';
     return entitlement.message;
   }, [entitlement]);
 
+  return (
+    <aside className="home-sidebar" aria-label="Skribli navigation">
+      <div className="account-brand-lockup">
+        <img className="account-mark" src={skriblyMarkUrl} alt="" />
+        <div><strong>Skribli</strong><span>Desktop workspace</span></div>
+      </div>
+      <div className="home-sidebar-status" role="status">
+        <span aria-hidden="true" />
+        <div><strong>Ready</strong><small>{trialLabel}</small></div>
+      </div>
+      <nav className="home-navigation" aria-label="Workspace">
+        <span className="home-navigation-label">WORKSPACE</span>
+        {WORKSPACE_ITEMS.map(({ id, label, detail, icon: Icon }) => (
+          <button
+            key={id}
+            type="button"
+            className={active === id ? 'current' : ''}
+            aria-current={active === id ? 'page' : undefined}
+            onClick={() => onNavigate(id)}
+          >
+            <span className="home-navigation-icon" aria-hidden="true"><Icon size={16} /></span>
+            <span className="home-navigation-copy"><strong>{label}</strong><small>{detail}</small></span>
+          </button>
+        ))}
+        <button type="button" onClick={onShowGuide}>
+          <span className="home-navigation-icon" aria-hidden="true"><CircleHelp size={16} /></span>
+          <span className="home-navigation-copy"><strong>Quick guide</strong><small>See how Skribli flows</small></span>
+        </button>
+      </nav>
+      <button
+        className="home-open-rail"
+        type="button"
+        onClick={() => void openNoteRail()}
+        title="Keep your Skribs within reach"
+      >
+        <PanelRightOpen size={16} aria-hidden="true" />
+        <span><strong>My Skribs rail</strong><small>Open the floating note shelf</small></span>
+      </button>
+      <div className="home-account-summary">
+        <span>{accountRole === 'owner' ? 'OWNER ACCOUNT' : 'MEMBER ACCOUNT'}</span>
+        <strong>{email}</strong>
+        <small>{productUpdatesOptIn ? 'Product updates enabled' : 'Essential emails only'}</small>
+        <button className="account-text-button" type="button" onClick={() => void signOut()}>
+          <LogOut size={13} aria-hidden="true" /> Sign out
+        </button>
+      </div>
+    </aside>
+  );
+};
+
+const HomeSurface: React.FC<{ onNavigate: (destination: WorkspaceDestination) => void }> = ({ onNavigate }) => {
+  const { entitlement, announcements } = useAccountStore();
+
   const handleOpenLibrary = () => {
-    setActionError(null);
-    void openLibrary().catch((error) =>
-      setActionError(error instanceof Error ? error.message : String(error))
-    );
+    onNavigate('notes');
   };
 
   return (
-    <div className="account-page home-page">
-      <aside className="home-sidebar" aria-label="Skribli navigation">
-        <div className="account-brand-lockup">
-          <img className="account-mark" src={skriblyMarkUrl} alt="" />
-          <div>
-            <strong>Skribli</strong>
-            <span>Desktop workspace</span>
-          </div>
-        </div>
-
-        <div className="home-sidebar-status" role="status">
-          <span aria-hidden="true" />
-          <div>
-            <strong>Ready</strong>
-            <small>{trialLabel}</small>
-          </div>
-        </div>
-
-        <nav className="home-navigation" aria-label="Workspace">
-          <span className="home-navigation-label">WORKSPACE</span>
-          <button type="button" className="current" aria-current="page" disabled>
-            <strong>Home</strong>
-            <span>Shortcut and status</span>
-          </button>
-          <button type="button" onClick={handleOpenLibrary}>
-            <strong>All Skribs</strong>
-            <span>Search, import, and export</span>
-          </button>
-          <button
-            type="button"
-            onClick={() =>
-              void openLibrary('calendar').catch((error) =>
-                setActionError(error instanceof Error ? error.message : String(error))
-              )
-            }
-          >
-            <strong>Calendar</strong>
-            <span>Upcoming and overdue reminders</span>
-          </button>
-          <button type="button" onClick={onShowGuide}>
-            <strong>Quick guide</strong>
-            <span>How Skribli works</span>
-          </button>
-        </nav>
-
-        <div className="home-account-summary">
-          <span>{accountRole === 'owner' ? 'OWNER ACCOUNT' : 'MEMBER ACCOUNT'}</span>
-          <strong>{email}</strong>
-          <small>{productUpdatesOptIn ? 'Product updates enabled' : 'Essential account emails only'}</small>
-          <button className="account-text-button" type="button" onClick={() => void signOut()}>
-            Sign out
-          </button>
-        </div>
-      </aside>
-
-      <main className="home-main">
+      <main className="home-main home-dashboard">
         <header className="home-main-header">
           <div>
             <span className="account-kicker">DESKTOP STATUS</span>
@@ -317,13 +328,6 @@ const HomeSurface: React.FC<{ onShowGuide: () => void }> = ({ onShowGuide }) => 
               onClick={() => void getCurrentWindow().hide()}
             >
               {entitlement?.canWrite ? 'Hide Skribli and start' : 'Writing is unavailable'}
-            </button>
-            <button
-              className="home-rail-link"
-              type="button"
-              onClick={() => void openNoteRail().catch((reason) => setActionError(reason instanceof Error ? reason.message : String(reason)))}
-            >
-              Open My Skribs rail
             </button>
           </div>
         </section>
@@ -361,14 +365,11 @@ const HomeSurface: React.FC<{ onShowGuide: () => void }> = ({ onShowGuide }) => 
           </article>
         </section>
 
-        {actionError && <div className="account-message" role="alert">{actionError}</div>}
-
         <footer className="home-footer">
           <span>Skrib content stays local</span>
           <span>Skribli remains available from the Windows tray after this window is hidden.</span>
         </footer>
       </main>
-    </div>
   );
 };
 
@@ -425,30 +426,56 @@ export const HomeHost: React.FC = () => {
 
   // Local reading/export must remain reachable from the tray even when account services
   // are unavailable. Native licence/storage checks continue to guard every write.
+  const navigate = (destination: WorkspaceDestination) => {
+    setGuideVisible(false);
+    if (destination === 'home') {
+      setWorkspace('home');
+      return;
+    }
+    setLibraryRequest({ view: destination });
+    setWorkspace('library');
+  };
+  const handleLibraryViewChange = useCallback((view: 'notes' | 'calendar' | 'trash') => {
+    setLibraryRequest((current) => current.view === view ? current : { view });
+  }, []);
+
   return (
     <>
       {phase === 'ready' && <ReminderNotificationMonitor />}
-      <div className="desktop-workspace-page" hidden={workspace !== 'home'}>
       {phase === 'loading' ? <BusySurface label="Opening Skribli…" />
         : phase === 'claiming' ? <BusySurface label="Verifying this device…" />
         : phase !== 'ready' ? <AccountSetupSurface />
-        : guideVisible ? (
-      <OnboardingSurface
-        onComplete={() => {
-          if (typeof window !== 'undefined') completeOnboarding(window.localStorage);
-          setGuideVisible(false);
-        }}
-        onDismiss={() => {
-          if (typeof window !== 'undefined') markOnboardingShown(window.localStorage);
-          setGuideVisible(false);
-        }}
-      />) : (
-        <HomeSurface onShowGuide={() => setGuideVisible(true)} />
-      )}
-      </div>
-      <div className="desktop-workspace-page" hidden={workspace !== 'library'}>
-        <LibraryHost active={workspace === 'library'} request={libraryRequest} onBack={() => setWorkspace('home')} />
-      </div>
+        : (
+          <div className="desktop-workspace-shell">
+            <WorkspaceSidebar
+              active={workspace === 'home' ? 'home' : libraryRequest.view}
+              onNavigate={navigate}
+              onShowGuide={() => setGuideVisible(true)}
+            />
+            <div className="desktop-workspace-content">
+              {guideVisible ? (
+                <OnboardingSurface
+                  onComplete={() => {
+                    if (typeof window !== 'undefined') completeOnboarding(window.localStorage);
+                    setGuideVisible(false);
+                  }}
+                  onDismiss={() => {
+                    if (typeof window !== 'undefined') markOnboardingShown(window.localStorage);
+                    setGuideVisible(false);
+                  }}
+                />
+              ) : workspace === 'home' ? (
+                <HomeSurface onNavigate={navigate} />
+              ) : (
+                <LibraryHost
+                  active
+                  request={libraryRequest}
+                  onViewChange={handleLibraryViewChange}
+                />
+              )}
+            </div>
+          </div>
+        )}
     </>
   );
 };

@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Eraser, Highlighter, MousePointer2, PenLine, Trash2, Undo2 } from 'lucide-react';
+import { Eraser, Highlighter, MousePointer2, PenLine, Redo2, Trash2, Undo2, X } from 'lucide-react';
 import {
   countInkPoints,
   createInkStroke,
+  findTopInkStroke,
   MAX_INK_POINTS,
   MAX_INK_STROKE_POINTS,
   MAX_INK_STROKES,
@@ -64,7 +65,8 @@ function drawStroke(
   context.globalAlpha = stroke.tool === 'highlighter' ? 0.26 : 1;
   context.strokeStyle = stroke.color;
   context.fillStyle = stroke.color;
-  context.lineWidth = stroke.width * (stroke.tool === 'highlighter' ? 3.2 : 1);
+  const displayScale = canvas.clientWidth > 0 ? canvas.width / canvas.clientWidth : 1;
+  context.lineWidth = stroke.width * displayScale * (stroke.tool === 'highlighter' ? 3.2 : 1);
 
   const first = stroke.points[0]!;
   const firstX = first.x * canvas.width;
@@ -105,6 +107,8 @@ export const InkCanvas: React.FC<InkCanvasProps> = ({
     preview: InkStroke[];
   } | null>(null);
   const pendingOperationsRef = useRef(0);
+  const undoHistoryRef = useRef<InkStroke[][]>([]);
+  const redoHistoryRef = useRef<InkStroke[][]>([]);
   const [persistenceCoordinator] = useState(() => new InkPersistenceCoordinator(initialStrokes));
   const [strokes, setStrokes] = useState<InkStroke[]>(
     () => persistenceCoordinator.getSnapshot().strokes
@@ -117,6 +121,7 @@ export const InkCanvas: React.FC<InkCanvasProps> = ({
   const [clearPending, setClearPending] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [historyRevision, setHistoryRevision] = useState(0);
 
   const beginOperation = useCallback(() => {
     pendingOperationsRef.current += 1;
@@ -158,6 +163,27 @@ export const InkCanvas: React.FC<InkCanvasProps> = ({
   }, []);
 
   useEffect(() => {
+    const canvas = canvasRef.current;
+    const frame = canvas?.parentElement;
+    if (!canvas || !frame) return;
+    const resize = () => {
+      const bounds = frame.getBoundingClientRect();
+      const pixelRatio = Math.min(2, window.devicePixelRatio || 1);
+      const width = Math.max(1, Math.round(bounds.width * pixelRatio));
+      const height = Math.max(1, Math.round(bounds.height * pixelRatio));
+      if (canvas.width !== width || canvas.height !== height) {
+        canvas.width = width;
+        canvas.height = height;
+      }
+      renderStrokes(persistenceCoordinator.getSnapshot().strokes);
+    };
+    const observer = new ResizeObserver(resize);
+    observer.observe(frame);
+    resize();
+    return () => observer.disconnect();
+  }, [persistenceCoordinator, renderStrokes]);
+
+  useEffect(() => {
     renderStrokes(strokes);
   }, [renderStrokes, strokes]);
 
@@ -193,18 +219,28 @@ export const InkCanvas: React.FC<InkCanvasProps> = ({
     [beginOperation, endOperation, onChange, persistenceCoordinator]
   );
 
+  const commit = useCallback((nextStrokes: InkStroke[], recordHistory = true) => {
+    const currentStrokes = persistenceCoordinator.getSnapshot().strokes;
+    if (recordHistory) {
+      undoHistoryRef.current.push(currentStrokes);
+      if (undoHistoryRef.current.length > 80) undoHistoryRef.current.shift();
+      redoHistoryRef.current = [];
+      setHistoryRevision((value) => value + 1);
+    }
+    void persist(nextStrokes);
+  }, [persist, persistenceCoordinator]);
+
   const handlePointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => {
-    if (disabled) return;
+    if (disabled || (event.pointerType === 'mouse' && event.button !== 0)) return;
+    event.preventDefault();
+    event.currentTarget.focus({ preventScroll: true });
     const currentStrokes = persistenceCoordinator.getSnapshot().strokes;
     if (interactionMode === 'select') {
       const rect = event.currentTarget.getBoundingClientRect();
       const x = (event.clientX - rect.left) / rect.width;
       const y = (event.clientY - rect.top) / rect.height;
-      const selected = [...currentStrokes]
-        .reverse()
-        .find((stroke) =>
-          stroke.points.some((point) => Math.hypot(point.x - x, point.y - y) <= 0.035)
-        );
+      const threshold = Math.max(0.012, 12 / Math.max(1, Math.min(rect.width, rect.height)));
+      const selected = findTopInkStroke(currentStrokes, x, y, threshold);
       setSelectedStrokeId(selected?.id ?? null);
       if (selected) {
         selectionDragRef.current = {
@@ -277,39 +313,61 @@ export const InkCanvas: React.FC<InkCanvasProps> = ({
       setError('This drawing has reached its safe local size limit.');
       return;
     }
-    const point = normalizeInkPoint(
-      event.clientX,
-      event.clientY,
-      event.currentTarget.getBoundingClientRect(),
-      event.pressure
-    );
-    const previous = activeStroke.points.at(-1);
-    if (previous && Math.hypot(point.x - previous.x, point.y - previous.y) < 0.001) return;
-    activeStroke.points.push(point);
+    const rect = event.currentTarget.getBoundingClientRect();
+    const samples = event.nativeEvent.getCoalescedEvents?.() ?? [event.nativeEvent];
+    for (const sample of samples) {
+      if (activeStroke.points.length >= MAX_INK_STROKE_POINTS) break;
+      const point = normalizeInkPoint(sample.clientX, sample.clientY, rect, sample.pressure);
+      const previous = activeStroke.points.at(-1);
+      if (!previous || Math.hypot(point.x - previous.x, point.y - previous.y) >= 0.001) {
+        activeStroke.points.push(point);
+      }
+    }
     renderStrokes([...currentStrokes, activeStroke]);
   };
 
   const finishStroke = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const selection = selectionDragRef.current;
+    selectionDragRef.current = null;
+    const activeStroke = activeStrokeRef.current;
+    activeStrokeRef.current = null;
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
-    const selection = selectionDragRef.current;
-    selectionDragRef.current = null;
     if (selection && interactionMode === 'select' && !disabled) {
-      void persist(selection.preview);
+      commit(selection.preview);
       return;
     }
-    const activeStroke = activeStrokeRef.current;
-    activeStrokeRef.current = null;
     if (!activeStroke || disabled) return;
-    void persist([...persistenceCoordinator.getSnapshot().strokes, activeStroke]);
+    commit([...persistenceCoordinator.getSnapshot().strokes, activeStroke]);
   };
 
   const undo = () => {
     const currentStrokes = persistenceCoordinator.getSnapshot().strokes;
     if (currentStrokes.length === 0 || disabled) return;
     setClearPending(false);
-    void persist(currentStrokes.slice(0, -1));
+    const previous = undoHistoryRef.current.pop() ?? currentStrokes.slice(0, -1);
+    redoHistoryRef.current.push(currentStrokes);
+    setSelectedStrokeId(null);
+    setHistoryRevision((value) => value + 1);
+    void persist(previous);
+  };
+
+  const redo = () => {
+    if (disabled) return;
+    const next = redoHistoryRef.current.pop();
+    if (!next) return;
+    undoHistoryRef.current.push(persistenceCoordinator.getSnapshot().strokes);
+    setSelectedStrokeId(null);
+    setHistoryRevision((value) => value + 1);
+    void persist(next);
+  };
+
+  const deleteSelected = () => {
+    if (disabled || !selectedStrokeId) return;
+    const currentStrokes = persistenceCoordinator.getSnapshot().strokes;
+    commit(currentStrokes.filter((stroke) => stroke.id !== selectedStrokeId));
+    setSelectedStrokeId(null);
   };
 
   const clear = () => {
@@ -319,7 +377,7 @@ export const InkCanvas: React.FC<InkCanvasProps> = ({
       return;
     }
     setClearPending(false);
-    void persist([]);
+    commit([]);
   };
 
   const savePreview = async () => {
@@ -428,6 +486,31 @@ export const InkCanvas: React.FC<InkCanvasProps> = ({
           </button>
           <button
             type="button"
+            className="ink-icon-tool"
+            aria-label="Redo stroke"
+            title="Redo"
+            onClick={redo}
+            disabled={disabled || redoHistoryRef.current.length === 0}
+            data-history-revision={historyRevision}
+          >
+            <Redo2 size={14} aria-hidden="true" />
+            <span className="ink-tool-label">Redo</span>
+          </button>
+          {selectedStrokeId && (
+            <button
+              type="button"
+              className="ink-icon-tool danger"
+              aria-label="Delete selected stroke"
+              title="Remove selected stroke"
+              onClick={deleteSelected}
+              disabled={disabled}
+            >
+              <X size={14} aria-hidden="true" />
+              <span className="ink-tool-label">Remove</span>
+            </button>
+          )}
+          <button
+            type="button"
             className={`ink-icon-tool ${clearPending ? 'danger' : ''}`}
             aria-label={clearPending ? 'Confirm clearing every stroke' : 'Clear drawing'}
             title={clearPending ? 'Click again to clear every stroke' : 'Clear drawing'}
@@ -437,7 +520,7 @@ export const InkCanvas: React.FC<InkCanvasProps> = ({
             <Trash2 size={14} aria-hidden="true" />
             <span className="ink-tool-label">{clearPending ? 'Clear all?' : 'Clear'}</span>
           </button>
-          {onSavePreview && (
+          {onSavePreview && variant === 'panel' && (
             <button
               type="button"
               className="primary"
@@ -452,9 +535,8 @@ export const InkCanvas: React.FC<InkCanvasProps> = ({
       <div className="ink-canvas-frame">
         <canvas
           ref={canvasRef}
-          width={1200}
-          height={720}
           className="ink-canvas"
+          tabIndex={disabled ? -1 : 0}
           data-interaction={interactionMode}
           data-selected-stroke={selectedStrokeId ?? undefined}
           aria-label="Draw with a mouse, touchpad, touch screen, or pen"
@@ -462,11 +544,26 @@ export const InkCanvas: React.FC<InkCanvasProps> = ({
           onPointerMove={handlePointerMove}
           onPointerUp={finishStroke}
           onPointerCancel={finishStroke}
+          onLostPointerCapture={(event) => {
+            if (activeStrokeRef.current || selectionDragRef.current) finishStroke(event);
+          }}
+          onKeyDown={(event) => {
+            if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
+              event.preventDefault();
+              if (event.shiftKey) redo();
+              else undo();
+            } else if ((event.key === 'Delete' || event.key === 'Backspace') && selectedStrokeId) {
+              event.preventDefault();
+              deleteSelected();
+            }
+          }}
         />
       </div>
       <div className="ink-editor-status" role="status" aria-live="polite">
         <span>
-          {strokes.length.toLocaleString()} strokes · {pointCount.toLocaleString()} points
+          {selectedStrokeId
+            ? 'Stroke selected · drag to move · Delete to remove'
+            : `${strokes.length.toLocaleString()} strokes · ${pointCount.toLocaleString()} points`}
         </span>
         <span>Mouse, touchpad, touch, and pen supported</span>
       </div>

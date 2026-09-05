@@ -27,7 +27,9 @@ describe('rail note actions', () => {
 
   it('Open at saved location focuses the matching target before opening the note', async () => {
     invokeMock.mockImplementation(async (command) => command === 'list_target_windows' ? [target] : undefined);
-    await expect(openNoteInSavedContext(note)).resolves.toBe('Opened in Chrome.');
+    const phases: string[] = [];
+    await expect(openNoteInSavedContext(note, (progress) => phases.push(progress.phase))).resolves.toBe('Opened in Chrome.');
+    expect(phases).toEqual(['preparing', 'finding', 'restoring', 'complete']);
     expect(invokeMock.mock.calls).toEqual([
       ['get_open_skrib_note_id'],
       ['list_target_windows'],

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   countInkPoints,
   createInkStroke,
+  findTopInkStroke,
   MAX_INK_POINTS,
   normalizeInkPoint,
   validateInkStrokes,
@@ -28,6 +29,22 @@ describe('inkModel', () => {
     });
     expect(countInkPoints([stroke])).toBe(1);
     expect(() => validateInkStrokes([stroke])).not.toThrow();
+  });
+
+  it('selects a stroke along the line, not only on a sampled point', () => {
+    const stroke = {
+      ...createInkStroke('stroke-1', 'pen', '#262923', 3, {
+        x: 0.1,
+        y: 0.1,
+        pressure: 0.5,
+      }),
+      points: [
+        { x: 0.1, y: 0.1, pressure: 0.5 },
+        { x: 0.9, y: 0.9, pressure: 0.5 },
+      ],
+    };
+    expect(findTopInkStroke([stroke], 0.5, 0.5, 0.02)?.id).toBe('stroke-1');
+    expect(findTopInkStroke([stroke], 0.5, 0.7, 0.02)).toBeUndefined();
   });
 
   it('rejects duplicate identifiers and unbounded point collections', () => {

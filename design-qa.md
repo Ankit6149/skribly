@@ -122,3 +122,14 @@ final result: blocked
 - Visual verification remains blocked because the Windows Computer Use helper cannot initialize in this task. No screenshot pass is claimed; the owner will test the packaged installer.
 
 final result: blocked
+
+## v0.1.19 workspace, contextual opening, and inline Draw refinement — 2026-09-06
+
+- Visual target: the accepted Skribli website typography/palette and the previously accepted production rail/note language recorded above. The website and interface-lab experiments were not changed.
+- The installed desktop app now keeps Home, All Skribs, Calendar, Trash, the guide, rail access, and account state inside one persistent navigation shell. Destination changes use a restrained 180 ms transition and preserve the existing local-first voice.
+- Context restoration now exposes real progress states for draft protection, live-window discovery, supported-app launch, saved-window matching, and note restoration. It does not claim to recreate a closed tab/folder whose durable URL/path was never stored.
+- Inline Draw now uses a device-pixel-aware canvas, coalesced pointer samples, line-segment selection, selected-stroke movement/removal, undo/redo, keyboard shortcuts, and a non-overlapping compact toolbar. Ink stays layered over text and no attachment preview is created from the inline overlay.
+- Automated evidence: 161 frontend tests, 143 native library tests, 3 native binary tests, and 37 schema migration tests passed. TypeScript, production builds, product-truth, theme, compact-surface, governance, site, private-artifact, Rust format, and Rust compile checks passed.
+- Installed-app visual acceptance was intentionally not performed because the owner explicitly asked to download and test the installer personally. No screenshot pass is claimed for this revision.
+
+final result: blocked

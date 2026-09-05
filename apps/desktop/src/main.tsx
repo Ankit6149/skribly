@@ -15,6 +15,7 @@ import { StartupErrorBoundary } from "./features/onboarding/StartupErrorBoundary
 import "./styles/global.css";
 import "./styles/accessibility.css";
 import "./styles/note-experience.css";
+import "./styles/opening-journey.css";
 import "./styles/account.css";
 import "./styles/trash.css";
 import "./styles/startup-recovery.css";

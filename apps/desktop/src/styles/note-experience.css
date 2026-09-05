@@ -2059,6 +2059,32 @@ body {
   accent-color: var(--olive);
 }
 
+/* The drawing surface remains crisp at every manually resized note size. */
+.ink-editor-overlay .ink-editor-toolbar {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.ink-editor-overlay .ink-editor-toolbar::-webkit-scrollbar { display: none; }
+
+.ink-editor-overlay .ink-canvas {
+  touch-action: none;
+  image-rendering: auto;
+  outline: none;
+}
+
+.ink-editor-overlay .ink-canvas:focus-visible {
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--olive) 48%, transparent);
+}
+
+.ink-editor-overlay .ink-editor-status span:last-child { display: none; }
+
+.composer-unified-canvas.drawing .composer-rich-editor-shell .composer-textarea {
+  padding-top: 72px;
+}
+
 .composer-format-bar {
   position: absolute;
   top: 9px;

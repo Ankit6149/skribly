@@ -86,7 +86,7 @@ const requiredAppRouting = [
 for (const marker of requiredAppRouting) {
   if (!app.includes(marker)) failures.push(`App window routing is missing: ${marker}`);
 }
-for (const marker of ['<LibraryHost active=', 'request={libraryRequest}', 'desktop-workspace-page', "listen<{ view?: string }>('skribly://library-view'"]) {
+for (const marker of ['<LibraryHost', 'active', 'request={libraryRequest}', 'desktop-workspace-shell', "listen<{ view?: string }>('skribly://library-view'"]) {
   if (!homeHost.includes(marker)) failures.push(`Single workspace navigation is missing: ${marker}`);
 }
 if (homeHost.includes("Window.getByLabel('library')") || libraryHost.includes("Window.getByLabel('home')")) {
@@ -153,7 +153,7 @@ const requiredLibraryHost = [
   'READ-ONLY LIBRARY VIEW',
   'Export this note',
   'Export note records',
-  'openNoteInSavedContext(note)',
+  'openNoteInSavedContext(note, setOpeningProgress)',
   'Open original',
   'Open original focuses a matching live window.',
   'LIBRARY_EXPORT_REQUEST_EVENT',

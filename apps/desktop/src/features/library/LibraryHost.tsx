@@ -18,6 +18,8 @@ import { LibraryImportPanel } from './LibraryImportPanel';
 import { LibraryRichContent } from './LibraryRichContent';
 import { ReminderCalendar } from './ReminderCalendar';
 import { openNoteInSavedContext } from '../rail/openNoteContext';
+import type { OpenNoteProgress } from '../rail/openNoteContext';
+import { OpeningJourney } from '../rail/OpeningJourney';
 import {
   filterLibraryNotes,
   noteContextLabel,
@@ -61,7 +63,12 @@ function timestampDateTime(timestampSeconds: number): string | undefined {
   return dateFromTimestamp(timestampSeconds)?.toISOString();
 }
 
-export const LibraryHost: React.FC<{ active?: boolean; request?: { view: LibraryView }; onBack?: () => void }> = ({ active = true, request, onBack }) => {
+export const LibraryHost: React.FC<{
+  active?: boolean;
+  request?: { view: LibraryView };
+  onBack?: () => void;
+  onViewChange?: (view: LibraryView) => void;
+}> = ({ active = true, request, onBack, onViewChange }) => {
   const [notes, setNotes] = useState<SkribNote[]>([]);
   const [lifecycleView, setLifecycleView] = useState<LibraryView>('notes');
   const [query, setQuery] = useState('');
@@ -75,6 +82,7 @@ export const LibraryHost: React.FC<{ active?: boolean; request?: { view: Library
   const [isExporting, setIsExporting] = useState(false);
   const [exportMessage, setExportMessage] = useState<ExportMessage>(null);
   const [openingContextId, setOpeningContextId] = useState<string | null>(null);
+  const [openingProgress, setOpeningProgress] = useState<OpenNoteProgress | null>(null);
   const [contextMessage, setContextMessage] = useState<string | null>(null);
   const pendingExportRequest = useRef<string | null>(null);
   const pendingExportTimeout = useRef<number | null>(null);
@@ -146,6 +154,10 @@ export const LibraryHost: React.FC<{ active?: boolean; request?: { view: Library
   useEffect(() => {
     if (request) setLifecycleView(request.view);
   }, [request]);
+
+  useEffect(() => {
+    if (active) onViewChange?.(lifecycleView);
+  }, [active, lifecycleView, onViewChange]);
 
   useEffect(() => {
     let disposed = false;
@@ -328,14 +340,20 @@ export const LibraryHost: React.FC<{ active?: boolean; request?: { view: Library
 
   const openSelectedNote = async (note: SkribNote) => {
     setOpeningContextId(note.id);
+    setOpeningProgress({
+      phase: 'preparing',
+      title: 'Keeping this thought safe…',
+      detail: 'Getting ready to return to its saved place.',
+    });
     setContextMessage(null);
     try {
-      await openNoteInSavedContext(note);
+      await openNoteInSavedContext(note, setOpeningProgress);
       await getCurrentWindow().hide();
     } catch (reason) {
       setContextMessage(reason instanceof Error ? reason.message : String(reason));
     } finally {
       setOpeningContextId(null);
+      window.setTimeout(() => setOpeningProgress(null), 260);
     }
   };
 
@@ -345,6 +363,7 @@ export const LibraryHost: React.FC<{ active?: boolean; request?: { view: Library
 
   return (
     <main className="library-shell" aria-labelledby="library-title">
+      {openingProgress && <OpeningJourney progress={openingProgress} />}
       <header className="library-topbar">
         <div>
           <span className="library-kicker">LOCAL NOTE LIBRARY</span>
@@ -360,13 +379,15 @@ export const LibraryHost: React.FC<{ active?: boolean; request?: { view: Library
           >
             {isLoading ? 'Refreshing…' : 'Refresh'}
           </button>
-          <button
-            type="button"
-            className="library-button secondary"
-            onClick={() => void returnToHome()}
-          >
-            Back to Skribli
-          </button>
+          {onBack && (
+            <button
+              type="button"
+              className="library-button secondary"
+              onClick={() => void returnToHome()}
+            >
+              Back to Skribli
+            </button>
+          )}
           <LibraryImportPanel canApply={canMutate} onApplied={handleImportApplied} />
           <button
             type="button"

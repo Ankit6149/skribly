@@ -35,6 +35,40 @@ export function countInkPoints(strokes: InkStroke[]): number {
   return strokes.reduce((total, stroke) => total + stroke.points.length, 0);
 }
 
+function distanceToSegment(
+  x: number,
+  y: number,
+  start: InkPoint,
+  end: InkPoint
+): number {
+  const segmentX = end.x - start.x;
+  const segmentY = end.y - start.y;
+  const lengthSquared = segmentX * segmentX + segmentY * segmentY;
+  if (lengthSquared === 0) return Math.hypot(x - start.x, y - start.y);
+  const position = Math.max(
+    0,
+    Math.min(1, ((x - start.x) * segmentX + (y - start.y) * segmentY) / lengthSquared)
+  );
+  return Math.hypot(x - (start.x + position * segmentX), y - (start.y + position * segmentY));
+}
+
+export function findTopInkStroke(
+  strokes: InkStroke[],
+  x: number,
+  y: number,
+  threshold: number
+): InkStroke | undefined {
+  return [...strokes].reverse().find((stroke) => {
+    if (stroke.points.length === 1) {
+      const point = stroke.points[0]!;
+      return Math.hypot(point.x - x, point.y - y) <= threshold;
+    }
+    return stroke.points.slice(1).some((point, index) =>
+      distanceToSegment(x, y, stroke.points[index]!, point) <= threshold
+    );
+  });
+}
+
 export function validateInkStrokes(strokes: InkStroke[]): void {
   if (strokes.length > MAX_INK_STROKES) {
     throw new Error(`A Skrib can contain at most ${MAX_INK_STROKES.toLocaleString()} ink strokes.`);

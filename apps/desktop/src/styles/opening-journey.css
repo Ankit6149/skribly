@@ -1,0 +1,87 @@
+.opening-journey {
+  position: absolute;
+  inset: 0;
+  z-index: 80;
+  padding: 28px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-content: center;
+  align-items: center;
+  gap: 16px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 18% 20%, rgb(248 223 120 / 34%), transparent 18rem),
+    radial-gradient(circle at 86% 78%, rgb(220 234 223 / 62%), transparent 22rem),
+    rgb(255 253 247 / 94%);
+  backdrop-filter: blur(16px);
+  animation: opening-journey-in 180ms cubic-bezier(.2,.8,.2,1) both;
+}
+
+.opening-journey-mark {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgb(38 41 35 / 14%);
+  border-radius: 15px 15px 21px 15px;
+  background: var(--yellow);
+  box-shadow: 0 9px 20px rgb(38 41 35 / 10%);
+}
+
+.opening-journey-mark > img { width: 32px; height: 32px; border-radius: 8px; }
+
+.opening-journey-status {
+  position: absolute;
+  right: -7px;
+  bottom: -7px;
+  width: 27px;
+  height: 27px;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--paper);
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.opening-journey:not([data-phase='complete']) .opening-journey-status svg {
+  animation: opening-journey-spin 780ms linear infinite;
+}
+
+.opening-journey-copy { min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.opening-journey-copy strong { color: var(--ink); font: 750 19px/1.15 var(--font-display); letter-spacing: -.025em; }
+.opening-journey-copy span { max-width: 440px; color: var(--muted); font: 500 12px/1.5 var(--font-ui); }
+
+.opening-journey-track {
+  grid-column: 1 / -1;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgb(38 41 35 / 8%);
+}
+
+.opening-journey-track i {
+  width: 42%;
+  height: 100%;
+  display: block;
+  border-radius: inherit;
+  background: var(--olive);
+  animation: opening-journey-track 1.1s cubic-bezier(.65,0,.35,1) infinite;
+}
+
+.opening-journey[data-phase='complete'] .opening-journey-track i { width: 100%; animation: none; }
+.opening-journey.compact { padding: 22px 18px; grid-template-columns: 50px minmax(0, 1fr); gap: 12px; }
+.opening-journey.compact .opening-journey-mark { transform: scale(.78); transform-origin: left center; }
+.opening-journey.compact .opening-journey-copy strong { font-size: 15px; }
+.opening-journey.compact .opening-journey-copy span { font-size: 10px; }
+
+@keyframes opening-journey-in { from { opacity: 0; transform: translateY(5px); } }
+@keyframes opening-journey-spin { to { transform: rotate(360deg); } }
+@keyframes opening-journey-track { from { transform: translateX(-110%); } to { transform: translateX(255%); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .opening-journey,
+  .opening-journey-status svg,
+  .opening-journey-track i { animation: none !important; }
+}

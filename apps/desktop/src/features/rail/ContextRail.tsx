@@ -16,6 +16,8 @@ import '../../styles/context-rail.css';
 import skribliLogo from '../../../src-tauri/icons/128x128.png';
 import { applicationLabel, groupNotesForRail, railPillCount } from './contextRailModel';
 import { openNoteHere, openNoteInSavedContext } from './openNoteContext';
+import type { OpenNoteProgress } from './openNoteContext';
+import { OpeningJourney } from './OpeningJourney';
 import { useNativeDrag } from '../../lib/useNativeDrag';
 
 type RailScope = 'context' | 'all';
@@ -36,6 +38,7 @@ export const ContextRail: React.FC = () => {
   const opening = useRef(false);
   const resizing = useRef(false);
   const [openingId, setOpeningId] = useState<string | null>(null);
+  const [openingProgress, setOpeningProgress] = useState<OpenNoteProgress | null>(null);
   const refreshGeneration = useRef(0);
 
   const activeNotes = useMemo(
@@ -108,9 +111,14 @@ export const ContextRail: React.FC = () => {
     if (opening.current) return;
     opening.current = true;
     setOpeningId(note.id);
+    setOpeningProgress({
+      phase: 'preparing',
+      title: 'Keeping this thought safe…',
+      detail: 'Getting ready to return to its saved place.',
+    });
     setMessage(null);
     try {
-      const result = await openNoteInSavedContext(note);
+      const result = await openNoteInSavedContext(note, setOpeningProgress);
       await invoke('set_context_rail_expanded', {
         expanded: true,
         contextual: contextualDock,
@@ -123,6 +131,7 @@ export const ContextRail: React.FC = () => {
     } finally {
       opening.current = false;
       setOpeningId(null);
+      window.setTimeout(() => setOpeningProgress(null), 260);
     }
   };
 
@@ -171,6 +180,7 @@ export const ContextRail: React.FC = () => {
 
   return (
     <main className="context-rail expanded">
+      {openingProgress && <OpeningJourney progress={openingProgress} compact />}
       <header className="context-rail-header" data-tauri-drag-region>
         <span className="context-rail-heading" data-tauri-drag-region>
           <GripVertical className="context-rail-grip" size={15} aria-hidden="true" />
