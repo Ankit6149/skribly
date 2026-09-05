@@ -25,5 +25,7 @@
 - TypeScript typecheck passes.
 - 160 frontend and behavior tests pass.
 - Production Vite build and compact/theme contracts pass.
-- Rust formatting and native tests pass (existing dead-code warnings remain informational).
-- Installed Windows behavior remains an owner acceptance step after the signed/encrypted installer is published.
+- Rust formatting and all 143 native library tests pass (existing dead-code warnings remain informational).
+- Windows build [33959140835](https://github.com/Ankit6149/skribly/actions/runs/33959140835) passed against `b321e7bcbbbff49cdf9b1c37ff89dbbcd7586ad0`.
+- Owner installer: `Skribli_0.1.17_x64-setup.exe`, 3,476,596 bytes; SHA-256 `e54ec5efebeedb8cb21a81ff29e23b8dc73671c76a7114b2f2774f6f15a082ce`.
+- Package identity, icon matching, installer target, manifest, and checksum checks passed. GitHub's noninteractive Windows session could not provide visual acceptance; the installed experience remains the owner's acceptance step.
