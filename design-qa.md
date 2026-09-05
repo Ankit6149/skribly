@@ -118,6 +118,7 @@ final result: blocked
 - Manual corner resizing is enabled in the Tauri window and capability policy. The saved note minimum is restored to 320 × 260 rather than being locked to its current dimensions, and the rounded native region is refreshed after resizing.
 - Attachments now render as recognizable visual objects using the actual local image/video data and the existing Lucide icon library. Actions reveal on hover and keyboard focus.
 - Automated verification: 160 frontend tests and 183 native/schema tests passed, along with TypeScript, production build, theme validation, compact-surface validation, and Rust checks.
+- Exact installer workflow `33978661199` passed for application commit `51394da2157c1dc919fd38666bc39acecd6366ba`; the NSIS installer is 3,479,740 bytes with SHA-256 `be80ce6df316562713b6e4fd59907ad8585e08e207fca25125c6be38f5e6414f`.
 - Visual verification remains blocked because the Windows Computer Use helper cannot initialize in this task. No screenshot pass is claimed; the owner will test the packaged installer.
 
 final result: blocked
