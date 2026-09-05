@@ -260,6 +260,9 @@ button, textarea {
 .skrib-color-mint { background: var(--mint); }
 .skrib-color-sky { background: var(--sky); }
 .skrib-color-lavender { background: var(--lavender); }
+.skrib-color-rose { background: var(--rose); }
+.skrib-color-aqua { background: var(--aqua); }
+.skrib-color-sand { background: var(--sand); }
 
 .skrib-header {
   display: flex;

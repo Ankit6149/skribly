@@ -87,7 +87,7 @@ fn user_message(code: TargetCaptureErrorCode) -> &'static str {
             "Focus the application that should own the note, then press Ctrl+Shift+Space again."
         }
         TargetCaptureErrorCode::DesktopOrSystemSurface => {
-            "Skribli cannot attach a note to the desktop, taskbar, or this Windows system surface. Focus a normal app and try again."
+            "Skribli cannot attach a note to the taskbar or this Windows system surface. Choose the desktop or a normal app and try again."
         }
         TargetCaptureErrorCode::HiddenOrDestroyedWindow => {
             "That application window is no longer available. Focus the app again, then retry the shortcut."
@@ -121,11 +121,16 @@ fn is_skribli_process(process_name: &str) -> bool {
     process == "skribli.exe" || process == "skribly.exe" || process.starts_with("skribli")
 }
 
+fn is_desktop_surface(class_name: &str, process_name: &str) -> bool {
+    matches!(class_name.trim(), "Progman" | "WorkerW")
+        && process_name.trim().eq_ignore_ascii_case("explorer.exe")
+}
+
 fn is_system_surface(class_name: &str, process_name: &str) -> bool {
     let process = process_name.trim().to_ascii_lowercase();
     matches!(
         class_name.trim(),
-        "Progman" | "WorkerW" | "Shell_TrayWnd" | "Shell_SecondaryTrayWnd"
+        "Shell_TrayWnd" | "Shell_SecondaryTrayWnd"
     ) || matches!(
         process.as_str(),
         "startmenuexperiencehost.exe"
@@ -152,7 +157,9 @@ fn validate_candidate(snapshot: &CandidateSnapshot) -> Result<(), TargetCaptureE
             TargetCaptureErrorCode::SkribliIsForeground,
         ));
     }
-    if is_system_surface(&snapshot.class_name, &snapshot.process_name) {
+    if !is_desktop_surface(&snapshot.class_name, &snapshot.process_name)
+        && is_system_surface(&snapshot.class_name, &snapshot.process_name)
+    {
         return Err(TargetCaptureError::new(
             TargetCaptureErrorCode::DesktopOrSystemSurface,
         ));
@@ -321,6 +328,18 @@ mod tests {
             ..candidate()
         };
         assert!(validate_candidate(&packaged).is_ok());
+    }
+
+    #[test]
+    fn accepts_the_windows_desktop_as_a_real_note_context() {
+        let desktop = CandidateSnapshot {
+            class_name: "Progman".into(),
+            process_name: "explorer.exe".into(),
+            width: 1920,
+            height: 1080,
+            ..candidate()
+        };
+        assert!(validate_candidate(&desktop).is_ok());
     }
 
     #[test]

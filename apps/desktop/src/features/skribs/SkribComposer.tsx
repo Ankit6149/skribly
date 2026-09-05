@@ -1,10 +1,9 @@
-import React, { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { emit, listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import {
   Bell,
-  Expand,
   LocateFixed,
   Maximize2,
   Minimize2,
@@ -21,6 +20,7 @@ import {
   getInkForNote,
   getRichContent,
   replaceInkForNote,
+  replaceRichTextForNote,
   updateNoteViewPreferences,
   type InkStroke,
   type SkribTextSize,
@@ -44,13 +44,18 @@ import { InkCanvas } from './InkCanvas';
 import type { InkPersistenceState } from './inkPersistenceCoordinator';
 import { NoteAttachmentPanel } from './NoteAttachmentPanel';
 import { NoteReminderPanel } from './NoteReminderPanel';
+import {
+  plainTextToRichHtml,
+  RichTextEditor,
+  type RichTextEditorHandle,
+} from './RichTextEditor';
 import { discardSkribDraft, persistSkribText, stageSkribDraft } from './textPersistence';
 
 type ComposerPanel = 'reminder' | null;
 type NoteSurfaceSize = 'compact' | 'medium' | 'large';
+type ResizeDirection = 'NorthEast' | 'NorthWest' | 'SouthEast' | 'SouthWest';
 
-const NOTE_COLORS = ['yellow', 'peach', 'mint', 'sky', 'lavender'] as const;
-const NOTE_SURFACE_SIZES: NoteSurfaceSize[] = ['compact', 'medium', 'large'];
+const NOTE_COLORS = ['yellow', 'peach', 'mint', 'sky', 'lavender', 'rose', 'aqua', 'sand'] as const;
 const NOTE_TEXT_SIZES: SkribTextSize[] = ['small', 'medium', 'large'];
 
 interface SkribComposerProps {
@@ -104,6 +109,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
   );
   const [textSize, setTextSize] = useState<SkribTextSize>('medium');
   const [attachmentPickerRequest, setAttachmentPickerRequest] = useState(0);
+  const [pastedFilesRequest, setPastedFilesRequest] = useState<{ id: number; files: File[] } | null>(null);
   const [attachmentCount, setAttachmentCount] = useState(0);
   const [inkStrokes, setInkStrokes] = useState<InkStroke[]>([]);
   const [isInkLoading, setIsInkLoading] = useState(true);
@@ -119,6 +125,11 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
   );
   const operationInProgress = useRef(false);
   const resizeInProgress = useRef(false);
+  const sizeBeforeExpand = useRef<Exclude<NoteSurfaceSize, 'large'>>('medium');
+  const richTextEditorRef = useRef<RichTextEditorHandle>(null);
+  const richTextSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingRichText = useRef<{ html: string; plainText: string } | null>(null);
+  const [richTextHtml, setRichTextHtml] = useState(() => plainTextToRichHtml(note.text));
   const richOperationsInProgress = useRef(new Map<string, number>());
   const inkPersistenceStateRef = useRef<InkPersistenceState>(inkPersistenceState);
 
@@ -144,6 +155,35 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
     (busy: boolean) => setRichOperationBusy('reminder', busy),
     [setRichOperationBusy]
   );
+  const flushRichText = useCallback(async () => {
+    if (richTextSaveTimer.current) {
+      clearTimeout(richTextSaveTimer.current);
+      richTextSaveTimer.current = null;
+    }
+    const pending = pendingRichText.current;
+    if (!pending) return true;
+    pendingRichText.current = null;
+    setRichOperationBusy('rich-text', true);
+    try {
+      await replaceRichTextForNote(note.id, pending);
+      void emit('skribly://rich-content-updated', { noteId: note.id }).catch(() => undefined);
+      return true;
+    } catch (reason) {
+      pendingRichText.current = pending;
+      setComposerError(
+        `Skribli could not save this formatting yet: ${reason instanceof Error ? reason.message : String(reason)}`
+      );
+      return false;
+    } finally {
+      setRichOperationBusy('rich-text', false);
+    }
+  }, [note.id, setRichOperationBusy]);
+
+  const scheduleRichTextSave = useCallback((html: string, plainText: string) => {
+    pendingRichText.current = { html, plainText };
+    if (richTextSaveTimer.current) clearTimeout(richTextSaveTimer.current);
+    richTextSaveTimer.current = setTimeout(() => void flushRichText(), 320);
+  }, [flushRichText]);
   const handleInkPersistenceState = useCallback((state: InkPersistenceState) => {
     inkPersistenceStateRef.current = state;
     setInkPersistenceState(state);
@@ -174,6 +214,9 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
     setActivePanel(null);
     setDrawingEnabled(false);
     setAttachmentCount(0);
+    setRichTextHtml(plainTextToRichHtml(note.text));
+    pendingRichText.current = null;
+    if (richTextSaveTimer.current) clearTimeout(richTextSaveTimer.current);
     richOperationsInProgress.current.clear();
     setRichOperationCount(0);
     const cleanInkState: InkPersistenceState = {
@@ -196,6 +239,23 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
   }, [note.width]);
 
   useEffect(() => {
+    if (!isTauriAvailable) return;
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+    const appWindow = getCurrentWindow();
+    void appWindow.onResized(async ({ payload }) => {
+      const scale = await appWindow.scaleFactor().catch(() => 1);
+      if (disposed) return;
+      const width = payload.width / Math.max(scale, 0.1);
+      setSurfaceSize(width >= 680 ? 'large' : width >= 500 ? 'medium' : 'compact');
+    }).then((dispose) => {
+      if (disposed) dispose();
+      else unlisten = dispose;
+    });
+    return () => { disposed = true; unlisten?.(); };
+  }, [isTauriAvailable]);
+
+  useEffect(() => {
     saveController.acceptCommittedText(note.text);
   }, [note.text, saveController]);
 
@@ -211,7 +271,8 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
       let ready = false;
       try {
         if (!ink.hasUnsavedChanges && ink.status !== 'saving' && richOperationsInProgress.current.size === 0) {
-          ready = await saveController.flush();
+          richTextEditorRef.current?.flush();
+          ready = await flushRichText() && await saveController.flush();
         }
       } catch {
         // Keep the current editor in place when persistence fails.
@@ -226,7 +287,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
       else unlisten = dispose;
     }).catch(() => undefined);
     return () => { disposed = true; unlisten?.(); };
-  }, [isTauriAvailable, note.id, saveController]);
+  }, [flushRichText, isTauriAvailable, note.id, saveController]);
 
   useEffect(() => {
     let cancelled = false;
@@ -237,6 +298,11 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
           setInkStrokes(document.strokes);
           setTextSize(richContent.view?.textSize ?? 'medium');
           setAttachmentCount(richContent.attachments.length);
+          setRichTextHtml(
+            richContent.richText?.plainText === note.text
+              ? richContent.richText.html
+              : plainTextToRichHtml(note.text)
+          );
         }
       })
       .catch((reason) => {
@@ -315,9 +381,9 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
     [note.id]
   );
 
-  const cycleSurfaceSize = useCallback(async () => {
-    const currentIndex = NOTE_SURFACE_SIZES.indexOf(surfaceSize);
-    const nextSize = NOTE_SURFACE_SIZES[(currentIndex + 1) % NOTE_SURFACE_SIZES.length]!;
+  const toggleExpandedSize = useCallback(async () => {
+    const nextSize = surfaceSize === 'large' ? sizeBeforeExpand.current : 'large';
+    if (surfaceSize !== 'large') sizeBeforeExpand.current = surfaceSize;
     if (await changeSurfaceSize(nextSize)) {
       setActivePanel(null);
       setDrawingEnabled(false);
@@ -357,12 +423,15 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
     return (
       richContent.attachments.length > 0 ||
       Boolean(richContent.inkDocument?.strokes.length) ||
+      Boolean(richContent.richText?.html) ||
       reminders.some((reminder) => reminder.noteId === note.id)
     );
   }, [note.id]);
 
   const finishAndHide = useCallback(async () => {
     await runExclusive(async () => {
+      richTextEditorRef.current?.flush();
+      if (!await flushRichText()) return;
       const currentInkState = inkPersistenceStateRef.current;
       if (currentInkState.status === 'saving' || currentInkState.hasUnsavedChanges) {
         setComposerError(
@@ -438,6 +507,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
     });
   }, [
     discardEmptySkrib,
+    flushRichText,
     hideWindow,
     hasPersistedExtras,
     licenceAllowsWrite,
@@ -487,23 +557,31 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [activePanel, colorPickerOpen, drawingEnabled, cancelDeleteConfirmation, deleteConfirmation, finishAndHide]);
 
-  const handleTextChange = (value: string) => {
+  const handleTextChange = (value: string): boolean => {
     if (!canWrite) {
       setComposerError(
         storageErrorMessage || licenseStatus.message || 'This build is currently read-only.'
       );
-      return;
+      return false;
     }
 
     const result = saveController.setDraft(value);
     if (!result.accepted) {
       setComposerError(result.error);
-      return;
+      return false;
     }
 
     stageSkribDraft(note.id, value);
     setText(value);
     setComposerError(null);
+    return true;
+  };
+
+  const handleRichTextChange = (html: string, plainText: string): boolean => {
+    if (!handleTextChange(plainText)) return false;
+    setRichTextHtml(html);
+    scheduleRichTextSave(html, plainText);
+    return true;
   };
 
   const handleExportDiagnostics = async () => {
@@ -530,6 +608,17 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
       setComposerError(`Skribli could not reposition the editor safely: ${message}`);
     } finally {
       setIsRepositioning(false);
+    }
+  };
+
+  const startManualResize = async (direction: ResizeDirection) => {
+    if (!isTauriAvailable || isFinishing || hasPendingRichOperation || hasUnsavedInk) return;
+    try {
+      await getCurrentWindow().startResizeDragging(direction);
+    } catch (reason) {
+      setComposerError(
+        `Skribli could not start resizing: ${reason instanceof Error ? reason.message : String(reason)}`
+      );
     }
   };
 
@@ -697,7 +786,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
                 disabled={!canWrite || isFinishing || hasPendingRichOperation || hasUnsavedInk}
                 aria-label="Change note color"
                 aria-expanded={colorPickerOpen}
-                title="Change note color"
+                title="Choose a paper colour that fits this thought"
               >
                 <span aria-hidden="true" />
               </button>
@@ -709,7 +798,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
               onClick={() => void handleReposition()}
               disabled={!isTauriAvailable || isRepositioning || isFinishing || hasPendingRichOperation}
               aria-label="Reposition Skribli beside the target application"
-              title="Reposition beside target"
+              title="Bring this Skrib back beside its app"
             >
               {isRepositioning ? (
                 <span className="composer-button-spinner" aria-hidden="true" />
@@ -769,7 +858,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
             type="button"
             className="composer-tool-button primary-tool"
             aria-label="Attach a photo, video, or document"
-            title="Attach anything"
+            title="Add a photo, video, or file to this Skrib"
             disabled={!canWrite || isFinishing || hasPendingRichOperation}
             onClick={() => setAttachmentPickerRequest((request) => request + 1)}
           >
@@ -780,7 +869,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
             className={`composer-tool-button ${drawingEnabled ? 'active' : ''}`}
             aria-pressed={drawingEnabled}
             aria-label="Draw over your text"
-            title="Draw over your text"
+            title="Sketch, point, or highlight over your words"
             disabled={!canWrite || isFinishing || isInkLoading}
             onClick={() => void openRoomyTool('draw')}
           >
@@ -791,7 +880,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
             className={`composer-tool-button ${activePanel === 'reminder' ? 'active' : ''}`}
             aria-expanded={activePanel === 'reminder'}
             aria-label="Set a reminder or repeating task"
-            title="Set a reminder or repeating task"
+            title="Ask Skribli to bring this thought back later"
             disabled={!canWrite || isFinishing || hasPendingRichOperation}
             onClick={() => void openRoomyTool('reminder')}
           >
@@ -813,18 +902,14 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
           <button
             type="button"
             className="composer-tool-button surface-size-button"
-            title={`Note size: ${surfaceSize}. Click for the next size.`}
-            aria-label={`Note size is ${surfaceSize}. Change to the next note size.`}
+            title={surfaceSize === 'large' ? 'Bring this Skrib back to a comfortable size' : 'Give this Skrib the full canvas'}
+            aria-label={surfaceSize === 'large' ? 'Restore the previous Skrib size' : 'Expand this Skrib'}
             disabled={isResizing || isFinishing || hasPendingRichOperation || hasUnsavedInk}
-            onClick={() => void cycleSurfaceSize()}
+            onClick={() => void toggleExpandedSize()}
           >
-            {surfaceSize === 'compact' ? (
-              <Maximize2 size={14} aria-hidden="true" />
-            ) : surfaceSize === 'medium' ? (
-              <Expand size={14} aria-hidden="true" />
-            ) : (
-              <Minimize2 size={14} aria-hidden="true" />
-            )}
+            {surfaceSize === 'large'
+              ? <Minimize2 size={14} aria-hidden="true" />
+              : <Maximize2 size={14} aria-hidden="true" />}
           </button>
         </div>
 
@@ -846,20 +931,22 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
             className={`composer-unified-canvas ${drawingEnabled ? 'drawing' : 'typing'}`}
             data-text-size={textSize}
           >
-            <textarea
-              className="composer-textarea"
-              value={text}
-              autoFocus={canWrite}
-              readOnly={!canWrite || drawingEnabled}
-              placeholder="Write the thought before it disappears…"
-              spellCheck
-              aria-describedby={textareaDescription}
-              onChange={(event: ChangeEvent<HTMLTextAreaElement>) => handleTextChange(event.target.value)}
+            <RichTextEditor
+              ref={richTextEditorRef}
+              noteId={note.id}
+              initialHtml={richTextHtml}
+              disabled={!canWrite}
+              drawingEnabled={drawingEnabled}
+              describedBy={textareaDescription}
+              onChange={handleRichTextChange}
+              onPasteFiles={(files) => setPastedFilesRequest({ id: Date.now(), files })}
+              onAttach={() => setAttachmentPickerRequest((request) => request + 1)}
               onBlur={() => {
                 if (!canWrite || operationInProgress.current) return;
-                void saveController.flush().then((saved) => {
+                richTextEditorRef.current?.flush();
+                void Promise.all([flushRichText(), saveController.flush()]).then(([richSaved, saved]) => {
                   if (
-                    !saved &&
+                    (!saved || !richSaved) &&
                     saveController.getSnapshot().draft !== saveController.getSnapshot().committed
                   ) {
                     setComposerError('The latest text is not saved. Keep this window open and retry.');
@@ -886,6 +973,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
             noteId={note.id}
             compact
             pickerRequest={attachmentPickerRequest}
+            filesRequest={pastedFilesRequest}
             disabled={!canWrite || isFinishing || deleteConfirmation === 'confirming'}
             onError={setComposerError}
             onBusyChange={handleAttachmentsBusy}
@@ -983,6 +1071,19 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
             </>
           )}
         </footer>
+        {(['NorthWest', 'NorthEast', 'SouthWest', 'SouthEast'] as ResizeDirection[]).map((direction) => (
+          <button
+            key={direction}
+            type="button"
+            className={`composer-resize-handle ${direction.toLowerCase()}`}
+            aria-label={`Resize this Skrib from the ${direction.replace(/([A-Z])/g, ' $1').trim().toLowerCase()} corner`}
+            title="Drag this corner until the Skrib feels right"
+            onPointerDown={(event) => {
+              event.preventDefault();
+              void startManualResize(direction);
+            }}
+          />
+        ))}
       </section>
     </div>
   );

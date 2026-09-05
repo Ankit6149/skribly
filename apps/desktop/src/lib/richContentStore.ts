@@ -37,10 +37,18 @@ export interface SkribViewPreferences {
   textSize: SkribTextSize;
 }
 
+export interface SkribRichTextDocument {
+  version: 1;
+  html: string;
+  plainText: string;
+  updatedAt: number;
+}
+
 export interface StoredRichContent {
   noteId: string;
   attachments: SkribAttachment[];
   inkDocument?: SkribInkDocument;
+  richText?: SkribRichTextDocument;
   view?: SkribViewPreferences;
   updatedAt: number;
 }
@@ -75,6 +83,7 @@ export const MAX_ATTACHMENT_NAME_LENGTH = 180;
 export const MAX_INK_STROKES = 256;
 export const MAX_INK_POINTS_PER_STROKE = 4096;
 export const MAX_INK_POINTS_PER_NOTE = 65_536;
+export const MAX_RICH_TEXT_HTML_CHARACTERS = 100_000;
 
 const DB_NAME = 'skribly-rich-content';
 const DB_VERSION = 1;
@@ -408,6 +417,19 @@ function normalizeViewPreferences(view?: Partial<SkribViewPreferences>): SkribVi
   };
 }
 
+function normalizeRichTextDocument(document?: Partial<SkribRichTextDocument>): SkribRichTextDocument | undefined {
+  if (
+    document?.version !== 1 ||
+    typeof document.html !== 'string' ||
+    typeof document.plainText !== 'string' ||
+    typeof document.updatedAt !== 'number' ||
+    !Number.isFinite(document.updatedAt) ||
+    document.html.length > MAX_RICH_TEXT_HTML_CHARACTERS ||
+    [...document.plainText].length > 20_000
+  ) return undefined;
+  return document as SkribRichTextDocument;
+}
+
 export function createRichContentRepository(
   persistence: RichContentPersistence,
   options: RichContentRepositoryOptions = {}
@@ -440,9 +462,12 @@ export function createRichContentRepository(
         updatedAt: 0,
       };
     }
+    const { richText: storedRichText, ...storedWithoutRichText } = stored;
+    const richText = normalizeRichTextDocument(storedRichText);
     return {
-      ...stored,
+      ...storedWithoutRichText,
       attachments: stored.attachments.map(migrateAttachment),
+      ...(richText ? { richText } : {}),
       view: normalizeViewPreferences(stored.view),
     };
   };
@@ -495,6 +520,7 @@ export function createRichContentRepository(
     if (
       inkDocument.strokes.length === 0 &&
       content.attachments.length === 0 &&
+      !content.richText &&
       normalizeViewPreferences(content.view).textSize === 'medium'
     ) {
       await persistence.delete(noteId);
@@ -502,6 +528,24 @@ export function createRichContentRepository(
     }
     await persistence.put({ ...content, noteId, inkDocument, updatedAt: inkDocument.updatedAt });
     return inkDocument;
+  });
+
+  const replaceRichText = (
+    noteId: string,
+    value: Pick<SkribRichTextDocument, 'html' | 'plainText'>
+  ): Promise<SkribRichTextDocument> => mutate(noteId, async () => {
+    if (value.html.length > MAX_RICH_TEXT_HTML_CHARACTERS || [...value.plainText].length > 20_000) {
+      throw new Error('This formatted note is too large to store safely.');
+    }
+    const content = await get(noteId);
+    const richText: SkribRichTextDocument = {
+      version: 1,
+      html: value.html,
+      plainText: value.plainText,
+      updatedAt: now(),
+    };
+    await persistence.put({ ...content, noteId, richText, updatedAt: richText.updatedAt });
+    return richText;
   });
 
   const getInk = async (noteId: string): Promise<SkribInkDocument> => {
@@ -516,6 +560,7 @@ export function createRichContentRepository(
     if (
       attachments.length === 0 &&
       !content.inkDocument?.strokes.length &&
+      !content.richText &&
       normalizeViewPreferences(content.view).textSize === 'medium'
     ) {
       await persistence.delete(noteId);
@@ -563,6 +608,7 @@ export function createRichContentRepository(
     addFiles,
     addInk,
     replaceInk,
+    replaceRichText,
     getInk,
     updateView,
     removeAttachment,
@@ -580,6 +626,7 @@ export const getRichContent = defaultRepository.get;
 export const addFilesToNote = defaultRepository.addFiles;
 export const addInkToNote = defaultRepository.addInk;
 export const replaceInkForNote = defaultRepository.replaceInk;
+export const replaceRichTextForNote = defaultRepository.replaceRichText;
 export const getInkForNote = defaultRepository.getInk;
 export const updateNoteViewPreferences = defaultRepository.updateView;
 export const removeAttachmentFromNote = defaultRepository.removeAttachment;

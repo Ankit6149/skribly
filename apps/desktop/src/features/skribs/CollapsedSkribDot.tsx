@@ -103,7 +103,6 @@ export const CollapsedSkribDot: React.FC<CollapsedSkribDotProps> = ({ note }) =>
         <button
           type="button"
           className="collapsed-skrib-open"
-          onMouseDown={(event) => event.stopPropagation()}
           {...drag}
           disabled={isOpening || isDismissing}
           aria-describedby={error?.action === 'open' ? 'collapsed-skrib-error' : undefined}

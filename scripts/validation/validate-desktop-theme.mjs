@@ -30,6 +30,9 @@ const requiredTokens = [
   '--mint: #dceadf',
   '--sky: #dce8f7',
   '--lavender: #e8def8',
+  '--rose: #f3d7df',
+  '--aqua: #d8ece8',
+  '--sand: #f1dfc7',
   '--ink: #262923',
   '--muted: #6d7069',
   '--font-ui: "DM Sans"',
@@ -73,7 +76,7 @@ for (const selector of requiredThemeSurfaces) {
   if (!theme.includes(selector)) throw new Error(`Website-aligned theme is missing ${selector}.`);
 }
 
-for (const color of ['yellow', 'peach', 'mint', 'sky', 'lavender']) {
+for (const color of ['yellow', 'peach', 'mint', 'sky', 'lavender', 'rose', 'aqua', 'sand']) {
   if (!theme.includes(`.skrib-color-${color}`) || !theme.includes(`var(--${color})`)) {
     throw new Error(`Desktop note surfaces are missing the website ${color} pastel.`);
   }

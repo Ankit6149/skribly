@@ -280,7 +280,7 @@ for (const dragRegion of dragRegions) {
   }
 }
 
-for (const color of ['yellow', 'peach', 'mint', 'sky', 'lavender']) {
+for (const color of ['yellow', 'peach', 'mint', 'sky', 'lavender', 'rose', 'aqua', 'sand']) {
   if (!styles.includes(`.skrib-color-${color} { --skribli-paper:`)) {
     failures.push(`Collapsed dots must retain the five-note palette; missing ${color}.`);
   }

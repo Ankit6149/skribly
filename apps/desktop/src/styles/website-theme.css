@@ -500,11 +500,29 @@ html[data-skribly-window="home"] #root,
   background-color: var(--lavender);
 }
 
+.skrib-color-rose {
+  --skribli-paper: var(--rose);
+  background-color: var(--rose);
+}
+
+.skrib-color-aqua {
+  --skribli-paper: var(--aqua);
+  background-color: var(--aqua);
+}
+
+.skrib-color-sand {
+  --skribli-paper: var(--sand);
+  background-color: var(--sand);
+}
+
 .skrib-color-yellow,
 .skrib-color-peach,
 .skrib-color-mint,
 .skrib-color-sky,
-.skrib-color-lavender {
+.skrib-color-lavender,
+.skrib-color-rose,
+.skrib-color-aqua,
+.skrib-color-sand {
   --skribli-paper-deep: color-mix(in srgb, var(--skribli-paper) 78%, var(--ink));
   --scrollbar-track: color-mix(in srgb, var(--skribli-paper) 82%, transparent);
   --scrollbar-thumb: color-mix(in srgb, var(--skribli-paper) 64%, var(--ink));
@@ -515,7 +533,10 @@ html[data-skribly-window="home"] #root,
 .color-swatch.skrib-color-peach,
 .color-swatch.skrib-color-mint,
 .color-swatch.skrib-color-sky,
-.color-swatch.skrib-color-lavender {
+.color-swatch.skrib-color-lavender,
+.color-swatch.skrib-color-rose,
+.color-swatch.skrib-color-aqua,
+.color-swatch.skrib-color-sand {
   background: var(--skribli-paper);
 }
 

@@ -434,6 +434,9 @@ html[data-skribly-window='rail'] #root,
 .context-rail-note > i.skrib-color-mint { background: var(--mint); }
 .context-rail-note > i.skrib-color-sky { background: var(--sky); }
 .context-rail-note > i.skrib-color-lavender { background: var(--lavender); }
+.context-rail-note > i.skrib-color-rose { background: var(--rose); }
+.context-rail-note > i.skrib-color-aqua { background: var(--aqua); }
+.context-rail-note > i.skrib-color-sand { background: var(--sand); }
 
 .context-rail-note-open {
   min-width: 0;

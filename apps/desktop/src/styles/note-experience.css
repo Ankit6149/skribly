@@ -408,6 +408,9 @@ body {
 .skrib-color-mint { --skribli-paper: var(--mint); }
 .skrib-color-sky { --skribli-paper: var(--sky); }
 .skrib-color-lavender { --skribli-paper: var(--lavender); }
+.skrib-color-rose { --skribli-paper: var(--rose); }
+.skrib-color-aqua { --skribli-paper: var(--aqua); }
+.skrib-color-sand { --skribli-paper: var(--sand); }
 
 /* Persistent active-note lifecycle: the native window shrinks to this movable dot. */
 .collapsed-skrib-surface {
@@ -1986,3 +1989,212 @@ body {
     animation: none;
   }
 }
+
+/* Rich writing and direct manipulation keep the medium Skrib useful without adding panels. */
+.composer-rich-editor-shell {
+  position: absolute;
+  inset: 0;
+  min-width: 0;
+  min-height: 0;
+}
+
+.composer-rich-editor-shell .composer-textarea {
+  padding-top: 58px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.composer-textarea:empty::before {
+  content: attr(data-placeholder);
+  color: rgba(38, 39, 31, 0.36);
+  pointer-events: none;
+}
+
+.composer-textarea mark {
+  padding: 0 0.06em;
+  border-radius: 0.15em;
+  background: color-mix(in srgb, var(--yellow) 82%, transparent);
+  color: inherit;
+}
+
+.composer-textarea ul,
+.composer-textarea ol {
+  margin: 0.25em 0;
+  padding-left: 1.35em;
+}
+
+.composer-textarea ul[data-checklist='true'] {
+  padding-left: 0.2em;
+  list-style: none;
+}
+
+.composer-textarea ul[data-checklist='true'] li {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35em;
+}
+
+.composer-textarea input[type='checkbox'] {
+  accent-color: var(--olive);
+}
+
+.composer-format-bar {
+  position: absolute;
+  top: 9px;
+  left: 15px;
+  z-index: 3;
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid rgba(38, 41, 35, 0.1);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--skribli-paper) 72%, white);
+  box-shadow: 0 4px 12px rgba(38, 41, 35, 0.07);
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+
+.composer-format-bar button,
+.composer-inline-attach {
+  width: 29px;
+  height: 29px;
+  display: grid;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: color-mix(in srgb, var(--skribli-ink) 76%, transparent);
+  cursor: pointer;
+  transition: background 130ms ease, color 130ms ease, transform 130ms ease;
+}
+
+.composer-format-bar button:hover:not(:disabled),
+.composer-inline-attach:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.62);
+  color: var(--skribli-ink);
+  transform: translateY(-1px);
+}
+
+.composer-format-bar button:focus-visible,
+.composer-inline-attach:focus-visible {
+  outline: 2px solid var(--olive);
+  outline-offset: 1px;
+}
+
+.composer-inline-attach {
+  position: absolute;
+  right: 13px;
+  bottom: 10px;
+  z-index: 3;
+  opacity: 0.52;
+  background: rgba(255, 255, 255, 0.42);
+}
+
+.composer-unified-canvas.drawing .composer-format-bar,
+.composer-unified-canvas.drawing .composer-inline-attach {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-4px);
+}
+
+.attachment-object {
+  min-width: 220px;
+  min-height: 54px;
+  grid-template-columns: 48px minmax(0, 1fr) 28px;
+  padding: 5px;
+  border-radius: 13px;
+  background: color-mix(in srgb, white 54%, var(--skribli-paper));
+  transition: transform 140ms ease, box-shadow 140ms ease;
+}
+
+.attachment-object:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 7px 16px rgba(38, 41, 35, 0.1);
+}
+
+.attachment-object .attachment-chip-icon {
+  width: 46px;
+  height: 42px;
+  overflow: hidden;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.attachment-object.image .attachment-chip-icon,
+.attachment-object.ink .attachment-chip-icon {
+  padding: 3px;
+  border: 1px solid rgba(38, 41, 35, 0.12);
+  border-radius: 4px;
+  background: white;
+  box-shadow: 0 3px 7px rgba(38, 41, 35, 0.12);
+  transform: rotate(-1.5deg);
+}
+
+.attachment-object .attachment-chip-icon img,
+.attachment-video-frame,
+.attachment-video-frame video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.attachment-video-frame {
+  position: relative;
+  display: grid;
+  overflow: hidden;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--ink);
+}
+
+.attachment-video-frame video { opacity: 0.72; }
+.attachment-video-frame svg { position: absolute; color: white; }
+
+.attachment-paper {
+  width: 35px;
+  height: 40px;
+  position: relative;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(38, 41, 35, 0.14);
+  border-radius: 4px;
+  background: var(--paper);
+  box-shadow: 0 3px 7px rgba(38, 41, 35, 0.1);
+}
+
+.attachment-paper > svg:first-child {
+  position: absolute;
+  top: -4px;
+  right: 3px;
+  color: var(--olive);
+}
+
+.composer-resize-handle {
+  position: absolute;
+  z-index: 30;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: nwse-resize;
+  opacity: 0;
+}
+
+.skrib-composer:hover .composer-resize-handle,
+.composer-resize-handle:focus-visible { opacity: 1; }
+.composer-resize-handle::after {
+  content: '';
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid rgba(38, 41, 35, 0.38);
+  border-bottom: 2px solid rgba(38, 41, 35, 0.38);
+}
+.composer-resize-handle.northwest { top: 0; left: 0; transform: rotate(180deg); }
+.composer-resize-handle.northeast { top: 0; right: 0; transform: rotate(-90deg); }
+.composer-resize-handle.southwest { bottom: 0; left: 0; transform: rotate(90deg); }
+.composer-resize-handle.southeast { right: 0; bottom: 0; }

@@ -145,6 +145,24 @@ describe('rich content repository', () => {
     expect((await repository.get('note-1')).updatedAt).toBe(42);
   });
 
+  it('keeps formatted writing while attachments and ink change', async () => {
+    const persistence = createMemoryRichContentPersistence();
+    const repository = createRichContentRepository(persistence, { now: () => 42 });
+    await repository.replaceRichText('note-rich', {
+      html: '<div><strong>Important</strong> <mark>thought</mark></div>',
+      plainText: 'Important thought',
+    });
+    await repository.addFiles('note-rich', [attachmentFile('brief.pdf', 'application/pdf', 4)]);
+    const [attachment] = (await repository.get('note-rich')).attachments;
+    await repository.replaceInk('note-rich', [stroke()]);
+    await repository.replaceInk('note-rich', []);
+    await repository.removeAttachment('note-rich', attachment!.id);
+
+    const stored = await createRichContentRepository(persistence).get('note-rich');
+    expect(stored.richText?.plainText).toBe('Important thought');
+    expect(stored.richText?.html).toContain('<mark>thought</mark>');
+  });
+
   it('will not delete content without an authoritative orphan check', async () => {
     const persistence = createMemoryRichContentPersistence([content('note-1')]);
     const repository = createRichContentRepository(persistence);

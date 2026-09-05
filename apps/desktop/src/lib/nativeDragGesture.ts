@@ -9,6 +9,12 @@ export class NativeDragGesture {
     this.origin = null;
     return true;
   }
+  pickUp(): boolean {
+    if (this.dragged) return false;
+    this.dragged = true;
+    this.origin = null;
+    return true;
+  }
   end() { this.origin = null; }
   allowsClick(keyboard: boolean): boolean { return keyboard || !this.dragged; }
 }

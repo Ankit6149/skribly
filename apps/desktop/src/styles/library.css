@@ -477,6 +477,9 @@ html[data-skribly-window='library'] #root {
 .skrib-color-mint { background-color: var(--mint); }
 .skrib-color-sky { background-color: var(--sky); }
 .skrib-color-lavender { background-color: var(--lavender); }
+.skrib-color-rose { background-color: var(--rose); }
+.skrib-color-aqua { background-color: var(--aqua); }
+.skrib-color-sand { background-color: var(--sand); }
 
 .library-rich-content {
   min-width: 0;

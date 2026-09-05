@@ -1458,7 +1458,9 @@ fn visible_skribs(
         .unwrap_or_default()
 }
 
-const NOTE_COLOR_ROTATION: [&str; 5] = ["yellow", "peach", "mint", "sky", "lavender"];
+const NOTE_COLOR_ROTATION: [&str; 8] = [
+    "yellow", "peach", "mint", "sky", "lavender", "rose", "aqua", "sand",
+];
 
 fn next_note_color(notes: &[SkribNote]) -> String {
     let Some(latest) = notes
@@ -2198,41 +2200,47 @@ fn save_skrib_window_position(
     state: State<'_, AppState>,
     id: String,
 ) -> Result<OverlayStatePayload, String> {
-    if state
+    let detached = state
         .note_window_runtime
         .lock()
         .map(|runtime| runtime.detached_note_id() == Some(id.as_str()))
-        .unwrap_or(false)
-    {
-        return Ok(build_mutation_payload(&app_handle, &state, false));
-    }
+        .unwrap_or(false);
     let note = state
         .coordinator
         .get_skrib(&id)
         .ok_or_else(|| "Skrib note was not found or is not writable".to_string())?;
-    let target = state
-        .coordinator
-        .get_active_target()
-        .ok_or_else(|| "Skribli no longer has an active target application.".to_string())?;
     let window = app_handle
         .get_webview_window("main")
         .ok_or_else(|| "The Skrib window is unavailable.".to_string())?;
     let position = window
         .outer_position()
         .map_err(|error| format!("Skribli could not read the note position: {error}"))?;
-    if state
+    let physical_size = window
+        .outer_size()
+        .map_err(|error| format!("Skribli could not read the note size: {error}"))?;
+    let scale_factor = window
+        .scale_factor()
+        .map_err(|error| format!("Skribli could not read the display scale: {error}"))?;
+    let width = (physical_size.width as f64 / scale_factor).clamp(320.0, 960.0);
+    let height = (physical_size.height as f64 / scale_factor).clamp(260.0, 820.0);
+    let ignore_position = state
         .note_window_runtime
         .lock()
         .map(|mut runtime| runtime.should_ignore_position_save(&id, position.x, position.y))
-        .unwrap_or(false)
-    {
-        return Ok(build_mutation_payload(&app_handle, &state, false));
-    }
-    let (rel_x, rel_y) = relative_note_position(&target, position.x, position.y);
+        .unwrap_or(false);
+    let (rel_x, rel_y) = if detached || ignore_position {
+        (note.rel_x, note.rel_y)
+    } else {
+        let target = state
+            .coordinator
+            .get_active_target()
+            .ok_or_else(|| "Skribli no longer has an active target application.".to_string())?;
+        relative_note_position(&target, position.x, position.y)
+    };
 
     run_persisted_mutation(&state, |coordinator| {
         coordinator
-            .update_skrib_position(&id, rel_x, rel_y, note.width, note.height)
+            .update_skrib_position(&id, rel_x, rel_y, width, height)
             .then_some(())
             .ok_or_else(|| "Skrib note was not found or is not writable".to_string())
     })?;

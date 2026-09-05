@@ -28,11 +28,18 @@ export interface InkCanvasProps {
   variant?: 'panel' | 'overlay';
 }
 
-const INK_COLORS = [
+const PEN_COLORS = [
   { value: '#262923', label: 'Ink' },
   { value: '#536a4f', label: 'Olive' },
   { value: '#315f78', label: 'Blue' },
   { value: '#854040', label: 'Berry' },
+] as const;
+const HIGHLIGHTER_COLORS = [
+  { value: '#f4d84e', label: 'Sunshine' },
+  { value: '#ff9f80', label: 'Peach' },
+  { value: '#82cf9b', label: 'Mint' },
+  { value: '#86b9e8', label: 'Sky' },
+  { value: '#bd9bea', label: 'Lavender' },
 ] as const;
 
 const EMPTY_STROKES: InkStroke[] = [];
@@ -54,10 +61,10 @@ function drawStroke(
   context.lineCap = 'round';
   context.lineJoin = 'round';
   context.globalCompositeOperation = stroke.tool === 'eraser' ? 'destination-out' : 'source-over';
-  context.globalAlpha = stroke.tool === 'highlighter' ? 0.34 : 1;
+  context.globalAlpha = stroke.tool === 'highlighter' ? 0.26 : 1;
   context.strokeStyle = stroke.color;
   context.fillStyle = stroke.color;
-  context.lineWidth = stroke.width * (stroke.tool === 'highlighter' ? 2.4 : 1);
+  context.lineWidth = stroke.width * (stroke.tool === 'highlighter' ? 3.2 : 1);
 
   const first = stroke.points[0]!;
   const firstX = first.x * canvas.width;
@@ -105,7 +112,7 @@ export const InkCanvas: React.FC<InkCanvasProps> = ({
   const [tool, setTool] = useState<InkTool>('pen');
   const [interactionMode, setInteractionMode] = useState<'select' | 'draw'>('draw');
   const [selectedStrokeId, setSelectedStrokeId] = useState<string | null>(null);
-  const [color, setColor] = useState<string>(INK_COLORS[0].value);
+  const [color, setColor] = useState<string>(PEN_COLORS[0].value);
   const [width, setWidth] = useState(4);
   const [clearPending, setClearPending] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -339,6 +346,7 @@ export const InkCanvas: React.FC<InkCanvasProps> = ({
   };
 
   const pointCount = useMemo(() => countInkPoints(strokes), [strokes]);
+  const activeColors = tool === 'highlighter' ? HIGHLIGHTER_COLORS : PEN_COLORS;
 
   return (
     <section className={`ink-editor ink-editor-${variant}`} aria-label="Skribli drawing editor">
@@ -367,6 +375,8 @@ export const InkCanvas: React.FC<InkCanvasProps> = ({
               disabled={disabled}
               onClick={() => {
                 setTool(value);
+                if (value === 'highlighter') setColor(HIGHLIGHTER_COLORS[0].value);
+                if (value === 'pen') setColor(PEN_COLORS[0].value);
                 setInteractionMode('draw');
                 setSelectedStrokeId(null);
               }}
@@ -379,7 +389,7 @@ export const InkCanvas: React.FC<InkCanvasProps> = ({
           ))}
         </div>
         <div className="ink-color-group" role="group" aria-label="Ink color">
-          {INK_COLORS.map((option) => (
+          {activeColors.map((option) => (
             <button
               key={option.value}
               type="button"
@@ -389,6 +399,7 @@ export const InkCanvas: React.FC<InkCanvasProps> = ({
               disabled={disabled || tool === 'eraser'}
               style={{ '--ink-swatch': option.value } as React.CSSProperties}
               onClick={() => setColor(option.value)}
+              title={`${option.label} ${tool === 'highlighter' ? 'highlight' : 'ink'}`}
             />
           ))}
         </div>

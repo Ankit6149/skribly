@@ -7,7 +7,9 @@ pub const MAX_NOTE_CHARACTERS: usize = 20_000;
 const MAX_NOTE_ID_CHARACTERS: usize = 256;
 const MAX_GEOMETRY_COORDINATE: f64 = 1_000_000.0;
 const MAX_GEOMETRY_DIMENSION: f64 = 100_000.0;
-const ALLOWED_NOTE_COLORS: [&str; 5] = ["yellow", "peach", "mint", "sky", "lavender"];
+const ALLOWED_NOTE_COLORS: [&str; 8] = [
+    "yellow", "peach", "mint", "sky", "lavender", "rose", "aqua", "sand",
+];
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum MatchResult {

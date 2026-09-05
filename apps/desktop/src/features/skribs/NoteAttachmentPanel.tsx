@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { emit } from '@tauri-apps/api/event';
 import { FileText, Image, Paperclip, Play, Trash2 } from 'lucide-react';
 import {
@@ -16,6 +16,7 @@ interface NoteAttachmentPanelProps {
   disabled?: boolean;
   compact?: boolean;
   pickerRequest?: number;
+  filesRequest?: { id: number; files: File[] } | null;
   onError?: (message: string) => void;
   onBusyChange?: (busy: boolean) => void;
   onCountChange?: (count: number) => void;
@@ -48,12 +49,14 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
   disabled = false,
   compact = false,
   pickerRequest = 0,
+  filesRequest = null,
   onError,
   onBusyChange,
   onCountChange,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const lastPickerRequestRef = useRef(pickerRequest);
+  const lastFilesRequestRef = useRef<number | null>(filesRequest?.id ?? null);
   const operationInProgressRef = useRef(false);
   const [attachments, setAttachments] = useState<SkribAttachment[]>([]);
   const [urls, setUrls] = useState<Record<string, string>>({});
@@ -64,11 +67,11 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
   const [error, setError] = useState<string | null>(null);
   const panelBusy = isAdding || removingId !== null;
 
-  const reportError = (reason: unknown) => {
+  const reportError = useCallback((reason: unknown) => {
     const message = reason instanceof Error ? reason.message : String(reason);
     setError(message);
     onError?.(message);
-  };
+  }, [onError]);
 
   useEffect(() => {
     let cancelled = false;
@@ -87,7 +90,7 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [noteId]);
+  }, [noteId, reportError]);
 
   useEffect(() => {
     const nextUrls: Record<string, string> = {};
@@ -117,7 +120,7 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
     if (!disabled && !panelBusy) fileInputRef.current?.click();
   }, [disabled, panelBusy, pickerRequest]);
 
-  const addFiles = async (files: FileList | null) => {
+  const addFiles = useCallback(async (files: FileList | File[] | null) => {
     if (!files || files.length === 0 || disabled || operationInProgressRef.current) return;
     operationInProgressRef.current = true;
     setIsAdding(true);
@@ -134,7 +137,13 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
       operationInProgressRef.current = false;
       onBusyChange?.(false);
     }
-  };
+  }, [disabled, noteId, onBusyChange, reportError]);
+
+  useEffect(() => {
+    if (!filesRequest || filesRequest.id === lastFilesRequestRef.current) return;
+    lastFilesRequestRef.current = filesRequest.id;
+    void addFiles(filesRequest.files);
+  }, [addFiles, filesRequest]);
 
   const remove = async (attachmentId: string) => {
     if (disabled || operationInProgressRef.current) return;
@@ -185,22 +194,24 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
           <div className="attachment-chips">
             {attachments.map((attachment) => {
               const url = urls[attachment.id];
-              const Icon =
-                attachment.kind === 'image' || attachment.kind === 'ink'
-                  ? Image
-                  : attachment.kind === 'video'
-                    ? Play
-                    : FileText;
               return (
-                <article key={attachment.id} className="attachment-chip">
-                  <span className="attachment-chip-icon" aria-hidden="true"><Icon size={14} /></span>
+                <article key={attachment.id} className={`attachment-chip attachment-object ${attachment.kind}`}>
+                  <span className="attachment-chip-icon" aria-hidden="true">
+                    {(attachment.kind === 'image' || attachment.kind === 'ink') && url
+                      ? <img src={url} alt="" />
+                      : attachment.kind === 'video' && url
+                        ? <span className="attachment-video-frame"><video src={url} muted preload="metadata" /><Play size={14} /></span>
+                        : attachment.kind === 'document'
+                          ? <span className="attachment-paper"><Paperclip size={11} /><FileText size={16} /></span>
+                          : <Image size={16} />}
+                  </span>
                   <div className="attachment-chip-copy">
                     {url ? (
                       <a href={url} download={attachment.name} title={attachment.name}>{attachment.name}</a>
                     ) : (
                       <strong title={attachment.name}>{attachment.name}</strong>
                     )}
-                    <small>{formatAttachmentSize(attachment.size)}</small>
+                    <small>{attachment.kind === 'document' ? attachment.name.split('.').pop()?.toUpperCase() : attachment.kind} · {formatAttachmentSize(attachment.size)}</small>
                   </div>
                   <button
                     type="button"
@@ -220,7 +231,7 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
             })}
           </div>
         ) : (
-          <span className="attachment-strip-empty"><Paperclip size={13} aria-hidden="true" /> Add a photo, video, or document</span>
+          <span className="attachment-strip-empty" aria-hidden="true" />
         )}
         {error && <div className="note-panel-error" role="alert">{error}</div>}
       </section>

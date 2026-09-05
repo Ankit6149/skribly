@@ -472,18 +472,22 @@ pub fn inspect_target_window(hwnd: HWND) -> Option<TargetWindowInfo> {
             return None;
         }
 
-        let title = get_window_title(hwnd);
+        let mut title = get_window_title(hwnd);
         let class_name = get_window_class(hwnd);
         let process_name = get_window_process_name(hwnd);
+        let is_desktop = matches!(class_name.as_str(), "Progman" | "WorkerW")
+            && process_name.eq_ignore_ascii_case("explorer.exe");
 
-        if class_name == "Progman"
-            || class_name == "WorkerW"
+        if (!is_desktop && matches!(class_name.as_str(), "Progman" | "WorkerW"))
             || class_name == "Shell_TrayWnd"
             || class_name == "Windows.UI.Core.CoreWindow"
             || process_name.eq_ignore_ascii_case("skribly.exe")
             || process_name.eq_ignore_ascii_case("skribli.exe")
         {
             return None;
+        }
+        if is_desktop {
+            title = "Windows desktop".to_string();
         }
 
         let bounds = get_window_bounds(hwnd)?;

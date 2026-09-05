@@ -6,15 +6,19 @@ import { NativeDragGesture } from './nativeDragGesture';
 export function useNativeDrag(onClick: () => void, onError: (reason: unknown) => void) {
   const gesture = useRef(new NativeDragGesture());
   return {
+    onMouseDown(event: MouseEvent<HTMLButtonElement>) {
+      if (event.button !== 0 || event.detail < 2 || !gesture.current.pickUp()) return;
+      event.preventDefault();
+      event.stopPropagation();
+      void getCurrentWindow().startDragging().catch(onError);
+    },
     onPointerDown(event: PointerEvent<HTMLButtonElement>) {
       if (event.button !== 0) return;
       event.stopPropagation();
       gesture.current.begin(event.clientX, event.clientY);
-      event.currentTarget.setPointerCapture(event.pointerId);
     },
     onPointerMove(event: PointerEvent<HTMLButtonElement>) {
       if (!gesture.current.move(event.clientX, event.clientY)) return;
-      if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
       void getCurrentWindow().startDragging().catch(onError);
     },
     onPointerUp() { gesture.current.end(); },

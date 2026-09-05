@@ -40,7 +40,7 @@ export interface SkribNote {
   width: number;
   height: number;
   text: string;
-  color: 'yellow' | 'peach' | 'mint' | 'sky' | 'lavender';
+  color: 'yellow' | 'peach' | 'mint' | 'sky' | 'lavender' | 'rose' | 'aqua' | 'sand';
   collapsed: boolean;
   created_at: number;
   updated_at: number;

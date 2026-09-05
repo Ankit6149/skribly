@@ -150,13 +150,13 @@ export const ContextRail: React.FC = () => {
 
   if (collapsed) {
     return (
-      <main className="context-rail collapsed" data-tauri-drag-region>
+      <main className="context-rail collapsed">
         <button
           type="button"
           className="context-rail-pill"
           {...pillDrag}
           aria-label={`Open My Skribs rail with ${pillCount} notes`}
-          title={message || `My Skribs · ${pillCount} notes · Click to open, drag to move`}
+          title={message || `Click once to open your ${pillCount} Skribs. Double-click, then drag me anywhere; I'll tuck back to the nearest edge.`}
         >
           <span className="context-rail-pill-sheet context-rail-pill-sheet-back" aria-hidden="true" />
           <span className="context-rail-pill-sheet context-rail-pill-sheet-middle" aria-hidden="true" />
@@ -181,10 +181,10 @@ export const ContextRail: React.FC = () => {
           </span>
         </span>
         <span className="context-rail-actions">
-          <button type="button" onClick={() => void refresh()} aria-label="Refresh notes" title="Refresh">
+          <button type="button" onClick={() => void refresh()} aria-label="Refresh notes" title="Bring in anything new">
             <RefreshCw size={14} aria-hidden="true" />
           </button>
-          <button type="button" onClick={() => void toggleCollapsed()} aria-label="Collapse note rail" title="Collapse">
+          <button type="button" onClick={() => void toggleCollapsed()} aria-label="Collapse note rail" title="Tuck My Skribs back to the edge">
             <PanelRightClose size={14} aria-hidden="true" />
           </button>
         </span>
@@ -229,7 +229,7 @@ export const ContextRail: React.FC = () => {
                         className="context-rail-note-open"
                         onClick={() => void openHere(note)}
                         disabled={openingId !== null}
-                        title="Open this note here"
+                        title="Read this Skrib right here"
                         aria-label={`Open ${noteTitle(note)} here`}
                       >
                         <span className="context-rail-note-copy">
@@ -245,7 +245,7 @@ export const ContextRail: React.FC = () => {
                         className="context-rail-note-location"
                         onClick={() => void openContext(note)}
                         disabled={openingId !== null}
-                        title="Open at saved location"
+                        title="Take me back to where this Skrib began"
                         aria-label={`Open ${noteTitle(note)} at its saved location`}
                       >
                         <MapPinned size={16} strokeWidth={1.9} aria-hidden="true" />

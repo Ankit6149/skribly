@@ -131,30 +131,31 @@ export const OverlayHost: React.FC = () => {
   }, [initStatus.type, storageSurface]);
 
   useEffect(() => {
-    if (!composerNoteId || !isTauriAvailable || composerOpenAction === 'detached') return;
+    if (!composerNoteId || !isTauriAvailable) return;
 
     let disposed = false;
     let saveTimer: ReturnType<typeof setTimeout> | null = null;
-    let unlisten: (() => void) | null = null;
-    void getCurrentWindow()
-      .onMoved(() => {
+    const unlistenCallbacks: Array<() => void> = [];
+    const saveGeometry = () => {
         if (saveTimer) clearTimeout(saveTimer);
         saveTimer = setTimeout(() => {
           if (!disposed) {
             void useSkribStore.getState().saveSkribWindowPosition(composerNoteId);
           }
         }, 180);
-      })
-      .then((dispose) => {
-        if (disposed) dispose();
-        else unlisten = dispose;
+    };
+    const currentWindow = getCurrentWindow();
+    void Promise.all([currentWindow.onMoved(saveGeometry), currentWindow.onResized(saveGeometry)])
+      .then((callbacks) => {
+        if (disposed) callbacks.forEach((dispose) => dispose());
+        else unlistenCallbacks.push(...callbacks);
       })
       .catch(() => undefined);
 
     return () => {
       disposed = true;
       if (saveTimer) clearTimeout(saveTimer);
-      unlisten?.();
+      unlistenCallbacks.forEach((unlisten) => unlisten());
     };
   }, [composerNoteId, composerOpenAction, isTauriAvailable]);
 

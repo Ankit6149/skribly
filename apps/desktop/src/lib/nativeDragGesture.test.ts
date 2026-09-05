@@ -27,4 +27,11 @@ describe('native drag gesture', () => {
     gesture.end();
     expect(gesture.move(90, 90)).toBe(false);
   });
+  it('supports a double-click pickup and suppresses its click', () => {
+    const gesture = new NativeDragGesture();
+    gesture.begin(4, 4);
+    expect(gesture.pickUp()).toBe(true);
+    expect(gesture.pickUp()).toBe(false);
+    expect(gesture.allowsClick(false)).toBe(false);
+  });
 });
