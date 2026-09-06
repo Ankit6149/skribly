@@ -22,3 +22,11 @@ Issue: #184
 - Frontend typecheck, production build, tests, theme validation, compact-surface validation, repository validation, and Rust checks must pass on the exact release candidate.
 - The private installer workflow must build the exact committed candidate before the encrypted owner-download asset is updated.
 - Visual installed-app acceptance remains with the owner, per the request not to drive or test the installed application in this pass.
+
+## Release evidence
+
+- Exact application commit: `10fa98cfba44b63618d3b399f3e8ade6055de0ca`.
+- Private Windows workflow: `34016544142`; GitHub artifact: `9984182031`.
+- NSIS installer: `Skribli_0.1.19_x64-setup.exe`, 3,479,343 bytes.
+- Installer SHA-256: `ad606a0bd738c2b1898c167385a8e975241a1ee0e8a66e1f763b2ddd1d4aa6bf`.
+- Encrypted website asset: 3,479,395 bytes; SHA-256 `aa7d66354eef09804f9f6ce188d35c6dc38c96a0bd749ce71aa5f418ddaec1c8`.

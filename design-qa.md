@@ -131,5 +131,6 @@ final result: blocked
 - Inline Draw now uses a device-pixel-aware canvas, coalesced pointer samples, line-segment selection, selected-stroke movement/removal, undo/redo, keyboard shortcuts, and a non-overlapping compact toolbar. Ink stays layered over text and no attachment preview is created from the inline overlay.
 - Automated evidence: 161 frontend tests, 143 native library tests, 3 native binary tests, and 37 schema migration tests passed. TypeScript, production builds, product-truth, theme, compact-surface, governance, site, private-artifact, Rust format, and Rust compile checks passed.
 - Installed-app visual acceptance was intentionally not performed because the owner explicitly asked to download and test the installer personally. No screenshot pass is claimed for this revision.
+- Exact candidate workflow `34016544142` passed for commit `10fa98cfba44b63618d3b399f3e8ade6055de0ca`. The NSIS installer is 3,479,343 bytes with SHA-256 `ad606a0bd738c2b1898c167385a8e975241a1ee0e8a66e1f763b2ddd1d4aa6bf` and was encrypted into the existing owner-key website asset.
 
 final result: blocked
