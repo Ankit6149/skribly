@@ -144,5 +144,6 @@ final result: blocked
 - The rounded Windows region refreshes on native resize frames while storage persistence remains separately debounced. Frontend width classification is request-animation-frame throttled and no longer performs an asynchronous scale lookup for every resize event.
 - Automated evidence: 161 frontend tests, 144 native library tests, 3 native binary tests, and 37 schema migration tests passed, together with TypeScript, production build, compact-surface validation, and Rust compile checks.
 - Installed-app visual acceptance was not performed because the owner explicitly asked to test the packaged installer personally. No screenshot comparison pass is claimed for this revision.
+- Exact candidate workflow `34028042167` passed for source commit `197ea7a3a944d6e7048fa8d1c70104df3d41583a`. The NSIS installer is 3,479,620 bytes with SHA-256 `6e33c3799e8f23a9b69c3b51ceeec7165a03121238adf7690f6457e026781056`; its encrypted website asset is 3,479,672 bytes with SHA-256 `baa84f9224280c7213679267af23f5fc7f31f917a8aaf93a6a6f3e80cf7e4071`.
 
 final result: blocked
