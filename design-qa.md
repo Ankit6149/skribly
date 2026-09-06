@@ -147,3 +147,13 @@ final result: blocked
 - Exact candidate workflow `34028042167` passed for source commit `197ea7a3a944d6e7048fa8d1c70104df3d41583a`. The NSIS installer is 3,479,620 bytes with SHA-256 `6e33c3799e8f23a9b69c3b51ceeec7165a03121238adf7690f6457e026781056`; its encrypted website asset is 3,479,672 bytes with SHA-256 `baa84f9224280c7213679267af23f5fc7f31f917a8aaf93a6a6f3e80cf7e4071`.
 
 final result: blocked
+
+## v0.1.21 rounded-boundary correction — 2026-09-06
+
+- Visual source: owner screenshot `codex-clipboard-7b3d716b-42f1-41b6-ad6a-7fd4d2676a62.png` showing the lavender resize backdrop outside the note's right and bottom rounded edges.
+- Root cause: v0.1.20 applied the active pastel to the full native-window backdrop even though the real note is inset by the required 4 px transparent resize gutter.
+- The outer gutter is transparent again. The actual note retains its selected pastel, ruled-paper texture, asymmetric rounded corner, contained shadow, and corner resize handles.
+- The v0.1.20 native resize-frame region refresh remains active, so this correction does not restore the earlier stale white native surface.
+- Static design comparison is grounded in the supplied screenshot and the exact offending CSS rule. Installed-app capture remains intentionally unperformed because the owner asked to test packaged builds personally.
+
+final result: blocked

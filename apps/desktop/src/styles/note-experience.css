@@ -52,13 +52,8 @@ body {
   inset: 0;
   padding: var(--compact-surface-gutter);
   display: grid;
-  overflow: hidden;
-  border-radius: 18px 18px 34px 18px;
   pointer-events: auto;
-  background:
-    linear-gradient(rgba(38, 39, 31, 0.035) 1px, transparent 1px),
-    var(--skribli-paper);
-  background-size: 100% 30px;
+  background: transparent;
 }
 
 .skrib-composer {

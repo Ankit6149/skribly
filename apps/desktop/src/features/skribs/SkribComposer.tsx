@@ -769,10 +769,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
   const isNewNote = openAction === 'created';
 
   return (
-    <div
-      className={`skrib-composer-backdrop skrib-color-${note.color}`}
-      data-overlay-surface="composer"
-    >
+    <div className="skrib-composer-backdrop" data-overlay-surface="composer">
       <section
         className={`skrib-composer skrib-color-${note.color}`}
         data-resizing={isResizing}

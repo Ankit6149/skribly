@@ -84,7 +84,7 @@ for (const [source, marker] of [
   [composer, 'className="composer-drag-grip" data-tauri-drag-region'],
   [composer, "startResizeDragging(direction)"],
   [composer, 'className={`composer-resize-handle ${direction.toLowerCase()}`}'],
-  [composer, 'className={`skrib-composer-backdrop skrib-color-${note.color}`}'],
+  [composer, 'className="skrib-composer-backdrop"'],
   [attachments, 'className="attachment-photo-stack"'],
   [collapsedDot, 'data-overlay-surface="collapsed"'],
   [collapsedDot, 'className="collapsed-skrib-bubble"'],
@@ -202,6 +202,14 @@ if (composer.includes('className="composer-tool-button primary-tool"')) {
 
 if (!globalStyles.includes('box-sizing: border-box')) {
   failures.push('Collapsed-control geometry requires global border-box sizing.');
+}
+
+const composerBackdropRule = styles.match(/\.skrib-composer-backdrop\s*\{([^}]*)\}/s)?.[1] ?? '';
+if (!composerBackdropRule.includes('background: transparent')) {
+  failures.push('The resize gutter outside the rounded note must remain transparent.');
+}
+if (composerBackdropRule.includes('var(--skribli-paper)')) {
+  failures.push('The note pastel must not paint the transparent outer resize gutter.');
 }
 
 function cssPixelVariable(name) {
