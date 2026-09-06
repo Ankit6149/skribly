@@ -15,6 +15,9 @@ const styles = await read('apps/desktop/src/styles/note-experience.css');
 const globalStyles = await read('apps/desktop/src/styles/global.css');
 const websiteTheme = await read('apps/desktop/src/styles/website-theme.css');
 const composer = await read('apps/desktop/src/features/skribs/SkribComposer.tsx');
+const attachments = await read(
+  'apps/desktop/src/features/skribs/NoteAttachmentPanel.tsx'
+);
 const collapsedDot = await read('apps/desktop/src/features/skribs/CollapsedSkribDot.tsx');
 const overlayHost = await read('apps/desktop/src/features/overlay/OverlayHost.tsx');
 const surfaceSelector = await read(
@@ -81,6 +84,8 @@ for (const [source, marker] of [
   [composer, 'className="composer-drag-grip" data-tauri-drag-region'],
   [composer, "startResizeDragging(direction)"],
   [composer, 'className={`composer-resize-handle ${direction.toLowerCase()}`}'],
+  [composer, 'className={`skrib-composer-backdrop skrib-color-${note.color}`}'],
+  [attachments, 'className="attachment-photo-stack"'],
   [collapsedDot, 'data-overlay-surface="collapsed"'],
   [collapsedDot, 'className="collapsed-skrib-bubble"'],
   [collapsedDot, 'collapsed-skrib-drag-zone collapsed-skrib-drag-top'],
@@ -130,6 +135,8 @@ for (const marker of [
   'VisibleNoteTargetEvent::Disconnect',
   'visible_note_destroy_event_disconnects_instead_of_being_skipped',
   'prepare_standard_compact_surface(&window)',
+  'event: tauri::WindowEvent::Resized(size)',
+  'refresh_note_window_surface(&window)',
 ]) {
   if (!nativeEntry.includes(marker)) {
     failures.push(`Native empty-window lifecycle contract is missing: ${marker}`);
@@ -143,6 +150,38 @@ if (!mainWindow || mainWindow.transparent !== true || mainWindow.shadow !== fals
 
 if (!mainWindow || mainWindow.resizable !== true) {
   failures.push('The note window must remain natively resizable from its corner handles.');
+}
+
+if (
+  !mainWindow ||
+  mainWindow.minWidth !== 320 ||
+  mainWindow.minHeight !== 260 ||
+  mainWindow.maxWidth !== 820 ||
+  mainWindow.maxHeight !== 760
+) {
+  failures.push('The note window must enforce the 320×260 to 820×760 resize envelope.');
+}
+
+for (const marker of [
+  'fn set_note_resize_bounds(',
+  'set_max_size(Some(PhysicalSize::new(',
+  'logical_to_physical(WORKSPACE_LOGICAL_WIDTH, scale_factor)',
+  'logical_to_physical(WORKSPACE_LOGICAL_HEIGHT, scale_factor)',
+]) {
+  if (!nativePlacement.includes(marker)) {
+    failures.push(`Native resize bounds are missing: ${marker}`);
+  }
+}
+
+for (const marker of [
+  '.attachment-photo-object {',
+  'background: transparent;',
+  'overflow: visible;',
+  '.attachment-photo-object .attachment-object-actions',
+]) {
+  if (!styles.includes(marker)) {
+    failures.push(`Inline photographic attachment treatment is missing: ${marker}`);
+  }
 }
 
 if (!desktopCapabilities.permissions?.includes('core:window:allow-start-dragging')) {

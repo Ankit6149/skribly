@@ -3435,6 +3435,19 @@ pub fn run() {
     app.run(move |app_handle, event| match event {
         RunEvent::WindowEvent {
             label,
+            event: tauri::WindowEvent::Resized(size),
+            ..
+        } if label == "main" && size.width >= 200 && size.height >= 200 => {
+            // Windows grows a transparent HWND before WebView content catches up. Refresh the
+            // rounded region on each native resize frame so newly exposed pixels never become a
+            // white rectangle. Geometry persistence remains debounced in the frontend.
+            #[cfg(target_os = "windows")]
+            if let Some(window) = app_handle.get_webview_window("main") {
+                let _ = refresh_note_window_surface(&window);
+            }
+        }
+        RunEvent::WindowEvent {
+            label,
             event: tauri::WindowEvent::Moved(position),
             ..
         } if label == "rail" => {

@@ -297,6 +297,21 @@ pub fn refresh_note_window_surface(window: &tauri::WebviewWindow) -> Result<(), 
     apply_native_surface(window, &placement, NativeNoteSurface::Note)
 }
 
+fn set_note_resize_bounds(window: &tauri::WebviewWindow, scale_factor: f64) -> Result<(), String> {
+    window
+        .set_min_size(Some(PhysicalSize::new(
+            logical_to_physical(COMPACT_WINDOW_MIN_LOGICAL_WIDTH, scale_factor) as u32,
+            logical_to_physical(COMPACT_WINDOW_MIN_LOGICAL_HEIGHT, scale_factor) as u32,
+        )))
+        .map_err(|error| format!("Skribli could not set the note's minimum size: {error}"))?;
+    window
+        .set_max_size(Some(PhysicalSize::new(
+            logical_to_physical(WORKSPACE_LOGICAL_WIDTH, scale_factor) as u32,
+            logical_to_physical(WORKSPACE_LOGICAL_HEIGHT, scale_factor) as u32,
+        )))
+        .map_err(|error| format!("Skribli could not set the note's maximum size: {error}"))
+}
+
 fn standard_compact_surface_logical_size() -> (u32, u32) {
     (
         COMPACT_WINDOW_LOGICAL_WIDTH as u32,
@@ -312,6 +327,12 @@ pub fn prepare_standard_compact_surface(window: &tauri::WebviewWindow) -> Result
             COMPACT_WINDOW_MIN_LOGICAL_HEIGHT as u32,
         )))
         .map_err(|error| format!("Skribli could not restore the compact minimum size: {error}"))?;
+    window
+        .set_max_size(Some(LogicalSize::new(
+            WORKSPACE_LOGICAL_WIDTH as u32,
+            WORKSPACE_LOGICAL_HEIGHT as u32,
+        )))
+        .map_err(|error| format!("Skribli could not restore the note maximum size: {error}"))?;
     window
         .set_size(LogicalSize::new(width, height))
         .map_err(|error| format!("Skribli could not restore the compact recovery size: {error}"))?;
@@ -776,12 +797,7 @@ fn position_note_window_for_target_internal(
     let placement =
         calculate_saved_note_window_placement(&work_area, &target_bounds, note, dpi, collapsed)?;
 
-    window
-        .set_min_size(Some(PhysicalSize::new(
-            logical_to_physical(COMPACT_WINDOW_MIN_LOGICAL_WIDTH, placement.scale_factor) as u32,
-            logical_to_physical(COMPACT_WINDOW_MIN_LOGICAL_HEIGHT, placement.scale_factor) as u32,
-        )))
-        .map_err(|error| format!("Skribli could not prepare the note window size: {error}"))?;
+    set_note_resize_bounds(window, placement.scale_factor)?;
     let surface = if collapsed {
         NativeNoteSurface::Dot
     } else {
@@ -834,12 +850,7 @@ pub fn position_note_workspace_for_target(
     let work_area = monitor_work_area_for_window(target_hwnd)?;
     let (dpi, _) = get_window_dpi(target_hwnd);
     let placement = calculate_note_workspace_placement(&work_area, &target_bounds, note, dpi)?;
-    window
-        .set_min_size(Some(PhysicalSize::new(
-            logical_to_physical(480, placement.scale_factor) as u32,
-            logical_to_physical(360, placement.scale_factor) as u32,
-        )))
-        .map_err(|error| format!("Skribli could not prepare the writing workspace: {error}"))?;
+    set_note_resize_bounds(window, placement.scale_factor)?;
     let applied = apply_placement(window, &placement, NativeNoteSurface::Note)?;
     if actual_matches_placement(&applied, &placement) {
         Ok(applied.outer_metrics)
@@ -905,12 +916,7 @@ fn position_detached_note_window_internal(
     let work_area = monitor_work_area_for_window(hwnd)?;
     let (dpi, _) = get_window_dpi(hwnd);
     let placement = calculate_detached_note_window_placement(&work_area, &bounds, note, dpi)?;
-    window
-        .set_min_size(Some(LogicalSize::new(
-            COMPACT_WINDOW_MIN_LOGICAL_WIDTH,
-            COMPACT_WINDOW_MIN_LOGICAL_HEIGHT,
-        )))
-        .map_err(|error| format!("Skribli could not prepare the note size: {error}"))?;
+    set_note_resize_bounds(window, placement.scale_factor)?;
     let applied = if animate {
         apply_placement_with_transition(window, &placement, NativeNoteSurface::Note)?
     } else {
@@ -1061,6 +1067,46 @@ mod tests {
         assert_eq!((editor.width, editor.height), (400, 340));
         assert_eq!((dot.x, dot.y), (225, 200));
         assert_eq!((dot.width, dot.height), (44, 44));
+    }
+
+    #[test]
+    fn clamps_manual_note_geometry_to_the_supported_resize_envelope() {
+        let mut note = SkribNote {
+            id: "resize-bounds".into(),
+            target_process_name: "explorer.exe".into(),
+            target_title: "Desktop".into(),
+            rel_x: 80.0,
+            rel_y: 60.0,
+            width: 120.0,
+            height: 100.0,
+            text: String::new(),
+            color: "sky".into(),
+            collapsed: false,
+            created_at: 1,
+            updated_at: 1,
+            deleted_at: None,
+        };
+        let work_area = rect(0, 0, 1920, 1080);
+        let target = rect(0, 0, 1920, 1080);
+
+        let minimum = calculate_saved_note_window_placement(&work_area, &target, &note, 96, false)
+            .expect("minimum placement");
+        assert_eq!(
+            (minimum.width, minimum.height),
+            (
+                COMPACT_WINDOW_MIN_LOGICAL_WIDTH,
+                COMPACT_WINDOW_MIN_LOGICAL_HEIGHT
+            )
+        );
+
+        note.width = 4_000.0;
+        note.height = 4_000.0;
+        let maximum = calculate_saved_note_window_placement(&work_area, &target, &note, 96, false)
+            .expect("maximum placement");
+        assert_eq!(
+            (maximum.width, maximum.height),
+            (WORKSPACE_LOGICAL_WIDTH, WORKSPACE_LOGICAL_HEIGHT)
+        );
     }
 
     #[test]

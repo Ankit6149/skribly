@@ -134,3 +134,15 @@ final result: blocked
 - Exact candidate workflow `34016544142` passed for commit `10fa98cfba44b63618d3b399f3e8ade6055de0ca`. The NSIS installer is 3,479,343 bytes with SHA-256 `ad606a0bd738c2b1898c167385a8e975241a1ee0e8a66e1f763b2ddd1d4aa6bf` and was encrypted into the existing owner-key website asset.
 
 final result: blocked
+
+## v0.1.20 inline attachment and native resize stabilization — 2026-09-06
+
+- Visual source: the owner screenshot `codex-clipboard-8840ef00-62bd-4943-b495-12a6f304217c.png` and the accepted photographic-object treatment in `site/interface-lab.css`.
+- The compact photo attachment is now an inline polaroid object without a stretched cream container. Its actions stay inside a reserved 126 px attachment band and remain visible for pointer and keyboard use.
+- The transparent composer backdrop now inherits the selected pastel and ruled-paper surface, preventing a white WebView rectangle from flashing behind the rounded note while Windows changes its native size.
+- The main native window enforces a logical 320 × 260 minimum and 820 × 760 maximum. The same bounds are reapplied at contextual, detached, workspace, and recovery transitions.
+- The rounded Windows region refreshes on native resize frames while storage persistence remains separately debounced. Frontend width classification is request-animation-frame throttled and no longer performs an asynchronous scale lookup for every resize event.
+- Automated evidence: 161 frontend tests, 144 native library tests, 3 native binary tests, and 37 schema migration tests passed, together with TypeScript, production build, compact-surface validation, and Rust compile checks.
+- Installed-app visual acceptance was not performed because the owner explicitly asked to test the packaged installer personally. No screenshot comparison pass is claimed for this revision.
+
+final result: blocked

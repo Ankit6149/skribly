@@ -52,8 +52,13 @@ body {
   inset: 0;
   padding: var(--compact-surface-gutter);
   display: grid;
+  overflow: hidden;
+  border-radius: 18px 18px 34px 18px;
   pointer-events: auto;
-  background: transparent;
+  background:
+    linear-gradient(rgba(38, 39, 31, 0.035) 1px, transparent 1px),
+    var(--skribli-paper);
+  background-size: 100% 30px;
 }
 
 .skrib-composer {
@@ -2145,22 +2150,23 @@ body {
 }
 
 .note-attachment-strip:not([data-empty='true']) {
-  min-height: 162px;
-  padding: 8px 10px 10px;
+  min-height: 126px;
+  padding: 7px 12px 12px;
   container-type: inline-size;
 }
 
 .attachment-media-grid {
-  display: grid;
-  grid-auto-columns: minmax(176px, 0.82fr);
-  grid-auto-flow: column;
+  min-width: max-content;
+  display: flex;
+  align-items: stretch;
   gap: 9px;
 }
 
 .attachment-media-object {
   position: relative;
+  flex: 0 0 176px;
   min-width: 0;
-  min-height: 140px;
+  min-height: 106px;
   padding: 10px;
   display: flex;
   flex-direction: column;
@@ -2191,20 +2197,38 @@ body {
   letter-spacing: 0.1em;
 }
 
+.attachment-photo-object {
+  flex-basis: 184px;
+  min-height: 106px;
+  padding: 2px 4px 3px;
+  overflow: visible;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.attachment-photo-object:hover,
+.attachment-photo-object:focus-within,
+.attachment-photo-object:focus-visible {
+  background: transparent;
+  box-shadow: none;
+  transform: none;
+}
+
 .attachment-photo-stack {
   position: relative;
-  width: 128px;
-  height: 88px;
-  margin: 2px auto 0;
+  width: 112px;
+  height: 76px;
+  margin: 0 0 0 8px;
 }
 
 .attachment-polaroid {
   position: absolute;
-  top: 6px;
-  left: 24px;
-  width: 78px;
-  height: 68px;
-  padding: 5px 5px 12px;
+  top: 4px;
+  left: 21px;
+  width: 68px;
+  height: 64px;
+  padding: 5px 5px 13px;
   display: grid;
   place-items: center;
   overflow: hidden;
@@ -2225,10 +2249,13 @@ body {
 .attachment-polaroid.photo-1 { transform: translateX(-17px) rotate(-7deg); }
 .attachment-polaroid.photo-2 { transform: rotate(1deg); }
 .attachment-polaroid.photo-3 { transform: translateX(17px) rotate(7deg); }
+.attachment-polaroid:only-child { transform: rotate(-4deg); }
 .attachment-photo-object:hover .attachment-polaroid.photo-1,
 .attachment-photo-object:focus-within .attachment-polaroid.photo-1 { transform: translateX(-25px) rotate(-10deg); }
 .attachment-photo-object:hover .attachment-polaroid.photo-3,
 .attachment-photo-object:focus-within .attachment-polaroid.photo-3 { transform: translateX(25px) rotate(10deg); }
+.attachment-photo-object:hover .attachment-polaroid:only-child,
+.attachment-photo-object:focus-within .attachment-polaroid:only-child { transform: translateY(-2px) rotate(-2deg); }
 
 .attachment-document-paper {
   position: relative;
@@ -2306,6 +2333,14 @@ body {
   transition: opacity 140ms ease, transform 160ms ease;
 }
 
+.attachment-photo-object .attachment-object-actions {
+  right: 0;
+  bottom: 3px;
+  left: auto;
+  opacity: 0.88;
+  transform: none;
+}
+
 .attachment-media-object:hover .attachment-object-actions,
 .attachment-media-object:focus-within .attachment-object-actions,
 .attachment-media-object:focus-visible .attachment-object-actions {
@@ -2335,10 +2370,7 @@ body {
 }
 
 @container (min-width: 560px) {
-  .attachment-media-grid {
-    grid-auto-flow: row;
-    grid-template-columns: repeat(auto-fit, minmax(166px, 1fr));
-  }
+  .attachment-media-grid { min-width: 0; flex-wrap: wrap; }
 }
 
 .composer-resize-handle {

@@ -241,17 +241,30 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
     if (!isTauriAvailable) return;
     let disposed = false;
     let unlisten: (() => void) | undefined;
+    let scaleFactor = 1;
+    let resizeFrame: number | null = null;
     const appWindow = getCurrentWindow();
-    void appWindow.onResized(async ({ payload }) => {
-      const scale = await appWindow.scaleFactor().catch(() => 1);
+    void appWindow.scaleFactor().then((value) => {
+      if (!disposed) scaleFactor = Math.max(value, 0.1);
+    }).catch(() => undefined);
+    void appWindow.onResized(({ payload }) => {
       if (disposed) return;
-      const width = payload.width / Math.max(scale, 0.1);
-      setSurfaceSize(width >= 680 ? 'large' : width >= 500 ? 'medium' : 'compact');
+      if (resizeFrame !== null) cancelAnimationFrame(resizeFrame);
+      resizeFrame = requestAnimationFrame(() => {
+        resizeFrame = null;
+        if (disposed) return;
+        const width = payload.width / scaleFactor;
+        setSurfaceSize(width >= 680 ? 'large' : width >= 500 ? 'medium' : 'compact');
+      });
     }).then((dispose) => {
       if (disposed) dispose();
       else unlisten = dispose;
     });
-    return () => { disposed = true; unlisten?.(); };
+    return () => {
+      disposed = true;
+      if (resizeFrame !== null) cancelAnimationFrame(resizeFrame);
+      unlisten?.();
+    };
   }, [isTauriAvailable]);
 
   useEffect(() => {
@@ -756,7 +769,10 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
   const isNewNote = openAction === 'created';
 
   return (
-    <div className="skrib-composer-backdrop" data-overlay-surface="composer">
+    <div
+      className={`skrib-composer-backdrop skrib-color-${note.color}`}
+      data-overlay-surface="composer"
+    >
       <section
         className={`skrib-composer skrib-color-${note.color}`}
         data-resizing={isResizing}
