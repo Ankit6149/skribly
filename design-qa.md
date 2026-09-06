@@ -155,5 +155,6 @@ final result: blocked
 - The outer gutter is transparent again. The actual note retains its selected pastel, ruled-paper texture, asymmetric rounded corner, contained shadow, and corner resize handles.
 - The v0.1.20 native resize-frame region refresh remains active, so this correction does not restore the earlier stale white native surface.
 - Static design comparison is grounded in the supplied screenshot and the exact offending CSS rule. Installed-app capture remains intentionally unperformed because the owner asked to test packaged builds personally.
+- Exact candidate workflow `34030029602` passed for source commit `230f91a0cdeacbdb6796faaaec459d5e92adb1b8`. The NSIS installer is 3,478,405 bytes with SHA-256 `0dc9f74c897667b58bb5d372894dad0baebb6c9d3bb941cd31e8f14855a1efa4`; its encrypted website asset is 3,478,457 bytes with SHA-256 `61633fb170d7f03c85d071c5177870b880f023ccc52c4dd1fb9b93a9cdbbc2d4`.
 
 final result: blocked
