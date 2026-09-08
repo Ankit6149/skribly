@@ -18,3 +18,13 @@ Issue: [#194](https://github.com/Ankit6149/skribly/issues/194)
 - Native Rust unit and integration tests.
 - Compact transparent-surface contract validation, including native Snap prevention and the attachment drawer.
 - Production desktop and owner-download validation before installer publication.
+
+## Published candidate
+
+- Source commit: `592bbd699676d518da1a2e691f09f10416d9b1ab`
+- Workflow run: `34234953533`
+- Artifact: `10059952224`
+- NSIS installer: `Skribli_0.1.23_x64-setup.exe`, 3,480,336 bytes.
+- Installer SHA-256: `6a82ebde64dabd49db84f5910e318b6fe2b8b359bc17287b48526e48993c8f5f`
+- Encrypted owner asset: 3,480,388 bytes.
+- Encrypted asset SHA-256: `66cec66eb177ca24c4d007967fdfdc8405d80a2750e0da0b95cf575ef9960909`
