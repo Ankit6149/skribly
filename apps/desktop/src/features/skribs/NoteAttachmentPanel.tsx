@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { emit } from '@tauri-apps/api/event';
-import { FileText, Image, Paperclip, Play } from 'lucide-react';
+import { ChevronDown, ChevronUp, FileText, Image, Paperclip, Play } from 'lucide-react';
 import {
   addFilesToNote,
   createAttachmentObjectUrl,
@@ -20,6 +20,7 @@ interface NoteAttachmentPanelProps {
   onError?: (message: string) => void;
   onBusyChange?: (busy: boolean) => void;
   onCountChange?: (count: number) => void;
+  onRequestExpand?: () => Promise<boolean> | boolean;
 }
 
 const ACCEPTED_FILES = [
@@ -53,6 +54,7 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
   onError,
   onBusyChange,
   onCountChange,
+  onRequestExpand,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const lastPickerRequestRef = useRef(pickerRequest);
@@ -65,6 +67,7 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [compactExpanded, setCompactExpanded] = useState(false);
   const panelBusy = isAdding || removingId !== null;
 
   const reportError = useCallback((reason: unknown) => {
@@ -136,6 +139,8 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
     setError(null);
     try {
       setAttachments(await addFilesToNote(noteId, Array.from(files)));
+      const canExpand = await onRequestExpand?.();
+      if (canExpand !== false) setCompactExpanded(true);
       void emit('skribly://rich-content-updated', { noteId }).catch(() => undefined);
     } catch (reason) {
       reportError(reason);
@@ -145,13 +150,26 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
       operationInProgressRef.current = false;
       onBusyChange?.(false);
     }
-  }, [disabled, noteId, onBusyChange, reportError]);
+  }, [disabled, noteId, onBusyChange, onRequestExpand, reportError]);
 
   useEffect(() => {
     if (!filesRequest || filesRequest.id === lastFilesRequestRef.current) return;
     lastFilesRequestRef.current = filesRequest.id;
     void addFiles(filesRequest.files);
   }, [addFiles, filesRequest]);
+
+  useEffect(() => {
+    if (!isLoading && attachments.length === 0) setCompactExpanded(false);
+  }, [attachments.length, isLoading]);
+
+  const toggleCompactDrawer = async () => {
+    if (compactExpanded) {
+      setCompactExpanded(false);
+      return;
+    }
+    const canExpand = await onRequestExpand?.();
+    if (canExpand !== false) setCompactExpanded(true);
+  };
 
   const remove = async (attachmentId: string) => {
     if (disabled || operationInProgressRef.current) return;
@@ -189,17 +207,50 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
   );
 
   if (compact) {
+    const imageCount = compactImages.length;
+    const videoCount = compactObjects.filter((attachment) => attachment.kind === 'video').length;
+    const fileCount = attachments.length - imageCount - videoCount;
+    const attachmentTypes = [
+      imageCount > 0 ? `${imageCount} ${imageCount === 1 ? 'photo' : 'photos'}` : null,
+      videoCount > 0 ? `${videoCount} ${videoCount === 1 ? 'video' : 'videos'}` : null,
+      fileCount > 0 ? `${fileCount} ${fileCount === 1 ? 'file' : 'files'}` : null,
+    ].filter(Boolean).join(' · ');
+    const drawerId = `note-attachments-${noteId}`;
+
     return (
       <section
         className="note-attachment-strip"
         data-empty={attachments.length === 0 && !isLoading}
+        data-expanded={compactExpanded}
         aria-label="Attached files"
       >
         {hiddenPicker}
         {isLoading ? (
           <span className="attachment-strip-status" role="status">Reading attachments…</span>
         ) : attachments.length > 0 ? (
-          <div className="attachment-media-grid">
+          <>
+            <button
+              type="button"
+              className="attachment-drawer-handle"
+              aria-expanded={compactExpanded}
+              aria-controls={drawerId}
+              onClick={() => void toggleCompactDrawer()}
+            >
+              <span className="attachment-drawer-icon" aria-hidden="true"><Paperclip size={15} /></span>
+              <span className="attachment-drawer-copy">
+                <strong>{attachmentTypes}</strong>
+                <small>{compactExpanded ? 'Tuck attachments away' : 'Pull up to see attachments'}</small>
+              </span>
+              {compactExpanded
+                ? <ChevronDown size={17} aria-hidden="true" />
+                : <ChevronUp size={17} aria-hidden="true" />}
+            </button>
+            <div
+              id={drawerId}
+              className="attachment-drawer-content"
+              hidden={!compactExpanded}
+            >
+              <div className="attachment-media-grid">
             {compactImages.length > 0 && (() => {
               const lead = compactImages[0]!;
               const leadUrl = urls[lead.id];
@@ -270,7 +321,9 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
                 </article>
               );
             })}
+              </div>
           </div>
+          </>
         ) : (
           <span className="attachment-strip-empty" aria-hidden="true" />
         )}

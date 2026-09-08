@@ -30,7 +30,7 @@ const COMPACT_WINDOW_LOGICAL_MARGIN: i32 = 18;
 const COMPACT_WINDOW_TARGET_RIGHT_INSET: i32 = 24;
 const COMPACT_WINDOW_TARGET_TOP_OFFSET: i32 = 48;
 const FINAL_RECT_TOLERANCE_PX: i32 = 8;
-const NOTE_SURFACE_LOGICAL_RADIUS: i32 = 18;
+const NOTE_SURFACE_LOGICAL_RADIUS: i32 = 20;
 const COLLAPSED_NOTE_MAIN_REGION_LOGICAL_DIAMETER: i32 = 40;
 const COLLAPSED_NOTE_MAIN_REGION_LOGICAL_TOP: i32 = 4;
 const COLLAPSED_NOTE_BADGE_REGION_LOGICAL_DIAMETER: i32 = 18;
@@ -270,6 +270,21 @@ pub fn restore_standard_window_surface(window: &tauri::WebviewWindow) -> Result<
         .map_err(|error| format!("Skribli could not restore the standard window shadow: {error}"))
 }
 
+fn lock_note_window_to_manual_resize(window: &tauri::WebviewWindow) -> Result<(), String> {
+    // A frameless Tauri window still exposes the native caption drag contract used by
+    // `data-tauri-drag-region`. Windows can therefore maximize the transparent HWND when the
+    // header reaches an edge even though Skribli draws its own paper inside it. Keep native
+    // maximize/Snap disabled while preserving `resizable` for the four explicit corner handles.
+    if window.is_maximized().unwrap_or(false) {
+        window.unmaximize().map_err(|error| {
+            format!("Skribli could not restore the note from Windows Snap: {error}")
+        })?;
+    }
+    window
+        .set_maximizable(false)
+        .map_err(|error| format!("Skribli could not disable note maximization: {error}"))
+}
+
 pub fn refresh_note_window_surface(window: &tauri::WebviewWindow) -> Result<(), String> {
     let size = window
         .inner_size()
@@ -320,6 +335,7 @@ fn standard_compact_surface_logical_size() -> (u32, u32) {
 }
 
 pub fn prepare_standard_compact_surface(window: &tauri::WebviewWindow) -> Result<(), String> {
+    lock_note_window_to_manual_resize(window)?;
     let (width, height) = standard_compact_surface_logical_size();
     window
         .set_min_size(Some(LogicalSize::new(
@@ -650,6 +666,7 @@ fn apply_placement(
     placement: &CompactWindowPlacement,
     surface: NativeNoteSurface,
 ) -> Result<AppliedPlacement, String> {
+    lock_note_window_to_manual_resize(window)?;
     window.set_shadow(false).map_err(|error| {
         format!("Skribli could not disable the transparent window shadow: {error}")
     })?;
@@ -683,6 +700,7 @@ fn apply_placement_with_transition(
     placement: &CompactWindowPlacement,
     surface: NativeNoteSurface,
 ) -> Result<AppliedPlacement, String> {
+    lock_note_window_to_manual_resize(window)?;
     let initial_size = window
         .inner_size()
         .map_err(|error| format!("Skribli could not read the current note size: {error}"))?;
@@ -951,6 +969,7 @@ pub fn transition_detached_note_window(
 }
 
 pub fn initialize_compact_window(window: &tauri::WebviewWindow) -> Result<OverlayMetrics, String> {
+    lock_note_window_to_manual_resize(window)?;
     let hwnd = window
         .hwnd()
         .map_err(|error| format!("Failed to acquire compact editor HWND: {error}"))?;
@@ -1122,7 +1141,7 @@ mod tests {
             ),
             (0, 0, 420, 360)
         );
-        assert_eq!((note.ellipse_width, note.ellipse_height), (36, 36));
+        assert_eq!((note.ellipse_width, note.ellipse_height), (40, 40));
         assert!(!note.circular);
         assert!(note.badge.is_none());
 

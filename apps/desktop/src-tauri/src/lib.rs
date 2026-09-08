@@ -3467,6 +3467,24 @@ pub fn run() {
         }
         RunEvent::WindowEvent {
             label,
+            event: tauri::WindowEvent::Moved(_),
+            ..
+        } if label == "main" => {
+            // Rebuild the rounded native region after a per-monitor DPI transition. Collapsed
+            // dots use a different region and are deliberately excluded by their 44px surface.
+            #[cfg(target_os = "windows")]
+            if let Some(window) = app_handle.get_webview_window("main") {
+                if window
+                    .inner_size()
+                    .map(|size| size.width >= 200 && size.height >= 200)
+                    .unwrap_or(false)
+                {
+                    let _ = refresh_note_window_surface(&window);
+                }
+            }
+        }
+        RunEvent::WindowEvent {
+            label,
             event: tauri::WindowEvent::CloseRequested { api, .. },
             ..
         } if label == "main" || label == "home" || label == "library" => {

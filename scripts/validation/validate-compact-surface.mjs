@@ -40,7 +40,7 @@ const desktopCapabilities = JSON.parse(
 for (const marker of [
   '--compact-surface-logical-width: 420px',
   '--compact-surface-logical-height: 360px',
-  '--compact-surface-gutter: 4px',
+  '--compact-surface-gutter: 0px',
   '--collapsed-dot-surface-size: 44px',
   '--collapsed-dot-diameter: 30px',
   '--collapsed-dot-bubble-left: 5px',
@@ -86,6 +86,10 @@ for (const [source, marker] of [
   [composer, 'className={`composer-resize-handle ${direction.toLowerCase()}`}'],
   [composer, 'className="skrib-composer-backdrop"'],
   [attachments, 'className="attachment-photo-stack"'],
+  [attachments, 'className="attachment-drawer-handle"'],
+  [attachments, 'className="attachment-drawer-content"'],
+  [attachments, 'aria-expanded={compactExpanded}'],
+  [attachments, "setCompactExpanded(true)"],
   [collapsedDot, 'data-overlay-surface="collapsed"'],
   [collapsedDot, 'className="collapsed-skrib-bubble"'],
   [collapsedDot, 'collapsed-skrib-drag-zone collapsed-skrib-drag-top'],
@@ -153,6 +157,10 @@ if (!mainWindow || mainWindow.resizable !== true) {
   failures.push('The note window must remain natively resizable from its corner handles.');
 }
 
+if (!mainWindow || mainWindow.maximizable !== false) {
+  failures.push('The note window must stay outside Windows Snap while retaining explicit corner resizing.');
+}
+
 if (
   !mainWindow ||
   mainWindow.minWidth !== 320 ||
@@ -188,6 +196,9 @@ for (const marker of [
 
 for (const marker of [
   'fn set_note_resize_bounds(',
+  'fn lock_note_window_to_manual_resize(',
+  'window.is_maximized().unwrap_or(false)',
+  '.set_maximizable(false)',
   'set_max_size(Some(PhysicalSize::new(',
   'logical_to_physical(WORKSPACE_LOGICAL_WIDTH, scale_factor)',
   'logical_to_physical(WORKSPACE_LOGICAL_HEIGHT, scale_factor)',
@@ -199,6 +210,9 @@ for (const marker of [
 
 for (const marker of [
   '.attachment-photo-object {',
+  '.attachment-drawer-handle {',
+  '.attachment-drawer-content {',
+  ".note-attachment-strip[data-expanded='true']",
   'background: transparent;',
   'overflow: visible;',
   '.attachment-photo-object .attachment-object-actions',
@@ -401,5 +415,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  'Compact surfaces validated: shaped 420x360 editor, 44px notification surface with a crisp 30px pastel bubble and 12px close badge, non-overlapping controls, and no empty visible fallback.'
+  'Compact surfaces validated: snap-proof shaped editor, seamless cross-display outline, pull-up attachment tray, 44px notification surface, and no empty visible fallback.'
 );

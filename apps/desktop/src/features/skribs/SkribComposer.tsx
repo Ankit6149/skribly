@@ -371,6 +371,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
             reason instanceof Error ? reason.message : String(reason)
           }`
         );
+        return false;
       } finally {
         resizeInProgress.current = false;
         setIsResizing(false);
@@ -430,6 +431,11 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
     },
     [activePanel, changeSurfaceSize, drawingEnabled, surfaceSize]
   );
+
+  const prepareAttachmentDrawer = useCallback(async () => {
+    if (surfaceSize !== 'compact') return true;
+    return changeSurfaceSize('medium', true);
+  }, [changeSurfaceSize, surfaceSize]);
 
   const hasPersistedExtras = useCallback(async () => {
     const [richContent, reminders] = await Promise.all([
@@ -986,6 +992,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
             onError={setComposerError}
             onBusyChange={handleAttachmentsBusy}
             onCountChange={setAttachmentCount}
+            onRequestExpand={prepareAttachmentDrawer}
           />
 
           {activePanel === 'reminder' && (
