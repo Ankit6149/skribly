@@ -166,6 +166,8 @@ final result: blocked
 - The rail is now explicitly non-resizable and non-maximizable while retaining programmatic 64 × 64 collapsed and 336 × 500 expanded transitions. Existing maximized state is cleared before each transition.
 - The visual pill, count, hover motion, nearest-edge docking, Y-axis position, transparency, and always-on-top behavior are unchanged.
 - Static validation enforces the snap-safe native window contract; existing native rail geometry tests cover both edges, negative-origin monitors, vertical clamping, growth inward, and stale-movement cancellation.
+- All six pending Dependabot updates were merged before packaging. The combined source retained 161 frontend tests, 144 native library tests, 3 native binary tests, and 37 schema migration tests, with TypeScript, production build, product-truth, theme, compact-surface, governance, site, private-artifact, and Rust format checks passing.
+- Exact candidate workflow `34219289037` passed for combined main commit `6b7f076f33f863832abfacf321cc7b6eb301d46a`. The NSIS installer is 3,476,305 bytes with SHA-256 `df502bb4772838d7f2103eb86a67438c1a1eb722312a2ac72788abb77ad76c8f`; its encrypted website asset is 3,476,357 bytes with SHA-256 `a24ec280b3e17df2bcbd00cb3694ca2a317fad763161865fc72b7bedab93eb2a`.
 - Installed-app visual acceptance is intentionally not claimed because the owner requested to download and test packaged builds personally.
 
 final result: blocked

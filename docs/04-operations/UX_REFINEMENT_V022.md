@@ -20,3 +20,12 @@ The transparent rail host was marked as a user-resizable Windows window. Skribli
 - Static validation rejects a rail that can be user-resized or maximized and checks the 64 × 64 to 336 × 500 envelope.
 - Native rail geometry tests retain nearest-edge docking, negative-origin monitor, inward growth, and stale-movement suppression coverage.
 - Installed-app visual acceptance remains with the owner, as requested.
+
+## Release evidence
+
+- All six pending Dependabot updates were merged before packaging; only `main` remains.
+- Exact candidate: `6b7f076f33f863832abfacf321cc7b6eb301d46a`.
+- Windows workflow: `34219289037`; private artifact: `10053445093`.
+- NSIS installer: `Skribli_0.1.22_x64-setup.exe`, 3,476,305 bytes.
+- NSIS SHA-256: `df502bb4772838d7f2103eb86a67438c1a1eb722312a2ac72788abb77ad76c8f`.
+- Encrypted owner asset: 3,476,357 bytes; SHA-256 `a24ec280b3e17df2bcbd00cb3694ca2a317fad763161865fc72b7bedab93eb2a`.
