@@ -440,6 +440,18 @@ fn size_and_dock_rail(
     logical_width: f64,
     logical_height: f64,
 ) -> Result<(), String> {
+    // The rail is moved with the native window-drag API, which Windows otherwise treats like a
+    // draggable title bar. Keep it outside Snap Layouts and recover immediately if an older build
+    // left the transparent host maximized. Programmatic collapsed/expanded sizing still works.
+    if rail.is_maximized().unwrap_or(false) {
+        rail.unmaximize()
+            .map_err(|error| format!("Skribli could not restore the note rail: {error}"))?;
+    }
+    rail.set_resizable(false)
+        .map_err(|error| format!("Skribli could not lock the note rail size: {error}"))?;
+    rail.set_maximizable(false)
+        .map_err(|error| format!("Skribli could not disable note rail maximization: {error}"))?;
+
     let previous_position = rail.outer_position().ok();
     let previous_size = rail.outer_size().ok();
     let had_docked_position = rail_window_runtime().has_docked_position();

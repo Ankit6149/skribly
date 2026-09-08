@@ -158,3 +158,14 @@ final result: blocked
 - Exact candidate workflow `34030029602` passed for source commit `230f91a0cdeacbdb6796faaaec459d5e92adb1b8`. The NSIS installer is 3,478,405 bytes with SHA-256 `0dc9f74c897667b58bb5d372894dad0baebb6c9d3bb941cd31e8f14855a1efa4`; its encrypted website asset is 3,478,457 bytes with SHA-256 `61633fb170d7f03c85d071c5177870b880f023ccc52c4dd1fb9b93a9cdbbc2d4`.
 
 final result: blocked
+
+## v0.1.22 floating rail snap containment — 2026-09-08
+
+- Visual source: owner screenshot `codex-clipboard-e66935c3-79c5-447b-9c3f-1f6c23afcdcd.png`, showing a small collapsed rail inside a work-area-sized grey native surface after it was dragged near the top or side of the display.
+- Root cause: the transparent rail host was configured as user-resizable. Native title-bar dragging therefore allowed Windows Snap Layouts/maximize to enlarge the host far beyond the 64 × 64 collapsed surface.
+- The rail is now explicitly non-resizable and non-maximizable while retaining programmatic 64 × 64 collapsed and 336 × 500 expanded transitions. Existing maximized state is cleared before each transition.
+- The visual pill, count, hover motion, nearest-edge docking, Y-axis position, transparency, and always-on-top behavior are unchanged.
+- Static validation enforces the snap-safe native window contract; existing native rail geometry tests cover both edges, negative-origin monitors, vertical clamping, growth inward, and stale-movement cancellation.
+- Installed-app visual acceptance is intentionally not claimed because the owner requested to download and test packaged builds personally.
+
+final result: blocked

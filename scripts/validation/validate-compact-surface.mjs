@@ -144,6 +144,7 @@ for (const marker of [
 }
 
 const mainWindow = tauriConfig.app?.windows?.find((window) => window.label === 'main');
+const railWindow = tauriConfig.app?.windows?.find((window) => window.label === 'rail');
 if (!mainWindow || mainWindow.transparent !== true || mainWindow.shadow !== false) {
   failures.push('The transparent main window must disable the rectangular native shadow.');
 }
@@ -160,6 +161,29 @@ if (
   mainWindow.maxHeight !== 760
 ) {
   failures.push('The note window must enforce the 320×260 to 820×760 resize envelope.');
+}
+
+if (
+  !railWindow ||
+  railWindow.resizable !== false ||
+  railWindow.maximizable !== false ||
+  railWindow.minWidth !== 64 ||
+  railWindow.minHeight !== 64 ||
+  railWindow.maxWidth !== 336 ||
+  railWindow.maxHeight !== 500
+) {
+  failures.push('The floating rail must stay outside Windows Snap Layouts while allowing its fixed collapsed and expanded sizes.');
+}
+
+for (const marker of [
+  'rail.is_maximized().unwrap_or(false)',
+  'rail.unmaximize()',
+  'rail.set_resizable(false)',
+  'rail.set_maximizable(false)',
+]) {
+  if (!nativeEntry.includes(marker)) {
+    failures.push(`Native rail snap prevention is missing: ${marker}`);
+  }
 }
 
 for (const marker of [
