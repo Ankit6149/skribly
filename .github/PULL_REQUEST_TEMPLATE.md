@@ -2,6 +2,15 @@
 
 Closes #
 
+## Base / Linear linkage
+
+<!-- Choose the one line that matches this PR and delete the others. -->
+<!-- `Fixes ARC-123` = merging this PR fully completes that Linear outcome. -->
+<!-- `Part of ARC-123` = this PR contributes to a larger outcome and must NOT close it. -->
+<!-- `No Linear issue — <reason>` = maintenance that genuinely does not need Base tracking. -->
+
+Part of ARC-
+
 ## Problem
 
 <!-- What user, product, security, reliability, or governance problem does this change solve? -->
