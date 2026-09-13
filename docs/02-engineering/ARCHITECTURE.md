@@ -1,16 +1,16 @@
 # Current Skribli architecture
 
-> **Status:** Windows v0 source of truth. This document describes the current code: one active contextual note/dot with text, drawing, local attachments, one-time reminders, and a linked calendar. Further annotations, browser precision, macOS, sync, and payments are listed separately and are not production capabilities.
+> **Status:** Windows v0 source of truth. This document describes the current code: one active contextual note with text, drawing, local attachments, one-time reminders, and a linked calendar. Further annotations, browser precision, macOS, sync, and payments are listed separately and are not production capabilities.
 
 ## Product boundary
 
 Skribli is one Windows background application with three current user-facing surfaces:
 
 1. a normal home/account window;
-2. one active contextual note editor opened by `Ctrl + Shift + Space`, which can use a bounded rich workspace and collapse into one movable dot;
-3. one reusable **All Skribs** library window opened from the tray, including a linked reminder calendar and agenda.
+2. one active contextual note editor opened by `Ctrl + Shift + Space`, which can use a bounded rich workspace and returns to the rail when done;
+3. one persistent movable **My Skribs** rail with Here, All, and Archive scopes, plus one reusable library window with its linked reminder calendar and agenda.
 
-Closing a home/library window hides it; **Quit Skribli** exits the background process. Completing or closing the active editor durably saves its typed draft and collapses it into the same native window's movable pastel dot. The current build never creates a full-screen overlay and cannot display multiple independent note/dot windows at once.
+Closing a home/library window hides it; **Quit Skribli** exits the background process. Closing the editor durably saves its typed draft before hiding it and returning it to My Skribs. Completing a task archives the note and completes linked reminders. The current build never creates a full-screen overlay or separate per-note floating dots.
 
 ## Runtime map
 
@@ -34,10 +34,10 @@ Windows user session
     |
     +-- WebView UI (React/TypeScript)
         +-- home/account and first-run guidance
-        +-- compact/expanded note composer, collapsed dot, and truthful save states
+        +-- compact/expanded note composer, rail-only completion, and truthful save states
         +-- editable ink plus safe image/video/document attachments
         +-- local reminder repository, due monitor, calendar, and agenda
-        +-- All Skribs, search, native export/import, and Trash
+        +-- All Skribs, Archive, search, native export/import, and Trash
         +-- recovery, unsupported-target, and licence surfaces
         +-- shared website-aligned design tokens, five pastels, local fonts, and themed scrollbars
 ```
@@ -91,9 +91,9 @@ Skrib content remains local. Account and entitlement calls do not upload note te
 | --- | --- |
 | React entry/startup recovery | `apps/desktop/src/bootstrap.ts`, `src/main.tsx` |
 | Home, account, and quick guide | `apps/desktop/src/features/account`, `src/features/onboarding` |
-| Compact/expanded editor, collapsed dot, ink, files, reminders | `apps/desktop/src/features/skribs` |
+| Compact/expanded editor, ink, files, reminders | `apps/desktop/src/features/skribs` |
 | Rich-content/reminder IndexedDB repositories | `apps/desktop/src/lib/richContentStore.ts`, `src/lib/reminderStore.ts` |
-| Library, calendar, Trash, export/import UI | `apps/desktop/src/features/library` |
+| My Skribs rail, library, Archive, calendar, Trash, export/import UI | `apps/desktop/src/features/rail`, `apps/desktop/src/features/library` |
 | Frontend native boundary/state | `apps/desktop/src/stores` |
 | Note coordination and persistence | `apps/desktop/src-tauri/src/core` |
 | Explicit note-open lifecycle | `apps/desktop/src-tauri/src/note_lifecycle.rs` |

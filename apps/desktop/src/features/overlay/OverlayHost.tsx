@@ -13,7 +13,6 @@ import {
   type OpenNoteAction,
   type OpenNoteRequest,
 } from '../skribs/noteLifecycle';
-import { CollapsedSkribDot } from '../skribs/CollapsedSkribDot';
 import { SkribComposer } from '../skribs/SkribComposer';
 import { hideOverlayThen } from './overlayWindowLifecycle';
 import { selectStorageSurface } from './storageSurface';
@@ -161,7 +160,9 @@ export const OverlayHost: React.FC = () => {
 
   if (primarySurface === 'composer' && composerNote) {
     if (composerNote.collapsed) {
-      return <CollapsedSkribDot note={composerNote} />;
+      // Saved notes return to the single My Skribs rail. Individual floating note dots are
+      // intentionally retired so multiple notes never cover the user's workspace.
+      return null;
     }
     return (
       <SkribComposer

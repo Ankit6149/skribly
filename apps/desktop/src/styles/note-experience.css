@@ -1780,6 +1780,20 @@ body {
 .composer-panel-close:hover { background: var(--mint); }
 .composer-panel-close:focus-visible { outline: 2px solid var(--olive); outline-offset: 2px; }
 .composer-footer-actions .danger { width: 36px; min-width: 36px; padding: 0; display: grid; place-items: center; border-radius: 50%; }
+.composer-footer-actions .complete {
+  width: 36px;
+  min-width: 36px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: color-mix(in srgb, var(--olive) 82%, var(--ink));
+}
+
+.composer-footer-actions .complete:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--olive) 34%, transparent);
+  background: color-mix(in srgb, var(--mint) 52%, var(--paper));
+}
 .collapsed-skrib-open { touch-action: none; }
 
 .composer-unified-workspace.panel-open .composer-unified-canvas {

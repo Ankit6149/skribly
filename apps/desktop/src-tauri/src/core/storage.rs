@@ -1021,6 +1021,7 @@ mod tests {
             collapsed: false,
             created_at: 1,
             updated_at: 2,
+            archived_at: None,
             deleted_at: None,
         }
     }

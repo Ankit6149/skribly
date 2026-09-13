@@ -6,6 +6,14 @@ export interface NoteGroup {
   notes: SkribNote[];
 }
 
+export function isActiveRailNote(note: SkribNote): boolean {
+  return note.deleted_at == null && note.archived_at == null;
+}
+
+export function isArchivedRailNote(note: SkribNote): boolean {
+  return note.deleted_at == null && note.archived_at != null;
+}
+
 export function applicationLabel(processName: string): string {
   const base = processName.replace(/\.exe$/iu, '').replace(/[-_]+/gu, ' ').trim();
   if (!base) return 'Application';
@@ -28,7 +36,9 @@ export function selectBestContextTarget(
 ): TargetWindowInfo | null {
   const ranked = targets
     .map((candidate) => ({ candidate, score: contextMatchScore(note, candidate) }))
-    .filter(({ score }) => score >= 50)
+    .filter(({ candidate, score }) =>
+      score >= 50 || candidate.process_name.toLowerCase() === note.target_process_name.toLowerCase()
+    )
     .sort((left, right) => right.score - left.score);
   return ranked[0]?.candidate ?? null;
 }

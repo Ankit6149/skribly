@@ -125,6 +125,7 @@ fn note(marker: &str, payload_kib: usize) -> SkribNote {
         collapsed: false,
         created_at: now_seconds(),
         updated_at: now_seconds(),
+        archived_at: None,
         deleted_at: None,
     }
 }

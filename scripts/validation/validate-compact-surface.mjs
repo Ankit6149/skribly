@@ -389,8 +389,12 @@ for (const color of ['yellow', 'peach', 'mint', 'sky', 'lavender', 'rose', 'aqua
   }
 }
 
-if (overlayHost.includes('return null;')) {
-  failures.push('OverlayHost must not leave a visible transparent native window empty.');
+if (!overlayHost.includes('return null;') || overlayHost.includes("import { CollapsedSkribDot }")) {
+  failures.push('Completed note surfaces must return to the single My Skribs rail without rendering a per-note dot.');
+}
+
+if (!nativeEntry.includes('A saved note no longer creates its own') || !nativeEntry.includes('let _ = window.hide();')) {
+  failures.push('Done must hide the note window before returning control to the persistent rail.');
 }
 
 for (const [source, pattern, message] of [
@@ -415,5 +419,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  'Compact surfaces validated: snap-proof shaped editor, seamless cross-display outline, pull-up attachment tray, 44px notification surface, and no empty visible fallback.'
+  'Compact surfaces validated: snap-proof editor, pull-up attachment tray, rail-only completion, and no visible per-note dot.'
 );

@@ -154,8 +154,10 @@ const requiredLibraryHost = [
   'Export this note',
   'Export note records',
   'openNoteInSavedContext(note, setOpeningProgress)',
-  'Open original',
-  'Open original focuses a matching live window.',
+  'Open app / screen',
+  'Skribli prefers the saved screen when it is open.',
+  "filterNotesForLifecycle(notes, 'archive')",
+  "'restore_archived_skrib_note'",
   'LIBRARY_EXPORT_REQUEST_EVENT',
   'LIBRARY_EXPORT_RESULT_EVENT',
 ];

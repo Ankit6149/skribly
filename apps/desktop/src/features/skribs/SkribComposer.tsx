@@ -10,6 +10,7 @@ import {
   PenLine,
   Type,
   Check,
+  CheckCircle2,
   Trash2,
   X,
 } from 'lucide-react';
@@ -24,7 +25,7 @@ import {
   type InkStroke,
   type SkribTextSize,
 } from '../../lib/richContentStore';
-import { dismissReminder, listReminders } from '../../lib/reminderStore';
+import { completeReminder, dismissReminder, listReminders } from '../../lib/reminderStore';
 import { useLicenseStore } from '../../stores/licenseStore';
 import { useSkribStore } from '../../stores/skribStore';
 import { useSkribUiStore } from '../../stores/skribUiStore';
@@ -80,6 +81,7 @@ function saveStatusLabel(snapshot: DraftSaveSnapshot): string {
 export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, openAction }) => {
   const {
     trashSkrib,
+    archiveSkrib,
     discardEmptySkrib,
     storageErrorMessage,
     storageNotice,
@@ -753,6 +755,41 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
     });
   };
 
+  const handleCompleteTask = async () => {
+    await runExclusive(async () => {
+      if (!canWrite) {
+        setComposerError(storageErrorMessage || licenseStatus.message || 'This build is currently read-only.');
+        return;
+      }
+      richTextEditorRef.current?.flush();
+      if (!await flushRichText()) return;
+      if (inkPersistenceStateRef.current.hasUnsavedChanges || richOperationsInProgress.current.size > 0) {
+        setComposerError('Skribli is still saving this note. Wait a moment before completing it.');
+        return;
+      }
+      if (!await saveController.flush()) {
+        setComposerError('The note could not be saved safely, so it was not archived.');
+        return;
+      }
+      if (!await archiveSkrib(note.id)) {
+        setComposerError('Skribli could not move this completed note to Archive. It remains active.');
+        return;
+      }
+      try {
+        const linkedReminders = (await listReminders()).filter(
+          (reminder) => reminder.noteId === note.id &&
+            (reminder.status === 'upcoming' || reminder.status === 'overdue')
+        );
+        await Promise.all(linkedReminders.map((reminder) => completeReminder(reminder.id)));
+        void emit('skribly://reminders-updated', { noteId: note.id }).catch(() => undefined);
+      } catch {
+        // The completed note is already safely archived; reminder refresh can retry later.
+      }
+      discardSkribDraft(note.id);
+      await hideWindow();
+    });
+  };
+
   const recoveryDirectory = storageNotice?.backupDirectory || storageBackupDirectory;
   const visibleError =
     composerError || inkPersistenceState.error || saveSnapshot.error || storageErrorMessage;
@@ -1022,6 +1059,16 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
                 </small>
               </div>
               <div className="composer-footer-actions">
+                <button
+                  type="button"
+                  className="secondary complete"
+                  aria-label="Complete task and move note to Archive"
+                  title="Complete task — keep this Skrib safely in Archive"
+                  disabled={!canWrite || isFinishing || hasPendingRichOperation || hasUnsavedInk}
+                  onClick={() => void handleCompleteTask()}
+                >
+                  <CheckCircle2 size={17} aria-hidden="true" />
+                </button>
                 <button
                   type="button"
                   className="secondary"

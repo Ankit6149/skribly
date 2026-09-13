@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { SkribNote } from '../../lib/geometry';
 import {
   filterNotesForLifecycle,
+  isArchivedNote,
   isTrashedNote,
   trashRetentionInfo,
   trashRetentionLabel,
@@ -41,6 +42,15 @@ describe('trash lifecycle filtering', () => {
       'trashed',
     ]);
     expect(notes).toHaveLength(3);
+  });
+
+  it('keeps completed notes in a separate recoverable archive', () => {
+    const archived = { ...note('completed', null), archived_at: 400 };
+    const records = [note('active', null), archived, note('trash', 500)];
+    expect(filterNotesForLifecycle(records, 'notes').map((item) => item.id)).toEqual(['active']);
+    expect(filterNotesForLifecycle(records, 'archive').map((item) => item.id)).toEqual(['completed']);
+    expect(isArchivedNote(archived)).toBe(true);
+    expect(isArchivedNote(note('trash', 500))).toBe(false);
   });
 
   it('treats any present deletion marker as trash for fail-safe visibility', () => {

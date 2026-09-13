@@ -67,7 +67,7 @@ for (const marker of [
   'pub fn permanently_delete_skrib(',
   'pub fn discard_empty_skrib(',
   'note.deleted_at.is_none()',
-  '.filter(|note| note.deleted_at.is_none())',
+  '.filter(|note| note.deleted_at.is_none() && note.archived_at.is_none())',
   '.filter(|note| note.deleted_at.is_some())',
   'trash_hides_note_from_context_and_restore_preserves_identity',
   'permanent_delete_is_available_only_after_trash',
@@ -133,7 +133,8 @@ for (const retired of ['Trash is not available in this build', 'Delete this note
 for (const marker of [
   "export const TRASH_RETENTION_DAYS = 30",
   "state: 'retained' | 'expired' | 'invalid'",
-  "view === 'trash' ? isTrashedNote(note) : !isTrashedNote(note)",
+  "if (view === 'trash') return isTrashedNote(note)",
+  "if (view === 'archive') return isArchivedNote(note)",
   'Retention period ended — review before permanent deletion',
   'Deletion time unavailable — kept until reviewed',
 ]) {

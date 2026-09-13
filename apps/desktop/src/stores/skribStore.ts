@@ -115,6 +115,7 @@ interface SkribStoreState {
   setSkribCollapsed: (id: string, collapsed: boolean) => Promise<boolean>;
   saveSkribWindowPosition: (id: string) => Promise<void>;
   trashSkrib: (id: string) => Promise<boolean>;
+  archiveSkrib: (id: string) => Promise<boolean>;
   discardEmptySkrib: (id: string) => Promise<boolean>;
   updateHitTestRects: (
     rects: Array<{ x: number; y: number; width: number; height: number }>
@@ -513,6 +514,38 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
         skribs: previousSkribs,
         errorMessage: `Failed to move Skrib to Trash: ${message}`,
         storageErrorMessage: `Failed to move Skrib to Trash: ${message}`,
+      });
+      await get().refreshStorageHealth();
+      return false;
+    }
+  },
+
+  archiveSkrib: async (id) => {
+    const blocked = writeBlockMessage();
+    if (blocked) {
+      set({ errorMessage: blocked });
+      return false;
+    }
+
+    const previousSkribs = get().skribs;
+    set({ skribs: previousSkribs.filter((note) => note.id !== id) });
+
+    if (!get().isTauriAvailable) return true;
+    try {
+      const payload = await invoke<OverlayStatePayload>('archive_skrib_note', { id });
+      set({
+        skribs: payload.skribs,
+        overlayMetrics: payload.overlay_metrics || get().overlayMetrics,
+        initStatus: payload.init_status || get().initStatus,
+        errorMessage: null,
+        storageErrorMessage: null,
+      });
+      return true;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      set({
+        skribs: previousSkribs,
+        errorMessage: `Failed to archive the completed Skrib: ${message}`,
       });
       await get().refreshStorageHealth();
       return false;

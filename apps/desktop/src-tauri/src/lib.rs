@@ -736,7 +736,7 @@ fn context_rail_notes_for_active_target(state: &AppState) -> Vec<SkribNote> {
                 .coordinator
                 .get_skribs_for_target(&target)
                 .into_iter()
-                .filter(|note| note.deleted_at.is_none())
+                .filter(SkribNote::is_active)
                 .collect()
         })
         .unwrap_or_default()
@@ -751,7 +751,7 @@ fn show_context_rail_for_target(
         .coordinator
         .get_skribs_for_target(target)
         .into_iter()
-        .filter(|note| note.deleted_at.is_none())
+        .filter(SkribNote::is_active)
         .count();
     let Some(rail) = app_handle.get_webview_window("rail") else {
         return Ok(false);
@@ -881,7 +881,7 @@ fn dismissed_collapsed_target_matches(
     target: &TargetWindowInfo,
 ) -> bool {
     note.id == dismissed.note_id
-        && note.deleted_at.is_none()
+        && note.is_active()
         && target.is_focused
         && !dismissed.target_title.trim().is_empty()
         && note
@@ -951,7 +951,7 @@ fn collapsed_dot_should_hide_for_context(
     linked_target: &TargetWindowInfo,
     candidate: &TargetWindowInfo,
 ) -> bool {
-    if !note.collapsed || note.deleted_at.is_some() || !candidate.is_focused {
+    if !note.collapsed || !note.is_active() || !candidate.is_focused {
         return false;
     }
     let relevant_event = event_type == EVENT_SYSTEM_FOREGROUND
@@ -975,7 +975,7 @@ fn active_note_should_hide_for_context(
     if note.collapsed {
         return collapsed_dot_should_hide_for_context(event_type, note, linked_target, candidate);
     }
-    if note.deleted_at.is_some() || !candidate.is_focused {
+    if !note.is_active() || !candidate.is_focused {
         return false;
     }
     let relevant_event = event_type == EVENT_SYSTEM_FOREGROUND
@@ -1025,7 +1025,7 @@ fn restore_dismissed_collapsed_window_for_target(
         clear_dismissed_lifecycle_if_current(state, generation, &dismissed);
         return Ok(false);
     };
-    if note.deleted_at.is_some() {
+    if !note.is_active() {
         clear_dismissed_lifecycle_if_current(state, generation, &dismissed);
         return Ok(false);
     }
@@ -1444,7 +1444,7 @@ fn runtime_visible_skribs(state: &AppState, target: Option<&TargetWindowInfo>) -
         return state
             .coordinator
             .get_skrib(&id)
-            .filter(|note| note.deleted_at.is_none())
+            .filter(SkribNote::is_active)
             .map(|mut note| {
                 note.collapsed = false;
                 vec![note]
@@ -1478,7 +1478,7 @@ const NOTE_COLOR_ROTATION: [&str; 8] = [
 fn next_note_color(notes: &[SkribNote]) -> String {
     let Some(latest) = notes
         .iter()
-        .filter(|note| note.deleted_at.is_none())
+        .filter(|note| note.is_active())
         .max_by(|left, right| {
             left.created_at
                 .cmp(&right.created_at)
@@ -1557,7 +1557,7 @@ fn position_active_note_window_locked(
     let note = runtime_note_id
         .and_then(|note_id| state.coordinator.get_skrib(&note_id))
         .filter(|note| {
-            note.deleted_at.is_none()
+            note.is_active()
                 && note
                     .target_process_name
                     .eq_ignore_ascii_case(&target.process_name)
@@ -1895,7 +1895,7 @@ fn open_skrib_note_here(
     let note = state
         .coordinator
         .get_skrib(&id)
-        .filter(|note| note.deleted_at.is_none())
+        .filter(SkribNote::is_active)
         .ok_or_else(|| "This note is no longer available.".to_string())?;
     let window = app_handle
         .get_webview_window("main")
@@ -1992,8 +1992,8 @@ fn set_skrib_window_collapsed(
         .coordinator
         .get_skrib(&id)
         .ok_or_else(|| "Skrib note was not found or is not writable".to_string())?;
-    if note.deleted_at.is_some() {
-        return Err("A note in Trash cannot be shown on screen.".into());
+    if !note.is_active() {
+        return Err("Archived or trashed notes cannot be shown on screen.".into());
     }
     let target = state
         .coordinator
@@ -2039,11 +2039,15 @@ fn set_skrib_window_collapsed(
     positioned_note.rel_x = rel_x;
     positioned_note.rel_y = rel_y;
 
+    if collapsed {
+        // Hide before any native surface transition so Done never flashes the retired dot UI.
+        let _ = window.hide();
+    }
+
     #[cfg(target_os = "windows")]
     let (generation, placement) = {
         let generation = begin_native_lifecycle_action(&state)?;
-        let placement =
-            position_note_window_for_target(&window, &target, &positioned_note, collapsed)?;
+        let placement = position_note_window_for_target(&window, &target, &positioned_note, false)?;
         (generation, placement)
     };
     #[cfg(not(target_os = "windows"))]
@@ -2110,7 +2114,12 @@ fn set_skrib_window_collapsed(
             }
         }
         if collapsed {
-            let _ = window.show();
+            // Done returns the note to the rail. A saved note no longer creates its own
+            // floating dot, which keeps context management predictable as notes accumulate.
+            let _ = window.hide();
+            if let Ok(mut runtime) = state.note_window_runtime.lock() {
+                runtime.clear();
+            }
         } else {
             let _ = window.show();
             let _ = window.set_focus();
@@ -2130,7 +2139,7 @@ fn dismiss_collapsed_skrib_window(
         .coordinator
         .get_skrib(&id)
         .ok_or_else(|| "The collapsed Skrib was not found.".to_string())?;
-    if !note.collapsed || note.deleted_at.is_some() {
+    if !note.collapsed || !note.is_active() {
         return Err("Only an active collapsed Skrib can be hidden temporarily.".into());
     }
     let _operation_guard = state.native_window_operation_gate.lock()?;
@@ -2276,7 +2285,7 @@ fn set_skrib_workspace_mode(
         .coordinator
         .get_skrib(&id)
         .ok_or_else(|| "Skrib note was not found or is not writable".to_string())?;
-    if note.collapsed || note.deleted_at.is_some() {
+    if note.collapsed || !note.is_active() {
         return Err("Expand this Skrib before opening its writing workspace.".into());
     }
     let target = state
@@ -2349,7 +2358,7 @@ fn set_skrib_window_size(
         .lock()
         .map(|runtime| runtime.detached_note_id() == Some(id.as_str()))
         .unwrap_or(false);
-    if (note.collapsed && !detached) || note.deleted_at.is_some() {
+    if (note.collapsed && !detached) || !note.is_active() {
         return Err("Expand this Skrib before changing its size.".into());
     }
     #[cfg(target_os = "windows")]
@@ -2454,6 +2463,41 @@ fn trash_skrib_note(
             .ok_or_else(|| "Only an active writable note can be moved to Trash".to_string())
     })?;
     hide_if_active_note_was_removed(&app_handle, &state, &id);
+    Ok(build_mutation_payload(&app_handle, &state, false))
+}
+
+#[tauri::command]
+fn archive_skrib_note(
+    app_handle: AppHandle,
+    state: State<'_, AppState>,
+    id: String,
+) -> Result<OverlayStatePayload, String> {
+    let archived_at = lifecycle_timestamp_seconds();
+    run_persisted_mutation(&state, |coordinator| {
+        coordinator
+            .archive_skrib(&id, archived_at)
+            .map(|_| ())
+            .ok_or_else(|| "Only an active writable note can be completed".to_string())
+    })?;
+    hide_if_active_note_was_removed(&app_handle, &state, &id);
+    let _ = app_handle.emit("skribly://context-rail-refresh", ());
+    Ok(build_mutation_payload(&app_handle, &state, false))
+}
+
+#[tauri::command]
+fn restore_archived_skrib_note(
+    app_handle: AppHandle,
+    state: State<'_, AppState>,
+    id: String,
+) -> Result<OverlayStatePayload, String> {
+    let restored_at = lifecycle_timestamp_seconds();
+    run_persisted_mutation(&state, |coordinator| {
+        coordinator
+            .restore_archived_skrib(&id, restored_at)
+            .map(|_| ())
+            .ok_or_else(|| "Only an archived writable note can be restored".to_string())
+    })?;
+    let _ = app_handle.emit("skribly://context-rail-refresh", ());
     Ok(build_mutation_payload(&app_handle, &state, false))
 }
 
@@ -2725,8 +2769,10 @@ pub fn run() {
             set_skrib_workspace_mode,
             set_skrib_window_size,
             trash_skrib_note,
+            archive_skrib_note,
             discard_empty_skrib_note,
             restore_skrib_note,
+            restore_archived_skrib_note,
             permanently_delete_skrib_note,
             get_all_skribs,
             focus_target_window,
@@ -2922,6 +2968,7 @@ pub fn run() {
                             collapsed: false,
                             created_at: (timestamp / 1000) as u64,
                             updated_at: (timestamp / 1000) as u64,
+                            archived_at: None,
                             deleted_at: None,
                         };
                         if let Err(message) = run_persisted_mutation(&state_hk, |coordinator| {
@@ -2948,7 +2995,7 @@ pub fn run() {
                         let matching_note_count = coordinator_hk
                             .get_skribs_for_target(&target)
                             .into_iter()
-                            .filter(|note| note.deleted_at.is_none())
+                            .filter(SkribNote::is_active)
                             .count();
                         let open_request =
                             shortcut_open_request(note_id, matching_note_count);
@@ -3562,6 +3609,7 @@ mod tests {
             collapsed: false,
             created_at,
             updated_at: created_at,
+            archived_at: None,
             deleted_at: None,
         }
     }
@@ -4261,6 +4309,7 @@ mod tests {
             collapsed: false,
             created_at: 1,
             updated_at: 1,
+            archived_at: None,
             deleted_at: None,
         });
 
@@ -4299,6 +4348,7 @@ mod tests {
             collapsed: false,
             created_at: 1,
             updated_at: 1,
+            archived_at: None,
             deleted_at: None,
         };
         coordinator.upsert_skrib(original.clone());

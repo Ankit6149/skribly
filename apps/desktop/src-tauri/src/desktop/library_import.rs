@@ -73,6 +73,8 @@ struct PortableSkribNote {
     created_at: u64,
     updated_at: u64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    archived_at: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     deleted_at: Option<u64>,
 }
 
@@ -91,6 +93,7 @@ impl From<PortableSkribNote> for SkribNote {
             collapsed: note.collapsed,
             created_at: note.created_at,
             updated_at: note.updated_at,
+            archived_at: note.archived_at,
             deleted_at: note.deleted_at,
         }
     }
@@ -591,6 +594,18 @@ fn validate_portable_note(note: &PortableSkribNote) -> Result<(), String> {
             note.id
         ));
     }
+    if note.archived_at.is_some_and(|archived_at| archived_at == 0) {
+        return Err(format!(
+            "Imported note '{}' contains an invalid Archive timestamp.",
+            note.id
+        ));
+    }
+    if note.deleted_at.is_some() && note.archived_at.is_some() {
+        return Err(format!(
+            "Imported note '{}' cannot be both archived and in Trash.",
+            note.id
+        ));
+    }
     Ok(())
 }
 
@@ -716,6 +731,7 @@ mod tests {
             collapsed: false,
             created_at: 100,
             updated_at: 200,
+            archived_at: None,
             deleted_at,
         }
     }

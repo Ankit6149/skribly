@@ -152,7 +152,7 @@ html[data-skribly-window='rail'] #root,
   height: calc(100% - 8px);
   margin: 4px;
   display: grid;
-  grid-template-rows: 56px 42px minmax(0, 1fr);
+  grid-template-rows: 56px 42px 68px minmax(0, 1fr);
   overflow: hidden;
   border: 1px solid rgb(38 41 35 / 15%);
   border-radius: 20px;
@@ -267,7 +267,7 @@ html[data-skribly-window='rail'] #root,
   margin: 7px 9px 6px;
   padding: 3px;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 3px;
   border: 1px solid rgb(38 41 35 / 9%);
   border-radius: 12px;
@@ -316,6 +316,81 @@ html[data-skribly-window='rail'] #root,
 .context-rail-tabs button:disabled {
   cursor: not-allowed;
   opacity: 0.36;
+}
+
+.context-rail-contexts {
+  min-width: 0;
+  padding: 5px 9px 7px;
+  display: flex;
+  gap: 7px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border-bottom: 1px solid rgb(38 41 35 / 8%);
+  scrollbar-width: none;
+}
+
+.context-rail-contexts::-webkit-scrollbar { display: none; }
+
+.context-rail-contexts button {
+  position: relative;
+  min-width: 48px;
+  max-width: 76px;
+  height: 54px;
+  padding: 4px 5px 3px;
+  display: grid;
+  grid-template-rows: 28px 1fr;
+  justify-items: center;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: rgb(38 41 35 / 68%);
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease, transform 140ms ease;
+}
+
+.context-rail-contexts button:hover,
+.context-rail-contexts button:focus-visible,
+.context-rail-contexts button.active {
+  background: rgb(255 255 255 / 72%);
+  color: var(--ink);
+  outline: 0;
+}
+
+.context-rail-contexts button:active { transform: scale(0.96); }
+
+.context-rail-context-icon {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgb(38 41 35 / 10%);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--yellow) 50%, var(--paper));
+}
+
+.context-rail-contexts small {
+  width: 100%;
+  overflow: hidden;
+  font: 700 9px/1.2 var(--font-ui);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.context-rail-contexts i {
+  position: absolute;
+  top: 1px;
+  right: 3px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 3px;
+  display: grid;
+  box-sizing: border-box;
+  place-items: center;
+  border: 1px solid var(--paper);
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--paper);
+  font: normal 800 8px/1 var(--font-ui);
 }
 
 .context-rail-body {
@@ -418,6 +493,12 @@ html[data-skribly-window='rail'] #root,
   border-color: rgb(38 41 35 / 10%);
   background: rgb(255 255 255 / 52%);
   transform: translateX(-1px);
+}
+
+.context-rail-note.active {
+  border-color: color-mix(in srgb, var(--olive) 34%, transparent);
+  background: color-mix(in srgb, var(--mint) 42%, rgb(255 255 255 / 60%));
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--olive) 68%, var(--ink));
 }
 
 .context-rail-note > i {

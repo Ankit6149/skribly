@@ -91,11 +91,18 @@ pub struct SkribNote {
     pub collapsed: bool,
     pub created_at: u64,
     pub updated_at: u64,
+    /// Completed notes remain recoverable in Archive and are not shown as active context notes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub archived_at: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub deleted_at: Option<u64>,
 }
 
 impl SkribNote {
+    pub fn is_active(&self) -> bool {
+        self.deleted_at.is_none() && self.archived_at.is_none()
+    }
+
     pub fn calculate_absolute_bounds(&self, target: &TargetWindowInfo) -> WindowRect {
         let abs_x = target.bounds.x + self.rel_x.round() as i32;
         let abs_y = target.bounds.y + self.rel_y.round() as i32;
@@ -174,6 +181,7 @@ mod tests {
             collapsed: false,
             created_at: 1000,
             updated_at: 1000,
+            archived_at: None,
             deleted_at,
         }
     }

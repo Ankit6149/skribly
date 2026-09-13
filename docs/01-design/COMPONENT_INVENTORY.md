@@ -53,10 +53,10 @@ Implemented foundations under #21:
 - loading, error, empty, no-results, blocked, and read-only states;
 - keyboard, live-region, forced-colour, reduced-motion, large-text, and compact responsive behavior.
 
-Remaining work under #21, #61, #79, and #82:
+Remaining work under #21, #61, #79, and #82 after the first Recoverable Archive slice:
 
 - context-safe open/edit and re-anchor entry points;
-- archive/restore;
+- richer Archive filters and bulk actions;
 - richer filters and approved grouping controls;
 - scalable indexing, pagination/virtualization, and index rebuilding;
 - attachment portability;
@@ -160,7 +160,7 @@ Current typed notes and context UX may require:
 - context changed while editing;
 - re-anchor/move/detach recovery entry point;
 - app-level versus more precise approved scope;
-- archived (deferred; not currently implemented);
+- archived (completed, recoverable, and restorable);
 - active note;
 - trashed note, retention review, restore, and confirmed permanent deletion;
 - read-only;

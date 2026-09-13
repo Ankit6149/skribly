@@ -3,6 +3,10 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import {
   AppWindow,
+  ArchiveRestore,
+  Code2,
+  Folder,
+  Globe2,
   GripVertical,
   MapPin,
   MapPinned,
@@ -14,17 +18,33 @@ import {
 import type { SkribNote } from '../../lib/geometry';
 import '../../styles/context-rail.css';
 import skribliLogo from '../../../src-tauri/icons/128x128.png';
-import { applicationLabel, groupNotesForRail, railPillCount } from './contextRailModel';
+import {
+  applicationLabel,
+  groupNotesForRail,
+  isActiveRailNote,
+  isArchivedRailNote,
+  railPillCount,
+} from './contextRailModel';
 import { openNoteHere, openNoteInSavedContext } from './openNoteContext';
 import type { OpenNoteProgress } from './openNoteContext';
 import { OpeningJourney } from './OpeningJourney';
 import { useNativeDrag } from '../../lib/useNativeDrag';
 
-type RailScope = 'context' | 'all';
+type RailScope = 'context' | 'all' | 'archive';
 
 function noteTitle(note: SkribNote): string {
   const firstLine = note.text.trim().split(/\r?\n/, 1)[0]?.trim();
   return firstLine || note.target_title || applicationLabel(note.target_process_name);
+}
+
+function ContextIcon({ processName }: { processName: string }) {
+  const process = processName.toLowerCase();
+  if (process === 'explorer.exe') return <Folder size={15} aria-hidden="true" />;
+  if (process.includes('chrome') || process.includes('edge') || process.includes('firefox')) {
+    return <Globe2 size={15} aria-hidden="true" />;
+  }
+  if (process.includes('code')) return <Code2 size={15} aria-hidden="true" />;
+  return <AppWindow size={15} aria-hidden="true" />;
 }
 
 export const ContextRail: React.FC = () => {
@@ -38,28 +58,43 @@ export const ContextRail: React.FC = () => {
   const opening = useRef(false);
   const resizing = useRef(false);
   const [openingId, setOpeningId] = useState<string | null>(null);
+  const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
+  const [selectedGroupKey, setSelectedGroupKey] = useState<string | null>(null);
   const [openingProgress, setOpeningProgress] = useState<OpenNoteProgress | null>(null);
   const refreshGeneration = useRef(0);
 
   const activeNotes = useMemo(
-    () => allNotes.filter((note) => note.deleted_at == null),
+    () => allNotes.filter(isActiveRailNote),
     [allNotes]
   );
-  const visibleNotes = scope === 'context' && contextNotes.length > 0 ? contextNotes : activeNotes;
-  const groups = useMemo(() => groupNotesForRail(visibleNotes), [visibleNotes]);
+  const archivedNotes = useMemo(() => allNotes.filter(isArchivedRailNote), [allNotes]);
+  const activeContextNotes = useMemo(() => contextNotes.filter(isActiveRailNote), [contextNotes]);
+  const visibleNotes = scope === 'archive'
+    ? archivedNotes
+    : scope === 'context'
+      ? activeContextNotes
+      : activeNotes;
+  const allGroups = useMemo(() => groupNotesForRail(visibleNotes), [visibleNotes]);
+  const groups = useMemo(
+    () => selectedGroupKey
+      ? allGroups.filter((group) => group.key === selectedGroupKey)
+      : allGroups,
+    [allGroups, selectedGroupKey]
+  );
   const pillCount = railPillCount(activeNotes.length, contextNotes.length, contextualDock);
 
   const refresh = useCallback(async () => {
     const generation = ++refreshGeneration.current;
     try {
-      const [nextAllNotes, nextContextNotes] = await Promise.all([
+      const [nextAllNotes, nextContextNotes, nextActiveNoteId] = await Promise.all([
         invoke<SkribNote[]>('get_all_skribs'),
         invoke<SkribNote[]>('get_context_rail_notes'),
+        invoke<string | null>('get_open_skrib_note_id'),
       ]);
       if (generation !== refreshGeneration.current) return;
       setAllNotes(nextAllNotes);
       setContextNotes(nextContextNotes);
-      setScope((current) => nextContextNotes.length > 0 ? current : 'all');
+      setActiveNoteId(nextActiveNoteId);
     } catch (reason) {
       if (generation === refreshGeneration.current) setMessage(reason instanceof Error ? reason.message : String(reason));
     } finally {
@@ -85,6 +120,12 @@ export const ContextRail: React.FC = () => {
       void Promise.all(subscriptions).then((unlisten) => unlisten.forEach((dispose) => dispose()));
     };
   }, [refresh]);
+
+  useEffect(() => {
+    setSelectedGroupKey((current) =>
+      current && allGroups.some((group) => group.key === current) ? current : null
+    );
+  }, [allGroups]);
 
   const toggleCollapsed = async () => {
     if (resizing.current || opening.current) return;
@@ -119,6 +160,8 @@ export const ContextRail: React.FC = () => {
     setMessage(null);
     try {
       const result = await openNoteInSavedContext(note, setOpeningProgress);
+      setActiveNoteId(note.id);
+      setActiveNoteId(note.id);
       await invoke('set_context_rail_expanded', {
         expanded: true,
         contextual: contextualDock,
@@ -142,6 +185,7 @@ export const ContextRail: React.FC = () => {
     setMessage(null);
     try {
       await openNoteHere(note);
+      setActiveNoteId(note.id);
       setContextualDock(false);
       await invoke('set_context_rail_expanded', {
         expanded: true,
@@ -149,6 +193,24 @@ export const ContextRail: React.FC = () => {
         noteCount: visibleNotes.length,
       });
       setCollapsed(false);
+    } catch (reason) {
+      setMessage(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      opening.current = false;
+      setOpeningId(null);
+    }
+  };
+
+  const restoreArchived = async (note: SkribNote) => {
+    if (opening.current) return;
+    opening.current = true;
+    setOpeningId(note.id);
+    setMessage(null);
+    try {
+      await invoke('restore_archived_skrib_note', { id: note.id });
+      await refresh();
+      setScope('all');
+      setMessage('Returned to active Skribs.');
     } catch (reason) {
       setMessage(reason instanceof Error ? reason.message : String(reason));
     } finally {
@@ -204,21 +266,58 @@ export const ContextRail: React.FC = () => {
         <button
           type="button"
           className={scope === 'context' ? 'active' : ''}
-          disabled={contextNotes.length === 0}
-          onClick={() => setScope('context')}
+          onClick={() => { setScope('context'); setSelectedGroupKey(null); }}
         >
           Here <span>{contextNotes.length}</span>
         </button>
-        <button type="button" className={scope === 'all' ? 'active' : ''} onClick={() => setScope('all')}>
+        <button type="button" className={scope === 'all' ? 'active' : ''} onClick={() => { setScope('all'); setSelectedGroupKey(null); }}>
           All <span>{activeNotes.length}</span>
         </button>
+        <button type="button" className={scope === 'archive' ? 'active' : ''} onClick={() => { setScope('archive'); setSelectedGroupKey(null); }}>
+          Archive <span>{archivedNotes.length}</span>
+        </button>
+      </nav>
+
+      <nav className="context-rail-contexts" aria-label="Contexts containing Skribs">
+          <button
+            type="button"
+            className={selectedGroupKey === null ? 'active' : ''}
+            onClick={() => setSelectedGroupKey(null)}
+            aria-label={`Show all ${scope === 'archive' ? 'archived' : 'active'} contexts`}
+          >
+            <span className="context-rail-context-icon"><StickyNote size={15} aria-hidden="true" /></span>
+            <small>All</small>
+            <i>{visibleNotes.length}</i>
+          </button>
+          {allGroups.map((group) => (
+            <button
+              type="button"
+              key={group.key}
+              className={selectedGroupKey === group.key ? 'active' : ''}
+              onClick={() => setSelectedGroupKey(group.key)}
+              aria-label={`Show ${group.notes.length} ${group.label} Skribs`}
+              title={`${group.label} · ${group.notes.length} ${group.notes.length === 1 ? 'Skrib' : 'Skribs'}`}
+            >
+              <span className="context-rail-context-icon">
+                <ContextIcon processName={group.notes[0]?.target_process_name ?? group.key} />
+              </span>
+              <small>{group.label}</small>
+              <i>{group.notes.length}</i>
+            </button>
+          ))}
       </nav>
 
       <div className="context-rail-body">
         {loading ? (
           <div className="context-rail-empty" role="status">Reading notes…</div>
         ) : groups.length === 0 ? (
-          <div className="context-rail-empty">Use Ctrl + Shift + Space to add a Skrib here.</div>
+          <div className="context-rail-empty">
+            {scope === 'archive'
+              ? 'Completed Skribs will wait safely here.'
+              : scope === 'context'
+                ? 'No Skribs on this screen yet. Press Ctrl + Shift + Space to add one.'
+                : 'Press Ctrl + Shift + Space to add your first Skrib.'}
+          </div>
         ) : (
           <div className="context-rail-list" aria-label="Saved notes">
             {groups.map((group) => (
@@ -232,34 +331,38 @@ export const ContextRail: React.FC = () => {
                 </div>
                 <div className="context-rail-group-notes">
                   {group.notes.map((note) => (
-                    <article className="context-rail-note" key={note.id} aria-busy={openingId === note.id}>
+                    <article className={`context-rail-note ${activeNoteId === note.id ? 'active' : ''}`} key={note.id} aria-busy={openingId === note.id}>
                       <i className={`skrib-color-${note.color}`} aria-hidden="true" />
                       <button
                         type="button"
                         className="context-rail-note-open"
-                        onClick={() => void openHere(note)}
+                        onClick={() => void (scope === 'archive' ? restoreArchived(note) : openHere(note))}
                         disabled={openingId !== null}
-                        title="Read this Skrib right here"
-                        aria-label={`Open ${noteTitle(note)} here`}
+                        title={scope === 'archive' ? 'Return this Skrib to active notes' : 'Read this Skrib right here'}
+                        aria-label={scope === 'archive' ? `Restore ${noteTitle(note)}` : `Open ${noteTitle(note)} here`}
                       >
                         <span className="context-rail-note-copy">
                           <strong>{noteTitle(note)}</strong>
                           <small><MapPin size={11} aria-hidden="true" /> {note.target_title || applicationLabel(note.target_process_name)}</small>
                         </span>
                         <span className="context-rail-note-action-icon" aria-hidden="true">
-                          {openingId === note.id ? <LoaderCircle className="rail-opening-spinner" size={16} /> : <StickyNote size={16} strokeWidth={1.9} />}
+                          {openingId === note.id
+                            ? <LoaderCircle className="rail-opening-spinner" size={16} />
+                            : scope === 'archive'
+                              ? <ArchiveRestore size={16} strokeWidth={1.9} />
+                              : <StickyNote size={16} strokeWidth={1.9} />}
                         </span>
                       </button>
-                      <button
+                      {scope !== 'archive' && <button
                         type="button"
                         className="context-rail-note-location"
                         onClick={() => void openContext(note)}
                         disabled={openingId !== null}
-                        title="Take me back to where this Skrib began"
-                        aria-label={`Open ${noteTitle(note)} at its saved location`}
+                        title="Open the saved screen, or the app home if that screen changed"
+                        aria-label={`Open ${noteTitle(note)} in its app or saved screen`}
                       >
                         <MapPinned size={16} strokeWidth={1.9} aria-hidden="true" />
-                      </button>
+                      </button>}
                     </article>
                   ))}
                 </div>

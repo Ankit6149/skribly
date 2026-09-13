@@ -29,6 +29,7 @@ import {
 } from './libraryModel';
 import {
   filterNotesForLifecycle,
+  isArchivedNote,
   isTrashedNote,
   type LibraryLifecycleView,
   trashRetentionInfo,
@@ -191,8 +192,13 @@ export const LibraryHost: React.FC<{
   }, [clearExportTimeout]);
 
   const activeNotes = useMemo(() => filterNotesForLifecycle(notes, 'notes'), [notes]);
+  const archivedNotes = useMemo(() => filterNotesForLifecycle(notes, 'archive'), [notes]);
   const trashNotes = useMemo(() => filterNotesForLifecycle(notes, 'trash'), [notes]);
-  const notesInView = lifecycleView === 'trash' ? trashNotes : activeNotes;
+  const notesInView = lifecycleView === 'trash'
+    ? trashNotes
+    : lifecycleView === 'archive'
+      ? archivedNotes
+      : activeNotes;
   const filteredNotes = useMemo(
     () => filterLibraryNotes(notesInView, query),
     [notesInView, query]
@@ -278,7 +284,7 @@ export const LibraryHost: React.FC<{
   };
 
   const runLifecycleMutation = async (
-    command: 'restore_skrib_note' | 'permanently_delete_skrib_note',
+    command: 'restore_skrib_note' | 'restore_archived_skrib_note' | 'permanently_delete_skrib_note',
     note: SkribNote
   ) => {
     if (!canMutate || mutatingNoteId) return false;
@@ -306,7 +312,7 @@ export const LibraryHost: React.FC<{
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       setLifecycleError(
-        command === 'restore_skrib_note'
+        command === 'restore_skrib_note' || command === 'restore_archived_skrib_note'
           ? `Skribli could not restore this note: ${message}`
           : `Skribli could not permanently delete this note: ${message}`
       );
@@ -336,6 +342,13 @@ export const LibraryHost: React.FC<{
   const returnToHome = async () => {
     if (onBack) onBack();
     else await emit('skribly://home-view');
+  };
+
+  const restoreArchivedNote = async (note: SkribNote) => {
+    if (await runLifecycleMutation('restore_archived_skrib_note', note)) {
+      setLifecycleView('notes');
+      setSelectedNoteId(note.id);
+    }
   };
 
   const openSelectedNote = async (note: SkribNote) => {
@@ -419,6 +432,14 @@ export const LibraryHost: React.FC<{
         </button>
         <button
           type="button"
+          aria-current={lifecycleView === 'archive' ? 'page' : undefined}
+          className={lifecycleView === 'archive' ? 'active' : ''}
+          onClick={() => setLifecycleView('archive')}
+        >
+          Archive <span>{archivedNotes.length.toLocaleString()}</span>
+        </button>
+        <button
+          type="button"
           aria-current={lifecycleView === 'trash' ? 'page' : undefined}
           className={lifecycleView === 'trash' ? 'active' : ''}
           onClick={() => setLifecycleView('trash')}
@@ -447,21 +468,21 @@ export const LibraryHost: React.FC<{
       <section className="library-toolbar" aria-label="Library search and status">
         <label className="library-search">
           <span className="sr-only">
-            Search {lifecycleView === 'trash' ? 'trashed' : 'active'} notes
+            Search {lifecycleView === 'trash' ? 'trashed' : lifecycleView === 'archive' ? 'archived' : 'active'} notes
           </span>
           <input
             ref={searchInputRef}
             type="search"
             value={query}
             autoFocus={active}
-            placeholder={`Search ${lifecycleView === 'trash' ? 'Trash' : 'notes'}, application, or context…`}
+            placeholder={`Search ${lifecycleView === 'trash' ? 'Trash' : lifecycleView === 'archive' ? 'Archive' : 'notes'}, application, or context…`}
             onChange={(event) => setQuery(event.target.value)}
           />
           <kbd>/</kbd>
         </label>
         <span className="library-result-count" aria-live="polite">
           {filteredNotes.length.toLocaleString()} of {notesInView.length.toLocaleString()}{' '}
-          {lifecycleView === 'trash' ? 'trashed' : 'active'} notes
+          {lifecycleView === 'trash' ? 'trashed' : lifecycleView === 'archive' ? 'archived' : 'active'} notes
         </span>
       </section>
 
@@ -516,10 +537,12 @@ export const LibraryHost: React.FC<{
             </div>
           ) : notesInView.length === 0 ? (
             <div className="library-state">
-              <strong>{lifecycleView === 'trash' ? 'Trash is empty' : 'No saved notes yet'}</strong>
+              <strong>{lifecycleView === 'trash' ? 'Trash is empty' : lifecycleView === 'archive' ? 'Archive is empty' : 'No saved notes yet'}</strong>
               <span>
                 {lifecycleView === 'trash'
                   ? 'Notes moved to Trash remain recoverable here for 30 days.'
+                  : lifecycleView === 'archive'
+                    ? 'Complete a task note to move it here without losing it.'
                   : 'Focus an application and press Ctrl+Shift+Space to create the first Skrib.'}
               </span>
             </div>
@@ -572,20 +595,24 @@ export const LibraryHost: React.FC<{
               <header className="library-detail-header">
                 <div>
                   <span className="library-kicker">
-                    {isTrashedNote(selectedNote) ? 'TRASHED NOTE — READ ONLY' : 'READ-ONLY LIBRARY VIEW'}
+                    {isTrashedNote(selectedNote)
+                      ? 'TRASHED NOTE — READ ONLY'
+                      : isArchivedNote(selectedNote)
+                        ? 'COMPLETED — ARCHIVED'
+                        : 'READ-ONLY LIBRARY VIEW'}
                   </span>
                   <h2>{noteDisplayTitle(selectedNote)}</h2>
                   <p>{noteContextLabel(selectedNote)}</p>
                 </div>
                 <div className="library-detail-actions">
-                  {!isTrashedNote(selectedNote) && (
+                  {!isTrashedNote(selectedNote) && !isArchivedNote(selectedNote) && (
                     <button
                       type="button"
                       className="library-button secondary"
                       onClick={() => void openSelectedNote(selectedNote)}
                       disabled={openingContextId !== null}
                     >
-                      {openingContextId === selectedNote.id ? 'Opening…' : 'Open original'}
+                      {openingContextId === selectedNote.id ? 'Opening…' : 'Open app / screen'}
                     </button>
                   )}
                   <button
@@ -604,6 +631,16 @@ export const LibraryHost: React.FC<{
                       disabled={!canMutate || mutatingNoteId !== null}
                     >
                       {mutatingNoteId === selectedNote.id ? 'Restoring…' : 'Restore'}
+                    </button>
+                  )}
+                  {isArchivedNote(selectedNote) && (
+                    <button
+                      type="button"
+                      className="library-button secondary"
+                      onClick={() => void restoreArchivedNote(selectedNote)}
+                      disabled={!canMutate || mutatingNoteId !== null}
+                    >
+                      {mutatingNoteId === selectedNote.id ? 'Restoring…' : 'Return to active notes'}
                     </button>
                   )}
                 </div>
@@ -634,11 +671,13 @@ export const LibraryHost: React.FC<{
                   <dd>{selectedNote.target_title || 'Unavailable'}</dd>
                 </div>
                 <div>
-                  <dt>{isTrashedNote(selectedNote) ? 'Moved to Trash' : 'Last updated'}</dt>
+                  <dt>{isTrashedNote(selectedNote) ? 'Moved to Trash' : isArchivedNote(selectedNote) ? 'Completed' : 'Last updated'}</dt>
                   <dd>
                     {formatUpdatedTime(
                       isTrashedNote(selectedNote)
                         ? selectedNote.deleted_at ?? 0
+                        : isArchivedNote(selectedNote)
+                          ? selectedNote.archived_at ?? 0
                         : selectedNote.updated_at
                     )}
                   </dd>
@@ -687,7 +726,7 @@ export const LibraryHost: React.FC<{
               )}
 
               <p className="library-safety-note">
-                Open original focuses a matching live window. For supported Windows apps, Skribli can start the app first and then restore the note when that saved window is available.
+                Skribli prefers the saved screen when it is open. Otherwise it uses the broader application home, so a note never appears missing just because a deeper tab or folder changed.
               </p>
               {contextMessage && <div className="library-inline-error" role="status">{contextMessage}</div>}
             </>

@@ -33,8 +33,8 @@ Collapse/restore and the drawing workspace use only short functional state chang
 
 - Never cover underlying content unnecessarily.
 - The transient compact editor uses only its visible window bounds; there is no interactive full-screen overlay.
-- Completing the editor durably saves and collapses the active Skrib into one movable pastel dot; clicking it restores the same Skrib.
-- The current single-window runtime shows one active editor or collapsed dot, not an unlimited desktop widget layer.
+- Closing the editor durably saves and returns the Skrib to one movable My Skribs rail; completing a task moves it into recoverable Archive.
+- The current single-window runtime shows one active editor and one rail, not an unlimited desktop widget layer.
 - The blank folded-note mark keeps the warm paper/yellow/ink palette, uses soft rounded corners, and contains no letterform.
 - Notes must remain readable at different DPI scales.
 - Keyboard focus, forced colours, reduced motion, and larger text must remain legible without changing the brand language.

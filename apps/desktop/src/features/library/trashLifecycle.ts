@@ -3,7 +3,7 @@ import type { SkribNote } from '../../lib/geometry';
 export const TRASH_RETENTION_DAYS = 30;
 export const TRASH_RETENTION_SECONDS = TRASH_RETENTION_DAYS * 24 * 60 * 60;
 
-export type LibraryLifecycleView = 'notes' | 'trash';
+export type LibraryLifecycleView = 'notes' | 'archive' | 'trash';
 
 export interface TrashRetentionInfo {
   state: 'retained' | 'expired' | 'invalid';
@@ -16,13 +16,19 @@ export function isTrashedNote(note: SkribNote): boolean {
   return note.deleted_at !== null && note.deleted_at !== undefined;
 }
 
+export function isArchivedNote(note: SkribNote): boolean {
+  return !isTrashedNote(note) && note.archived_at !== null && note.archived_at !== undefined;
+}
+
 export function filterNotesForLifecycle(
   notes: SkribNote[],
   view: LibraryLifecycleView
 ): SkribNote[] {
-  return notes.filter((note) =>
-    view === 'trash' ? isTrashedNote(note) : !isTrashedNote(note)
-  );
+  return notes.filter((note) => {
+    if (view === 'trash') return isTrashedNote(note);
+    if (view === 'archive') return isArchivedNote(note);
+    return !isTrashedNote(note) && !isArchivedNote(note);
+  });
 }
 
 export function trashRetentionInfo(

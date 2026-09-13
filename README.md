@@ -21,7 +21,7 @@ The active compact-note flow is:
 4. A compact note editor opens inside that target monitor’s usable work area. Every shortcut press creates a fresh Skrib; saved notes remain available from My Skribs and All Skribs.
 5. Type while Skribli reports truthful **Unsaved**, **Saving**, **Saved**, or **Save failed** state.
 6. Choose **Done**, press **Escape**, or press **Ctrl + Enter**.
-7. Skribli collapses the saved note into a movable pastel dot only after the latest draft is durable. If persistence fails, the editor remains open so the draft is not silently lost.
+7. Skribli hides the saved editor only after the latest draft is durable and returns it to the single **My Skribs** rail. If persistence fails, the editor remains open so the draft is not silently lost.
 
 When Windows cannot provide or revalidate a safe target, Skribli shows one actionable compact message, clears the previous target, and does not create, reopen, move, or focus a note.
 
@@ -29,21 +29,21 @@ Launching Skribli again in the same Windows user session restores the existing H
 
 Windows accessibility events use bounded, non-blocking delivery with callback-side filtering and duplicate coalescing. Relevant foreground and active-target changes are processed by a separate consumer thread; unrelated child-object and non-target movement events are discarded before queue delivery.
 
-The current build leaves one movable collapsed dot for the active Skrib. It does **not** create an attached tab, permanent toolbar, or full-screen interactive overlay.
+The current build uses one movable **My Skribs** rail instead of creating a separate floating dot for every note. It does **not** create an attached tab or full-screen interactive overlay.
 
-Shortcut creation is deterministic and always new, while My Skribs and All Skribs provide explicit saved-note recovery; ordinary deletion is reversible through Trash, and portable JSON import requires a non-mutating preview before one atomic apply. Rich attachments, ink, and reminders are device-local and are not yet included in that portable JSON path. Durable versioned context identity, archive/indexing, rich-data portability, physical Windows acceptance, installer lifecycle, and signed release evidence remain tracked in the production-readiness backlog.
+Shortcut creation is deterministic and always new. My Skribs provides **Here**, **All**, and **Archive** scopes; completing a task archives its note and completing linked reminders, while ordinary deletion is reversible through Trash. Portable JSON import requires a non-mutating preview before one atomic apply. Rich attachments, ink, and reminders are device-local and are not yet included in that portable JSON path. Rich-data portability, browser-origin enrichment, physical Windows acceptance, installer lifecycle, and signed release evidence remain tracked in the production-readiness backlog.
 
 ## Implemented foundations
 
 - Tauri 2 desktop shell with React, TypeScript, Vite, and Rust.
 - Compact fully interactive note window rather than a screen-blocking overlay.
-- Movable saved-note collapse dot with target-relative, monitor-safe position restoration; the current single-window runtime shows one active note or dot at a time.
+- One movable My Skribs rail with active-screen **Here**, desktop-wide **All**, and recoverable **Archive** scopes; individual notes no longer create floating dots.
 - Five exact website pastels with automatic new-note rotation and per-note color selection.
 - One unified text-and-ink canvas with pen, highlighter, eraser, select-and-move, width/color controls, undo, and editable vector-stroke persistence.
 - Safe device-local image, video, and document attachments with preview and quota enforcement.
 - Device-local reminders with daily, weekday, weekly, and monthly repeat rules, Calendar view, and permission-gated Windows notifications.
 - Compact, medium, and large note sizes plus persisted small, medium, and large handwriting text.
-- A grouped, collapsible My Skribs rail that previews notes by application and restores a live matching window context when it is still open.
+- A grouped, collapsible My Skribs rail with a horizontal application context switcher, active-note feedback, and predictable saved-screen-to-app-home fallback.
 - Windows launch-at-login so the global shortcut is available after sign-in without manually opening the dashboard.
 - A visible, decorated Home window that opens on every normal launch and remains recoverable after setup failures.
 - Mandatory email/password account setup with verified-email state, secure Windows DPAPI session storage, and explicit optional product-update consent.
@@ -66,6 +66,7 @@ Shortcut creation is deterministic and always new, while My Skribs and All Skrib
 - Rust-side note mutation validation for IDs, Unicode length, colours, and geometry.
 - A normal non-floating **All Skribs** window with deterministic ordering, search, read-only detail, and portable text/metadata record export.
 - Reversible Trash with 30-day recovery guidance; permanent deletion exists only inside Trash after note-specific confirmation.
+- Task completion archives the note and linked reminders together; archived notes remain readable and can return to active notes.
 - Portable JSON import with strict validation, non-mutating preview, duplicate/conflict reporting, revision/fingerprint locking, verified rollback backup, and atomic apply.
 - No console window in the Windows release build configuration.
 - Locally bundled Kalam handwriting typography for Skrib content; the editor never depends on a remote font request.

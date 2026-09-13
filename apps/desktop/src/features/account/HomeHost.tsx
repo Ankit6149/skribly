@@ -4,6 +4,7 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   CalendarDays,
+  Archive,
   CircleHelp,
   House,
   LogOut,
@@ -23,12 +24,13 @@ import { ReminderNotificationMonitor } from '../skribs/ReminderNotificationMonit
 import { LibraryHost } from '../library/LibraryHost';
 
 type AccountMode = 'signIn' | 'create';
-type WorkspaceDestination = 'home' | 'notes' | 'calendar' | 'trash';
+type WorkspaceDestination = 'home' | 'notes' | 'calendar' | 'archive' | 'trash';
 
 const WORKSPACE_ITEMS = [
   { id: 'home' as const, label: 'Home', detail: 'Status and shortcut', icon: House },
   { id: 'notes' as const, label: 'All Skribs', detail: 'Your local notes', icon: NotebookTabs },
   { id: 'calendar' as const, label: 'Calendar', detail: 'Reminders and repeats', icon: CalendarDays },
+  { id: 'archive' as const, label: 'Archive', detail: 'Completed Skribs', icon: Archive },
   { id: 'trash' as const, label: 'Trash', detail: 'Recently removed', icon: Trash2 },
 ];
 
@@ -377,7 +379,7 @@ export const HomeHost: React.FC = () => {
   const { phase, init } = useAccountStore();
   const [guideVisible, setGuideVisible] = useState(false);
   const [workspace, setWorkspace] = useState<'home' | 'library'>('home');
-  const [libraryRequest, setLibraryRequest] = useState<{ view: 'notes' | 'calendar' | 'trash' }>({ view: 'notes' });
+  const [libraryRequest, setLibraryRequest] = useState<{ view: 'notes' | 'calendar' | 'archive' | 'trash' }>({ view: 'notes' });
 
   useEffect(() => {
     let disposed = false;
@@ -385,7 +387,7 @@ export const HomeHost: React.FC = () => {
       listen<{ view?: string }>('skribly://library-view', ({ payload }) => {
         if (!disposed) {
           const view = payload?.view;
-          setLibraryRequest({ view: view === 'calendar' || view === 'trash' ? view : 'notes' });
+          setLibraryRequest({ view: view === 'calendar' || view === 'archive' || view === 'trash' ? view : 'notes' });
           setGuideVisible(false);
           setWorkspace('library');
         }
@@ -435,7 +437,7 @@ export const HomeHost: React.FC = () => {
     setLibraryRequest({ view: destination });
     setWorkspace('library');
   };
-  const handleLibraryViewChange = useCallback((view: 'notes' | 'calendar' | 'trash') => {
+  const handleLibraryViewChange = useCallback((view: 'notes' | 'calendar' | 'archive' | 'trash') => {
     setLibraryRequest((current) => current.view === view ? current : { view });
   }, []);
 

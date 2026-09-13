@@ -60,10 +60,10 @@ An empty typed draft is discarded only when the Skrib also has no saved drawing,
 ## Reposition
 
 - Skribli calculates placement from the target monitor's work area and DPI before every show.
-- The current contextual note can remain visible as one compact dot; it never becomes a desktop-sized overlay.
+- The contextual editor returns to the persistent My Skribs rail when done; it never becomes a desktop-sized overlay.
 - **Reposition** recalculates a safe placement when the user needs it.
 - Unsupported geometry fails closed instead of placing an unreachable window.
-- The editor and collapsed dot share one native WebView window, so multiple Skribs cannot remain as simultaneous independent desktop dots in this release.
+- The editor uses one reusable native WebView window. Saved Skribs remain accessible through the rail instead of becoming independent desktop dots.
 
 ## Delete and Trash
 
@@ -107,6 +107,6 @@ Import never opens an external application, guesses a new context, or uploads da
 
 ## Explicitly deferred interactions
 
-The following require separately approved architecture and acceptance work: customizable hotkeys, archive, context re-anchor/rules, multiple simultaneous native note/dot windows, persistent full-screen annotations, shapes/arrows/checklists, recurring reminders, cloud-delivered reminders, portable export/import of IndexedDB ink/attachments/reminders, browser URL/DOM anchoring, macOS, cloud sync, payments, collaboration, AI, and mobile clients.
+The following require separately approved architecture and acceptance work: customizable hotkeys, context re-anchor/rules, multiple simultaneous native note windows, persistent full-screen annotations, shapes/arrows, cloud-delivered reminders, portable export/import of IndexedDB ink/attachments/reminders, browser URL/DOM anchoring, macOS, cloud sync, payments, collaboration, AI, and mobile clients.
 
 No deferred interaction may restore a screen-blocking overlay or appear in current product claims merely because historical prototypes or planning documents mention it.

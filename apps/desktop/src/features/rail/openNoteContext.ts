@@ -1,7 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { emitTo, listen } from '@tauri-apps/api/event';
 import type { SkribNote, TargetWindowInfo } from '../../lib/geometry';
-import { applicationLabel, selectBestContextTarget } from './contextRailModel';
+import { applicationLabel, contextMatchScore, selectBestContextTarget } from './contextRailModel';
 
 const TARGET_LAUNCH_POLL_ATTEMPTS = 12;
 const TARGET_LAUNCH_POLL_DELAY_MS = 250;
@@ -88,10 +88,18 @@ export async function openNoteInSavedContext(
   let targets = await invoke<TargetWindowInfo[]>('list_target_windows');
   let target = selectBestContextTarget(note, targets);
   if (target) {
-    report(onProgress, 'restoring', 'Found the right place.', 'Bringing the saved window forward and unfolding your Skrib.');
+    const exactScreen = contextMatchScore(note, target) >= 50;
+    report(
+      onProgress,
+      'restoring',
+      exactScreen ? 'Found this screen.' : `Found ${appName}.`,
+      exactScreen
+        ? 'Bringing the active screen forward and unfolding your Skrib.'
+        : 'The original screen is not open, so Skribli is using the app home instead.'
+    );
     await focusAndOpenNote(note, target);
     report(onProgress, 'complete', 'Your Skrib is ready.', `Opened where it belongs in ${appName}.`);
-    return `Opened in ${appName}.`;
+    return exactScreen ? `Opened on its saved screen in ${appName}.` : `Opened at the ${appName} home.`;
   }
 
   report(onProgress, 'launching', `Opening ${appName}…`, 'The saved window is not open yet, so Skribli is starting the app.');
@@ -117,7 +125,5 @@ export async function openNoteInSavedContext(
     }
   }
 
-  throw new Error(
-    `${application} started, but Skribli could not find the saved window. Open that tab or folder, then try again.`
-  );
+  throw new Error(`${application} started, but its main window is not ready yet. Try again in a moment.`);
 }

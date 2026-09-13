@@ -73,6 +73,7 @@ mod tests {
             collapsed: false,
             created_at,
             updated_at,
+            archived_at: None,
             deleted_at: None,
         }
     }

@@ -67,7 +67,7 @@ fn is_valid_note(note: &SkribNote) -> bool {
 }
 
 fn can_mutate_note(note: &SkribNote) -> bool {
-    note.deleted_at.is_none()
+    note.deleted_at.is_none() && note.archived_at.is_none()
 }
 
 impl Coordinator {
@@ -120,6 +120,7 @@ impl Coordinator {
         if license::require_global_write_access().is_err()
             || !is_valid_note(&note)
             || note.deleted_at.is_some()
+            || note.archived_at.is_some()
         {
             return false;
         }
@@ -149,7 +150,7 @@ impl Coordinator {
         }
         let mut state = self.state.lock().ok()?;
         let note = state.skribs.get_mut(id)?;
-        if note.deleted_at.is_some() {
+        if note.deleted_at.is_some() || note.archived_at.is_some() {
             return None;
         }
         note.deleted_at = Some(deleted_at);
@@ -172,6 +173,42 @@ impl Coordinator {
         Some(note.clone())
     }
 
+    pub fn archive_skrib(&self, id: &str, archived_at: u64) -> Option<SkribNote> {
+        if license::require_global_write_access().is_err()
+            || !is_valid_note_id(id)
+            || archived_at == 0
+        {
+            return None;
+        }
+        let mut state = self.state.lock().ok()?;
+        let note = state.skribs.get_mut(id)?;
+        if note.deleted_at.is_some() || note.archived_at.is_some() {
+            return None;
+        }
+        note.archived_at = Some(archived_at);
+        note.collapsed = false;
+        note.updated_at = archived_at;
+        Some(note.clone())
+    }
+
+    pub fn restore_archived_skrib(&self, id: &str, restored_at: u64) -> Option<SkribNote> {
+        if license::require_global_write_access().is_err()
+            || !is_valid_note_id(id)
+            || restored_at == 0
+        {
+            return None;
+        }
+        let mut state = self.state.lock().ok()?;
+        let note = state.skribs.get_mut(id)?;
+        if note.deleted_at.is_some() {
+            return None;
+        }
+        note.archived_at?;
+        note.archived_at = None;
+        note.updated_at = restored_at;
+        Some(note.clone())
+    }
+
     pub fn permanently_delete_skrib(&self, id: &str) -> Option<SkribNote> {
         if license::require_global_write_access().is_err() || !is_valid_note_id(id) {
             return None;
@@ -189,7 +226,7 @@ impl Coordinator {
         }
         let mut state = self.state.lock().ok()?;
         let note = state.skribs.get(id)?;
-        if note.deleted_at.is_some() || !note.text.trim().is_empty() {
+        if note.deleted_at.is_some() || note.archived_at.is_some() || !note.text.trim().is_empty() {
             return None;
         }
         state.skribs.remove(id)
@@ -202,6 +239,7 @@ impl Coordinator {
                 .values()
                 .filter(|note| {
                     note.deleted_at.is_none()
+                        && note.archived_at.is_none()
                         && target.matches_context(&note.target_process_name, &note.target_title)
                 })
                 .cloned()
@@ -234,7 +272,7 @@ impl Coordinator {
             state
                 .skribs
                 .values()
-                .filter(|note| note.deleted_at.is_none())
+                .filter(|note| note.deleted_at.is_none() && note.archived_at.is_none())
                 .cloned()
                 .collect()
         } else {
@@ -255,9 +293,26 @@ impl Coordinator {
         }
     }
 
+    pub fn get_archived_skribs(&self) -> Vec<SkribNote> {
+        if let Ok(state) = self.state.lock() {
+            state
+                .skribs
+                .values()
+                .filter(|note| note.deleted_at.is_none() && note.archived_at.is_some())
+                .cloned()
+                .collect()
+        } else {
+            Vec::new()
+        }
+    }
+
     pub fn find_best_context_match(&self, candidates: &[TargetWindowInfo]) -> MatchResult {
         if let Ok(state) = self.state.lock() {
-            if !state.skribs.values().any(|note| note.deleted_at.is_none()) {
+            if !state
+                .skribs
+                .values()
+                .any(|note| note.deleted_at.is_none() && note.archived_at.is_none())
+            {
                 return MatchResult::None;
             }
 
@@ -266,7 +321,7 @@ impl Coordinator {
                 let max_score = state
                     .skribs
                     .values()
-                    .filter(|note| note.deleted_at.is_none())
+                    .filter(|note| note.deleted_at.is_none() && note.archived_at.is_none())
                     .map(|note| {
                         candidate.match_score(&note.target_process_name, &note.target_title)
                     })
@@ -526,6 +581,7 @@ mod tests {
             collapsed: false,
             created_at: 100,
             updated_at: 100,
+            archived_at: None,
             deleted_at: None,
         }
     }
@@ -620,6 +676,35 @@ mod tests {
         assert_eq!(restored.updated_at, 600);
         assert_eq!(coordinator.get_active_skribs().len(), 1);
         assert_eq!(coordinator.get_trashed_skribs().len(), 0);
+    }
+
+    #[test]
+    fn completed_note_moves_to_archive_and_can_return_to_active_notes() {
+        let coordinator = Coordinator::new();
+        let note = sample_note();
+        assert!(coordinator.upsert_skrib(note.clone()));
+
+        let archived = coordinator
+            .archive_skrib(&note.id, 500)
+            .expect("active note should archive");
+        assert_eq!(archived.archived_at, Some(500));
+        assert!(!archived.collapsed);
+        assert!(coordinator
+            .get_skribs_for_target(&sample_target_a())
+            .is_empty());
+        assert!(coordinator.get_active_skribs().is_empty());
+        assert_eq!(coordinator.get_archived_skribs().len(), 1);
+        assert!(coordinator
+            .update_skrib_text(&note.id, "hidden change".into())
+            .eq(&false));
+
+        let restored = coordinator
+            .restore_archived_skrib(&note.id, 600)
+            .expect("archived note should return to active notes");
+        assert_eq!(restored.archived_at, None);
+        assert_eq!(restored.updated_at, 600);
+        assert_eq!(coordinator.get_active_skribs().len(), 1);
+        assert!(coordinator.get_archived_skribs().is_empty());
     }
 
     #[test]

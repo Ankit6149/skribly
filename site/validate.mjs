@@ -171,11 +171,11 @@ for (const requiredSection of ['how-it-works', 'principles', 'features', 'audien
 const requiredLandingTruth = [
   'v0 owner test',
   'Owner v0 access',
-  'Movable collapsed dot',
+  'One calm My Skribs rail',
   'NEW SKRIB FOR',
   'Saved locally',
   'Saved note folds into a dot',
-  'folds a saved note into one movable pastel dot',
+  'returns saved notes to one movable My Skribs rail',
   'Multiple simultaneous note windows, screenshot pins, checklists',
   'Owner v0 testing',
   'contextual annotation layer for Windows',
@@ -242,8 +242,8 @@ const answers = await readFile(join(root, 'answers.html'), 'utf8');
 for (const fact of [
   'creates one empty note',
   'reopens that note',
-  'folds it into one movable pastel dot',
-  'one active note or dot at a time',
+  'returns it to one movable My Skribs rail',
+  'one active editor at a time',
   'Public downloads are disabled',
 ]) {
   if (!answers.includes(fact)) failures.push(`FAQ is missing current behavior: ${fact}.`);
@@ -287,7 +287,7 @@ for (const marker of [
   "'PBKDF2'",
   "'AES-GCM'",
   '210_000',
-  "link.download = 'Skribli_0.1.23_x64-setup.exe'",
+  "link.download = 'Skribli_0.1.24_x64-setup.exe'",
 ]) {
   if (!ownerDownloadScript.includes(marker)) failures.push(`Owner v0 client flow is missing: ${marker}`);
 }

@@ -995,6 +995,7 @@ mod tests {
             collapsed: true,
             created_at: 1,
             updated_at: 1,
+            archived_at: None,
             deleted_at: None,
         };
         for origin in [0, -1366] {
@@ -1072,6 +1073,7 @@ mod tests {
             collapsed: false,
             created_at: 1,
             updated_at: 1,
+            archived_at: None,
             deleted_at: None,
         };
         let work_area = rect(0, 0, 1920, 1040);
@@ -1103,6 +1105,7 @@ mod tests {
             collapsed: false,
             created_at: 1,
             updated_at: 1,
+            archived_at: None,
             deleted_at: None,
         };
         let work_area = rect(0, 0, 1920, 1080);
@@ -1217,6 +1220,7 @@ mod tests {
             collapsed: false,
             created_at: 1,
             updated_at: 1,
+            archived_at: None,
             deleted_at: None,
         };
         let placement = calculate_saved_note_window_placement(
@@ -1248,6 +1252,7 @@ mod tests {
             collapsed: false,
             created_at: 1,
             updated_at: 1,
+            archived_at: None,
             deleted_at: None,
         };
         let placement = calculate_note_workspace_placement(

@@ -44,6 +44,7 @@ export interface SkribNote {
   collapsed: boolean;
   created_at: number;
   updated_at: number;
+  archived_at?: number | null;
   deleted_at?: number | null;
 }
 
