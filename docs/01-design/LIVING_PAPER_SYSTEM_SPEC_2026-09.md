@@ -1,436 +1,643 @@
-# Skribli — Living Paper System
+# Skribli — Living Paper System v2
 
-Status: design exploration / future product contract
-Baseline: v0.1.24 product truth plus September 2026 audit corrections
+Status: selected future design direction / product interaction contract
+Baseline: v0.1.24 product truth + September 2026 audit corrections + post-review decisions
 
 ## Purpose
 
-Living Paper is the selected future-facing design direction for Skribli. It is not a scrapbook theme and not a skeuomorphic skin. The system uses tactile, recognisable content objects while keeping system behavior exact, quiet, and desktop-native.
+Living Paper is the selected future-facing design direction for Skribli. It is not a scrapbook theme, not a skeuomorphic skin, and not a toolbar dressed up as paper.
 
 The product test remains:
 
 > Does Skribli help the thought disappear back into the user's work, or create another place the user has to manage?
 
-If an interaction adds management tax, decorative weight, or persistent desktop occupation without earning it, it is rejected even if it looks attractive.
+The design must feel warm and recognisable while remaining exceptionally quiet during normal work.
 
-## 1. Core visual grammar
+## 1. Core system rules
 
-- Background/canvas: warm neutral `#f4efe3` / `#efede5`.
-- Paper: `#fffdf7` plus note pastels.
-- Ink: `#262923`.
-- UI font: DM Sans.
-- Display font: Manrope.
-- Handwritten thought accent: Kalam, used selectively for note content and small tactile labels.
-- Corners: paper objects can have a slightly larger/asymmetric lower-right corner.
-- Shadows: short, soft, physically plausible. No floating glass-card stack.
-- Texture: near-zero. Paper character comes from shape, edge, overlap, and motion—not noisy backgrounds.
-- One physical metaphor per object.
+### 1.1 The whole Skrib is one mixed canvas
 
-### Object language
+A Skrib is not divided into Text mode, Draw mode, Attachment mode and Reminder mode.
 
-- Skrib → sheet of paper.
-- Image → photograph/print.
-- Document → clipped or perforated sheet.
-- Video → framed still/film strip object.
-- Reminder → dated slip attached to the thought.
-- Checklist/actionable state → check strip embedded in the thought, not a project card.
-- Saved place → small place tab / label attached to the paper edge.
-- Rail → paper spine / edge index, never an enclosing panel.
+The user may:
+
+- type anywhere the text flow allows;
+- paste or drop an image into the thought;
+- write beside an image;
+- scribble over an image;
+- circle a sentence;
+- draw an arrow from one text region to another;
+- highlight text or a screenshot;
+- add a document/video object;
+- attach a reminder to the same thought.
+
+Ink is therefore a layer of the whole Skrib surface, not a separate drawing section.
+
+### 1.2 Precise system + imperfect objects
+
+User-owned content may feel physical. System behavior stays exact.
+
+- Skrib → paper sheet.
+- Image → photo/print.
+- Document → clipped/perforated sheet.
+- Video → framed still.
+- Reminder → dated slip.
+- Saved place → small context tab.
+- My Skribs presence → layered ribbon/tab.
+- System search/settings/errors → conventional, legible UI.
+
+One physical metaphor per object.
+
+### 1.3 Quiet at rest
+
+The resting note must not permanently show a footer like:
+
+`+  Saved locally  Done`
+
+and opening capability must not produce a row of visible labels like:
+
+`Add  Mark  Bring back  More`
+
+Those labels may exist in accessible menus, keyboard command search, and explicit secondary surfaces, but they do not form the visual resting composition.
+
+### 1.4 No management tax
+
+Skribli should organise through context, time and search before asking the user to maintain folders, projects, boards or taxonomies.
 
 ## 2. Motion grammar
 
-Motion must explain state change.
+Motion explains where an object went.
 
 - Acknowledge: 100–160 ms.
 - Reveal: 160–240 ms.
-- Transform/reconnect: 260–420 ms.
-- No perpetual bobbing, breathing, floating, or parallax on app surfaces.
-- Reduced motion: all transitions become opacity/state swaps with no spatial travel.
+- Transform/fold/reconnect: 260–420 ms.
+- No perpetual floating/breathing motion on app surfaces.
+- Reduced motion: equivalent opacity/state swap without spatial travel.
 
-Typical transforms:
+Canonical motions:
 
-- note opens: 8–12 px lift + settle;
-- capability tray unfolds from paper edge;
-- attachment stack fans slightly on focus;
-- Rail spine opens and note strips slide from it;
-- Return-to-place can use a short paper-strip retract/reappear continuity cue, but must not imply deep-link precision the runtime does not have.
+- new Skrib: 6–10 px paper unfold/settle beside the active app;
+- object drop: 80–120 ms settle with at most 1–2° correction;
+- attachment fan: 140–180 ms;
+- reminder: dated slip stamps/settles in 140–180 ms;
+- save success: a tiny ink check appears for ~700–1000 ms and fades;
+- Done/Put away: paper folds toward My Skribs presence over ~260–320 ms;
+- ribbon open: layered tab separates and thought strips unfold with ~20 ms stagger;
+- Return: selected strip retracts toward its location end and the target app is focused; never imply exact URL/path restoration unless the runtime actually knows it.
 
-## 3. Resting Skrib
+## 3. Resting Skrib — revised composition
 
-The resting note is the primary product surface and must remain quiet.
+The resting note has no permanent bottom toolbar.
 
-Always visible:
+### Always visible
 
-1. place/context tab;
-2. thought body;
-3. one `+` capability gateway;
-4. Done;
-5. save confidence only when meaningful.
+1. human place/context tab;
+2. thought/canvas;
+3. a small secondary note menu (`•••`) in a quiet edge position;
+4. a folded lower-right completion corner.
 
-Not permanently visible:
+### Completion corner
 
-- drawing;
-- reminder;
-- text size;
-- surface size;
-- colour;
-- attachment administration;
-- delete;
-- task completion;
-- diagnostics.
+The lower-right paper fold is the visual completion affordance.
 
-### Place tab
+- click → save and Put away;
+- keyboard label / screen reader label → `Done — save and put this Skrib away`;
+- contextual Skrib → returns to My Skribs presence;
+- Open Here/detached Skrib → saves and closes;
+- save failure → does not fold away.
 
-A small attached tab on the paper edge shows a human label such as `Chrome · Release checklist`.
+The control may show a small `✓` mark. It does not need a permanent black `Done` pill.
 
-- click/tab-focus: opens place/context details;
-- degraded context: tab changes state and offers repair;
-- never display process IDs in the normal state.
+### Save confidence
 
-### Note body
+`Saved locally` is not permanent text.
 
-- text is the visual centre;
-- rich content flows as part of one thought;
-- header chrome is reduced substantially from current implementation;
-- selection-local text formatting appears near selected text only.
+- while saving → tiny edge status / subtle animated ink dash;
+- on success → small check appears briefly and fades;
+- on failure → explicit recovery message remains visible;
+- user can inspect persistent storage/account status elsewhere.
 
-### Done
+### Secondary menu
 
-- normal contextual Skrib: saves and returns/collapses to My Skribs;
-- Open Here/detached Skrib: saves and closes;
-- save failure: note remains open and explains what still needs to save;
-- empty note discard remains conditional on there being no persisted rich extras.
+`•••` contains low-frequency note-level controls:
 
-## 4. Capability gateway
+- paper colour;
+- text size/default style;
+- Fit / Work size / Reset size;
+- context details;
+- Move / Re-anchor / Detach;
+- Trash;
+- note-specific attachment layout override;
+- task/actionable state when relevant.
 
-Pressing `+` opens a small paper-edge tray with three semantic groups:
+## 4. Insertion without a permanent `+` toolbar
 
-- **Add** — photo, file, video, checklist/structured content later;
-- **Mark** — draw, highlight, arrow, shape, pin, selection tools;
-- **Bring back** — later today, tomorrow, date/time, repeat.
+Capability is invoked where the user is working.
 
-A fourth low-emphasis `More` route contains appearance and note-level options:
+### Text/caret insertion
 
-- colour;
-- text size;
-- Fit / Work size / reset size;
-- place/context details;
-- move/re-anchor/detach;
-- Trash.
+When the caret is in text:
+
+- `/` opens a small insertion command menu beside the caret;
+- a subtle insertion tick appears in the left gutter on pointer proximity/focus;
+- clicking that tick opens contextual insert choices.
+
+Common choices:
+
+- Photo;
+- File;
+- Video;
+- Checklist/action;
+- Reminder;
+- Divider/structured object later.
+
+### Paste/drop
+
+- paste image → inserts immediately;
+- drag file/photo onto note → drop target follows pointer and inserts where dropped;
+- drag onto an existing photo cluster → adds to that cluster;
+- unsupported/too-large files show the error at the drop location without replacing the thought.
+
+### Command search
+
+`Ctrl + /` or a note-menu command search exposes the full capability vocabulary for keyboard users.
+
+This replaces the visual need for a permanent `Add / Mark / Bring back / More` tray.
+
+## 5. Unified text + image + ink canvas
+
+### Default layout: Flow + free ink
+
+The recommended default is a hybrid canvas:
+
+- text flows naturally top-to-bottom;
+- attachments inserted at the caret become inline content objects;
+- users can scribble/highlight anywhere over the entire note;
+- selected attachments can optionally be floated/free-positioned.
+
+This gives normal users predictable writing while still enabling visual thinking.
+
+### Image placement
+
+Every image supports two placement states:
+
+1. **Inline** — lives in the text flow and moves with surrounding content.
+2. **Free placement** — may be dragged/resized anywhere in the Skrib canvas.
+
+The placement switch is available only when an image is selected.
+
+### Suggested defaults
+
+- pasted image → Inline;
+- drag/drop onto empty paper away from caret → Free placement;
+- drag/drop at a visible insertion tick → Inline;
+- multiple adjacent images → optional photo stack/cluster.
+
+### Settings
+
+`Settings → Note & Canvas → Attachment placement`:
+
+- Smart (recommended);
+- Inline by default;
+- Free placement by default;
+- Ask when inserted.
+
+Per-note override remains available.
+
+## 6. Ink interaction — not a separate Draw page
+
+Ink is supported everywhere in the note.
+
+### Pen/stylus
+
+- pen input writes directly on the note without entering a separate mode;
+- barrel/eraser input maps to configured ink actions;
+- text/media remain selectable when pen is not contacting the surface.
+
+### Mouse/trackpad
+
+Because normal pointer movement cannot simultaneously mean selection and drawing, mouse users need an explicit temporary ink state.
+
+Entry options:
+
+- keyboard shortcut;
+- small pen tab revealed on note focus/proximity;
+- `Ink` from the caret/command menu.
+
+When active:
+
+- cursor changes clearly;
+- one compact edge palette appears;
+- pen/highlighter/eraser/select are available;
+- palette can collapse to a thin edge handle while drawing;
+- Escape returns to normal editing.
+
+The note does **not** navigate to another Drawing section and does not replace the canvas.
+
+### Ink over attachments
+
+Ink sits above text/media visually.
+
+- circles/arrows/highlight may cross image and text boundaries;
+- image movement does not automatically drag ink unless the user explicitly groups/attaches selected strokes to that image;
+- selected strokes may be moved/removed independently;
+- future pin/shape/arrow objects use the same selection model.
+
+## 7. Heavy Skrib
+
+A heavy note can contain long text, inline images, floated images, document/video objects, free ink and a reminder.
 
 Rules:
 
-- future capabilities must be assigned to a semantic group rather than added as permanent toolbar peers;
-- hover may enrich the tray, but opening it is explicit;
-- keyboard order is linear and predictable;
-- Escape closes the current layer.
-
-## 5. Heavy Skrib
-
-A rich Skrib can contain long text, photographs, documents, video, ink, checklist/actionable content, and a reminder without becoming a mini dashboard.
-
-Structure:
-
-- fixed context/header zone;
-- internally scrollable thought/content region;
-- fixed lifecycle/footer zone;
-- capability tray remains closed at rest.
-
-Compression rules:
-
-- multiple images collapse into a small overlapping photograph stack;
-- documents remain recognisable sheets rather than generic file rows;
-- video becomes one framed preview with duration;
-- ink becomes a bounded canvas/preview;
-- reminder becomes one dated slip;
-- attachment limits/capacity are only shown when approaching a limit or when relevant.
-
-## 6. Attachments
-
-### Image
-
-- looks like a lightweight print/photo;
-- a stack of 2–5 images overlaps slightly;
-- focus/click fans enough to select individual images;
-- full viewer is a separate temporary layer, not a permanent inspector.
-
-### Document
-
-- a clipped/perforated paper object;
-- filename and type are readable;
-- open/download/remove actions appear on selection/focus;
-- unsupported/too-large states remain legible and explicit.
-
-### Video
-
-- a framed still with duration;
-- click opens player;
-- no fake “film reel” decoration beyond one small visual cue.
-
-## 7. Mark mode
-
-Entering Mark temporarily expands a Compact Skrib to a comfortable working size.
-
-- palette appears as a retractable paper-edge tool roll;
-- pen/highlighter/eraser/select are primary current tools;
-- future arrow/shape/pin/check objects join the same Mark mode;
-- active tool properties replace generic tools contextually;
-- Escape exits Mark and returns to the previous user size;
-- manual user resize while in Mark updates the remembered work size only after explicit user drag, not because the tool auto-expanded.
+- fixed context edge/header affordances;
+- internally scrollable canvas when content exceeds comfortable window height;
+- completion corner stays reachable;
+- content objects compact semantically rather than becoming generic file rows;
+- photo clusters may fan on focus;
+- reminder becomes one dated slip at rest;
+- capacity warnings appear only near limits.
 
 ## 8. Reminder / Bring back
 
-Reminder means temporal resurfacing, not automatic task conversion.
+Reminder means temporal resurfacing.
 
-Quick layer:
+Quick insertion near caret/note edge:
 
-- later today;
-- tomorrow;
-- next week;
-- exact…
+- Later today;
+- Tomorrow;
+- Next week;
+- Exact…
 
-Exact scheduler:
+### Exact scheduler
 
-- unfolds as a planner sheet from the Skrib;
-- date grid uses soft circular/organic date marks rather than square cells;
-- repeat options remain conventional and readable;
-- summary sentence confirms the result: `Weekdays at 09:30`.
+The previous calendar was too squeezed. The exact scheduler must have breathing room.
 
-When closed, the Skrib shows one dated reminder slip.
+When Exact is chosen:
+
+- the Skrib temporarily expands to a comfortable planner size;
+- calendar target width is roughly 520–620 px where monitor space allows;
+- 7-column month uses ~40–48 px date targets, not tiny compressed cells;
+- time/repeat controls appear below or beside the month only when enough width exists;
+- on narrow windows, month and time/repeat become sequential steps rather than squeezed columns;
+- closing restores the prior user size.
 
 ### Task/actionable state
 
-A Skrib becomes completable only when the user explicitly makes it actionable (for example via checklist/action state). Reminder alone does not imply task.
+Reminder does not make a note a task.
 
-- completion must never be discovered through delete confirmation;
-- completion moves the actionable Skrib into Past/Archive according to product policy;
-- linked reminders are resolved with that lifecycle intentionally.
+Completion appears only after explicit actionable content/state such as a checklist/action object.
 
 ## 9. Manual resize
 
-Keep direct native resizing but remove constant resize chrome.
+Keep direct native resize.
 
-- native edge/corner hit areas remain functional;
-- one subtle folded lower-right paper corner teaches the behavior;
-- cue appears on proximity/focus/first-use education;
-- active drag shows a temporary dimension chip;
-- size remembers per Skrib;
-- min/max bounds stay monitor-safe;
-- `Fit` finds the smallest comfortable size for the current content;
-- `Work size` opens the preferred editing size;
-- auto-expansion for Mark/Reminder/attachments restores the user's previous size after the temporary tool closes.
+- invisible native edges/corners remain functional;
+- one subtle lower-right paper fold teaches resize;
+- active drag temporarily shows dimensions;
+- size persists per Skrib;
+- `Fit` and `Work size` live in secondary note controls;
+- tool-driven temporary expansion never overwrites user size unless the user manually resizes during that session and confirms/continues at the new size.
 
-## 10. My Skribs — Paper Spine / Ribbon Rail
+## 10. My Skribs presence — revised from Paper Spine
 
-This replaces the card/panel model.
+The vertical spine concept is retained only as one possible open-state behavior. The preferred **collapsed widget** returns to the stronger three-colour layered idea from the earlier direction work.
 
-### Rest state
+### 10.1 Collapsed Context Ribbon
 
-A very narrow vertical paper seam sits at the chosen screen edge.
+A small horizontal layered-paper ribbon replaces the old dot.
 
-- approximately 4–7 px visual width;
-- tiny layered colour edges can hint that thoughts are stored there;
-- can auto-hide to zero visible pixels;
-- tray/shortcut can always restore it;
-- entire spine can be repositioned/docked according to current product constraints.
+Visual anatomy:
 
-### Open state
+- 3 staggered colour layers (for example yellow/mint/peach);
+- foreground strip contains a concise count such as `2 here`;
+- optional small app/place label such as `Chrome` appears only when useful;
+- target height ~26–32 px;
+- target width ~96–150 px depending on label;
+- no enclosing card.
 
-Activating the spine does **not** reveal a card.
+It should look like three paper slips tucked together, not a pill button.
 
-The spine widens to a slim binding bar (roughly 28–40 px visual body). Individual Skribs slide inward from the spine as independent narrow paper strips. The desktop remains visible between strips and around them.
+### 10.2 Why horizontal
 
-No enclosing rectangle, panel background, header card, or big shell.
+Not every application is full-screen. A horizontal ribbon can sit beside or near the focused app without pretending the screen edge is always the contextual edge.
 
-### Spine controls
+### 10.3 Placement modes
 
-Controls live on or directly attached to the spine:
+Settings must support both:
 
-- `Here` / `Everything` / `Past` as readable small spine tabs;
-- Search as a top paper tag;
-- Hide/collapse control;
-- optional small grip for repositioning;
-- manual Refresh only in a lower-frequency recovery menu.
+**A. Follow active app**
 
-### Skrib strips
+- ribbon aligns near the outer top-right or bottom-right edge of the focused app window;
+- if there is no space outside the window, it moves just inside the closest safe edge;
+- focus changes wait briefly (~150–220 ms) before relocation so the ribbon does not chase every transient focus event;
+- relocation uses fade/reposition rather than a long flying animation.
 
-Each result is a 34–46 px-high paper strip extending inward.
+**B. Fixed screen edge**
 
-Anatomy:
+- user chooses left/right/top/bottom area;
+- ribbon remains stationary while its `here` count/context updates;
+- recommended for users who dislike moving desktop UI.
 
-- colour/paper identity;
+Default should be tested in usability review; both are first-class, not hidden accessibility options.
+
+### 10.4 Zero-note behavior
+
+For a supported current app with no saved Skribs:
+
+- ribbon may reduce to the three small layered tabs with no numeric badge;
+- it must not show a loud `0 here` constantly;
+- creating the first Skrib adds `1 here` with a small 100–160 ms acknowledgement.
+
+For unsupported/no foreground context:
+
+- ribbon falls back to an `All` state or remains hidden according to user preference.
+
+## 11. My Skribs open view — revised again
+
+The open Rail must still avoid a card/panel.
+
+The preferred interaction is now a **Ribbon Fan / Paper Stream** rather than a tall side panel.
+
+### Open from collapsed ribbon
+
+Click the main `2 here` area:
+
+1. foreground strip straightens slightly;
+2. the three coloured layers separate by a few pixels;
+3. 3–5 relevant Skrib strips unfold downward or inward from the ribbon;
+4. no enclosing background appears;
+5. desktop/application remains visible between strips.
+
+If space below is insufficient, the fan opens upward. If side space is constrained, it flips inward automatically.
+
+### Strip anatomy
+
+Each thought strip contains:
+
+- Skrib colour/material;
 - title;
-- one-line human context;
-- optional reminder mark;
-- location end-cap.
+- one concise context line;
+- reminder/action mark only when relevant;
+- separate small location end-cap.
 
 Behavior:
 
-- click main strip → **Open Here**;
-- click/focus location end-cap → **Return** to saved place;
-- keyboard focus reveals both actions explicitly;
-- Archive/Past rows may expose Restore after selection;
-- destructive actions never appear on hover-only.
+- main strip click → **Open Here**;
+- location end-cap `↗` → **Return**;
+- reminder mark click → opens that Skrib with reminder controls focused;
+- actionable check mark click → only if the Skrib is explicitly actionable;
+- keyboard focus exposes the same actions without hover.
 
-### Density
+### Ribbon controls
 
-For many results:
+Do not place `Here / Everything / Past` as three permanent tabs in the open view.
 
-- visible stack remains bounded;
-- wheel/keyboard scroll moves through strips;
-- low-priority results compress into a small stacked stub such as `+7 more`;
-- Search becomes the route for large libraries.
+Preferred model:
 
-### Animation
+- main ribbon body = current-context (`Here`) results;
+- search icon = search Everything;
+- small overflow/chevron = Everything / Past / Hide / Presence settings;
+- `+N more` strip = open Find already filtered to current context.
 
-- spine open: 180–240 ms widening;
-- strips slide inward with 15–25 ms stagger;
-- selected strip lifts 1–2 px and straightens slightly;
-- collapse reverses quickly (140–190 ms);
-- reduced motion: strips appear immediately with focus moving to the first result.
+This keeps the everyday rail about nearby thoughts rather than lifecycle administration.
 
-### Empty / degraded states
+### Auto-collapse
 
-No card-shaped empty state.
+Default:
 
-Use one or two attached paper strips:
+- after Open Here/Return → fan closes;
+- click outside → closes after a short forgiving delay;
+- user may pin it open temporarily;
+- `Esc` closes immediately.
 
-- `No Skribs here · Everything`;
-- `Saved place unavailable · Open here / Re-anchor`;
-- `Past · 2` etc.
+### Motion
 
-### Presence contract
+- fan open: 180–240 ms;
+- strips stagger 15–25 ms;
+- selected strip lifts 1–2 px, never floats continuously;
+- close: 140–190 ms;
+- reduced motion: strips appear/disappear without travel.
 
-Users must be able to:
+## 12. Click map — daily surfaces
 
-- keep spine always visible;
-- auto-hide it;
-- hide it until shortcut/tray invocation;
-- recover it predictably without restarting Skribli.
+### Context Ribbon
 
-## 11. Tray and notifications
+- click count/body → open relevant Skrib fan;
+- click search icon → Rail search / Everything;
+- click overflow → Everything / Past / Hide / Presence settings;
+- drag grip → reposition when fixed/dock mode supports it;
+- right click → same explicit menu as overflow, never unique functionality.
 
-Windows system chrome remains native.
+### Skrib strip
 
-Skribli character appears through:
+- click main body → Open Here;
+- click `↗` end-cap → Return to saved place;
+- click reminder mark → open note focused on reminder;
+- click actionable mark → complete only after confirmation/state rules;
+- middle click is not required for any core path.
 
-- icon/mark;
-- wording;
-- one small note-colour accent where platform APIs allow it.
+### Skrib
 
-Tray commands stay short:
+- context tab → Context Inspector;
+- text click → edit/select;
+- selected text → local formatting bubble;
+- inline image click → select image; second click/open action → viewer;
+- free image drag → move;
+- image corner/handle on selection → resize;
+- ink pen contact → draw directly;
+- mouse Ink shortcut/tab → temporary ink state;
+- folded lower-right corner → Done / Put away;
+- `•••` → note-level secondary controls;
+- `/` at caret → insert menu;
+- paste/drop → direct insertion.
 
-- New Skrib;
-- Show My Skribs;
-- Find;
-- Quick hide;
-- Settings;
-- Quit.
+### Find
 
-Reminder notification actions:
+- result row click → read selected Skrib in-place;
+- Return → target saved place;
+- Open Here → open actual Skrib near current place;
+- double click result may default to Open Here only if clearly taught; do not make double-click the only path.
 
-- Open thought;
-- Return (when meaningful);
-- Snooze;
-- Dismiss.
+### Reminder agenda
 
-## 12. Home / Ready
+- row click → read/open reminder Skrib;
+- `Open` → Open Here;
+- `Return` → saved context when meaningful;
+- Snooze → small time menu;
+- Month → full spacious month view;
+- Past → completed/archived reminder-linked thoughts;
+- Trash remains recovery/data, not a peer daily tab.
 
-Home must not become a dashboard.
+## 13. Global Reminders / Calendar
 
-After onboarding, the default app window should be sparse:
+The global reminders surface is **agenda-first**.
 
-- `Skribli is ready`;
+### Agenda default
+
+Large readable rows grouped by:
+
+- overdue;
+- today;
+- tomorrow;
+- later this week;
+- repeating.
+
+### Month view
+
+Month is a separate roomy mode, not squeezed into a small card.
+
+- full available content width;
+- date targets ~40–48 px minimum where possible;
+- no boxed dashboard cells;
+- selected date uses tactile paper mark;
+- reminder density shown by small dots/dashes, not tiny text in every cell;
+- selected day’s agenda appears below the month on narrower widths and beside it only on sufficiently wide windows.
+
+## 14. Home / Ready
+
+After onboarding, Home should be sparse.
+
+Primary content:
+
+- Skribli is running;
 - shortcut reminder;
-- Find/search entry;
-- a few recent/relevant thoughts if useful;
-- Settings/Account access.
+- Find entry;
+- recent/relevant thoughts only if useful;
+- access to Reminders and Settings.
 
-Education, announcements, privacy explanation, and trial detail progressively recede after first use.
+No permanent dashboard of product education/status cards.
 
-## 13. Find / All Skribs
+## 15. Find / All Skribs
 
-Functional shell, tactile reading.
+Functional search shell + tactile reading view.
 
-- left side: precise search/index list;
-- right side: selected Skrib rendered as a paper object/read view;
-- Return is primary when saved context exists;
-- Open Here is secondary;
-- context/media/reminder/Past filters appear on demand;
-- Import/Export leave the primary reading header and move to Data & Recovery.
+- search/index remains precise;
+- selected thought retains paper identity;
+- Return and Open Here are explicit separate actions;
+- filters are on demand;
+- Import/Export move to Data & Recovery.
 
-## 14. Reminders / Past / Trash
+## 16. Settings — detailed contract
+
+Settings exists so daily surfaces stay quiet.
+
+### General
+
+- launch at sign-in;
+- global shortcut;
+- startup behavior;
+- default note work size;
+- default action after Done.
+
+### Note & Canvas
+
+- attachment placement: Smart / Inline / Free / Ask;
+- default paper colour;
+- default text size/style;
+- pen/stylus behavior;
+- mouse Ink shortcut;
+- whether selected image movement may optionally carry grouped ink;
+- default photo cluster behavior.
+
+### My Skribs / Presence
+
+- Follow active app / Fixed screen edge;
+- Always visible / Auto-hide / Hidden until shortcut;
+- preferred fixed edge/position;
+- show `N here` count yes/no;
+- show app label yes/no;
+- open behavior: auto-close after action yes/no;
+- fan density (Comfortable/Compact) if needed;
+- animation reduction follows system by default.
+
+### Appearance
+
+- paper theme/contrast;
+- handwriting font usage level;
+- note shadow strength (Normal/Reduced);
+- UI scale where supported;
+- high-contrast compatibility;
+- reduced motion (System / On / Off).
+
+### Context & Privacy
+
+- supported apps/context rules;
+- current context capture explanation;
+- fail-closed matching behavior;
+- re-anchor/manage context rules;
+- Quick hide;
+- screen-sharing/privacy mode;
+- what account state is remote vs what content remains local.
 
 ### Reminders
 
-Agenda-first.
+- default quick reminder time;
+- default snooze durations;
+- notification actions;
+- repeat behavior;
+- optional quiet hours.
 
-`Coming back` shows upcoming resurfacing in chronological order. Month view is secondary.
+### Data & Recovery
 
-### Past
+- Export one/all;
+- Import preview/conflicts;
+- backup/recovery status;
+- Trash retention policy;
+- permanent-delete flow;
+- diagnostics/recovery exports.
 
-Past/Archive is a retrieval filter, not a daily peer destination.
+### Account
 
-### Trash
+- sign in/out;
+- verification/trial status;
+- updates opt-in;
+- explicit statement that note content is local unless future sync is separately enabled.
 
-Trash is a recovery/data view. Permanent deletion belongs only there with explicit confirmation.
+### About
 
-## 15. Settings
+- version;
+- update status;
+- release notes;
+- diagnostics entry.
 
-Settings exists so low-frequency controls stop leaking into daily surfaces.
+## 17. Context Inspector / Re-anchor
 
-Recommended sections:
+Healthy context remains a small human-readable tab.
 
-- General;
-- Appearance;
-- Context & Privacy;
-- Reminders;
-- Data & Recovery;
-- Account;
-- About.
-
-The layout should be standard and predictable. Living Paper may appear as section tabs/bookmarks and content samples, but Settings itself must not become a notebook metaphor.
-
-## 16. Context Inspector / Re-anchor
-
-Healthy context stays a small place tab.
-
-When invoked or degraded, an attached place inspector explains:
+When invoked/degraded, Inspector explains:
 
 - application;
-- saved human place label;
-- scope/status;
-- actions: Return, Open Here, Move, Detach, Re-anchor.
+- saved place label;
+- status;
+- Open Here;
+- Return;
+- Start app when supported;
+- Move / Detach / Re-anchor.
 
-Candidate re-anchor results appear as individual paper slips attached to the note/place tab, not as a large modal card when avoidable.
+Do not imply exact deep restoration the runtime does not have.
 
-Truth boundary remains explicit: current runtime does not guarantee exact closed URL/path/document-position/DOM restoration.
-
-## 17. Recovery and read-only states
-
-System failures use restrained typography and one attached recovery slip when the failure belongs to a specific Skrib.
-
-Examples:
+## 18. Recovery
 
 - `This edit still needs to save.` → Retry / Details;
-- `This Skrib is read-only for now.` → content remains readable/exportable;
+- `This Skrib is read-only for now.` → readable/exportable;
 - `Saved place unavailable.` → Open Here / Start app / Re-anchor.
 
-Storage/account/startup failures use normal system layout. Living Paper must not turn serious errors into playful stationery.
+Serious account/storage/startup failures use precise system UI, not playful paper metaphors.
 
-## 18. Accessibility and input
+## 19. Accessibility / input
 
 - no primary journey depends on hover;
-- all reveal states are keyboard reachable;
-- focus is visible without relying on colour alone;
-- hit targets meet desktop accessibility expectations;
-- 100/125/150% Windows scaling must be stress-tested;
-- reduced-motion path is equivalent in meaning;
-- screen-reader labels use action language (`Open here`, `Return to saved place`, `Hide My Skribs`) rather than metaphor-only names (`spine`, `slip`).
+- all hidden/revealed controls are keyboard reachable;
+- focus visible without colour alone;
+- screen-reader labels use action language, not metaphor names;
+- 100/125/150% Windows scaling is required acceptance;
+- reduced motion preserves meaning;
+- pen/stylus direct ink does not block keyboard/pointer operation;
+- touch/stylus future targets use sufficiently large handles.
 
-## 19. Acceptance matrix
+## 20. Acceptance matrix
 
-Each major surface must be approved in:
+Every major surface must be tested in:
 
 - rest;
 - hover/focus;
@@ -443,28 +650,36 @@ Each major surface must be approved in:
 - reduced motion;
 - 100/125/150% scaling.
 
-Additional stress cases:
+Stress fixtures:
 
 - 20k-character Skrib;
+- long context label;
 - 16 attachments;
-- mixed image/PDF/video;
+- mixed inline and free-positioned images;
+- ink over images + text;
 - large ink document;
-- repeating reminder;
+- repeat reminder;
 - actionable/checklist note;
 - Here empty;
-- large Rail result set;
+- 1 / 3 / 10 / 100 relevant Rail results;
+- windowed app with room outside edge;
+- windowed app flush to screen edge;
+- full-screen app;
+- multi-monitor focus change;
 - context unavailable;
 - large local library;
 - import/export failure.
 
-## 20. Production migration order
+## 21. Production migration order
 
-1. Resting Skrib + capability gateway.
-2. Heavy Skrib + attachments + Mark + Reminder + resize.
-3. Paper Spine / Ribbon Rail.
-4. Find / Reminders / Settings shell.
-5. Context repair / Return journey.
-6. Recovery/account/onboarding refinements.
-7. Website alignment after the desktop interaction system is stable.
+1. Unified mixed Skrib canvas + Done fold + save feedback.
+2. Inline/free attachments + direct ink + contextual insertion.
+3. Reminder planner/calendar resize behavior.
+4. Collapsed Context Ribbon.
+5. Ribbon Fan / Paper Stream open Rail.
+6. Find / Reminders / Settings.
+7. Context repair / Return journey.
+8. Recovery/account/onboarding refinements.
+9. Website alignment after desktop interaction system stabilises.
 
-No production implementation should begin from screenshots alone. Each surface must have approved state, interaction, motion, keyboard, failure, and native-window behavior first.
+No production implementation begins from a screenshot alone. Each surface needs approved click behavior, state, motion, keyboard, failure and native-window rules first.
