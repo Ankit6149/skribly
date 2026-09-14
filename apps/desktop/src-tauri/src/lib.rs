@@ -96,8 +96,10 @@ impl NativeWindowOperationGate {
     }
 }
 
-const RAIL_COLLAPSED_WIDTH: f64 = 64.0;
-const RAIL_COLLAPSED_HEIGHT: f64 = 64.0;
+const RAIL_COLLAPSED_WIDTH: f64 = 164.0;
+const RAIL_COLLAPSED_HEIGHT: f64 = 50.0;
+const RAIL_EXPANDED_WIDTH: f64 = 364.0;
+const RAIL_EXPANDED_HEIGHT: f64 = 430.0;
 const RAIL_EDGE_MARGIN_LOGICAL: f64 = 8.0;
 const RAIL_DOCK_DEBOUNCE: Duration = Duration::from_millis(180);
 
@@ -1456,7 +1458,7 @@ fn runtime_visible_skribs(state: &AppState, target: Option<&TargetWindowInfo>) -
 
 fn rail_surface_dimensions(expanded: bool) -> (f64, f64) {
     if expanded {
-        (336.0, 500.0)
+        (RAIL_EXPANDED_WIDTH, RAIL_EXPANDED_HEIGHT)
     } else {
         (RAIL_COLLAPSED_WIDTH, RAIL_COLLAPSED_HEIGHT)
     }
@@ -3591,8 +3593,8 @@ mod tests {
 
     #[test]
     fn expanded_rail_has_a_stable_size_across_note_and_context_changes() {
-        assert_eq!(rail_surface_dimensions(true), (336.0, 500.0));
-        assert_eq!(rail_surface_dimensions(false), (64.0, 64.0));
+        assert_eq!(rail_surface_dimensions(true), (364.0, 430.0));
+        assert_eq!(rail_surface_dimensions(false), (164.0, 50.0));
     }
 
     fn color_note(id: &str, color: &str, created_at: u64) -> SkribNote {
@@ -3641,7 +3643,7 @@ mod tests {
             width: 1920,
             height: 1040,
         };
-        let window_size = PhysicalSize::new(64, 64);
+        let window_size = PhysicalSize::new(164, 50);
 
         assert_eq!(
             nearest_rail_edge_position(PhysicalPosition::new(120, 480), window_size, work_area, 8,),
@@ -3649,7 +3651,7 @@ mod tests {
         );
         assert_eq!(
             nearest_rail_edge_position(PhysicalPosition::new(1700, 480), window_size, work_area, 8,),
-            PhysicalPosition::new(1848, 480)
+            PhysicalPosition::new(1748, 480)
         );
     }
 
@@ -3661,7 +3663,7 @@ mod tests {
             width: 1920,
             height: 1080,
         };
-        let window_size = PhysicalSize::new(64, 64);
+        let window_size = PhysicalSize::new(164, 50);
 
         assert_eq!(
             nearest_rail_edge_position(
@@ -3670,7 +3672,7 @@ mod tests {
                 work_area,
                 8,
             ),
-            PhysicalPosition::new(-72, 888)
+            PhysicalPosition::new(-172, 902)
         );
     }
 
@@ -3682,18 +3684,18 @@ mod tests {
             width: 1920,
             height: 1040,
         };
-        let collapsed = PhysicalSize::new(64, 64);
-        let expanded = PhysicalSize::new(336, 500);
+        let collapsed = PhysicalSize::new(164, 50);
+        let expanded = PhysicalSize::new(364, 430);
 
         assert_eq!(
             rail_position_after_size_change(
-                PhysicalPosition::new(1848, 480),
+                PhysicalPosition::new(1748, 480),
                 collapsed,
                 expanded,
                 work_area,
                 8,
             ),
-            PhysicalPosition::new(1576, 480)
+            PhysicalPosition::new(1548, 480)
         );
         assert_eq!(
             rail_position_after_size_change(
@@ -3703,7 +3705,7 @@ mod tests {
                 work_area,
                 8,
             ),
-            PhysicalPosition::new(8, 532)
+            PhysicalPosition::new(8, 602)
         );
     }
 

@@ -2495,3 +2495,109 @@ body {
 .composer-resize-handle.northeast { top: 0; right: 0; transform: rotate(-90deg); }
 .composer-resize-handle.southwest { bottom: 0; left: 0; transform: rotate(90deg); }
 .composer-resize-handle.southeast { right: 0; bottom: 0; }
+
+/* Living Paper refinement: the canvas leads; controls remain quiet until invited. */
+.composer-header {
+  min-height: 56px;
+  padding: 15px 14px 9px;
+  border-bottom-color: color-mix(in srgb, var(--skribli-line) 72%, transparent);
+}
+
+.composer-drag-grip { width: 11px; height: 24px; opacity: .46; }
+.composer-kicker { font-size: 8.5px; }
+.composer-context strong { font-size: 12.5px; }
+.composer-header-actions { gap: 6px; }
+
+.composer-command-bar {
+  min-height: 48px;
+  padding: 7px 14px;
+  gap: 7px;
+  border-bottom: 1px solid color-mix(in srgb, var(--skribli-line) 60%, transparent);
+  background: color-mix(in srgb, var(--skribli-paper) 91%, white);
+}
+
+.composer-tool-button {
+  width: 35px;
+  min-width: 35px;
+  height: 35px;
+  min-height: 35px;
+  padding: 0;
+  border-radius: 50%;
+}
+
+.composer-tool-button:hover:not(:disabled) { transform: translateY(-1px) scale(1.02); }
+
+.composer-color-popover {
+  top: 55px;
+  right: 12px;
+  left: auto;
+  z-index: 40;
+  width: max-content;
+  max-width: calc(100% - 24px);
+  padding: 7px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--paper) 94%, var(--skribli-paper));
+  box-shadow: 0 12px 30px rgb(38 41 35 / 16%);
+  animation: composer-paper-menu-in 150ms cubic-bezier(.22, 1, .36, 1) both;
+}
+
+.composer-color-popover > span { width: 0; overflow: hidden; opacity: 0; }
+.composer-color-popover .color-swatch { width: 28px; height: 28px; flex: 0 0 28px; }
+
+.composer-unified-workspace,
+.composer-inline-panel,
+.note-reminder-picker,
+.note-attachment-strip {
+  transition:
+    min-height 220ms cubic-bezier(.22, 1, .36, 1),
+    max-height 220ms cubic-bezier(.22, 1, .36, 1),
+    opacity 160ms ease,
+    transform 220ms cubic-bezier(.22, 1, .36, 1);
+}
+
+.note-reminder-picker {
+  grid-template-columns: minmax(292px, 1.35fr) minmax(190px, .8fr);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--paper) 86%, var(--skribli-paper));
+  box-shadow: 0 10px 28px rgb(38 41 35 / 8%);
+}
+
+.note-reminder-calendar { padding: 17px 19px 19px; }
+.note-reminder-days button {
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  min-height: 36px;
+  aspect-ratio: 1;
+  border-radius: 50% !important;
+}
+.note-reminder-days button.selected,
+.note-reminder-days button.selected:hover:not(:disabled) {
+  border-radius: 50% !important;
+  box-shadow: 0 4px 10px rgb(38 41 35 / 16%);
+}
+
+.note-reminder-time { padding: 20px; background: color-mix(in srgb, var(--mint) 38%, var(--paper)); }
+.composer-footer {
+  min-height: 55px;
+  padding: 8px 14px 10px;
+  background: linear-gradient(to top, color-mix(in srgb, var(--skribli-paper) 92%, white), transparent);
+}
+
+@keyframes composer-paper-menu-in { from { opacity: 0; transform: translateY(-5px) scale(.97); } }
+
+@media (max-width: 540px) {
+  .note-reminder-picker { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .composer-color-popover,
+  .composer-tool-button,
+  .composer-unified-workspace,
+  .composer-inline-panel,
+  .note-reminder-picker,
+  .note-attachment-strip { animation: none; transition: none; }
+}

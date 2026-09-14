@@ -13,6 +13,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import skriblyMarkUrl from '../../../../../assets/branding/skribly-app-icon.svg?url';
+import type { SkribNote } from '../../lib/geometry';
 import { useAccountStore } from '../../stores/accountStore';
 import {
   completeOnboarding,
@@ -36,6 +37,11 @@ const WORKSPACE_ITEMS = [
 
 async function openNoteRail(): Promise<void> {
   await invoke('show_global_note_rail');
+  await invoke('set_context_rail_expanded', {
+    expanded: true,
+    contextual: false,
+    noteCount: 0,
+  });
 }
 
 const BusySurface: React.FC<{ label: string }> = ({ label }) => (
@@ -235,6 +241,37 @@ const WorkspaceSidebar: React.FC<{
   onShowGuide: () => void;
 }> = ({ active, onNavigate, onShowGuide }) => {
   const { email, accountRole, entitlement, productUpdatesOptIn, signOut } = useAccountStore();
+  const [railCount, setRailCount] = useState(0);
+  const [railCountIsHere, setRailCountIsHere] = useState(false);
+
+  useEffect(() => {
+    let disposed = false;
+    const refreshRailCount = async () => {
+      try {
+        const [allNotes, hereNotes] = await Promise.all([
+          invoke<SkribNote[]>('get_all_skribs'),
+          invoke<SkribNote[]>('get_context_rail_notes'),
+        ]);
+        if (disposed) return;
+        const activeTotal = allNotes.filter((note) => note.deleted_at == null && note.archived_at == null).length;
+        const activeHere = hereNotes.filter((note) => note.deleted_at == null && note.archived_at == null).length;
+        setRailCount(activeHere || activeTotal);
+        setRailCountIsHere(activeHere > 0);
+      } catch {
+        if (!disposed) { setRailCount(0); setRailCountIsHere(false); }
+      }
+    };
+    void refreshRailCount();
+    const subscriptions = [
+      listen('skribly://overlay-update', refreshRailCount),
+      listen('skribly://rich-content-updated', refreshRailCount),
+      listen('skribly://context-rail-refresh', refreshRailCount),
+    ];
+    return () => {
+      disposed = true;
+      void Promise.all(subscriptions).then((callbacks) => callbacks.forEach((callback) => callback()));
+    };
+  }, []);
   const trialLabel = useMemo(() => {
     if (!entitlement) return 'Account verified';
     if (entitlement.mode === 'trial') {
@@ -281,7 +318,10 @@ const WorkspaceSidebar: React.FC<{
         title="Keep your Skribs within reach"
       >
         <PanelRightOpen size={16} aria-hidden="true" />
-        <span><strong>My Skribs rail</strong><small>Open the floating note shelf</small></span>
+        <span>
+          <strong>{railCount} {railCount === 1 ? 'Skrib' : 'Skribs'}{railCountIsHere ? ' here' : ''}</strong>
+          <small>Unfold the ribbon</small>
+        </span>
       </button>
       <div className="home-account-summary">
         <span>{accountRole === 'owner' ? 'OWNER ACCOUNT' : 'MEMBER ACCOUNT'}</span>

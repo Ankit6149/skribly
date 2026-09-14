@@ -175,10 +175,10 @@ if (
   !railWindow ||
   railWindow.resizable !== false ||
   railWindow.maximizable !== false ||
-  railWindow.minWidth !== 64 ||
-  railWindow.minHeight !== 64 ||
-  railWindow.maxWidth !== 336 ||
-  railWindow.maxHeight !== 500
+  railWindow.minWidth !== 164 ||
+  railWindow.minHeight !== 50 ||
+  railWindow.maxWidth !== 364 ||
+  railWindow.maxHeight !== 430
 ) {
   failures.push('The floating rail must stay outside Windows Snap Layouts while allowing its fixed collapsed and expanded sizes.');
 }

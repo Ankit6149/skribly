@@ -945,14 +945,16 @@ html[data-skribly-window="library"] #root,
 
 .home-open-rail {
   width: 100%;
-  padding: 11px;
+  min-height: 42px;
+  padding: 6px 9px;
   display: grid;
-  grid-template-columns: 30px minmax(0, 1fr);
+  grid-template-columns: 28px minmax(0, 1fr);
   align-items: center;
-  gap: 9px;
+  gap: 8px;
   border: 1px solid rgb(163 130 12 / 18%);
-  border-radius: 14px 14px 20px 14px;
-  background: rgb(248 223 120 / 38%);
+  border-radius: 11px 11px 14px 11px;
+  background:
+    linear-gradient(to bottom, var(--sky) 0 3px, var(--peach) 3px 6px, var(--yellow) 6px 100%);
   color: var(--ink);
   cursor: pointer;
   font-family: var(--font-ui);
@@ -961,22 +963,23 @@ html[data-skribly-window="library"] #root,
 }
 
 .home-open-rail:hover {
-  background: rgb(248 223 120 / 58%);
+  background:
+    linear-gradient(to bottom, var(--sky) 0 3px, var(--peach) 3px 6px, color-mix(in srgb, var(--yellow) 84%, white) 6px 100%);
   box-shadow: 0 10px 24px rgb(38 41 35 / 8%);
   transform: translateY(-1px);
 }
 
 .home-open-rail > svg {
-  width: 30px;
-  height: 30px;
-  padding: 7px;
+  width: 28px;
+  height: 28px;
+  padding: 6px;
   border-radius: 50%;
-  background: var(--paper);
+  background: rgb(255 253 247 / 68%);
 }
 
 .home-open-rail span { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
-.home-open-rail strong { font-size: 11px; }
-.home-open-rail small { color: var(--muted); font-size: 9px; }
+.home-open-rail strong { font-size: 11px; letter-spacing: -.01em; }
+.home-open-rail small { color: var(--muted); font-size: 9.5px; }
 
 .home-navigation button:hover {
   border-color: var(--line);

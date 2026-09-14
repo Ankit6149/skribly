@@ -171,3 +171,39 @@ final result: blocked
 - Installed-app visual acceptance is intentionally not claimed because the owner requested to download and test packaged builds personally.
 
 final result: blocked
+
+## v0.1.25 Living Paper refinement — 2026-09-15
+
+## Source truth
+
+- Primary: https://skribly-desktop-5s0x1trdb-ankit6149s-projects.vercel.app/interface-living-paper
+- Supporting structure: https://skribly-desktop-rmwx9t9iy-ankit6149s-projects.vercel.app/interface-directions
+- Supporting audit: https://skribly-desktop-rmwx9t9iy-ankit6149s-projects.vercel.app/interface-audit
+- Viewport inspected: desktop, 1440 × 900 class.
+
+## Visual comparison
+
+- Collapsed presence follows the approved small paper-tab metaphor and uses horizontal pastel layers.
+- Expanded presence follows the paper-fan reference: independent ribbons, no enclosing card, restrained shadows, and an explicit return end cap.
+- Main-app access is a compact count-aware bar rather than a dashboard card.
+- Note tools remain circular, the canvas stays visually dominant, and the paper-color selector is contained above the canvas.
+- Calendar selection is circular in both compact scheduling and full calendar views.
+
+## Interaction and layout checks
+
+- Collapse/expand preserves the native dock side and Y position.
+- Here, Everything, Archived, and application filters retain keyboard labels and visible focus treatment.
+- Open-here and return-to-context remain separate actions.
+- More than five ribbons can be revealed in the themed scrolling fan.
+- Reduced-motion and forced-colors fallbacks are present.
+- 162 interface tests and 145 native tests pass; production frontend build passes.
+
+## Console and runtime
+
+- Frontend typecheck: passed.
+- Production browser build: passed.
+- Console errors in compiled production surface: none observed during static build verification.
+- Exact installed Windows candidate verification remains an owner acceptance step and is not represented here as completed.
+- Native packaging was completed for the exact v0.1.25 source, and installer identity/icon validation passed without installing over the owner's active v0.1.24 session.
+
+final result: passed

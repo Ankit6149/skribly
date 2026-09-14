@@ -1001,7 +1001,7 @@ mod tests {
         for origin in [0, -1366] {
             for dpi in [96, 120, 144] {
                 let scale = dpi as f64 / 96.0;
-                let rail_width = (336.0 * scale) as i32;
+                let rail_width = (364.0 * scale) as i32;
                 let work = rect(origin, 0, 1366, 728);
                 for right in [false, true] {
                     let rail = rect(

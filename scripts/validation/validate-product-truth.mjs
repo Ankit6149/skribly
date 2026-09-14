@@ -78,7 +78,7 @@ const requiredReadmeClaims = [
   'Launching Skribli again in the same Windows user session restores the existing Home window',
   'Windows accessibility events use bounded, non-blocking delivery with callback-side filtering and duplicate coalescing.',
   'The current build uses one movable **My Skribs** rail instead of creating a separate floating dot for every note.',
-  'My Skribs provides **Here**, **All**, and **Archive** scopes',
+  'Its overflow offers **Here**, **Everything**, and **Archived**',
   'ordinary deletion is reversible through Trash',
   'A normal non-floating **All Skribs** window',
   'Reversible Trash with 30-day recovery guidance',

@@ -31,19 +31,19 @@ Windows accessibility events use bounded, non-blocking delivery with callback-si
 
 The current build uses one movable **My Skribs** rail instead of creating a separate floating dot for every note. It does **not** create an attached tab or full-screen interactive overlay.
 
-Shortcut creation is deterministic and always new. My Skribs provides **Here**, **All**, and **Archive** scopes; completing a task archives its note and completing linked reminders, while ordinary deletion is reversible through Trash. Portable JSON import requires a non-mutating preview before one atomic apply. Rich attachments, ink, and reminders are device-local and are not yet included in that portable JSON path. Rich-data portability, browser-origin enrichment, physical Windows acceptance, installer lifecycle, and signed release evidence remain tracked in the production-readiness backlog.
+Shortcut creation is deterministic and always new. The collapsed My Skribs control is a narrow horizontal paper tab; one click unfolds independent note ribbons without opening a miniature dashboard. Its overflow offers **Here**, **Everything**, and **Archived** while the full library remains the management surface. Completing a task archives its note and linked reminders, while ordinary deletion is reversible through Trash. Portable JSON import requires a non-mutating preview before one atomic apply. Rich attachments, ink, and reminders are device-local and are not yet included in that portable JSON path. Rich-data portability, browser-origin enrichment, physical Windows acceptance, installer lifecycle, and signed release evidence remain tracked in the production-readiness backlog.
 
 ## Implemented foundations
 
 - Tauri 2 desktop shell with React, TypeScript, Vite, and Rust.
 - Compact fully interactive note window rather than a screen-blocking overlay.
-- One movable My Skribs rail with active-screen **Here**, desktop-wide **All**, and recoverable **Archive** scopes; individual notes no longer create floating dots.
+- One movable My Skribs paper tab that unfolds into color-coded note ribbons with active-screen **Here**, desktop-wide **Everything**, and recoverable **Archived** scopes; individual notes no longer create floating dots.
 - Five exact website pastels with automatic new-note rotation and per-note color selection.
 - One unified text-and-ink canvas with pen, highlighter, eraser, select-and-move, width/color controls, undo, and editable vector-stroke persistence.
 - Safe device-local image, video, and document attachments with preview and quota enforcement.
 - Device-local reminders with daily, weekday, weekly, and monthly repeat rules, Calendar view, and permission-gated Windows notifications.
 - Compact, medium, and large note sizes plus persisted small, medium, and large handwriting text.
-- A grouped, collapsible My Skribs rail with a horizontal application context switcher, active-note feedback, and predictable saved-screen-to-app-home fallback.
+- A grouped, collapsible My Skribs ribbon with a horizontal application context switcher, active-note feedback, and predictable saved-screen-to-app-home fallback.
 - Windows launch-at-login so the global shortcut is available after sign-in without manually opening the dashboard.
 - A visible, decorated Home window that opens on every normal launch and remains recoverable after setup failures.
 - Mandatory email/password account setup with verified-email state, secure Windows DPAPI session storage, and explicit optional product-update consent.
