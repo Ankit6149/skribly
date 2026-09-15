@@ -21,7 +21,7 @@ The active compact-note flow is:
 4. A compact note editor opens inside that target monitor’s usable work area. Every shortcut press creates a fresh Skrib; saved notes remain available from My Skribs and All Skribs.
 5. Type while Skribli reports truthful **Unsaved**, **Saving**, **Saved**, or **Save failed** state.
 6. Choose **Done**, press **Escape**, or press **Ctrl + Enter**.
-7. Skribli hides the saved editor only after the latest draft is durable and returns it to the single **My Skribs** rail. If persistence fails, the editor remains open so the draft is not silently lost.
+7. Skribli hides the saved editor only after the latest draft is durable and returns it to the appropriate **My Skribs** surface. If persistence fails, the editor remains open so the draft is not silently lost.
 
 When Windows cannot provide or revalidate a safe target, Skribli shows one actionable compact message, clears the previous target, and does not create, reopen, move, or focus a note.
 
@@ -29,15 +29,15 @@ Launching Skribli again in the same Windows user session restores the existing H
 
 Windows accessibility events use bounded, non-blocking delivery with callback-side filtering and duplicate coalescing. Relevant foreground and active-target changes are processed by a separate consumer thread; unrelated child-object and non-target movement events are discarded before queue delivery.
 
-The current build uses one movable **My Skribs** rail instead of creating a separate floating dot for every note. It does **not** create an attached tab or full-screen interactive overlay.
+The current build uses two deliberately separate entry surfaces instead of creating a floating dot for every note. A slim three-colour **My Skribs** tab stays at the desktop edge for the complete library, while a compact **N Skribs here** paper bar appears only inside the active application when that context has notes. It does **not** create a full-screen interactive overlay.
 
-Shortcut creation is deterministic and always new. The collapsed My Skribs control is a narrow horizontal paper tab; one click unfolds independent note ribbons without opening a miniature dashboard. Its overflow offers **Here**, **Everything**, and **Archived** while the full library remains the management surface. Completing a task archives its note and linked reminders, while ordinary deletion is reversible through Trash. Portable JSON import requires a non-mutating preview before one atomic apply. Rich attachments, ink, and reminders are device-local and are not yet included in that portable JSON path. Rich-data portability, browser-origin enrichment, physical Windows acceptance, installer lifecycle, and signed release evidence remain tracked in the production-readiness backlog.
+Shortcut creation is deterministic and always new. One click on either entry surface unfolds independent note ribbons without opening a miniature dashboard. The desktop tab exposes the full collection; the app-contained bar starts with the current context. Their overflow offers **Here**, **Everything**, and **Archived** while the full library remains the management surface. The app bar can be moved within its owning application, follows that application as it moves or resizes, and hides when another application becomes active. Completing a task archives its note and linked reminders, while ordinary deletion is reversible through Trash. Portable JSON import requires a non-mutating preview before one atomic apply. Rich attachments, ink, and reminders are device-local and are not yet included in that portable JSON path. Rich-data portability, browser-origin enrichment, physical Windows acceptance, installer lifecycle, and signed release evidence remain tracked in the production-readiness backlog.
 
 ## Implemented foundations
 
 - Tauri 2 desktop shell with React, TypeScript, Vite, and Rust.
 - Compact fully interactive note window rather than a screen-blocking overlay.
-- One movable My Skribs paper tab that unfolds into color-coded note ribbons with active-screen **Here**, desktop-wide **Everything**, and recoverable **Archived** scopes; individual notes no longer create floating dots.
+- One quiet three-colour desktop edge tab for all Skribs, plus one movable app-contained **Skribs here** paper bar for the active context. Both unfold into color-coded note ribbons with **Here**, **Everything**, and recoverable **Archived** scopes; individual notes no longer create floating dots.
 - Five exact website pastels with automatic new-note rotation and per-note color selection.
 - One unified text-and-ink canvas with pen, highlighter, eraser, select-and-move, width/color controls, undo, and editable vector-stroke persistence.
 - Safe device-local image, video, and document attachments with preview and quota enforcement.

@@ -207,3 +207,40 @@ final result: blocked
 - Native packaging was completed for the exact v0.1.25 source, and installer identity/icon validation passed without installing over the owner's active v0.1.24 session.
 
 final result: passed
+
+## v0.1.26 global widget and in-app context bar — 2026-09-15
+
+## Source truth
+
+- Owner-selected focused reference: `codex-clipboard-2d45a16d-5c50-4646-8114-3d48bb0a7652.png`, 85 × 260 pixels.
+- Implementation preview: the live local production component route at `?skriblyWindow=rail`, inspected in a 1280 × 720 browser viewport.
+- Context-bar preview: the same component route with `railMode=context`, inspected at the same viewport.
+- Comparison scope was intentionally focused on the edge-widget component because the reference is itself a cropped component-state image rather than a complete screen.
+
+## Visual comparison and iteration
+
+- The first implementation used a 38 × 84 visible tab and appeared too short and wide against the owner's reference.
+- The final visible tab is 30 × 120 logical pixels inside a 36 × 128 transparent host. Its exposed edge is rounded, its screen edge is flush, and the yellow, peach, and lavender divisions run vertically with no icon, count, or text.
+- The existing horizontal Living Paper launcher remains visually unchanged for the contextual surface: layered paper, note icon, count, `here`, and a restrained chevron.
+- Focus treatment, hover expansion, pressed feedback, reduced-motion behavior, and forced-colors fallback are preserved.
+
+## Interaction and layout checks
+
+- Clicking either collapsed preview unfolds the ribbon surface; the global preview begins in Everything and the contextual preview begins in Here.
+- Global and contextual controls render from two independent Tauri windows, so the persistent desktop tab is not replaced by the app bar.
+- Native geometry keeps the global tab on the nearest desktop edge and clamps the contextual bar inside its target application, including negative-origin monitors.
+- Foreground-app synchronization hides the contextual bar outside its owning application and restores the correct context only when active Skribs exist.
+- Closing the note editor leaves the app bar available; clearing or losing the target hides it.
+
+## Verification
+
+- 162 frontend tests passed.
+- 146 native library tests, 3 native binary tests, and 37 migration tests passed.
+- TypeScript, production build, desktop-theme, compact-surface, site, governance, product-truth, private-artifact, Rust format, and Rust compile checks passed.
+- Browser visual and accessibility inspection showed the intended two collapsed states and successful click-to-unfold behavior; no error surface appeared.
+- NSIS and MSI packages were built for the exact v0.1.26 source. Installer branding validation passed.
+- NSIS SHA-256: `457a3d8b08827b4e6d84775e5c4fc20abcf4b01b66ad55aac0ba154f5ce0affd`.
+- Encrypted owner asset SHA-256: `ed2524db85f76594383077099b70333a7f1c0be2893844904dbf7558e24d7431`.
+- Exact installed-app behavior across real third-party windows remains the owner's acceptance test and is not represented as already performed.
+
+final result: passed

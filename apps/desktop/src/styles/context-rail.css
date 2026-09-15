@@ -1,6 +1,9 @@
 html[data-skribly-window='rail'],
+html[data-skribly-window='context-rail'],
 html[data-skribly-window='rail'] body,
+html[data-skribly-window='context-rail'] body,
 html[data-skribly-window='rail'] #root,
+html[data-skribly-window='context-rail'] #root,
 .app-rail-root {
   width: 100%;
   height: 100%;
@@ -16,7 +19,7 @@ html[data-skribly-window='rail'] #root,
   user-select: none;
 }
 
-/* A narrow paper tab. The pastel layers are horizontal so it reads as a stack, not a flag. */
+/* The global widget is a quiet edge seam; the wider count bar belongs only to an active app. */
 .context-rail.collapsed {
   width: 100%;
   height: 100%;
@@ -25,6 +28,42 @@ html[data-skribly-window='rail'] #root,
   overflow: hidden;
   background: transparent;
 }
+
+.context-rail-global-widget {
+  position: absolute;
+  top: 4px;
+  right: 0;
+  width: 30px;
+  height: 120px;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 10px 7px 13px;
+  overflow: hidden;
+  box-sizing: border-box;
+  border: 1px solid rgb(38 41 35 / 14%);
+  border-right: 0;
+  border-radius: 13px 0 0 13px;
+  background: transparent;
+  box-shadow: 0 6px 16px rgb(38 41 35 / 12%);
+  cursor: pointer;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: width 170ms cubic-bezier(.22, 1, .36, 1),
+    transform 170ms cubic-bezier(.22, 1, .36, 1), box-shadow 170ms ease;
+}
+
+.global-widget-strip { min-width: 0; height: 100%; pointer-events: none; }
+.global-widget-strip.strip-yellow { background: var(--yellow); }
+.global-widget-strip.strip-peach { background: var(--peach); }
+.global-widget-strip.strip-lavender { background: var(--lavender); }
+
+.context-rail-global-widget:hover {
+  width: 34px;
+  transform: translateX(-1px);
+  box-shadow: 0 8px 20px rgb(38 41 35 / 16%);
+}
+.context-rail-global-widget:active { transform: translateX(1px) scale(.985); }
+.context-rail-global-widget:focus-visible { outline: 0; box-shadow: var(--focus-ring), 0 8px 20px rgb(38 41 35 / 15%); }
 
 .context-rail-launcher {
   position: relative;
@@ -338,6 +377,7 @@ html[data-skribly-window='rail'] #root,
 @media (prefers-reduced-motion: reduce) {
   .context-rail-launcher-layer,
   .context-rail-launcher-face,
+  .context-rail-global-widget,
   .ribbon-rail-head,
   .ribbon-scope-menu,
   .skrib-ribbon,
@@ -349,6 +389,7 @@ html[data-skribly-window='rail'] #root,
 @media (forced-colors: active) {
   .context-rail-launcher-layer,
   .context-rail-launcher-face,
+  .context-rail-global-widget,
   .ribbon-rail-head,
   .ribbon-scope-menu,
   .skrib-ribbon,

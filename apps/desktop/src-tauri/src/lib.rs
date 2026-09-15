@@ -96,12 +96,23 @@ impl NativeWindowOperationGate {
     }
 }
 
-const RAIL_COLLAPSED_WIDTH: f64 = 164.0;
-const RAIL_COLLAPSED_HEIGHT: f64 = 50.0;
+const GLOBAL_RAIL_COLLAPSED_WIDTH: f64 = 36.0;
+const GLOBAL_RAIL_COLLAPSED_HEIGHT: f64 = 128.0;
+const CONTEXT_RAIL_COLLAPSED_WIDTH: f64 = 164.0;
+const CONTEXT_RAIL_COLLAPSED_HEIGHT: f64 = 50.0;
 const RAIL_EXPANDED_WIDTH: f64 = 364.0;
 const RAIL_EXPANDED_HEIGHT: f64 = 430.0;
-const RAIL_EDGE_MARGIN_LOGICAL: f64 = 8.0;
+const GLOBAL_RAIL_EDGE_MARGIN_LOGICAL: f64 = 0.0;
+const CONTEXT_RAIL_EDGE_MARGIN_LOGICAL: f64 = 8.0;
 const RAIL_DOCK_DEBOUNCE: Duration = Duration::from_millis(180);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct ContextRailPlacement {
+    target_hwnd: isize,
+    bounds: RailDockBounds,
+    relative_x: i32,
+    relative_y: i32,
+}
 
 #[derive(Debug, Default)]
 struct RailWindowRuntime {
@@ -109,6 +120,7 @@ struct RailWindowRuntime {
     pending_programmatic_positions: Mutex<VecDeque<(i32, i32)>>,
     has_docked_position: AtomicBool,
     expanded: AtomicBool,
+    context_placement: Mutex<Option<ContextRailPlacement>>,
 }
 
 impl RailWindowRuntime {
@@ -160,12 +172,43 @@ impl RailWindowRuntime {
     fn has_docked_position(&self) -> bool {
         self.has_docked_position.load(Ordering::Acquire)
     }
+
+    fn context_placement(&self) -> Option<ContextRailPlacement> {
+        self.context_placement.lock().ok().and_then(|value| *value)
+    }
+
+    fn record_context_placement(
+        &self,
+        target_hwnd: isize,
+        bounds: RailDockBounds,
+        position: PhysicalPosition<i32>,
+    ) {
+        if let Ok(mut placement) = self.context_placement.lock() {
+            *placement = Some(ContextRailPlacement {
+                target_hwnd,
+                bounds,
+                relative_x: position.x.saturating_sub(bounds.x),
+                relative_y: position.y.saturating_sub(bounds.y),
+            });
+        }
+    }
+
+    fn clear_context_placement(&self) {
+        if let Ok(mut placement) = self.context_placement.lock() {
+            *placement = None;
+        }
+    }
 }
 
 static RAIL_WINDOW_RUNTIME: OnceLock<RailWindowRuntime> = OnceLock::new();
+static CONTEXT_RAIL_WINDOW_RUNTIME: OnceLock<RailWindowRuntime> = OnceLock::new();
 
 fn rail_window_runtime() -> &'static RailWindowRuntime {
     RAIL_WINDOW_RUNTIME.get_or_init(RailWindowRuntime::default)
+}
+
+fn context_rail_window_runtime() -> &'static RailWindowRuntime {
+    CONTEXT_RAIL_WINDOW_RUNTIME.get_or_init(RailWindowRuntime::default)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -266,6 +309,19 @@ fn nearest_rail_edge_position(
 ) -> PhysicalPosition<i32> {
     let side = rail_dock_side(position, window_size, work_area, margin);
     rail_position_for_side_and_y(side, position.y, window_size, work_area, margin)
+}
+
+fn clamp_rail_position_to_bounds(
+    position: PhysicalPosition<i32>,
+    window_size: PhysicalSize<u32>,
+    bounds: RailDockBounds,
+    margin: i32,
+) -> PhysicalPosition<i32> {
+    let (left, right, top, bottom) = rail_dock_limits(window_size, bounds, margin);
+    PhysicalPosition::new(
+        i64::from(position.x).clamp(left, right) as i32,
+        i64::from(position.y).clamp(top, bottom) as i32,
+    )
 }
 
 impl NoteWindowRuntime {
@@ -431,8 +487,9 @@ fn set_rail_position(
     _app_handle: &AppHandle,
     rail: &WebviewWindow,
     position: PhysicalPosition<i32>,
+    runtime: &RailWindowRuntime,
 ) -> tauri::Result<()> {
-    rail_window_runtime().record_programmatic_position(position);
+    runtime.record_programmatic_position(position);
     rail.set_position(position)
 }
 
@@ -471,7 +528,7 @@ fn size_and_dock_rail(
     };
     let work_area = monitor.work_area();
     let scale = monitor.scale_factor();
-    let margin = (RAIL_EDGE_MARGIN_LOGICAL * scale).round() as i32;
+    let margin = (GLOBAL_RAIL_EDGE_MARGIN_LOGICAL * scale).round() as i32;
     let bounds = RailDockBounds {
         x: work_area.position.x,
         y: work_area.position.y,
@@ -496,12 +553,91 @@ fn size_and_dock_rail(
             margin,
         ),
     };
-    set_rail_position(app_handle, rail, position)
+    set_rail_position(app_handle, rail, position, rail_window_runtime())
         .map_err(|error| format!("Skribli could not dock the note rail: {error}"))
 }
 
-fn schedule_rail_edge_dock(app_handle: &AppHandle, position: PhysicalPosition<i32>) {
-    let runtime = rail_window_runtime();
+fn size_and_place_context_rail(
+    app_handle: &AppHandle,
+    rail: &WebviewWindow,
+    target: &TargetWindowInfo,
+    logical_width: f64,
+    logical_height: f64,
+) -> Result<(), String> {
+    if rail.is_maximized().unwrap_or(false) {
+        rail.unmaximize()
+            .map_err(|error| format!("Skribli could not restore the in-app note bar: {error}"))?;
+    }
+    rail.set_resizable(false)
+        .map_err(|error| format!("Skribli could not lock the in-app note bar size: {error}"))?;
+    rail.set_maximizable(false).map_err(|error| {
+        format!("Skribli could not disable in-app note bar maximization: {error}")
+    })?;
+
+    let previous_size = rail.outer_size().ok();
+    rail.set_size(LogicalSize::new(logical_width, logical_height))
+        .map_err(|error| format!("Skribli could not resize the in-app note bar: {error}"))?;
+
+    let scale = if target.scale_factor.is_finite() && target.scale_factor > 0.0 {
+        target.scale_factor
+    } else {
+        1.0
+    };
+    let bounds = RailDockBounds {
+        x: target.bounds.x,
+        y: target.bounds.y,
+        width: target.bounds.width.max(0),
+        height: target.bounds.height.max(0),
+    };
+    let next_size = PhysicalSize::new(
+        (logical_width * scale).round().max(0.0) as u32,
+        (logical_height * scale).round().max(0.0) as u32,
+    );
+    let margin = (CONTEXT_RAIL_EDGE_MARGIN_LOGICAL * scale).round() as i32;
+    let runtime = context_rail_window_runtime();
+    let saved = runtime
+        .context_placement()
+        .filter(|placement| placement.target_hwnd == target.hwnd_val);
+    let preferred = if let Some(placement) = saved {
+        PhysicalPosition::new(
+            bounds.x.saturating_add(placement.relative_x),
+            bounds.y.saturating_add(placement.relative_y),
+        )
+    } else {
+        let title_inset = (44.0 * scale).round() as i32;
+        PhysicalPosition::new(
+            bounds
+                .x
+                .saturating_add(bounds.width)
+                .saturating_sub(next_size.width as i32)
+                .saturating_sub(margin),
+            bounds.y.saturating_add(title_inset.max(margin)),
+        )
+    };
+    let position = match (saved, previous_size) {
+        (Some(_), Some(previous_size)) if previous_size != next_size => {
+            rail_position_after_size_change(preferred, previous_size, next_size, bounds, margin)
+        }
+        _ => clamp_rail_position_to_bounds(preferred, next_size, bounds, margin),
+    };
+    set_rail_position(app_handle, rail, position, runtime).map_err(|error| {
+        format!("Skribli could not place the note bar inside this app: {error}")
+    })?;
+    runtime.record_context_placement(target.hwnd_val, bounds, position);
+    Ok(())
+}
+
+fn schedule_rail_edge_dock(
+    app_handle: &AppHandle,
+    label: &'static str,
+    contextual: bool,
+    position: PhysicalPosition<i32>,
+) {
+    let runtime = if contextual {
+        context_rail_window_runtime()
+    } else {
+        rail_window_runtime()
+    };
     if runtime.consume_programmatic_movement(position) {
         return;
     }
@@ -517,15 +653,15 @@ fn schedule_rail_edge_dock(app_handle: &AppHandle, position: PhysicalPosition<i3
             )
         } < 0
         {
-            if !rail_window_runtime().movement_is_current(generation) {
+            if !runtime.movement_is_current(generation) {
                 return;
             }
             std::thread::sleep(Duration::from_millis(50));
         }
-        if !rail_window_runtime().movement_is_current(generation) {
+        if !runtime.movement_is_current(generation) {
             return;
         }
-        let Some(rail) = app_handle.get_webview_window("rail") else {
+        let Some(rail) = app_handle.get_webview_window(label) else {
             return;
         };
         if !rail.is_visible().unwrap_or(false) {
@@ -537,6 +673,27 @@ fn schedule_rail_edge_dock(app_handle: &AppHandle, position: PhysicalPosition<i3
         let Ok(window_size) = rail.outer_size() else {
             return;
         };
+        let runtime = if contextual {
+            context_rail_window_runtime()
+        } else {
+            rail_window_runtime()
+        };
+        if let Some(context) = runtime.context_placement() {
+            let scale = rail.scale_factor().unwrap_or(1.0);
+            let margin = (CONTEXT_RAIL_EDGE_MARGIN_LOGICAL * scale).round() as i32;
+            let contained = clamp_rail_position_to_bounds(
+                current_position,
+                window_size,
+                context.bounds,
+                margin,
+            );
+            let _ = rail.set_always_on_top(true);
+            if contained != current_position {
+                let _ = set_rail_position(&app_handle, &rail, contained, runtime);
+            }
+            runtime.record_context_placement(context.target_hwnd, context.bounds, contained);
+            return;
+        }
         let monitor = rail
             .current_monitor()
             .ok()
@@ -547,7 +704,7 @@ fn schedule_rail_edge_dock(app_handle: &AppHandle, position: PhysicalPosition<i3
         };
         let work_area = monitor.work_area();
         let scale = monitor.scale_factor();
-        let margin = (RAIL_EDGE_MARGIN_LOGICAL * scale).round() as i32;
+        let margin = (GLOBAL_RAIL_EDGE_MARGIN_LOGICAL * scale).round() as i32;
         let bounds = RailDockBounds {
             x: work_area.position.x,
             y: work_area.position.y,
@@ -557,7 +714,7 @@ fn schedule_rail_edge_dock(app_handle: &AppHandle, position: PhysicalPosition<i3
         let docked = nearest_rail_edge_position(current_position, window_size, bounds, margin);
         let _ = rail.set_always_on_top(true);
         if docked != current_position {
-            let _ = set_rail_position(&app_handle, &rail, docked);
+            let _ = set_rail_position(&app_handle, &rail, docked, runtime);
         }
     });
 }
@@ -712,15 +869,28 @@ fn hide_main_note_window(app_handle: &AppHandle) {
     let _ = show_global_note_rail(app_handle.clone());
 }
 
+fn hide_context_note_rail(app_handle: &AppHandle) {
+    context_rail_window_runtime().clear_context_placement();
+    context_rail_window_runtime()
+        .expanded
+        .store(false, Ordering::Release);
+    if let Some(window) = app_handle.get_webview_window("context-rail") {
+        let _ = window.hide();
+    }
+}
+
 #[tauri::command]
 fn show_global_note_rail(app_handle: AppHandle) -> Result<(), String> {
     let rail = app_handle
         .get_webview_window("rail")
         .ok_or_else(|| "My Skribs rail is unavailable.".to_string())?;
-    let (width, height) =
-        rail_surface_dimensions(rail_window_runtime().expanded.load(Ordering::Acquire));
+    let (width, height) = rail_surface_dimensions(
+        rail_window_runtime().expanded.load(Ordering::Acquire),
+        false,
+    );
     rail.set_always_on_top(true)
         .map_err(|error| format!("Skribli could not dock the desktop note pill: {error}"))?;
+    rail_window_runtime().clear_context_placement();
     size_and_dock_rail(&app_handle, &rail, width, height)?;
 
     let _ = app_handle.emit("skribly://global-rail-refresh", ());
@@ -755,19 +925,40 @@ fn show_context_rail_for_target(
         .into_iter()
         .filter(SkribNote::is_active)
         .count();
-    let Some(rail) = app_handle.get_webview_window("rail") else {
+    let Some(rail) = app_handle.get_webview_window("context-rail") else {
         return Ok(false);
     };
-    let (width, height) =
-        rail_surface_dimensions(rail_window_runtime().expanded.load(Ordering::Acquire));
+    let (width, height) = rail_surface_dimensions(
+        context_rail_window_runtime()
+            .expanded
+            .load(Ordering::Acquire),
+        true,
+    );
     rail.set_always_on_top(true)
         .map_err(|error| format!("Skribli could not attach the note rail to this app: {error}"))?;
-    size_and_dock_rail(app_handle, &rail, width, height)?;
+    size_and_place_context_rail(app_handle, &rail, target, width, height)?;
 
     let _ = app_handle.emit("skribly://context-rail-refresh", note_count);
     rail.show()
         .map_err(|error| format!("Skribli could not show the note rail: {error}"))?;
     Ok(true)
+}
+
+fn sync_context_note_rail_for_target(
+    app_handle: &AppHandle,
+    state: &AppState,
+    target: &TargetWindowInfo,
+) {
+    let has_notes = state
+        .coordinator
+        .get_skribs_for_target(target)
+        .into_iter()
+        .any(|note| note.is_active());
+    if has_notes {
+        let _ = show_context_rail_for_target(app_handle, state, target);
+    } else {
+        hide_context_note_rail(app_handle);
+    }
 }
 
 fn hide_main_note_window_as_lifecycle_action(app_handle: &AppHandle, state: &AppState) {
@@ -807,6 +998,7 @@ fn clear_active_target_and_hide_note_locked(app_handle: &AppHandle, state: &AppS
     // A newer open/restore action owns the physical window if it started after this clear.
     if native_lifecycle_action_is_current(state, generation) {
         hide_main_note_window(app_handle);
+        hide_context_note_rail(app_handle);
     }
 }
 
@@ -859,6 +1051,7 @@ fn clear_active_target_and_hide_note_if_current_locked(
     };
     if native_lifecycle_action_is_current(state, generation) {
         hide_main_note_window(app_handle);
+        hide_context_note_rail(app_handle);
     }
     true
 }
@@ -1175,6 +1368,7 @@ fn hide_active_note_for_unrelated_context(
         .hide()
         .map_err(|error| format!("Skribli could not hide the inactive note: {error}"))?;
     let _ = show_global_note_rail(app_handle.clone());
+    hide_context_note_rail(app_handle);
     let _ = restore_standard_window_surface(&window);
 
     let _commit_guard = state
@@ -1456,11 +1650,13 @@ fn runtime_visible_skribs(state: &AppState, target: Option<&TargetWindowInfo>) -
     visible_skribs(&state.coordinator, target)
 }
 
-fn rail_surface_dimensions(expanded: bool) -> (f64, f64) {
+fn rail_surface_dimensions(expanded: bool, contextual: bool) -> (f64, f64) {
     if expanded {
         (RAIL_EXPANDED_WIDTH, RAIL_EXPANDED_HEIGHT)
+    } else if contextual {
+        (CONTEXT_RAIL_COLLAPSED_WIDTH, CONTEXT_RAIL_COLLAPSED_HEIGHT)
     } else {
-        (RAIL_COLLAPSED_WIDTH, RAIL_COLLAPSED_HEIGHT)
+        (GLOBAL_RAIL_COLLAPSED_WIDTH, GLOBAL_RAIL_COLLAPSED_HEIGHT)
     }
 }
 
@@ -1856,17 +2052,30 @@ fn set_context_rail_expanded(
     if contextual && state.coordinator.get_active_target().is_none() {
         return Err("Skribli does not have an active application context.".to_string());
     }
+    let rail_label = if contextual { "context-rail" } else { "rail" };
     let rail = app_handle
-        .get_webview_window("rail")
+        .get_webview_window(rail_label)
         .ok_or_else(|| "My Skribs rail is unavailable.".to_string())?;
     let _ = note_count;
-    let (width, height) = rail_surface_dimensions(expanded);
+    let (width, height) = rail_surface_dimensions(expanded, contextual);
     rail.set_always_on_top(true)
         .map_err(|error| format!("Skribli could not update the note rail layer: {error}"))?;
-    size_and_dock_rail(&app_handle, &rail, width, height)?;
-    rail_window_runtime()
-        .expanded
-        .store(expanded, Ordering::Release);
+    if contextual {
+        let target = state
+            .coordinator
+            .get_active_target()
+            .ok_or_else(|| "Skribli does not have an active application context.".to_string())?;
+        size_and_place_context_rail(&app_handle, &rail, &target, width, height)?;
+        context_rail_window_runtime()
+            .expanded
+            .store(expanded, Ordering::Release);
+    } else {
+        rail_window_runtime().clear_context_placement();
+        size_and_dock_rail(&app_handle, &rail, width, height)?;
+        rail_window_runtime()
+            .expanded
+            .store(expanded, Ordering::Release);
+    }
     rail.show()
         .map_err(|error| format!("Skribli could not show the note rail: {error}"))?;
     Ok(())
@@ -3405,6 +3614,24 @@ pub fn run() {
                                     }
                                 }
                             }
+
+                            if notice.event_type == EVENT_SYSTEM_FOREGROUND {
+                                let foreground = reconstruct_hwnd(notice.hwnd_val)
+                                    .and_then(inspect_target_window);
+                                let active = coordinator.get_active_target();
+                                match (foreground, active) {
+                                    (Some(foreground), Some(active))
+                                        if foreground.hwnd_val == active.hwnd_val =>
+                                    {
+                                        sync_context_note_rail_for_target(
+                                            &app_handle_ev,
+                                            &state_ev,
+                                            &active,
+                                        );
+                                    }
+                                    _ => hide_context_note_rail(&app_handle_ev),
+                                }
+                            }
                         }
                     } else if tick_counter % 4 == 0 {
                         #[cfg(target_os = "windows")]
@@ -3446,6 +3673,26 @@ pub fn run() {
                                         .get_webview_window("main")
                                         .and_then(|window| window.is_visible().ok())
                                         .unwrap_or(false);
+                                    let context_rail_tracks_target = context_rail_window_runtime()
+                                        .context_placement()
+                                        .is_some_and(|placement| {
+                                            placement.target_hwnd == updated.hwnd_val
+                                        });
+                                    if refreshed_committed
+                                        && placement_changed
+                                        && context_rail_tracks_target
+                                    {
+                                        if let Err(message) = show_context_rail_for_target(
+                                            &app_handle_ev,
+                                            &state_ev,
+                                            &updated,
+                                        ) {
+                                            let _ = app_handle_ev.emit(
+                                                "skribly://hotkey-error",
+                                                format!("Skribli could not keep the note bar with this app: {message}"),
+                                            );
+                                        }
+                                    }
                                     if refreshed_committed
                                         && placement_changed
                                         && note_window_visible
@@ -3512,7 +3759,14 @@ pub fn run() {
             event: tauri::WindowEvent::Moved(position),
             ..
         } if label == "rail" => {
-            schedule_rail_edge_dock(app_handle, position);
+            schedule_rail_edge_dock(app_handle, "rail", false, position);
+        }
+        RunEvent::WindowEvent {
+            label,
+            event: tauri::WindowEvent::Moved(position),
+            ..
+        } if label == "context-rail" => {
+            schedule_rail_edge_dock(app_handle, "context-rail", true, position);
         }
         RunEvent::WindowEvent {
             label,
@@ -3592,9 +3846,31 @@ mod tests {
     }
 
     #[test]
-    fn expanded_rail_has_a_stable_size_across_note_and_context_changes() {
-        assert_eq!(rail_surface_dimensions(true), (364.0, 430.0));
-        assert_eq!(rail_surface_dimensions(false), (164.0, 50.0));
+    fn global_and_context_rail_have_distinct_collapsed_sizes() {
+        assert_eq!(rail_surface_dimensions(true, false), (364.0, 430.0));
+        assert_eq!(rail_surface_dimensions(true, true), (364.0, 430.0));
+        assert_eq!(rail_surface_dimensions(false, false), (36.0, 128.0));
+        assert_eq!(rail_surface_dimensions(false, true), (164.0, 50.0));
+    }
+
+    #[test]
+    fn dragged_context_bar_stays_inside_its_target_application() {
+        let target = RailDockBounds {
+            x: -1200,
+            y: 80,
+            width: 900,
+            height: 700,
+        };
+        let size = PhysicalSize::new(164, 50);
+
+        assert_eq!(
+            clamp_rail_position_to_bounds(PhysicalPosition::new(-1500, -200), size, target, 8,),
+            PhysicalPosition::new(-1192, 88)
+        );
+        assert_eq!(
+            clamp_rail_position_to_bounds(PhysicalPosition::new(0, 900), size, target, 8),
+            PhysicalPosition::new(-472, 722)
+        );
     }
 
     fn color_note(id: &str, color: &str, created_at: u64) -> SkribNote {

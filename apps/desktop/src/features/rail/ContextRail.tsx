@@ -18,6 +18,7 @@ import { useNativeDrag } from '../../lib/useNativeDrag';
 
 type RailScope = 'context' | 'all' | 'archive';
 const RIBBON_LIMIT = 5;
+const nativeRuntimeAvailable = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
 function noteTitle(note: SkribNote): string {
   const firstLine = note.text.trim().split(/\r?\n/, 1)[0]?.trim();
@@ -40,11 +41,13 @@ function scopeLabel(scope: RailScope): string {
   return 'Everything';
 }
 
-export const ContextRail: React.FC = () => {
+export const ContextRail: React.FC<{ contextual: boolean }> = ({ contextual }) => {
+  const previewContextual = !nativeRuntimeAvailable && typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).get('railMode') === 'context';
+  const contextualDock = contextual || previewContextual;
   const [allNotes, setAllNotes] = useState<SkribNote[]>([]);
   const [contextNotes, setContextNotes] = useState<SkribNote[]>([]);
-  const [scope, setScope] = useState<RailScope>('context');
-  const [contextualDock, setContextualDock] = useState(false);
+  const [scope, setScope] = useState<RailScope>(contextualDock ? 'context' : 'all');
   const [collapsed, setCollapsed] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
   const [showAllRibbons, setShowAllRibbons] = useState(false);
@@ -76,6 +79,10 @@ export const ContextRail: React.FC = () => {
   const hiddenRibbonCount = Math.max(0, ribbonSource.length - ribbonNotes.length);
 
   const refresh = useCallback(async () => {
+    if (!nativeRuntimeAvailable) {
+      setLoading(false);
+      return;
+    }
     const generation = ++refreshGeneration.current;
     try {
       const [nextAllNotes, nextContextNotes, nextActiveNoteId] = await Promise.all([
@@ -95,11 +102,12 @@ export const ContextRail: React.FC = () => {
 
   useEffect(() => {
     void refresh();
+    if (!nativeRuntimeAvailable) return;
     const subscriptions = [
       listen('skribly://overlay-update', () => void refresh()),
       listen('skribly://rich-content-updated', () => void refresh()),
-      listen('skribly://context-rail-refresh', () => { setContextualDock(true); setScope('context'); void refresh(); }),
-      listen('skribly://global-rail-refresh', () => { setContextualDock(false); setScope('all'); void refresh(); }),
+      listen('skribly://context-rail-refresh', () => void refresh()),
+      listen('skribly://global-rail-refresh', () => void refresh()),
     ];
     return () => { void Promise.all(subscriptions).then((unlisten) => unlisten.forEach((dispose) => dispose())); };
   }, [refresh]);
@@ -115,6 +123,10 @@ export const ContextRail: React.FC = () => {
     setMenuOpen(false);
     setMessage(null);
     try {
+      if (!nativeRuntimeAvailable) {
+        setCollapsed(next);
+        return;
+      }
       await invoke('set_context_rail_expanded', {
         expanded: !next, contextual: contextualDock, noteCount: visibleNotes.length,
       });
@@ -186,8 +198,21 @@ export const ContextRail: React.FC = () => {
   };
 
   if (collapsed) {
+    if (!contextualDock) {
+      return (
+        <main className="context-rail collapsed global-widget">
+          <button type="button" className="context-rail-global-widget" {...launcherDrag}
+            aria-label={`Open My Skribs, ${pillCount} saved ${pillCount === 1 ? 'Skrib' : 'Skribs'}`}
+            title={message || 'Your Skribs are right here. Click to open; double-click and drag to move.'}>
+            <span className="global-widget-strip strip-yellow" aria-hidden="true" />
+            <span className="global-widget-strip strip-peach" aria-hidden="true" />
+            <span className="global-widget-strip strip-lavender" aria-hidden="true" />
+          </button>
+        </main>
+      );
+    }
     return (
-      <main className="context-rail collapsed">
+      <main className="context-rail collapsed context-widget">
         <button type="button" className="context-rail-launcher" {...launcherDrag}
           aria-label={`Open ${pillCount} ${contextualDock ? 'Skribs here' : 'saved Skribs'}`}
           title={message || 'One click unfolds your Skribs. Double-click and drag to move this ribbon.'}>

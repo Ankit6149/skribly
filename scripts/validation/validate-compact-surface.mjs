@@ -19,6 +19,7 @@ const attachments = await read(
   'apps/desktop/src/features/skribs/NoteAttachmentPanel.tsx'
 );
 const collapsedDot = await read('apps/desktop/src/features/skribs/CollapsedSkribDot.tsx');
+const contextRail = await read('apps/desktop/src/features/rail/ContextRail.tsx');
 const overlayHost = await read('apps/desktop/src/features/overlay/OverlayHost.tsx');
 const surfaceSelector = await read(
   'apps/desktop/src/features/onboarding/guidanceSurface.ts'
@@ -149,6 +150,7 @@ for (const marker of [
 
 const mainWindow = tauriConfig.app?.windows?.find((window) => window.label === 'main');
 const railWindow = tauriConfig.app?.windows?.find((window) => window.label === 'rail');
+const contextRailWindow = tauriConfig.app?.windows?.find((window) => window.label === 'context-rail');
 if (!mainWindow || mainWindow.transparent !== true || mainWindow.shadow !== false) {
   failures.push('The transparent main window must disable the rectangular native shadow.');
 }
@@ -175,12 +177,41 @@ if (
   !railWindow ||
   railWindow.resizable !== false ||
   railWindow.maximizable !== false ||
-  railWindow.minWidth !== 164 ||
+  railWindow.width !== 36 ||
+  railWindow.height !== 128 ||
+  railWindow.minWidth !== 36 ||
   railWindow.minHeight !== 50 ||
   railWindow.maxWidth !== 364 ||
   railWindow.maxHeight !== 430
 ) {
-  failures.push('The floating rail must stay outside Windows Snap Layouts while allowing its fixed collapsed and expanded sizes.');
+  failures.push('The global edge widget and contextual ribbon must stay outside Windows Snap Layouts while allowing their fixed collapsed and expanded sizes.');
+}
+
+if (
+  !contextRailWindow ||
+  contextRailWindow.resizable !== false ||
+  contextRailWindow.maximizable !== false ||
+  contextRailWindow.width !== 164 ||
+  contextRailWindow.height !== 50 ||
+  contextRailWindow.minWidth !== 164 ||
+  contextRailWindow.minHeight !== 50 ||
+  contextRailWindow.maxWidth !== 364 ||
+  contextRailWindow.maxHeight !== 430
+) {
+  failures.push('The in-app Skribs bar must use its own fixed, snap-proof native window.');
+}
+
+for (const marker of [
+  'className="context-rail collapsed global-widget"',
+  'className="context-rail-global-widget"',
+  'className="context-rail collapsed context-widget"',
+  'strip-yellow',
+  'strip-peach',
+  'strip-lavender',
+]) {
+  if (!contextRail.includes(marker)) {
+    failures.push(`The separate global/context rail contract is missing: ${marker}`);
+  }
 }
 
 for (const marker of [

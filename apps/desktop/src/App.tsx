@@ -7,13 +7,19 @@ import { useLicenseStore } from './stores/licenseStore';
 
 export function App() {
   const initWriteStatus = useLicenseStore((state) => state.init);
-  const windowLabel = getCurrentWindow().label;
+  const previewWindow = import.meta.env.DEV && typeof window !== 'undefined'
+    ? new URLSearchParams(window.location.search).get('skriblyWindow')
+    : null;
+  const windowLabel = previewWindow === 'rail'
+    ? (new URLSearchParams(window.location.search).get('railMode') === 'context' ? 'context-rail' : 'rail')
+    : getCurrentWindow().label;
   const isHomeWindow = windowLabel === 'home';
-  const isRailWindow = windowLabel === 'rail';
+  const isRailWindow = windowLabel === 'rail' || windowLabel === 'context-rail';
 
   useEffect(() => {
+    if (previewWindow) return;
     void initWriteStatus();
-  }, [initWriteStatus]);
+  }, [initWriteStatus, previewWindow]);
 
   useEffect(() => {
     document.documentElement.dataset.skriblyWindow = windowLabel;
@@ -35,7 +41,7 @@ export function App() {
       {isHomeWindow ? (
         <HomeHost />
       ) : isRailWindow ? (
-        <ContextRail />
+        <ContextRail contextual={windowLabel === 'context-rail'} />
       ) : (
         <OverlayHost />
       )}
