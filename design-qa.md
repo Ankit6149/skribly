@@ -239,8 +239,9 @@ final result: passed
 - TypeScript, production build, desktop-theme, compact-surface, site, governance, product-truth, private-artifact, Rust format, and Rust compile checks passed.
 - Browser visual and accessibility inspection showed the intended two collapsed states and successful click-to-unfold behavior; no error surface appeared.
 - NSIS and MSI packages were built for the exact v0.1.26 source. Installer branding validation passed.
-- NSIS SHA-256: `457a3d8b08827b4e6d84775e5c4fc20abcf4b01b66ad55aac0ba154f5ce0affd`.
-- Encrypted owner asset SHA-256: `ed2524db85f76594383077099b70333a7f1c0be2893844904dbf7558e24d7431`.
+- The final candidate also contains all five Dependabot updates that were open during packaging; frontend verification was repeated with React 19.3.0 and Vite 8.3.0.
+- NSIS SHA-256: `643dede8eaaddd51ef03066dc13de3f747a456575ad7f91c8d39a66b75a41f65`.
+- Encrypted owner asset SHA-256: `3f08e426f47572f88b8bec46435750c4514cfa1ad3ca68766d779a13142814c5`.
 - Exact installed-app behavior across real third-party windows remains the owner's acceptance test and is not represented as already performed.
 
 final result: passed

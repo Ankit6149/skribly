@@ -37,10 +37,11 @@ The Windows installer remains unsigned. Microsoft Defender SmartScreen reputatio
 
 ## Local candidate evidence
 
-- NSIS installer: `Skribli_0.1.26_x64-setup.exe`, 3,455,110 bytes.
-- NSIS SHA-256: `457a3d8b08827b4e6d84775e5c4fc20abcf4b01b66ad55aac0ba154f5ce0affd`.
-- MSI installer: `Skribli_0.1.26_x64_en-US.msi`, 4,608,000 bytes.
-- MSI SHA-256: `5f82b117920036d51863a0b142d6acf88d71707739a23b8d617274637d71612b`.
-- Encrypted owner asset: 3,455,162 bytes.
-- Encrypted asset SHA-256: `ed2524db85f76594383077099b70333a7f1c0be2893844904dbf7558e24d7431`.
+- NSIS installer: `Skribli_0.1.26_x64-setup.exe`, 3,462,831 bytes.
+- NSIS SHA-256: `643dede8eaaddd51ef03066dc13de3f747a456575ad7f91c8d39a66b75a41f65`.
+- MSI installer: `Skribli_0.1.26_x64_en-US.msi`, 4,616,192 bytes.
+- MSI SHA-256: `59ecfc9ebd84acc6ca32dbab637fb46a06a82e017dd45192a293c2421be9082c`.
+- Encrypted owner asset: 3,462,883 bytes.
+- Encrypted asset SHA-256: `3f08e426f47572f88b8bec46435750c4514cfa1ad3ca68766d779a13142814c5`.
 - Installer identity and icon validation: passed.
+- Five concurrent Dependabot branches were merged before final packaging: React runtime, Lucide icons, Supabase JS, Chromium types, and Vite.
