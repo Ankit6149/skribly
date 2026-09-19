@@ -16,6 +16,7 @@ import {
   MoreHorizontal,
   Plus,
   Paperclip,
+  ListChecks,
 } from 'lucide-react';
 import { OverlayMetrics, SkribNote, TargetWindowInfo } from '../../lib/geometry';
 import {
@@ -934,6 +935,17 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
               </button>
               <button
                 type="button"
+                disabled={!canWrite || isFinishing}
+                onClick={() => {
+                  richTextEditorRef.current?.insertChecklist();
+                  setToolGatewayOpen(false);
+                }}
+              >
+                <ListChecks size={15} aria-hidden="true" />
+                <span>Checklist</span>
+              </button>
+              <button
+                type="button"
                 className={activePanel === 'reminder' ? 'active' : ''}
                 aria-expanded={activePanel === 'reminder'}
                 disabled={!canWrite || isFinishing || hasPendingRichOperation}
@@ -1037,7 +1049,6 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
               describedBy={textareaDescription}
               onChange={handleRichTextChange}
               onPasteFiles={(files) => setPastedFilesRequest({ id: Date.now(), files })}
-              onAttach={() => setAttachmentPickerRequest((request) => request + 1)}
               onBlur={() => {
                 if (!canWrite || operationInProgress.current) return;
                 richTextEditorRef.current?.flush();
