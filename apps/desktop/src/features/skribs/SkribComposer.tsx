@@ -13,6 +13,9 @@ import {
   CheckCircle2,
   Trash2,
   X,
+  MoreHorizontal,
+  Plus,
+  Paperclip,
 } from 'lucide-react';
 import { OverlayMetrics, SkribNote, TargetWindowInfo } from '../../lib/geometry';
 import {
@@ -115,6 +118,8 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
   const [inkStrokes, setInkStrokes] = useState<InkStroke[]>([]);
   const [isInkLoading, setIsInkLoading] = useState(true);
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
+  const [noteMenuOpen, setNoteMenuOpen] = useState(false);
+  const [toolGatewayOpen, setToolGatewayOpen] = useState(false);
   const [richOperationCount, setRichOperationCount] = useState(0);
   const [inkPersistenceState, setInkPersistenceState] = useState<InkPersistenceState>({
     status: 'idle',
@@ -228,6 +233,8 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
     inkPersistenceStateRef.current = cleanInkState;
     setInkPersistenceState(cleanInkState);
     setColorPickerOpen(false);
+    setNoteMenuOpen(false);
+    setToolGatewayOpen(false);
     setDeleteConfirmation((state) => reduceDeleteConfirmation(state, 'note-changed'));
     return saveController.subscribe((snapshot) => {
       setSaveSnapshot(snapshot);
@@ -825,59 +832,29 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
             : 'View contextual note'
         }
       >
-        <header className="composer-header" data-tauri-drag-region title="Drag this header to move the Skrib">
-          <span className="composer-drag-grip" data-tauri-drag-region aria-hidden="true" />
-          <div className="composer-context" data-tauri-drag-region>
-            <span className="composer-kicker" data-tauri-drag-region>
-              {isNewNote ? 'NEW SKRIB FOR' : openAction === 'detached' ? 'SAVED SKRIB' : 'REOPENED SKRIB FOR'}
-            </span>
+        <header className="composer-paper-top" data-tauri-drag-region title="Drag the paper margin to move this Skrib">
+          <div className="composer-context-tab" data-tauri-drag-region title={contextLabel}>
+            <span className="composer-context-dot" aria-hidden="true" />
             <strong data-tauri-drag-region>{contextLabel}</strong>
-            <span id="composer-open-state" className="sr-only">
-              {isNewNote
-                ? 'Skribli created a new empty Skrib for this application context.'
-                : 'Skribli reopened the existing Skrib for this application context.'}
-            </span>
           </div>
-          <div className="composer-header-actions">
-            <div className="composer-color-control">
-              <button
-                type="button"
-                className={`composer-color-button skrib-color-${note.color}`}
-                onClick={() => setColorPickerOpen((open) => !open)}
-                disabled={!canWrite || isFinishing || hasPendingRichOperation || hasUnsavedInk}
-                aria-label="Change note color"
-                aria-expanded={colorPickerOpen}
-                title="Choose a paper colour that fits this thought"
-              >
-                <span aria-hidden="true" />
-              </button>
-            </div>
+          <span id="composer-open-state" className="sr-only">
+            {isNewNote
+              ? 'Skribli created a new empty Skrib for this application context.'
+              : 'Skribli reopened the existing Skrib for this application context.'}
+          </span>
+          <div className="composer-paper-actions">
             <button
               type="button"
-              className="composer-reposition"
-              hidden={openAction === 'detached'}
-              onClick={() => void handleReposition()}
-              disabled={!isTauriAvailable || isRepositioning || isFinishing || hasPendingRichOperation}
-              aria-label="Reposition Skribli beside the target application"
-              title="Bring this Skrib back beside its app"
+              className="composer-more"
+              onClick={() => {
+                setNoteMenuOpen((open) => !open);
+                setToolGatewayOpen(false);
+              }}
+              aria-label="More Skrib options"
+              aria-expanded={noteMenuOpen}
+              title="More options"
             >
-              {isRepositioning ? (
-                <span className="composer-button-spinner" aria-hidden="true" />
-              ) : (
-                <LocateFixed size={15} aria-hidden="true" />
-              )}
-            </button>
-            <button
-              type="button"
-              className="composer-close"
-              onClick={() => void finishAndHide()}
-              disabled={
-                isFinishing || isRepositioning || hasPendingRichOperation || hasUnsavedInk
-              }
-              aria-label={storageWritable ? openAction === 'detached' ? 'Save and close this Skrib' : 'Save and collapse this Skrib' : 'Storage recovery required'}
-              title={storageWritable ? openAction === 'detached' ? 'Save and close' : 'Save and collapse' : 'Storage recovery required'}
-            >
-              <X size={15} aria-hidden="true" />
+              <MoreHorizontal size={17} aria-hidden="true" />
             </button>
           </div>
         </header>
@@ -914,55 +891,124 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
           </div>
         )}
 
-        <div className="composer-command-bar" aria-label="Skrib tools">
+        <div className="composer-intent-gateway" data-open={toolGatewayOpen || undefined}>
           <button
             type="button"
-            className={`composer-tool-button ${drawingEnabled ? 'active' : ''}`}
-            aria-pressed={drawingEnabled}
-            aria-label="Draw over your text"
-            title="Sketch, point, or highlight over your words"
-            disabled={!canWrite || isFinishing || isInkLoading}
-            onClick={() => void openRoomyTool('draw')}
+            className="composer-intent-trigger"
+            onClick={() => {
+              setToolGatewayOpen((open) => !open);
+              setNoteMenuOpen(false);
+              setColorPickerOpen(false);
+            }}
+            aria-label="Add or mark this Skrib"
+            aria-expanded={toolGatewayOpen}
+            title="Add something to this thought"
           >
-            <PenLine size={15} aria-hidden="true" />
+            <Plus size={17} aria-hidden="true" />
           </button>
-          <button
-            type="button"
-            className={`composer-tool-button ${activePanel === 'reminder' ? 'active' : ''}`}
-            aria-expanded={activePanel === 'reminder'}
-            aria-label="Set a reminder or repeating task"
-            title="Ask Skribli to bring this thought back later"
-            disabled={!canWrite || isFinishing || hasPendingRichOperation}
-            onClick={() => void openRoomyTool('reminder')}
-          >
-            <Bell size={15} aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            className="composer-tool-button composer-text-size-button"
-            title={`Text size: ${textSize}. Click for the next size.`}
-            aria-label={`Text size is ${textSize}. Change to the next text size.`}
-            disabled={!canWrite || isFinishing}
-            onClick={() => void cycleTextSize()}
-          >
-            <Type size={14} aria-hidden="true" />
-            <span className="composer-tool-level" aria-hidden="true">
-              {textSize === 'small' ? 'S' : textSize === 'medium' ? 'M' : 'L'}
-            </span>
-          </button>
-          <button
-            type="button"
-            className="composer-tool-button surface-size-button"
-            title={surfaceSize === 'large' ? 'Bring this Skrib back to a comfortable size' : 'Give this Skrib the full canvas'}
-            aria-label={surfaceSize === 'large' ? 'Restore the previous Skrib size' : 'Expand this Skrib'}
-            disabled={isResizing || isFinishing || hasPendingRichOperation || hasUnsavedInk}
-            onClick={() => void toggleExpandedSize()}
-          >
-            {surfaceSize === 'large'
-              ? <Minimize2 size={14} aria-hidden="true" />
-              : <Maximize2 size={14} aria-hidden="true" />}
-          </button>
+          {toolGatewayOpen && (
+            <div className="composer-intent-tray" aria-label="Skrib tools">
+              <button
+                type="button"
+                className={drawingEnabled ? 'active' : ''}
+                aria-pressed={drawingEnabled}
+                disabled={!canWrite || isFinishing || isInkLoading}
+                onClick={() => {
+                  void openRoomyTool('draw');
+                  setToolGatewayOpen(false);
+                }}
+              >
+                <PenLine size={15} aria-hidden="true" />
+                <span>Mark</span>
+              </button>
+              <button
+                type="button"
+                disabled={!canWrite || isFinishing || hasPendingRichOperation}
+                onClick={() => {
+                  setAttachmentPickerRequest((request) => request + 1);
+                  setToolGatewayOpen(false);
+                }}
+              >
+                <Paperclip size={15} aria-hidden="true" />
+                <span>Attach</span>
+              </button>
+              <button
+                type="button"
+                className={activePanel === 'reminder' ? 'active' : ''}
+                aria-expanded={activePanel === 'reminder'}
+                disabled={!canWrite || isFinishing || hasPendingRichOperation}
+                onClick={() => {
+                  void openRoomyTool('reminder');
+                  setToolGatewayOpen(false);
+                }}
+              >
+                <Bell size={15} aria-hidden="true" />
+                <span>Bring back</span>
+              </button>
+            </div>
+          )}
         </div>
+
+        {noteMenuOpen && (
+          <div className="composer-note-menu" role="menu" aria-label="Skrib options">
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => setColorPickerOpen((open) => !open)}
+              disabled={!canWrite || isFinishing || hasPendingRichOperation || hasUnsavedInk}
+            >
+              <span className={`composer-menu-color skrib-color-${note.color}`} aria-hidden="true" />
+              <span>Paper colour</span>
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              disabled={!canWrite || isFinishing}
+              onClick={() => void cycleTextSize()}
+            >
+              <Type size={15} aria-hidden="true" />
+              <span>Text size · {textSize}</span>
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              disabled={isResizing || isFinishing || hasPendingRichOperation || hasUnsavedInk}
+              onClick={() => void toggleExpandedSize()}
+            >
+              {surfaceSize === 'large'
+                ? <Minimize2 size={15} aria-hidden="true" />
+                : <Maximize2 size={15} aria-hidden="true" />}
+              <span>{surfaceSize === 'large' ? 'Restore work size' : 'Work size'}</span>
+            </button>
+            {openAction !== 'detached' && (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => void handleReposition()}
+                disabled={!isTauriAvailable || isRepositioning || isFinishing || hasPendingRichOperation}
+              >
+                {isRepositioning
+                  ? <span className="composer-button-spinner" aria-hidden="true" />
+                  : <LocateFixed size={15} aria-hidden="true" />}
+                <span>Return beside app</span>
+              </button>
+            )}
+            <span className="composer-note-menu-divider" aria-hidden="true" />
+            <button
+              type="button"
+              role="menuitem"
+              className="danger"
+              disabled={!canWrite || isFinishing || hasPendingRichOperation}
+              onClick={() => {
+                setNoteMenuOpen(false);
+                requestDeleteConfirmation();
+              }}
+            >
+              <Trash2 size={15} aria-hidden="true" />
+              <span>Move to Trash</span>
+            </button>
+          </div>
+        )}
 
         {colorPickerOpen && (
           <div className="composer-color-popover" role="group" aria-label="Note color">
@@ -1049,90 +1095,79 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
           </span>
         </div>
 
-        <footer className="composer-footer">
-          {deleteConfirmation === 'confirming' ? (
-            <div className="composer-delete-confirmation" role="alert" aria-live="assertive">
-              <div className="composer-delete-copy">
-                <strong>Move this note to Trash?</strong>
-                <small id="composer-delete-warning">
-                  You can restore it from All Skribs for 30 days. Nothing is deleted permanently here.
-                </small>
-              </div>
-              <div className="composer-footer-actions">
-                <button
-                  type="button"
-                  className="secondary complete"
-                  aria-label="Complete task and move note to Archive"
-                  title="Complete task — keep this Skrib safely in Archive"
-                  disabled={!canWrite || isFinishing || hasPendingRichOperation || hasUnsavedInk}
-                  onClick={() => void handleCompleteTask()}
-                >
-                  <CheckCircle2 size={17} aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
-                  className="secondary"
-                  autoFocus
-                  disabled={isFinishing}
-                  onClick={cancelDeleteConfirmation}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  className="danger-confirm"
-                  disabled={isFinishing || hasPendingRichOperation || hasUnsavedInk}
-                  onClick={() => void handleDelete()}
-                >
-                  {isFinishing ? 'Moving…' : 'Move to Trash'}
-                </button>
-              </div>
+        <div
+          id="composer-save-status"
+          className="composer-save-indicator"
+          data-state={saveSnapshot.status}
+          role="status"
+          aria-live="polite"
+        >
+          <span aria-hidden={saveSnapshot.status === 'saved'}>
+            {saveSnapshot.status === 'saving'
+              ? 'Saving…'
+              : saveSnapshot.status === 'failed'
+                ? 'Save failed'
+                : saveSnapshot.status === 'dirty'
+                  ? 'Unsaved'
+                  : '✓ saved'}
+          </span>
+          <span className="sr-only">{saveLabel}. {saveDetail}</span>
+          <small id="composer-character-count" className={saveSnapshot.characterCount > MAX_NOTE_CHARACTERS * 0.9 ? 'composer-character-count' : 'sr-only'}>
+            {saveSnapshot.characterCount.toLocaleString()} / {MAX_NOTE_CHARACTERS.toLocaleString()}
+          </small>
+        </div>
+
+        {deleteConfirmation === 'confirming' && (
+          <div className="composer-delete-confirmation composer-attached-confirmation" role="alert" aria-live="assertive">
+            <div className="composer-delete-copy">
+              <strong>Move this Skrib to Trash?</strong>
+              <small id="composer-delete-warning">
+                You can restore it from All Skribs for 30 days.
+              </small>
             </div>
-          ) : (
-            <>
-              <div
-                id="composer-save-status"
-                className="composer-status"
-                data-state={saveSnapshot.status}
-                role="status"
-                aria-live="polite"
+            <div className="composer-footer-actions">
+              <button
+                type="button"
+                className="secondary complete"
+                aria-label="Complete task and move note to Archive"
+                title="Complete task — keep this Skrib safely in Archive"
+                disabled={!canWrite || isFinishing || hasPendingRichOperation || hasUnsavedInk}
+                onClick={() => void handleCompleteTask()}
               >
-                <span>{saveLabel}</span>
-                <small className="sr-only">{saveDetail}</small>
-                <small id="composer-character-count" className={saveSnapshot.characterCount > MAX_NOTE_CHARACTERS * 0.9 ? 'composer-character-count' : 'sr-only'}>
-                  {saveSnapshot.characterCount.toLocaleString()} /{' '}
-                  {MAX_NOTE_CHARACTERS.toLocaleString()}
-                </small>
-              </div>
-              <div className="composer-footer-actions">
-                <button
-                  type="button"
-                  className="secondary danger"
-                  aria-label="Move note to Trash"
-                  title="Move to Trash"
-                  disabled={!canWrite || isFinishing || hasPendingRichOperation}
-                  onClick={requestDeleteConfirmation}
-                >
-                  <Trash2 size={16} aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
-                  className="primary"
-                  disabled={isFinishing || hasPendingRichOperation || hasUnsavedInk}
-                  onClick={() => void finishAndHide()}
-                >
-                  {isFinishing
-                    ? 'Finishing…'
-                    : hasPendingRichOperation
-                      ? 'Saving…'
-                      : hasUnsavedInk
-                        ? 'Drawing not saved'
-                        : 'Done'}
-                </button>
-              </div>
-            </>
-          )}
-        </footer>
+                <CheckCircle2 size={17} aria-hidden="true" />
+              </button>
+              <button type="button" className="secondary" autoFocus disabled={isFinishing} onClick={cancelDeleteConfirmation}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="danger-confirm"
+                disabled={isFinishing || hasPendingRichOperation || hasUnsavedInk}
+                onClick={() => void handleDelete()}
+              >
+                {isFinishing ? 'Moving…' : 'Move to Trash'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        <button
+          type="button"
+          className="composer-put-away-fold"
+          onClick={() => void finishAndHide()}
+          disabled={isFinishing || isRepositioning || hasPendingRichOperation || hasUnsavedInk}
+          aria-label={
+            storageWritable
+              ? openAction === 'detached'
+                ? 'Done — save and close this Skrib'
+                : 'Done — save and put this Skrib away'
+              : 'Storage recovery required'
+          }
+          title={storageWritable ? 'Done — save and put away' : 'Storage recovery required'}
+        >
+          <Check size={14} aria-hidden="true" />
+          <span className="sr-only">Done</span>
+        </button>
         {(['NorthWest', 'NorthEast', 'SouthWest', 'SouthEast'] as ResizeDirection[]).map((direction) => (
           <button
             key={direction}
