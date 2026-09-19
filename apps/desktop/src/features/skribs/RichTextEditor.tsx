@@ -3,10 +3,20 @@ import React, {
   useEffect,
   useImperativeHandle,
   useRef,
+  useState,
   type ClipboardEvent,
   type FormEvent,
 } from 'react';
-import { Bold, Highlighter, List, ListChecks, ListOrdered, Paperclip } from 'lucide-react';
+import {
+  Bell,
+  Bold,
+  Highlighter,
+  List,
+  ListChecks,
+  ListOrdered,
+  Paperclip,
+  PenLine,
+} from 'lucide-react';
 
 export interface RichTextEditorHandle {
   flush: () => void;
@@ -22,6 +32,8 @@ interface RichTextEditorProps {
   onBlur: () => void;
   onPasteFiles: (files: File[]) => void;
   onAttach: () => void;
+  onReminder: () => void;
+  onInk: () => void;
 }
 
 const SAFE_ELEMENTS = new Set(['DIV', 'P', 'BR', 'STRONG', 'B', 'MARK', 'UL', 'OL', 'LI', 'INPUT']);
@@ -93,11 +105,26 @@ function clipboardFiles(event: ClipboardEvent<HTMLDivElement>): File[] {
 }
 
 export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(function RichTextEditor(
-  { noteId, initialHtml, disabled, drawingEnabled, describedBy, onChange, onBlur, onPasteFiles, onAttach },
+  {
+    noteId,
+    initialHtml,
+    disabled,
+    drawingEnabled,
+    describedBy,
+    onChange,
+    onBlur,
+    onPasteFiles,
+    onAttach,
+    onReminder,
+    onInk,
+  },
   forwardedRef
 ) {
+  const shellRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
   const lastAcceptedHtml = useRef(initialHtml);
+  const [formatBubble, setFormatBubble] = useState<{ left: number; top: number } | null>(null);
+  const [insertMenu, setInsertMenu] = useState<{ left: number; top: number } | null>(null);
 
   useEffect(() => {
     const editor = editorRef.current;
@@ -110,6 +137,65 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
   useEffect(() => {
     if (!disabled) window.setTimeout(() => editorRef.current?.focus(), 0);
   }, [disabled, noteId]);
+
+  useEffect(() => {
+    if (!disabled && !drawingEnabled) return;
+    setFormatBubble(null);
+    setInsertMenu(null);
+  }, [disabled, drawingEnabled]);
+
+  const relativePointForRange = (range: Range, preferAbove = false) => {
+    const shell = shellRef.current?.getBoundingClientRect();
+    const rect = range.getBoundingClientRect();
+    if (!shell || (!rect.width && !rect.height)) return { left: 24, top: 54 };
+    const left = Math.max(12, Math.min(rect.left - shell.left, shell.width - 190));
+    const rawTop = preferAbove ? rect.top - shell.top - 44 : rect.bottom - shell.top + 7;
+    const top = Math.max(8, Math.min(rawTop, shell.height - 56));
+    return { left, top };
+  };
+
+  const selectionInsideEditor = () => {
+    const editor = editorRef.current;
+    const selection = window.getSelection();
+    if (!editor || !selection || selection.rangeCount === 0) return null;
+    const range = selection.getRangeAt(0);
+    if (!editor.contains(range.commonAncestorContainer)) return null;
+    return { selection, range };
+  };
+
+  const updateFormatBubble = () => {
+    if (disabled || drawingEnabled) {
+      setFormatBubble(null);
+      return;
+    }
+    const current = selectionInsideEditor();
+    if (!current || current.selection.isCollapsed) {
+      setFormatBubble(null);
+      return;
+    }
+    setInsertMenu(null);
+    setFormatBubble(relativePointForRange(current.range, true));
+  };
+
+  const openInsertMenu = () => {
+    if (disabled || drawingEnabled) return;
+    const current = selectionInsideEditor();
+    if (!current) {
+      setInsertMenu({ left: 24, top: 54 });
+      return;
+    }
+    setFormatBubble(null);
+    setInsertMenu(relativePointForRange(current.range));
+  };
+
+  const shouldOpenSlashMenu = () => {
+    const current = selectionInsideEditor();
+    if (!current || !current.selection.isCollapsed) return false;
+    const { startContainer, startOffset } = current.range;
+    if (startContainer.nodeType !== Node.TEXT_NODE || startOffset === 0) return true;
+    const previous = startContainer.textContent?.charAt(startOffset - 1) ?? '';
+    return /\s/u.test(previous);
+  };
 
   const emitChange = () => {
     const editor = editorRef.current;
@@ -131,10 +217,12 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
     editorRef.current?.focus();
     document.execCommand(command, false, value);
     emitChange();
+    setFormatBubble(null);
   };
 
   const insertChecklist = () => {
     if (disabled || drawingEnabled) return;
+    setInsertMenu(null);
     editorRef.current?.focus();
     document.execCommand('insertUnorderedList');
     const selection = window.getSelection();
@@ -172,14 +260,49 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
   };
 
   return (
-    <div className="composer-rich-editor-shell">
-      <div className="composer-format-bar" aria-label="Writing tools">
-        <button type="button" onClick={() => runCommand('bold')} disabled={disabled || drawingEnabled} aria-label="Bold selected text" title="Give the selected words a little more weight"><Bold size={14} /></button>
-        <button type="button" onClick={() => runCommand('backColor', '#f8df78')} disabled={disabled || drawingEnabled} aria-label="Highlight selected text" title="Keep this part easy to find"><Highlighter size={14} /></button>
-        <button type="button" onClick={() => runCommand('insertUnorderedList')} disabled={disabled || drawingEnabled} aria-label="Bulleted list" title="Turn these thoughts into a tidy list"><List size={14} /></button>
-        <button type="button" onClick={() => runCommand('insertOrderedList')} disabled={disabled || drawingEnabled} aria-label="Numbered list" title="Put these steps in order"><ListOrdered size={14} /></button>
-        <button type="button" onClick={insertChecklist} disabled={disabled || drawingEnabled} aria-label="Checklist" title="Make a list you can tick off"><ListChecks size={14} /></button>
-      </div>
+    <div ref={shellRef} className="composer-rich-editor-shell">
+      {formatBubble && (
+        <div
+          className="composer-format-bar visible"
+          aria-label="Text formatting"
+          style={{ left: formatBubble.left, top: formatBubble.top }}
+          onMouseDown={(event) => event.preventDefault()}
+        >
+          <button type="button" onClick={() => runCommand('bold')} disabled={disabled || drawingEnabled} aria-label="Bold selected text" title="Bold"><Bold size={14} /></button>
+          <button type="button" onClick={() => runCommand('backColor', '#f8df78')} disabled={disabled || drawingEnabled} aria-label="Highlight selected text" title="Highlight"><Highlighter size={14} /></button>
+          <button type="button" onClick={() => runCommand('insertUnorderedList')} disabled={disabled || drawingEnabled} aria-label="Bulleted list" title="Bulleted list"><List size={14} /></button>
+          <button type="button" onClick={() => runCommand('insertOrderedList')} disabled={disabled || drawingEnabled} aria-label="Numbered list" title="Numbered list"><ListOrdered size={14} /></button>
+          <button type="button" onClick={insertChecklist} disabled={disabled || drawingEnabled} aria-label="Checklist" title="Checklist"><ListChecks size={14} /></button>
+        </div>
+      )}
+
+      {insertMenu && (
+        <div
+          className="composer-insert-menu"
+          role="menu"
+          aria-label="Insert into this Skrib"
+          style={{ left: insertMenu.left, top: insertMenu.top }}
+          onMouseDown={(event) => event.preventDefault()}
+        >
+          <button type="button" role="menuitem" onClick={() => { setInsertMenu(null); onAttach(); }}>
+            <Paperclip size={14} aria-hidden="true" />
+            <span><strong>Photo or file</strong><small>Attach from this device</small></span>
+          </button>
+          <button type="button" role="menuitem" onClick={insertChecklist}>
+            <ListChecks size={14} aria-hidden="true" />
+            <span><strong>Checklist</strong><small>Make this thought actionable</small></span>
+          </button>
+          <button type="button" role="menuitem" onClick={() => { setInsertMenu(null); onReminder(); }}>
+            <Bell size={14} aria-hidden="true" />
+            <span><strong>Reminder</strong><small>Bring this thought back</small></span>
+          </button>
+          <button type="button" role="menuitem" onClick={() => { setInsertMenu(null); onInk(); }}>
+            <PenLine size={14} aria-hidden="true" />
+            <span><strong>Ink</strong><small>Write or highlight on the paper</small></span>
+          </button>
+        </div>
+      )}
+
       <div
         ref={editorRef}
         className="composer-textarea"
@@ -190,16 +313,55 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
         aria-describedby={describedBy}
         data-placeholder="Write the thought before it disappears…"
         spellCheck
-        onInput={handleInput}
-        onClick={(event) => {
-          if (!(event.target instanceof HTMLInputElement) || event.target.type !== 'checkbox') return;
-          event.target.toggleAttribute('checked', event.target.checked);
-          emitChange();
+        onInput={(event) => {
+          handleInput(event);
+          setInsertMenu(null);
         }}
-        onBlur={onBlur}
+        onClick={(event) => {
+          if (event.target instanceof HTMLInputElement && event.target.type === 'checkbox') {
+            event.target.toggleAttribute('checked', event.target.checked);
+            emitChange();
+          }
+          window.setTimeout(updateFormatBubble, 0);
+        }}
+        onMouseUp={() => window.setTimeout(updateFormatBubble, 0)}
+        onKeyUp={() => window.setTimeout(updateFormatBubble, 0)}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape' && (insertMenu || formatBubble)) {
+            event.preventDefault();
+            setInsertMenu(null);
+            setFormatBubble(null);
+            return;
+          }
+          const commandShortcut = (event.ctrlKey || event.metaKey) && event.key === '/';
+          const slashAtInsertionPoint =
+            event.key === '/' &&
+            !event.ctrlKey &&
+            !event.metaKey &&
+            !event.altKey &&
+            shouldOpenSlashMenu();
+          if (commandShortcut || slashAtInsertionPoint) {
+            event.preventDefault();
+            openInsertMenu();
+          }
+        }}
+        onBlur={() => {
+          setFormatBubble(null);
+          onBlur();
+        }}
         onPaste={handlePaste}
       />
-      <button type="button" className="composer-inline-attach" onClick={onAttach} disabled={disabled || drawingEnabled} aria-label="Attach a photo, video, or document" title="Drop a photo, video, or file into this Skrib"><Paperclip size={15} /></button>
+
+      <button
+        type="button"
+        className="composer-inline-attach"
+        onClick={onAttach}
+        disabled={disabled || drawingEnabled}
+        aria-label="Insert a photo or file"
+        title="Insert a photo or file"
+      >
+        <Paperclip size={14} />
+      </button>
     </div>
   );
 });
