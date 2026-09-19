@@ -813,6 +813,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
         }
       >
         <header className="composer-header" data-tauri-drag-region title="Drag this paper edge to move the Skrib">
+          <span className="composer-drag-grip" data-tauri-drag-region aria-hidden="true" />
           <div className="composer-context" data-tauri-drag-region>
             <span className="composer-context-chip" data-tauri-drag-region title={contextLabel}>
               <span className="composer-context-mark" aria-hidden="true" data-tauri-drag-region />
@@ -1139,16 +1140,19 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
             : <Check size={14} aria-hidden="true" />}
         </button>
 
-        <button
-          type="button"
-          className="composer-resize-handle southeast"
-          aria-label="Resize this Skrib from the lower-right corner"
-          title="Drag this folded corner to resize"
-          onPointerDown={(event) => {
-            event.preventDefault();
-            void startManualResize('SouthEast');
-          }}
-        />
+        {(['NorthWest', 'NorthEast', 'SouthWest', 'SouthEast'] as ResizeDirection[]).map((direction) => (
+          <button
+            key={direction}
+            type="button"
+            className={`composer-resize-handle ${direction.toLowerCase()}`}
+            aria-label={`Resize this Skrib from the ${direction.replace(/([A-Z])/g, ' $1').trim().toLowerCase()} corner`}
+            title={direction === 'SouthEast' ? 'Drag this folded corner to resize' : 'Drag this corner to resize'}
+            onPointerDown={(event) => {
+              event.preventDefault();
+              void startManualResize(direction);
+            }}
+          />
+        ))}
       </section>
     </div>
   );
