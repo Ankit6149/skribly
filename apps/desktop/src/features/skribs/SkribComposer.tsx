@@ -207,6 +207,8 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
   const [saveSnapshot, setSaveSnapshot] = useState<DraftSaveSnapshot>(
     saveController.getSnapshot()
   );
+  const [showSavedPulse, setShowSavedPulse] = useState(false);
+  const previousSaveStatus = useRef(saveController.getSnapshot().status);
 
   const contextLabel = useMemo(() => {
     if (!target) return note.target_title || note.target_process_name || 'Current application';
@@ -276,6 +278,19 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
       unlisten?.();
     };
   }, [isTauriAvailable]);
+
+  useEffect(() => {
+    const previous = previousSaveStatus.current;
+    previousSaveStatus.current = saveSnapshot.status;
+    if (saveSnapshot.status !== 'saved') {
+      setShowSavedPulse(false);
+      return;
+    }
+    if (previous === 'saved') return;
+    setShowSavedPulse(true);
+    const timer = window.setTimeout(() => setShowSavedPulse(false), 900);
+    return () => window.clearTimeout(timer);
+  }, [saveSnapshot.status]);
 
   useEffect(() => {
     saveController.acceptCommittedText(note.text);
@@ -966,7 +981,10 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
             <button
               type="button"
               role="menuitem"
-              onClick={() => setColorPickerOpen((open) => !open)}
+              onClick={() => {
+                setColorPickerOpen((open) => !open);
+                setNoteMenuOpen(false);
+              }}
               disabled={!canWrite || isFinishing || hasPendingRichOperation || hasUnsavedInk}
             >
               <span className={`composer-menu-color skrib-color-${note.color}`} aria-hidden="true" />
@@ -1110,10 +1128,11 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
           id="composer-save-status"
           className="composer-save-indicator"
           data-state={saveSnapshot.status}
+          data-visible={saveSnapshot.status !== 'saved' || showSavedPulse || undefined}
           role="status"
           aria-live="polite"
         >
-          <span aria-hidden={saveSnapshot.status === 'saved'}>
+          <span aria-hidden={saveSnapshot.status === 'saved' && !showSavedPulse}>
             {saveSnapshot.status === 'saving'
               ? 'Saving…'
               : saveSnapshot.status === 'failed'
