@@ -356,7 +356,6 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
       <button
         type="button"
         className="composer-inline-attach"
-        onClick={onAttach}
         disabled={disabled || drawingEnabled}
         aria-label="Add to this Skrib"
         title="Add photo, file, checklist, reminder, or ink"
