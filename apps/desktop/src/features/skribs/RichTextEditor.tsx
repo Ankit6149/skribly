@@ -3,13 +3,15 @@ import React, {
   useEffect,
   useImperativeHandle,
   useRef,
+  useState,
   type ClipboardEvent,
   type FormEvent,
 } from 'react';
-import { Bold, Highlighter, List, ListChecks, ListOrdered, Paperclip } from 'lucide-react';
+import { Bold, Highlighter, List, ListChecks, ListOrdered } from 'lucide-react';
 
 export interface RichTextEditorHandle {
   flush: () => void;
+  insertChecklist: () => void;
 }
 
 interface RichTextEditorProps {
@@ -21,7 +23,6 @@ interface RichTextEditorProps {
   onChange: (html: string, plainText: string) => boolean;
   onBlur: () => void;
   onPasteFiles: (files: File[]) => void;
-  onAttach: () => void;
 }
 
 const SAFE_ELEMENTS = new Set(['DIV', 'P', 'BR', 'STRONG', 'B', 'MARK', 'UL', 'OL', 'LI', 'INPUT']);
@@ -93,11 +94,12 @@ function clipboardFiles(event: ClipboardEvent<HTMLDivElement>): File[] {
 }
 
 export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(function RichTextEditor(
-  { noteId, initialHtml, disabled, drawingEnabled, describedBy, onChange, onBlur, onPasteFiles, onAttach },
+  { noteId, initialHtml, disabled, drawingEnabled, describedBy, onChange, onBlur, onPasteFiles },
   forwardedRef
 ) {
   const editorRef = useRef<HTMLDivElement>(null);
   const lastAcceptedHtml = useRef(initialHtml);
+  const [formatBarVisible, setFormatBarVisible] = useState(false);
 
   useEffect(() => {
     const editor = editorRef.current;
@@ -124,7 +126,16 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
     }
   };
 
-  useImperativeHandle(forwardedRef, () => ({ flush: emitChange }));
+  const updateFormatBarVisibility = () => {
+    const editor = editorRef.current;
+    const selection = window.getSelection();
+    if (!editor || !selection || selection.rangeCount === 0 || selection.isCollapsed) {
+      setFormatBarVisible(false);
+      return;
+    }
+    const range = selection.getRangeAt(0);
+    setFormatBarVisible(editor.contains(range.commonAncestorContainer));
+  };
 
   const runCommand = (command: string, value?: string) => {
     if (disabled || drawingEnabled) return;
@@ -156,6 +167,11 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
     emitChange();
   };
 
+  useImperativeHandle(forwardedRef, () => ({
+    flush: emitChange,
+    insertChecklist,
+  }));
+
   const handleInput = (_event: FormEvent<HTMLDivElement>) => emitChange();
   const handlePaste = (event: ClipboardEvent<HTMLDivElement>) => {
     const files = clipboardFiles(event);
@@ -173,13 +189,15 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
 
   return (
     <div className="composer-rich-editor-shell">
-      <div className="composer-format-bar" aria-label="Writing tools">
-        <button type="button" onClick={() => runCommand('bold')} disabled={disabled || drawingEnabled} aria-label="Bold selected text" title="Give the selected words a little more weight"><Bold size={14} /></button>
-        <button type="button" onClick={() => runCommand('backColor', '#f8df78')} disabled={disabled || drawingEnabled} aria-label="Highlight selected text" title="Keep this part easy to find"><Highlighter size={14} /></button>
-        <button type="button" onClick={() => runCommand('insertUnorderedList')} disabled={disabled || drawingEnabled} aria-label="Bulleted list" title="Turn these thoughts into a tidy list"><List size={14} /></button>
-        <button type="button" onClick={() => runCommand('insertOrderedList')} disabled={disabled || drawingEnabled} aria-label="Numbered list" title="Put these steps in order"><ListOrdered size={14} /></button>
-        <button type="button" onClick={insertChecklist} disabled={disabled || drawingEnabled} aria-label="Checklist" title="Make a list you can tick off"><ListChecks size={14} /></button>
-      </div>
+      {formatBarVisible && (
+        <div className="composer-format-bar" aria-label="Selected text tools">
+          <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('bold')} disabled={disabled || drawingEnabled} aria-label="Bold selected text" title="Bold"><Bold size={14} /></button>
+          <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('backColor', '#f8df78')} disabled={disabled || drawingEnabled} aria-label="Highlight selected text" title="Highlight"><Highlighter size={14} /></button>
+          <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('insertUnorderedList')} disabled={disabled || drawingEnabled} aria-label="Bulleted list" title="Bulleted list"><List size={14} /></button>
+          <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('insertOrderedList')} disabled={disabled || drawingEnabled} aria-label="Numbered list" title="Numbered list"><ListOrdered size={14} /></button>
+          <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={insertChecklist} disabled={disabled || drawingEnabled} aria-label="Checklist" title="Checklist"><ListChecks size={14} /></button>
+        </div>
+      )}
       <div
         ref={editorRef}
         className="composer-textarea"
@@ -191,15 +209,23 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
         data-placeholder="Write the thought before it disappears…"
         spellCheck
         onInput={handleInput}
+        onMouseUp={updateFormatBarVisibility}
+        onKeyUp={updateFormatBarVisibility}
         onClick={(event) => {
-          if (!(event.target instanceof HTMLInputElement) || event.target.type !== 'checkbox') return;
-          event.target.toggleAttribute('checked', event.target.checked);
-          emitChange();
+          if (event.target instanceof HTMLInputElement && event.target.type === 'checkbox') {
+            event.target.toggleAttribute('checked', event.target.checked);
+            emitChange();
+          }
+          updateFormatBarVisibility();
         }}
-        onBlur={onBlur}
+        onBlur={(event) => {
+          if (!(event.relatedTarget instanceof Node) || !event.currentTarget.parentElement?.contains(event.relatedTarget)) {
+            setFormatBarVisible(false);
+          }
+          onBlur();
+        }}
         onPaste={handlePaste}
       />
-      <button type="button" className="composer-inline-attach" onClick={onAttach} disabled={disabled || drawingEnabled} aria-label="Attach a photo, video, or document" title="Drop a photo, video, or file into this Skrib"><Paperclip size={15} /></button>
     </div>
   );
 });
