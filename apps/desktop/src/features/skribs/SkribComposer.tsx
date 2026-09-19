@@ -836,31 +836,6 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
             >
               <MoreHorizontal size={16} aria-hidden="true" />
             </button>
-            <button
-              type="button"
-              className="composer-put-away"
-              onClick={() => void finishAndHide()}
-              disabled={isFinishing || isRepositioning || hasPendingRichOperation || hasUnsavedInk}
-              aria-label={
-                storageWritable
-                  ? openAction === 'detached'
-                    ? 'Save and close this Skrib'
-                    : 'Save and put this Skrib away'
-                  : 'Storage recovery required'
-              }
-              title={
-                storageWritable
-                  ? openAction === 'detached'
-                    ? 'Save and close'
-                    : 'Save and put away'
-                  : 'Storage recovery required'
-              }
-            >
-              <span className="composer-put-away-fold" aria-hidden="true" />
-              {isFinishing
-                ? <span className="composer-button-spinner" aria-hidden="true" />
-                : <Check size={14} aria-hidden="true" />}
-            </button>
           </div>
         </header>
 
@@ -1137,6 +1112,32 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
         >
           {isVisiblySaving ? <span className="composer-save-dot" /> : <Check size={13} />}
         </div>
+
+        <button
+          type="button"
+          className="composer-put-away"
+          onClick={() => void finishAndHide()}
+          disabled={isFinishing || isRepositioning || hasPendingRichOperation || hasUnsavedInk}
+          aria-label={
+            storageWritable
+              ? openAction === 'detached'
+                ? 'Done — save and close this Skrib'
+                : 'Done — save and put this Skrib away'
+              : 'Storage recovery required'
+          }
+          title={
+            storageWritable
+              ? openAction === 'detached'
+                ? 'Done — save and close'
+                : 'Done — save and put away'
+              : 'Storage recovery required'
+          }
+        >
+          <span className="composer-put-away-fold" aria-hidden="true" />
+          {isFinishing
+            ? <span className="composer-button-spinner" aria-hidden="true" />
+            : <Check size={14} aria-hidden="true" />}
+        </button>
 
         <button
           type="button"
