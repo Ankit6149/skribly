@@ -82,7 +82,7 @@ for (const marker of [
 
 for (const [source, marker] of [
   [composer, 'data-overlay-surface="composer"'],
-  [composer, 'className="composer-drag-grip" data-tauri-drag-region'],
+  [composer, 'className="composer-paper-top" data-tauri-drag-region'],
   [composer, "startResizeDragging(direction)"],
   [composer, 'className={`composer-resize-handle ${direction.toLowerCase()}`}'],
   [composer, 'className="skrib-composer-backdrop"'],
