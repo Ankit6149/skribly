@@ -2601,3 +2601,753 @@ body {
   .note-reminder-picker,
   .note-attachment-strip { animation: none; transition: none; }
 }
+
+
+/* Living Paper A — production note surface */
+.skrib-composer {
+  border: 1px solid rgba(38, 41, 35, 0.11);
+  border-radius: 16px 16px 34px 16px;
+  background: var(--skribli-paper);
+  background-image: none;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.34),
+    0 16px 34px rgba(38, 41, 35, 0.10);
+  container-type: inline-size;
+}
+
+.skrib-composer::before {
+  top: -5px;
+  width: 84px;
+  height: 19px;
+  border: 0;
+  border-radius: 1px;
+  background: rgba(255, 249, 218, 0.78);
+  box-shadow: 0 3px 8px rgba(61, 52, 20, 0.06);
+  transform: translateX(-50%) rotate(-2deg);
+}
+
+.composer-header {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 45;
+  min-height: 54px;
+  height: 54px;
+  padding: 12px 14px;
+  border: 0;
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--skribli-paper) 88%, white), transparent);
+  pointer-events: none;
+  cursor: default;
+}
+
+.composer-context,
+.composer-header-actions {
+  pointer-events: auto;
+}
+
+.composer-context {
+  min-width: 0;
+  max-width: min(72%, 430px);
+  display: flex;
+  align-items: flex-start;
+}
+
+.composer-context-chip {
+  max-width: 100%;
+  min-height: 29px;
+  padding: 6px 10px 6px 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  overflow: hidden;
+  border: 1px solid rgba(38, 41, 35, 0.08);
+  border-radius: 8px 8px 13px 8px;
+  background: color-mix(in srgb, var(--mint) 82%, white);
+  box-shadow: 0 5px 12px rgba(38, 41, 35, 0.07);
+  color: color-mix(in srgb, var(--skribli-ink) 86%, var(--olive));
+  cursor: grab;
+}
+
+.composer-context-chip:active { cursor: grabbing; }
+
+.composer-context-chip strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--skribli-ui-font);
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+}
+
+.composer-context-mark {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 2px 2px 4px 2px;
+  background: var(--olive);
+  opacity: 0.76;
+  transform: rotate(-4deg);
+}
+
+.composer-header-actions {
+  margin-left: auto;
+  align-self: flex-start;
+}
+
+.composer-more {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.20);
+  color: rgba(38, 41, 35, 0.68);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease, transform 120ms ease;
+}
+
+.composer-more:hover:not(:disabled),
+.composer-more:focus-visible,
+.composer-more[aria-expanded='true'] {
+  background: rgba(255, 255, 255, 0.64);
+  color: var(--skribli-ink);
+}
+
+.composer-more:focus-visible {
+  outline: 2px solid var(--olive);
+  outline-offset: 2px;
+}
+
+.composer-more:disabled { opacity: 0.42; cursor: not-allowed; }
+
+.composer-command-bar,
+.composer-color-popover,
+.composer-drag-grip,
+.composer-kicker,
+.composer-color-control,
+.composer-reposition,
+.composer-close,
+.composer-footer {
+  display: none !important;
+}
+
+.composer-unified-workspace {
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.composer-unified-canvas {
+  min-height: 0;
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--skribli-ink) 22%, transparent) transparent;
+}
+
+.composer-rich-editor-shell {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+}
+
+.composer-unified-canvas .composer-textarea {
+  position: relative;
+  inset: auto;
+  width: 100%;
+  min-height: 100%;
+  height: auto;
+  padding: 64px 34px 64px 36px;
+  overflow: visible;
+  font-family: var(--skribli-note-font);
+  font-size: 19px;
+  line-height: 1.55;
+}
+
+.composer-unified-canvas[data-text-size='small'] .composer-textarea {
+  font-size: 16px;
+  line-height: 1.58;
+}
+
+.composer-unified-canvas[data-text-size='large'] .composer-textarea {
+  font-size: 23px;
+  line-height: 1.48;
+}
+
+.composer-textarea:empty::before {
+  content: attr(data-placeholder);
+  color: rgba(38, 41, 35, 0.34);
+  pointer-events: none;
+}
+
+.composer-textarea p:first-child,
+.composer-textarea div:first-child { margin-top: 0; }
+
+.composer-textarea p:last-child,
+.composer-textarea div:last-child { margin-bottom: 0; }
+
+.composer-textarea mark {
+  padding: 0 0.08em;
+  border-radius: 0.12em;
+  background: color-mix(in srgb, var(--yellow) 72%, transparent);
+}
+
+.composer-textarea ul[data-checklist='true'] {
+  list-style: none;
+  padding-left: 0.2em;
+}
+
+.composer-textarea ul[data-checklist='true'] li {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45em;
+}
+
+.composer-textarea input[type='checkbox'] {
+  accent-color: var(--olive);
+}
+
+.composer-format-bar.visible {
+  position: absolute;
+  z-index: 72;
+  width: max-content;
+  min-height: 34px;
+  padding: 4px;
+  display: flex;
+  gap: 2px;
+  border: 1px solid rgba(38, 41, 35, 0.12);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--paper) 96%, white);
+  box-shadow: 0 8px 20px rgba(38, 41, 35, 0.12);
+  animation: living-paper-reveal 150ms cubic-bezier(.22, 1, .36, 1) both;
+}
+
+.composer-format-bar.visible button {
+  width: 30px;
+  height: 28px;
+  display: grid;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--skribli-ink);
+}
+
+.composer-format-bar.visible button:hover:not(:disabled),
+.composer-format-bar.visible button:focus-visible {
+  background: #f2efe7;
+}
+
+.composer-format-bar.visible button:focus-visible {
+  outline: 2px solid var(--olive);
+  outline-offset: 1px;
+}
+
+.composer-insert-menu {
+  position: absolute;
+  z-index: 74;
+  width: min(250px, calc(100% - 28px));
+  padding: 6px;
+  display: grid;
+  gap: 2px;
+  border: 1px solid rgba(38, 41, 35, 0.12);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--paper) 96%, white);
+  box-shadow: 0 12px 28px rgba(38, 41, 35, 0.14);
+  animation: living-paper-reveal 160ms cubic-bezier(.22, 1, .36, 1) both;
+}
+
+.composer-insert-menu button {
+  width: 100%;
+  min-height: 42px;
+  padding: 7px 9px;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--skribli-ink);
+  text-align: left;
+}
+
+.composer-insert-menu button:hover:not(:disabled),
+.composer-insert-menu button:focus-visible {
+  background: #f3f0e7;
+}
+
+.composer-insert-menu button:focus-visible {
+  outline: 2px solid var(--olive);
+  outline-offset: -1px;
+}
+
+.composer-insert-menu button span,
+.composer-insert-menu button strong,
+.composer-insert-menu button small { display: block; min-width: 0; }
+
+.composer-insert-menu button strong {
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.composer-insert-menu button small {
+  margin-top: 1px;
+  color: var(--skribli-muted);
+  font-size: 8px;
+  font-weight: 500;
+}
+
+.composer-inline-attach {
+  position: absolute;
+  top: 50%;
+  left: 9px;
+  z-index: 32;
+  width: 21px;
+  height: 21px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.66);
+  box-shadow: 0 2px 8px rgba(38, 41, 35, 0.06);
+  color: var(--skribli-ink);
+  cursor: pointer;
+  opacity: 0.16;
+  transform: translateY(-50%);
+  transition: opacity 130ms ease, transform 130ms ease, background 130ms ease;
+}
+
+.composer-rich-editor-shell:hover .composer-inline-attach,
+.composer-rich-editor-shell:focus-within .composer-inline-attach,
+.composer-inline-attach:focus-visible {
+  opacity: 0.92;
+}
+
+.composer-inline-attach:hover:not(:disabled),
+.composer-inline-attach:focus-visible {
+  background: rgba(255, 255, 255, 0.92);
+  transform: translateY(-50%) scale(1.04);
+}
+
+.composer-inline-attach:focus-visible {
+  outline: 2px solid var(--olive);
+  outline-offset: 2px;
+}
+
+.composer-edge-tools {
+  position: absolute;
+  top: 92px;
+  right: -1px;
+  z-index: 46;
+  display: grid;
+  gap: 5px;
+  opacity: 0.16;
+  transform: translateX(5px);
+  transition: opacity 140ms ease, transform 160ms ease;
+}
+
+.skrib-composer:hover .composer-edge-tools,
+.skrib-composer:focus-within .composer-edge-tools {
+  opacity: 0.92;
+  transform: none;
+}
+
+.composer-edge-tool {
+  width: 29px;
+  height: 34px;
+  display: grid;
+  padding: 0;
+  place-items: center;
+  border: 1px solid rgba(38, 41, 35, 0.08);
+  border-right: 0;
+  border-radius: 8px 0 0 8px;
+  background: color-mix(in srgb, var(--peach) 72%, var(--skribli-paper));
+  color: rgba(38, 41, 35, 0.72);
+  cursor: pointer;
+}
+
+.composer-edge-tool + .composer-edge-tool {
+  background: color-mix(in srgb, var(--lavender) 62%, var(--skribli-paper));
+}
+
+.composer-edge-tool.active {
+  background: var(--skribli-ink);
+  color: var(--paper);
+}
+
+.composer-edge-tool:hover:not(:disabled),
+.composer-edge-tool:focus-visible {
+  transform: translateX(-2px);
+}
+
+.composer-edge-tool:focus-visible {
+  outline: 2px solid var(--olive);
+  outline-offset: 2px;
+}
+
+.composer-edge-tool:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.composer-more-popover {
+  position: absolute;
+  top: 48px;
+  right: 14px;
+  z-index: 80;
+  width: min(286px, calc(100% - 28px));
+  max-height: calc(100% - 74px);
+  padding: 12px;
+  overflow: auto;
+  border: 1px solid rgba(38, 41, 35, 0.11);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--paper) 96%, white);
+  box-shadow: 0 16px 36px rgba(38, 41, 35, 0.15);
+  animation: living-paper-reveal 160ms cubic-bezier(.22, 1, .36, 1) both;
+}
+
+.composer-more-section + .composer-more-section {
+  margin-top: 12px;
+  padding-top: 11px;
+  border-top: 1px solid rgba(38, 41, 35, 0.08);
+}
+
+.composer-more-label {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--skribli-muted);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+}
+
+.composer-more-swatches,
+.composer-more-segments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.composer-more-swatches .color-swatch {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  padding: 0;
+  place-items: center;
+  border: 1px solid rgba(38, 41, 35, 0.14);
+  border-radius: 50%;
+  color: var(--skribli-ink);
+  cursor: pointer;
+}
+
+.composer-more-swatches .color-swatch.active {
+  box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--olive);
+}
+
+.composer-more-segments button {
+  min-height: 29px;
+  padding: 0 9px;
+  border: 1px solid rgba(38, 41, 35, 0.10);
+  border-radius: 999px;
+  background: #f5f2e9;
+  color: var(--skribli-ink);
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.composer-more-segments button.active {
+  border-color: var(--skribli-ink);
+  background: var(--skribli-ink);
+  color: var(--paper);
+}
+
+.composer-more-actions {
+  margin-top: 12px;
+  padding-top: 10px;
+  display: grid;
+  gap: 2px;
+  border-top: 1px solid rgba(38, 41, 35, 0.08);
+}
+
+.composer-more-actions button {
+  min-height: 36px;
+  padding: 0 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--skribli-ink);
+  text-align: left;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.composer-more-actions button:hover:not(:disabled),
+.composer-more-actions button:focus-visible { background: #f3f0e7; }
+
+.composer-more-actions button.danger { color: #854040; }
+.composer-more-actions button:focus-visible {
+  outline: 2px solid var(--olive);
+  outline-offset: -1px;
+}
+
+.composer-put-away {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  z-index: 48;
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0 0 33px 0;
+  background: linear-gradient(
+    135deg,
+    transparent 0 48%,
+    rgba(38, 41, 35, 0.12) 49% 51%,
+    color-mix(in srgb, var(--skribli-paper) 72%, white) 52% 100%
+  );
+  color: var(--skribli-ink);
+  cursor: pointer;
+}
+
+.composer-put-away::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, transparent 50%, rgba(255,255,255,.14) 51%);
+  pointer-events: none;
+}
+
+.composer-put-away > svg,
+.composer-put-away > .composer-button-spinner {
+  position: absolute;
+  right: 9px;
+  bottom: 8px;
+  z-index: 2;
+}
+
+.composer-put-away-fold {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 35px;
+  height: 35px;
+  border-right: 1px solid rgba(38, 41, 35, 0.08);
+  border-bottom: 1px solid rgba(38, 41, 35, 0.08);
+  border-radius: 0 0 26px 0;
+  pointer-events: none;
+}
+
+.composer-put-away:hover:not(:disabled) {
+  filter: brightness(1.02);
+}
+
+.composer-put-away:focus-visible {
+  outline: 2px solid var(--olive);
+  outline-offset: -5px;
+}
+
+.composer-put-away:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.composer-save-flash {
+  position: absolute;
+  right: 56px;
+  bottom: 13px;
+  z-index: 49;
+  min-width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  color: var(--olive);
+  opacity: 0;
+  transform: translateY(3px);
+  pointer-events: none;
+  transition: opacity 130ms ease, transform 150ms ease;
+}
+
+.composer-save-flash.visible {
+  opacity: 0.9;
+  transform: none;
+}
+
+.composer-save-flash.saving { color: var(--skribli-muted); }
+
+.composer-save-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: living-paper-save 700ms ease-in-out infinite alternate;
+}
+
+.composer-delete-sheet {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  left: 14px;
+  z-index: 90;
+  padding: 12px 13px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid rgba(127, 41, 41, 0.16);
+  border-radius: 11px 11px 20px 11px;
+  background: color-mix(in srgb, var(--peach) 72%, white);
+  box-shadow: 0 12px 28px rgba(38, 41, 35, 0.13);
+}
+
+.composer-delete-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.composer-delete-actions button {
+  min-height: 31px;
+  padding: 0 9px;
+  border: 1px solid rgba(38, 41, 35, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.62);
+  color: var(--skribli-ink);
+  font-size: 9px;
+  font-weight: 750;
+}
+
+.composer-delete-actions button.danger {
+  border-color: rgba(127, 41, 41, 0.20);
+  background: #7f2929;
+  color: #fffaf6;
+}
+
+.composer-inline-panel {
+  position: absolute;
+  inset: 50px 12px 12px;
+  z-index: 62;
+  min-height: 0;
+  overflow: auto;
+  border: 0;
+  border-radius: 15px 15px 27px 15px;
+  background: color-mix(in srgb, var(--peach) 66%, var(--paper));
+  box-shadow: 0 14px 32px rgba(38, 41, 35, 0.12);
+}
+
+.composer-panel-close {
+  position: sticky;
+  top: 8px;
+  float: right;
+  z-index: 4;
+  width: 30px;
+  height: 30px;
+  margin: 8px 8px 0 0;
+  display: grid;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255,255,255,.72);
+  color: var(--skribli-ink);
+}
+
+.note-attachment-strip {
+  border-top: 0;
+  background: transparent;
+}
+
+.note-attachment-strip[data-expanded='false'] {
+  min-height: 0;
+}
+
+.attachment-drawer-handle {
+  border: 0;
+  background: transparent;
+}
+
+.note-reminder-picker {
+  border: 0;
+  background: color-mix(in srgb, var(--paper) 74%, white);
+}
+
+.note-reminder-calendar,
+.note-reminder-time { border: 0; }
+
+.ink-editor-overlay .ink-editor-toolbar {
+  top: 52px;
+  right: 38px;
+  left: auto;
+  width: max-content;
+  max-width: calc(100% - 70px);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--paper) 93%, var(--skribli-paper));
+}
+
+.composer-unified-canvas.drawing .composer-textarea {
+  padding-top: 64px;
+}
+
+.composer-resize-handle.southeast {
+  z-index: 55;
+  right: 0;
+  bottom: 0;
+  width: 14px;
+  height: 14px;
+  opacity: 0.18;
+}
+
+.skrib-composer:hover .composer-resize-handle.southeast,
+.composer-resize-handle.southeast:focus-visible { opacity: 0.72; }
+
+@keyframes living-paper-reveal {
+  from { opacity: 0; transform: translateY(-4px) scale(.985); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes living-paper-save {
+  from { opacity: .35; transform: scale(.72); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@container (max-width: 440px) {
+  .composer-unified-canvas .composer-textarea {
+    padding-right: 30px;
+    padding-left: 31px;
+  }
+
+  .composer-more-popover {
+    right: 9px;
+    width: calc(100% - 18px);
+  }
+
+  .composer-context {
+    max-width: calc(100% - 46px);
+  }
+
+  .composer-edge-tools {
+    top: 86px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .composer-more-popover,
+  .composer-format-bar.visible,
+  .composer-insert-menu,
+  .composer-edge-tools,
+  .composer-inline-attach,
+  .composer-save-flash {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .composer-save-dot { animation: none; opacity: 1; }
+}
