@@ -16,6 +16,7 @@ import {
   ListOrdered,
   Paperclip,
   PenLine,
+  Plus,
 } from 'lucide-react';
 
 export interface RichTextEditorHandle {
@@ -357,10 +358,15 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
         className="composer-inline-attach"
         onClick={onAttach}
         disabled={disabled || drawingEnabled}
-        aria-label="Insert a photo or file"
-        title="Insert a photo or file"
+        aria-label="Add to this Skrib"
+        title="Add photo, file, checklist, reminder, or ink"
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => {
+          editorRef.current?.focus();
+          openInsertMenu();
+        }}
       >
-        <Paperclip size={14} />
+        <Plus size={14} />
       </button>
     </div>
   );
