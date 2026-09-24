@@ -1,0 +1,207 @@
+/* PR #203 refinement: preserve the paper, separate actions from decoration. */
+.skrib-composer {
+  border-radius: 14px 14px 20px 14px;
+  background: var(--skribli-paper);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 28%), 0 12px 28px rgb(38 41 35 / 11%);
+}
+.composer-paper-top { min-height: 54px; flex: 0 0 54px; padding: 0; }
+.composer-context-tab {
+  top: 15px; left: 0; margin-left: 0;
+  max-width: calc(100% - 120px); min-height: 28px;
+  padding: 6px 12px; box-sizing: border-box;
+  background: color-mix(in srgb, var(--skribli-paper) 68%, white);
+}
+.composer-context-tab strong { font-size: 12px; line-height: 1.3; }
+.composer-paper-actions { top: 12px; right: 16px; }
+.composer-more { width: 36px; height: 36px; opacity: 0; pointer-events: none; }
+.skrib-composer:hover .composer-more,
+.composer-more:focus-visible,
+.composer-more[aria-expanded='true'] { opacity: 1; pointer-events: auto; }
+.composer-put-away-fold {
+  top: auto; right: 16px; bottom: 10px; left: auto;
+  width: auto; min-width: 76px; height: 36px;
+  padding: 0 16px; border: 1px solid rgb(38 41 35 / 14%); border-radius: 999px;
+  background: var(--skribli-ink); color: var(--paper, #fffdf5);
+  font: 700 12px/1 var(--skribli-ui-font); letter-spacing: .01em;
+  clip-path: none; box-shadow: none; transform: none; opacity: 1;
+  transition: background-color 140ms ease, transform 140ms ease;
+}
+.composer-put-away-fold:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--skribli-ink) 85%, var(--skribli-paper)); box-shadow: none; filter: none; transform: translateY(-1px);
+}
+.composer-put-away-fold:active:not(:disabled) { transform: scale(.96); transform-origin: center; }
+.composer-put-away-fold:focus-visible { outline: 2px solid var(--olive); outline-offset: 2px; }
+.composer-note-menu {
+  top: 54px; right: 18px; width: min(240px, calc(100% - 36px));
+  max-height: calc(100% - 72px); overflow-y: auto; overscroll-behavior: contain;
+}
+.composer-note-menu button { min-height: 36px; font-size: 12px; line-height: 1.4; }
+.composer-note-menu button svg { flex-shrink: 0; }
+.composer-color-popover {
+  top: 56px; right: 18px; max-width: calc(100% - 36px);
+  flex-wrap: wrap; gap: 6px; box-sizing: border-box;
+}
+.composer-color-popover .color-swatch {
+  width: 28px; height: 28px; flex: 0 0 28px; border-radius: 50%;
+  display: grid; place-items: center;
+}
+.composer-color-popover > span { font-size: 12px; }
+.composer-unified-workspace { padding-bottom: 48px; }
+.composer-rich-editor-shell { display: flex; flex-direction: column; }
+.composer-rich-editor-shell .composer-textarea,
+.composer-format-bar + .composer-textarea {
+  flex: 1 1 0; height: auto; min-height: 0; padding: 14px 24px 18px 42px;
+}
+.composer-format-bar {
+  position: relative; inset: auto; transform: none; align-self: flex-start;
+  flex: 0 0 auto; margin: 2px 20px 0; max-width: calc(100% - 40px);
+  animation: none; box-shadow: none; border-radius: 12px;
+}
+.composer-format-bar button { border-radius: 50%; }
+.composer-intent-gateway { bottom: 10px; left: 14px; }
+.composer-intent-trigger { width: 36px; height: 36px; opacity: .85; }
+.composer-intent-tray {
+  width: max-content; max-width: calc(100vw - 36px); box-sizing: border-box;
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px; padding: 6px; border-radius: 12px;
+  background: color-mix(in srgb, var(--paper) 94%, var(--skribli-paper));
+}
+.composer-intent-tray button { min-height: 36px; font-size: 12px; padding: 0 10px; }
+.composer-save-indicator { right: auto; font-size: 11px; max-width: calc(100% - 130px); }
+.composer-save-indicator[data-state='saved'] > span:first-child { animation: none; }
+.composer-save-indicator .composer-character-count { font-size: 10px; }
+.composer-attached-confirmation { max-height: calc(100% - 68px); overflow-y: auto; }
+.composer-attached-confirmation button { font-size: 12px; min-height: 36px; }
+.composer-unified-workspace.panel-open .composer-unified-canvas { min-height: 48px; flex: 0 0 48px; }
+.composer-unified-workspace.panel-open .composer-inline-panel { flex: 1 1 0; min-height: 0; overflow-y: auto; }
+.composer-unified-canvas.drawing .composer-rich-editor-shell .composer-textarea { padding: 14px 24px 18px; }
+.ink-editor-overlay .ink-editor-toolbar {
+  position: absolute; top: auto; bottom: 12px; left: 12px; right: 12px;
+  transform: none; width: auto; max-width: none; box-sizing: border-box;
+  border-radius: 12px; box-shadow: none;
+}
+.ink-editor-toolbar button { transform: none; }
+.ink-editor-toolbar button:hover { transform: none; }
+.note-reminder-days button.selected { transform: none !important; }
+.composer-resize-handle:focus-visible { opacity: 1; outline: 2px solid var(--olive); outline-offset: -2px; }
+@media (max-width: 360px), (max-height: 300px) {
+  .composer-context-tab { max-width: calc(100% - 112px); padding-inline: 10px; }
+  .composer-context-tab strong { font-size: 11px; }
+  .composer-rich-editor-shell .composer-textarea { padding: 10px 18px 14px 36px; }
+}
+@media (prefers-reduced-motion: reduce) { .composer-put-away-fold { transition: none; } }
+@media (forced-colors: active) {
+  .composer-context-tab, .composer-put-away-fold, .composer-note-menu,
+  .composer-intent-tray, .composer-color-popover, .composer-attached-confirmation {
+    background: Canvas; color: CanvasText; border: 1px solid CanvasText; box-shadow: none;
+  }
+  .composer-put-away-fold:focus-visible { outline-color: Highlight; }
+}
+
+/* Direction A follow-up: a place tab and two small, discoverable ribbons. */
+.composer-context-tab {
+  left: 0; right: auto; top: 20px; margin: 0;
+  width: 28px; max-width: 28px; min-height: 0; max-height: 110px;
+  padding: 9px 6px; border: 1px solid rgb(93 53 66 / 9%);
+  border-radius: 6px 0 0 6px; background: var(--context-tag-color, var(--mint, #dceadf));
+  color: var(--skribli-ink, #262923); box-shadow: none;
+  writing-mode: vertical-rl; transform: rotate(180deg);
+}
+.composer-context-tab strong { max-height: 88px; font-size: 10px; }
+.composer-paper-actions { left: auto; right: 16px; }
+.composer-put-away-fold { left: auto; right: 16px; top: auto; bottom: 10px; }
+.composer-note-menu, .composer-intent-tray {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 4px; width: max-content;
+  max-width: calc(100vw - 32px); padding: 6px;
+  border-radius: 24px; overflow: visible;
+  background: var(--paper, #fffdf5); border: 1px solid rgb(38 41 35 / 10%);
+  box-shadow: 0 4px 12px rgb(38 41 35 / 9%);
+}
+.composer-note-menu { left: auto; right: 16px; top: 58px; max-height: calc(100% - 76px); z-index: 42; overflow-y: auto; }
+.composer-note-menu { max-width: calc(100% - 32px); }
+.composer-note-menu {
+  width: min(286px, calc(100% - 32px));
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch; gap: 3px; padding: 7px;
+  border-radius: 13px;
+}
+.composer-note-menu > button {
+  position: static; width: auto; height: 36px; min-height: 36px;
+  display: flex; justify-content: flex-start; gap: 6px;
+  padding: 0 8px; border-radius: 8px; overflow: hidden;
+}
+.composer-note-menu > button > span:not(.composer-button-spinner) {
+  position: static; width: auto; max-width: none; min-width: 0;
+  padding: 0; border-radius: 0; background: transparent;
+  color: inherit; font: 600 10px/1.2 var(--skribli-ui-font);
+  text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  opacity: 1; pointer-events: auto; transform: none;
+}
+.composer-note-menu > button:is(:hover,:focus-visible) > span:not(.composer-button-spinner) { transform: none; }
+.composer-note-menu .composer-note-menu-divider { grid-column: 1 / -1; width: auto; height: 1px; margin: 2px 4px; }
+.composer-intent-tray { left: 0; bottom: 42px; }
+.composer-intent-tray > button {
+  position: relative; flex: 0 0 34px; width: 34px; height: 34px; min-height: 34px;
+  display: grid; place-items: center; padding: 0; gap: 0;
+  border-radius: 50%; overflow: visible;
+}
+.composer-note-menu button svg, .composer-intent-tray button svg { width: 17px; height: 17px; }
+.composer-intent-tray > button > span {
+  position: absolute; bottom: calc(100% + 12px); left: 50%; transform: translate(-50%, 3px);
+  width: max-content; max-width: 160px; padding: 6px 9px; border-radius: 8px;
+  background: var(--skribli-ink, #262923); color: #fffdf5;
+  font: 500 12px/1.35 var(--skribli-ui-font); white-space: normal; text-align: center;
+  opacity: 0; pointer-events: none; transition: opacity 120ms ease, transform 120ms ease;
+}
+.composer-intent-tray > button:first-child > span { left: 0; transform: translate(0, 3px); }
+.composer-intent-tray > button:last-child > span { left: auto; right: 0; transform: translate(0, 3px); }
+.composer-intent-tray > button:is(:hover,:focus-visible) > span { opacity: 1; }
+.composer-note-menu-divider { width: 1px; height: 20px; margin: 0 2px; flex: 0 0 1px; }
+.composer-color-popover {
+  top: auto; bottom: 56px; left: 16px; right: auto; z-index: 43; gap: 5px; padding: 8px;
+  max-width: calc(100% - 32px); flex-wrap: nowrap; overflow-x: auto;
+  border-radius: 24px; background: var(--paper, #fffdf5); box-shadow: 0 4px 12px rgb(38 41 35 / 9%);
+}
+.composer-color-popover .color-swatch { width: 26px; height: 26px; flex-basis: 26px; }
+.composer-color-popover .color-swatch.active { outline-offset: 1px; }
+.composer-resize-handle.southeast::after { border-radius: 0 0 4px 0; }
+.inline-attachment {
+  display: inline-block; vertical-align: middle; max-width: 100%; margin: 8px 6px 8px 0;
+  white-space: normal; line-height: 1; user-select: none;
+}
+.inline-attachment-object { display: inline-flex; flex-direction: column; position: relative; max-width: 100%; width: 156px; }
+.inline-attachment-preview { display: grid; place-items: center; max-width: 100%; overflow: hidden; }
+.inline-attachment-image .inline-attachment-preview, .inline-attachment-ink .inline-attachment-preview {
+  padding: 5px 5px 12px; background: #fffdf9; border-radius: 3px; box-shadow: 0 3px 8px rgb(38 41 35 / 14%);
+}
+.inline-attachment-preview img { display: block; width: 100%; max-height: 140px; height: auto; object-fit: contain; }
+.inline-attachment-image .inline-attachment-preview,
+.inline-attachment-ink .inline-attachment-preview { transform: rotate(-2deg); transition: transform 160ms ease, box-shadow 160ms ease; }
+.inline-attachment:is(:hover,:focus-within) .inline-attachment-preview { transform: rotate(0); box-shadow: 0 6px 14px rgb(38 41 35 / 15%); }
+.inline-attachment-video { width: 216px; }
+.inline-attachment-preview video { display: block; width: 100%; max-height: 150px; border-radius: 7px; background: #262923; }
+.inline-attachment-document .inline-attachment-preview { padding: 16px; background: rgb(255 255 255 / 65%); border: 1px solid rgb(38 41 35 / 10%); border-radius: 6px; }
+.inline-attachment-name { display: block; font: 500 11px/1.4 var(--skribli-ui-font); margin-top: 7px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inline-attachment-actions { display: flex; align-items: center; gap: 2px; margin-top: 3px; opacity: .3; transition: opacity 120ms; }
+.inline-attachment:hover .inline-attachment-actions, .inline-attachment:focus-within .inline-attachment-actions { opacity: 1; }
+.inline-attachment-actions :is(button,a) { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 50%; color: var(--skribli-ink); background: transparent; cursor: pointer; }
+.inline-attachment-actions :is(button,a):hover { background: rgb(255 255 255 / 55%); }
+.inline-attachment-actions :is(button,a):focus-visible { outline: 2px solid var(--olive); }
+.inline-attachment-actions button[draggable='true'] { cursor: grab; }
+.inline-attachment-actions button[draggable='true']:active { cursor: grabbing; }
+.inline-attachment-actions button:disabled { opacity: .35; cursor: default; }
+.inline-attachment-missing { font: 500 12px var(--skribli-ui-font); }
+.attachment-media-grid:has(.attachment-tray-item) { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); align-items: start; gap: 12px; }
+.attachment-tray-item { min-width: 0; font: 500 11px/1.4 var(--skribli-ui-font); }
+.attachment-tray-thumbnail { display: grid; place-items: center; height: 90px; border-radius: 4px; overflow: hidden; }
+.attachment-tray-thumbnail :is(img,video) { width: 100%; height: 100%; object-fit: contain; }
+.attachment-tray-item > strong { display: block; margin-top: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 11px; }
+.attachment-tray-item .attachment-object-actions { position: static; display: flex; gap: 3px; flex-wrap: wrap; margin-top: 5px; }
+.attachment-tray-item .attachment-object-actions :is(a,button) { min-height: 28px; padding: 4px 7px; font-size: 10px; }
+@media (prefers-reduced-motion: reduce) {
+  .composer-note-menu > button > span, .composer-intent-tray > button > span, .inline-attachment-actions,
+  .inline-attachment-preview { transition: none; }
+}
+@media (forced-colors: active) {
+  .composer-context-tab, .composer-color-popover, .composer-note-menu, .composer-intent-tray { background: Canvas; color: CanvasText; border-color: CanvasText; }
+}

@@ -21,6 +21,20 @@ function deferred() {
   return { promise, resolve };
 }
 
+it('retains inline attachment positions across repository reopening and queued text updates', async () => {
+  const persistence = createMemoryRichContentPersistence();
+  const first = createRichContentRepository(persistence, { createId: () => 'attachment-inline', now: () => 42 });
+  await first.addFiles('inline-note', [new File(['photo'], 'photo.png', { type: 'image/png' })]);
+  const html = '<p>Before <span data-skrib-attachment="attachment-inline" contenteditable="false"></span>after</p>';
+  await first.replaceRichText('inline-note', { html, plainText: 'Before after' });
+  const reopened = createRichContentRepository(persistence);
+  const stored = await reopened.get('inline-note');
+  expect(stored.richText?.html).toBe(html);
+  expect(stored.attachments[0]?.id).toBe('attachment-inline');
+  await reopened.replaceRichText('inline-note', { html: '<p>Before after</p>', plainText: 'Before after' });
+  expect((await reopened.get('inline-note')).attachments).toHaveLength(1);
+});
+
 function createFirstPutGate(initialContent: StoredRichContent[] = []) {
   const memory = createMemoryRichContentPersistence(initialContent);
   const putStarted = deferred();

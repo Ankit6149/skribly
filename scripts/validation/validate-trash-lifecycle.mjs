@@ -151,7 +151,8 @@ for (const testName of [
 
 for (const marker of [
   "type LibraryView = LibraryLifecycleView | 'calendar'",
-  "useState<LibraryView>('notes')",
+  "useState<LibraryView>(request?.view ?? 'notes')",
+  'onViewChange && request ? request.view : localLifecycleView',
   "filterNotesForLifecycle(notes, 'notes')",
   "filterNotesForLifecycle(notes, 'trash')",
   'Notes <span>',

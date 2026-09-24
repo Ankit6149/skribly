@@ -1,6 +1,6 @@
 [package]
 name = "skribly"
-version = "0.1.26"
+version = "0.1.32"
 description = "Local-first contextual annotations for Windows"
 authors = ["Ankit Bhardwaj"]
 edition = "2021"
@@ -24,6 +24,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
+base64 = "0.23"
 
 [dependencies]
 tauri = { version = "2", features = ["tray-icon"] }

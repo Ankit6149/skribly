@@ -259,15 +259,14 @@ fn apply_native_surface(
 }
 
 pub fn restore_standard_window_surface(window: &tauri::WebviewWindow) -> Result<(), String> {
-    let hwnd = window
-        .hwnd()
-        .map_err(|error| format!("Skribli could not restore the window surface: {error}"))?;
-    if unsafe { SetWindowRgn(HWND(hwnd.0 as *mut _), None, true) } == 0 {
-        return Err("Windows could not restore the full window surface.".into());
-    }
-    window
-        .set_shadow(true)
-        .map_err(|error| format!("Skribli could not restore the standard window shadow: {error}"))
+    // `main` remains a transparent paper window even when hidden or showing recovery UI.
+    // Clearing its region and restoring a rectangular Windows shadow here leaves a different
+    // compositor surface behind the next note. Keep one surface policy across hide, recovery,
+    // resize and reopen; the frontend supplies the contained, theme-matched shadow.
+    window.set_shadow(false).map_err(|error| {
+        format!("Skribli could not disable the transparent window shadow: {error}")
+    })?;
+    refresh_note_window_surface(window)
 }
 
 fn lock_note_window_to_manual_resize(window: &tauri::WebviewWindow) -> Result<(), String> {
@@ -884,7 +883,8 @@ fn calculate_detached_note_window_placement(
     dpi: u32,
 ) -> Result<CompactWindowPlacement, String> {
     let scale = normalized_dpi(dpi) as f64 / 96.0;
-    let rail_is_on_right = rail_bounds.x > work_area.x + work_area.width / 2;
+    let rail_is_on_right = i64::from(rail_bounds.x) - i64::from(work_area.x)
+        >= rect_right(work_area) - rect_right(rail_bounds);
     let available_width = if rail_is_on_right {
         i64::from(rail_bounds.x) - i64::from(work_area.x)
     } else {
@@ -895,7 +895,7 @@ fn calculate_detached_note_window_placement(
         - 12.0;
     let mut detached_note = note.clone();
     let desired_width = note.width.clamp(
-        COMPACT_WINDOW_LOGICAL_WIDTH as f64,
+        COMPACT_WINDOW_MIN_LOGICAL_WIDTH as f64,
         WORKSPACE_LOGICAL_WIDTH as f64,
     );
     // Keep the expanded rail reachable, including on a scaled laptop display.
@@ -906,7 +906,7 @@ fn calculate_detached_note_window_placement(
     };
     detached_note.width = width;
     detached_note.height = note.height.clamp(
-        COMPACT_WINDOW_LOGICAL_HEIGHT as f64,
+        COMPACT_WINDOW_MIN_LOGICAL_HEIGHT as f64,
         WORKSPACE_LOGICAL_HEIGHT as f64,
     );
     detached_note.rel_x = if rail_is_on_right {
@@ -918,7 +918,21 @@ fn calculate_detached_note_window_placement(
     calculate_saved_note_window_placement(work_area, rail_bounds, &detached_note, dpi, false)
 }
 
-/// Opens the real note beside the rail without activating or modifying its saved target.
+fn calculate_detached_note_resize_placement(
+    work_area: &WindowRect,
+    current_bounds: &WindowRect,
+    note: &SkribNote,
+    dpi: u32,
+) -> Result<CompactWindowPlacement, String> {
+    // A detached read has its own temporary screen position. Resizing must not
+    // jump back to a rail or rewrite the note's saved application anchor.
+    let mut detached_note = note.clone();
+    detached_note.rel_x = 0.0;
+    detached_note.rel_y = 0.0;
+    calculate_saved_note_window_placement(work_area, current_bounds, &detached_note, dpi, false)
+}
+
+/// Opens beside the invoking rail; later size changes preserve the current note position.
 fn position_detached_note_window_internal(
     window: &tauri::WebviewWindow,
     rail: &tauri::WebviewWindow,
@@ -933,7 +947,11 @@ fn position_detached_note_window_internal(
         .ok_or_else(|| "Skribli could not read the rail position.".to_string())?;
     let work_area = monitor_work_area_for_window(hwnd)?;
     let (dpi, _) = get_window_dpi(hwnd);
-    let placement = calculate_detached_note_window_placement(&work_area, &bounds, note, dpi)?;
+    let placement = if animate {
+        calculate_detached_note_resize_placement(&work_area, &bounds, note, dpi)?
+    } else {
+        calculate_detached_note_window_placement(&work_area, &bounds, note, dpi)?
+    };
     set_note_resize_bounds(window, placement.scale_factor)?;
     let applied = if animate {
         apply_placement_with_transition(window, &placement, NativeNoteSurface::Note)?
@@ -962,10 +980,9 @@ pub fn position_detached_note_window(
 
 pub fn transition_detached_note_window(
     window: &tauri::WebviewWindow,
-    rail: &tauri::WebviewWindow,
     note: &SkribNote,
 ) -> Result<OverlayMetrics, String> {
-    position_detached_note_window_internal(window, rail, note, true)
+    position_detached_note_window_internal(window, window, note, true)
 }
 
 pub fn initialize_compact_window(window: &tauri::WebviewWindow) -> Result<OverlayMetrics, String> {
@@ -979,6 +996,90 @@ pub fn initialize_compact_window(window: &tauri::WebviewWindow) -> Result<Overla
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn detached_fixture(width: f64, height: f64) -> SkribNote {
+        SkribNote {
+            id: "detached-placement".into(),
+            target_process_name: "chrome.exe".into(),
+            target_title: "Fixture".into(),
+            rel_x: 180.0,
+            rel_y: 120.0,
+            width,
+            height,
+            text: String::new(),
+            color: "mint".into(),
+            collapsed: true,
+            created_at: 1,
+            updated_at: 1,
+            archived_at: None,
+            deleted_at: None,
+        }
+    }
+
+    #[test]
+    fn detached_open_preserves_small_saved_dimensions() {
+        let note = detached_fixture(320.0, 260.0);
+        let placement = calculate_detached_note_window_placement(
+            &rect(0, 0, 1920, 1040),
+            &rect(1590, 160, 300, 320),
+            &note,
+            96,
+        )
+        .unwrap();
+        assert_eq!((placement.width, placement.height), (320, 260));
+    }
+
+    #[test]
+    fn detached_open_chooses_the_roomier_side_of_a_central_rail() {
+        let placement = calculate_detached_note_window_placement(
+            &rect(0, 0, 1920, 1040),
+            &rect(850, 160, 300, 320),
+            &detached_fixture(820.0, 600.0),
+            96,
+        )
+        .unwrap();
+        assert!(placement.x + placement.width < 850);
+    }
+
+    #[test]
+    fn detached_resize_stays_at_its_moved_position_across_dpi_and_negative_origins() {
+        for origin in [0, -2560] {
+            for dpi in [96, 120, 144, 192] {
+                let current = rect(origin + 80, 90, 420, 360);
+                let note = detached_fixture(640.0, 660.0);
+                let placement = calculate_detached_note_resize_placement(
+                    &rect(origin, 0, 2560, 1600),
+                    &current,
+                    &note,
+                    dpi,
+                )
+                .unwrap();
+                assert_eq!((placement.x, placement.y), (current.x, current.y));
+                assert_eq!(
+                    (note.rel_x, note.rel_y, note.collapsed),
+                    (180.0, 120.0, true)
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn detached_resize_only_moves_when_needed_to_stay_inside_the_work_area() {
+        let work = rect(-1920, -1080, 1920, 1040);
+        let current = rect(-340, -330, 320, 260);
+        let placement = calculate_detached_note_resize_placement(
+            &work,
+            &current,
+            &detached_fixture(820.0, 760.0),
+            96,
+        )
+        .unwrap();
+        assert!(placement.x < current.x && placement.y < current.y);
+        assert!(rect_is_within_work_area(
+            &rect(placement.x, placement.y, placement.width, placement.height),
+            &work
+        ));
+    }
 
     #[test]
     fn detached_large_notes_leave_the_rail_clear_on_scaled_laptops_and_negative_monitors() {
@@ -1196,6 +1297,52 @@ mod tests {
             ),
             (33, 0, 55, 23)
         );
+    }
+
+    #[test]
+    fn resized_note_regions_follow_the_paper_bounds_at_every_supported_size_and_scale() {
+        for scale in [1.0, 1.25, 1.5, 1.75, 2.0] {
+            for (width, height) in [(320, 260), (420, 360), (640, 600), (820, 760)] {
+                let physical_width = logical_to_physical(width, scale);
+                let physical_height = logical_to_physical(height, scale);
+                let region = calculate_native_surface_region(
+                    physical_width,
+                    physical_height,
+                    scale,
+                    NativeNoteSurface::Note,
+                )
+                .expect("resized note region");
+                assert_eq!(region.primary.left, 0);
+                assert_eq!(region.primary.top, 0);
+                assert_eq!(region.primary.right, physical_width);
+                assert_eq!(region.primary.bottom, physical_height);
+                assert_eq!(region.ellipse_width, logical_to_physical(40, scale));
+                assert_eq!(region.ellipse_height, region.ellipse_width);
+                assert!(!region.circular);
+                assert!(region.badge.is_none());
+            }
+        }
+    }
+
+    #[test]
+    fn surface_recovery_preserves_the_transparent_paper_policy() {
+        // A routing regression check complements the geometry tests: unit tests cannot create
+        // a real WebView HWND or prove DWM rendering without a Windows runtime acceptance run.
+        let implementation = include_str!("windows_placement.rs")
+            .split("mod tests {")
+            .next()
+            .expect("placement implementation");
+        let recovery = implementation
+            .split("pub fn restore_standard_window_surface(")
+            .nth(1)
+            .expect("surface recovery")
+            .split("fn lock_note_window_to_manual_resize(")
+            .next()
+            .expect("surface recovery body");
+        assert!(recovery.contains(".set_shadow(false)"));
+        assert!(recovery.contains("refresh_note_window_surface(window)"));
+        assert!(!recovery.contains("SetWindowRgn"));
+        assert!(!implementation.contains(".set_shadow(true)"));
     }
 
     #[test]

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { emit } from '@tauri-apps/api/event';
-import { ChevronDown, ChevronUp, FileText, Image, Paperclip, Play } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, FileText, Image, Paperclip, Play } from 'lucide-react';
 import {
   addFilesToNote,
   createAttachmentObjectUrl,
@@ -16,11 +16,15 @@ interface NoteAttachmentPanelProps {
   disabled?: boolean;
   compact?: boolean;
   pickerRequest?: number;
+  openDrawerRequest?: number;
   filesRequest?: { id: number; files: File[] } | null;
   onError?: (message: string) => void;
   onBusyChange?: (busy: boolean) => void;
   onCountChange?: (count: number) => void;
   onRequestExpand?: () => Promise<boolean> | boolean;
+  onAttachmentsChange?: (attachments: SkribAttachment[]) => void;
+  onPlaceInline?: (attachments: SkribAttachment[]) => boolean;
+  onRemoved?: (attachmentId: string) => void;
 }
 
 const ACCEPTED_FILES = [
@@ -50,14 +54,19 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
   disabled = false,
   compact = false,
   pickerRequest = 0,
+  openDrawerRequest = 0,
   filesRequest = null,
   onError,
   onBusyChange,
   onCountChange,
   onRequestExpand,
+  onAttachmentsChange,
+  onPlaceInline,
+  onRemoved,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const lastPickerRequestRef = useRef(pickerRequest);
+  const lastOpenDrawerRequestRef = useRef(openDrawerRequest);
   const lastFilesRequestRef = useRef<number | null>(filesRequest?.id ?? null);
   const operationInProgressRef = useRef(false);
   const [attachments, setAttachments] = useState<SkribAttachment[]>([]);
@@ -68,6 +77,8 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
   const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [compactExpanded, setCompactExpanded] = useState(false);
+  const [photoIndex, setPhotoIndex] = useState(0);
+  const [playingVideoId, setPlayingVideoId] = useState<string | null>(null);
   const panelBusy = isAdding || removingId !== null;
 
   const reportError = useCallback((reason: unknown) => {
@@ -126,6 +137,10 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
   }, [attachments.length, onCountChange]);
 
   useEffect(() => {
+    if (!isLoading) onAttachmentsChange?.(attachments);
+  }, [attachments, isLoading, onAttachmentsChange]);
+
+  useEffect(() => {
     if (pickerRequest === lastPickerRequestRef.current) return;
     lastPickerRequestRef.current = pickerRequest;
     if (!disabled && !panelBusy) fileInputRef.current?.click();
@@ -138,9 +153,15 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
     onBusyChange?.(true);
     setError(null);
     try {
-      setAttachments(await addFilesToNote(noteId, Array.from(files)));
-      const canExpand = await onRequestExpand?.();
-      if (canExpand !== false) setCompactExpanded(true);
+      const previous = new Set(attachments.map((item) => item.id));
+      const next = await addFilesToNote(noteId, Array.from(files));
+      setAttachments(next);
+      onAttachmentsChange?.(next);
+      const newItems = next.filter((item) => !previous.has(item.id));
+      if (!onPlaceInline || !onPlaceInline(newItems)) {
+        const canExpand = await onRequestExpand?.();
+        if (canExpand !== false) setCompactExpanded(true);
+      }
       void emit('skribly://rich-content-updated', { noteId }).catch(() => undefined);
     } catch (reason) {
       reportError(reason);
@@ -150,7 +171,7 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
       operationInProgressRef.current = false;
       onBusyChange?.(false);
     }
-  }, [disabled, noteId, onBusyChange, onRequestExpand, reportError]);
+  }, [attachments, disabled, noteId, onBusyChange, onRequestExpand, reportError, onAttachmentsChange, onPlaceInline]);
 
   useEffect(() => {
     if (!filesRequest || filesRequest.id === lastFilesRequestRef.current) return;
@@ -164,12 +185,29 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
 
   const toggleCompactDrawer = async () => {
     if (compactExpanded) {
+      setPlayingVideoId(null);
       setCompactExpanded(false);
       return;
     }
-    const canExpand = await onRequestExpand?.();
-    if (canExpand !== false) setCompactExpanded(true);
+    try {
+      const canExpand = await onRequestExpand?.();
+      if (canExpand !== false) setCompactExpanded(true);
+    } catch (reason) {
+      reportError(reason);
+    }
   };
+
+  useEffect(() => {
+    if (openDrawerRequest === lastOpenDrawerRequestRef.current) return;
+    lastOpenDrawerRequestRef.current = openDrawerRequest;
+    if (attachments.length === 0) return;
+    void (async () => {
+      try {
+        const canExpand = await onRequestExpand?.();
+        if (canExpand !== false) setCompactExpanded(true);
+      } catch (reason) { reportError(reason); }
+    })();
+  }, [attachments.length, onRequestExpand, openDrawerRequest, reportError]);
 
   const remove = async (attachmentId: string) => {
     if (disabled || operationInProgressRef.current) return;
@@ -183,6 +221,7 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
     setError(null);
     try {
       setAttachments(await removeAttachmentFromNote(noteId, attachmentId));
+      onRemoved?.(attachmentId);
       void emit('skribly://rich-content-updated', { noteId }).catch(() => undefined);
       setConfirmRemoveId(null);
     } catch (reason) {
@@ -239,7 +278,7 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
               <span className="attachment-drawer-icon" aria-hidden="true"><Paperclip size={15} /></span>
               <span className="attachment-drawer-copy">
                 <strong>{attachmentTypes}</strong>
-                <small>{compactExpanded ? 'Tuck attachments away' : 'Pull up to see attachments'}</small>
+                <small>{compactExpanded ? 'Hide the collection' : 'View all attachments'}</small>
               </span>
               {compactExpanded
                 ? <ChevronDown size={17} aria-hidden="true" />
@@ -251,16 +290,39 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
               hidden={!compactExpanded}
             >
               <div className="attachment-media-grid">
+            {onPlaceInline ? attachments.map((attachment) => (
+              <article key={attachment.id} className="attachment-tray-item">
+                <div className="attachment-tray-thumbnail">
+                  {(attachment.kind === 'image' || attachment.kind === 'ink') && urls[attachment.id]
+                    ? <img src={urls[attachment.id]} alt={attachment.name} />
+                    : attachment.kind === 'video' && urls[attachment.id]
+                      ? <video src={urls[attachment.id]} controls preload="metadata" aria-label={attachment.name} />
+                      : <FileText size={28} aria-hidden="true" />}
+                </div>
+                <strong title={attachment.name}>{attachment.name}</strong>
+                <div className="attachment-object-actions">
+                  <button type="button" disabled={disabled || panelBusy} onClick={() => {
+                    if (!onPlaceInline([attachment])) reportError('Could not place this file in the note. Select a writing position and try again.');
+                  }} title="Place at your writing cursor">Place in note</button>
+                  {urls[attachment.id] && <a href={urls[attachment.id]} download={attachment.name} aria-label={`Save a copy of ${attachment.name}`}>Save copy</a>}
+                  <button type="button" disabled={disabled || panelBusy}
+                    aria-label={`${confirmRemoveId === attachment.id ? 'Confirm removing' : 'Remove'} ${attachment.name}`}
+                    onClick={() => void remove(attachment.id)}>{confirmRemoveId === attachment.id ? 'Remove?' : 'Remove'}</button>
+                </div>
+              </article>
+            )) : <>
             {compactImages.length > 0 && (() => {
-              const lead = compactImages[0]!;
+              const selectedIndex = Math.min(photoIndex, compactImages.length - 1);
+              const lead = compactImages[selectedIndex]!;
               const leadUrl = urls[lead.id];
+              const visiblePhotos = [lead, ...compactImages.filter((photo) => photo.id !== lead.id)].slice(0, 3);
               return (
                 <article className="attachment-media-object attachment-photo-object" tabIndex={0}>
-                  <span className="attachment-object-label">
-                    {compactImages.length} {compactImages.length === 1 ? 'PHOTO' : 'PHOTOS'}
+                  <span className="attachment-object-label" aria-live="polite">
+                    {compactImages.length > 1 ? `PHOTO ${selectedIndex + 1} OF ${compactImages.length}` : '1 PHOTO'}
                   </span>
                   <div className="attachment-photo-stack" aria-label={`${compactImages.length} attached photos`}>
-                    {compactImages.slice(0, 3).map((attachment, index) => {
+                    {visiblePhotos.map((attachment, index) => {
                       const url = urls[attachment.id];
                       return (
                         <span key={attachment.id} className={`attachment-polaroid photo-${index + 1}`}>
@@ -270,11 +332,24 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
                     })}
                   </div>
                   <div className="attachment-object-actions">
-                    {leadUrl && <a href={leadUrl} download={lead.name}>Open</a>}
+                    {compactImages.length > 1 && <>
+                      <button type="button" aria-label="Previous photo" title="Previous photo"
+                        disabled={panelBusy}
+                        onClick={() => { setPhotoIndex((selectedIndex + compactImages.length - 1) % compactImages.length); setConfirmRemoveId(null); }}>
+                        <ChevronLeft size={14} aria-hidden="true" />
+                      </button>
+                      <button type="button" aria-label="Next photo" title="Next photo"
+                        disabled={panelBusy}
+                        onClick={() => { setPhotoIndex((selectedIndex + 1) % compactImages.length); setConfirmRemoveId(null); }}>
+                        <ChevronRight size={14} aria-hidden="true" />
+                      </button>
+                    </>}
+                    {leadUrl && <a href={leadUrl} download={lead.name} aria-label={`Save a copy of ${lead.name}`}>Save copy</a>}
                     <button
                       type="button"
                       className={confirmRemoveId === lead.id ? 'confirm' : ''}
                       disabled={disabled || panelBusy}
+                      aria-label={`${confirmRemoveId === lead.id ? 'Confirm removing' : 'Remove'} ${lead.name}`}
                       onClick={() => void remove(lead.id)}
                     >
                       {removingId === lead.id ? 'Removing…' : confirmRemoveId === lead.id ? 'Remove?' : 'Remove'}
@@ -293,9 +368,19 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
                   tabIndex={0}
                 >
                   {attachment.kind === 'video' ? (
-                    <span className="attachment-video-art">
-                      {url && <video src={url} muted preload="metadata" aria-label={attachment.name} />}
-                      <Play size={20} fill="currentColor" aria-hidden="true" />
+                    <span className={`attachment-video-art ${playingVideoId === attachment.id ? 'is-playing' : ''}`}>
+                      {url && <video key={`${attachment.id}-${playingVideoId === attachment.id}`} src={url}
+                        controls={playingVideoId === attachment.id}
+                        autoPlay={playingVideoId === attachment.id}
+                        muted={playingVideoId !== attachment.id}
+                        preload="metadata" aria-label={attachment.name} />}
+                      {url && playingVideoId !== attachment.id && (
+                        <button type="button" className="attachment-video-play"
+                          aria-label={`Play ${attachment.name}`}
+                          onClick={() => setPlayingVideoId(attachment.id)}>
+                          <Play size={20} fill="currentColor" aria-hidden="true" />
+                        </button>
+                      )}
                     </span>
                   ) : (
                     <span className="attachment-document-paper" aria-hidden="true">
@@ -306,11 +391,12 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
                   <strong title={attachment.name}>{attachment.name}</strong>
                   <em>{typeLabel} · {formatAttachmentSize(attachment.size)}</em>
                   <div className="attachment-object-actions">
-                    {url && <a href={url} download={attachment.name}>{attachment.kind === 'video' ? 'Play' : 'Open'}</a>}
+                    {url && <a href={url} download={attachment.name} aria-label={`Save a copy of ${attachment.name}`}>Save copy</a>}
                     <button
                       type="button"
                       className={confirmRemoveId === attachment.id ? 'confirm' : ''}
                       disabled={disabled || panelBusy}
+                      aria-label={`${confirmRemoveId === attachment.id ? 'Confirm removing' : 'Remove'} ${attachment.name}`}
                       onClick={() => void remove(attachment.id)}
                     >
                       {removingId === attachment.id
@@ -321,6 +407,7 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
                 </article>
               );
             })}
+            </>}
               </div>
           </div>
           </>
@@ -392,7 +479,7 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
                 <div className="note-attachment-actions">
                   {url && (
                     <a href={url} download={attachment.name}>
-                      Open copy
+                      Save copy
                     </a>
                   )}
                   <button

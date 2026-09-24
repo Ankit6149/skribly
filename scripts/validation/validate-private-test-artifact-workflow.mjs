@@ -15,6 +15,9 @@ const tauriConfigPath = path.join(repositoryRoot, 'apps/desktop/src-tauri/tauri.
 const tauriConfig = JSON.parse(await readFile(tauriConfigPath, 'utf8'));
 const rootPackage = JSON.parse(await readFile(path.join(repositoryRoot, 'package.json'), 'utf8'));
 const cargoToml = await readFile(path.join(repositoryRoot, 'apps/desktop/src-tauri/Cargo.toml'), 'utf8');
+const nativeBuild = await readFile(path.join(repositoryRoot, 'apps/desktop/src-tauri/build.rs'), 'utf8');
+const localOwnerBuild = await readFile(path.join(repositoryRoot, 'scripts/windows/build-owner-installer.ps1'), 'utf8');
+const ownerPublicKey = (await readFile(path.join(repositoryRoot, 'scripts/license/owner-alpha-public-key.txt'), 'utf8')).trim();
 const tray = await readFile(
   path.join(repositoryRoot, 'apps/desktop/src-tauri/src/desktop/tray.rs'),
   'utf8',
@@ -59,6 +62,10 @@ for (const marker of [
   'BUILD_PRIVATE_TEST_ARTIFACT',
   "runs-on: windows-latest",
   'id: candidate',
+  'name: Configure owner entitlement and app version',
+  'scripts/license/owner-alpha-public-key.txt',
+  '"SKRIBLY_LICENSE_PUBLIC_KEY=$key" >> $env:GITHUB_ENV',
+  '"VITE_SKRIBLY_APP_VERSION=$version" >> $env:GITHUB_ENV',
   '$resolvedSha = (git rev-parse HEAD).Trim().ToLowerInvariant()',
   '"sha=$resolvedSha" >> $env:GITHUB_OUTPUT',
   "node-version: '22.23.1'",
@@ -83,6 +90,28 @@ for (const marker of [
 
 if (workflow.includes("commit_sha = '${{ github.sha }}'")) {
   failures.push('The artifact manifest must use the resolved checked-out SHA, not github.sha.');
+}
+if (!/^[A-Za-z0-9_-]{43}$/.test(ownerPublicKey)) {
+  failures.push('The public owner entitlement key must be a 32-byte unpadded base64url value.');
+}
+if (workflow.includes('VITE_SKRIBLY_APP_VERSION:')) {
+  failures.push('The private workflow must derive its app version from the checked-out Tauri config.');
+}
+for (const marker of [
+  'cargo:rerun-if-env-changed=SKRIBLY_LICENSE_PUBLIC_KEY',
+  'Trial-enforced builds require SKRIBLY_LICENSE_PUBLIC_KEY',
+  'decoded.len()',
+]) {
+  if (!nativeBuild.includes(marker)) failures.push(`Native entitlement build gate is missing: ${marker}`);
+}
+for (const marker of [
+  'scripts/license/owner-alpha-public-key.txt',
+  "$env:SKRIBLY_TRIAL_ENFORCED = '1'",
+  '$env:SKRIBLY_LICENSE_PUBLIC_KEY = $publicKey',
+  '$env:VITE_SKRIBLY_APP_VERSION = $version',
+  'npm run tauri -- build --bundles nsis',
+]) {
+  if (!localOwnerBuild.includes(marker)) failures.push(`Local owner build is missing: ${marker}`);
 }
 
 if (rootPackage.scripts?.tauri !== 'npm --workspace @skribly/desktop run tauri --') {

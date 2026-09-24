@@ -35,6 +35,21 @@ export function countInkPoints(strokes: InkStroke[]): number {
   return strokes.reduce((total, stroke) => total + stroke.points.length, 0);
 }
 
+/** Move the whole stroke, preserving its shape when it reaches a paper edge. */
+export function translateInkPoints(points: InkPoint[], deltaX: number, deltaY: number): InkPoint[] {
+  if (points.length === 0) return [];
+  let minX = 1, maxX = 0, minY = 1, maxY = 0;
+  for (const point of points) {
+    minX = Math.min(minX, point.x);
+    maxX = Math.max(maxX, point.x);
+    minY = Math.min(minY, point.y);
+    maxY = Math.max(maxY, point.y);
+  }
+  const x = Math.max(-minX, Math.min(1 - maxX, deltaX));
+  const y = Math.max(-minY, Math.min(1 - maxY, deltaY));
+  return points.map((point) => ({ ...point, x: point.x + x, y: point.y + y }));
+}
+
 function distanceToSegment(
   x: number,
   y: number,

@@ -15,6 +15,7 @@ const styles = await read('apps/desktop/src/styles/note-experience.css');
 const globalStyles = await read('apps/desktop/src/styles/global.css');
 const websiteTheme = await read('apps/desktop/src/styles/website-theme.css');
 const composer = await read('apps/desktop/src/features/skribs/SkribComposer.tsx');
+const toolGeometry = await read('apps/desktop/src/features/skribs/toolSurfaceGeometry.ts');
 const attachments = await read(
   'apps/desktop/src/features/skribs/NoteAttachmentPanel.tsx'
 );
@@ -82,7 +83,7 @@ for (const marker of [
 
 for (const [source, marker] of [
   [composer, 'data-overlay-surface="composer"'],
-  [composer, 'className="composer-drag-grip" data-tauri-drag-region'],
+  [composer, 'className="composer-paper-top" data-tauri-drag-region'],
   [composer, "startResizeDragging(direction)"],
   [composer, 'className={`composer-resize-handle ${direction.toLowerCase()}`}'],
   [composer, 'className="skrib-composer-backdrop"'],
@@ -177,9 +178,9 @@ if (
   !railWindow ||
   railWindow.resizable !== false ||
   railWindow.maximizable !== false ||
-  railWindow.width !== 36 ||
-  railWindow.height !== 128 ||
-  railWindow.minWidth !== 36 ||
+  railWindow.width !== 28 ||
+  railWindow.height !== 80 ||
+  railWindow.minWidth !== 28 ||
   railWindow.minHeight !== 50 ||
   railWindow.maxWidth !== 364 ||
   railWindow.maxHeight !== 430
@@ -191,20 +192,20 @@ if (
   !contextRailWindow ||
   contextRailWindow.resizable !== false ||
   contextRailWindow.maximizable !== false ||
-  contextRailWindow.width !== 164 ||
-  contextRailWindow.height !== 50 ||
-  contextRailWindow.minWidth !== 164 ||
-  contextRailWindow.minHeight !== 50 ||
-  contextRailWindow.maxWidth !== 364 ||
-  contextRailWindow.maxHeight !== 430
+  contextRailWindow.width !== 28 ||
+  contextRailWindow.height !== 28 ||
+  contextRailWindow.minWidth !== 28 ||
+  contextRailWindow.minHeight !== 28 ||
+  contextRailWindow.maxWidth !== 460 ||
+  contextRailWindow.maxHeight !== 250
 ) {
   failures.push('The in-app Skribs bar must use its own fixed, snap-proof native window.');
 }
 
 for (const marker of [
-  'className="context-rail collapsed global-widget"',
+  'context-rail collapsed global-widget dock-${dockSide}',
   'className="context-rail-global-widget"',
-  'className="context-rail collapsed context-widget"',
+  'className="context-presence"',
   'strip-yellow',
   'strip-peach',
   'strip-lavender',
@@ -261,8 +262,12 @@ if (!desktopCapabilities.permissions?.includes('core:window:allow-start-resize-d
   failures.push('Desktop capabilities must allow the note corner handles to start native resizing.');
 }
 
-if (!composer.includes("surfaceSize === 'compact'") || !composer.includes("changeSurfaceSize('medium', true)")) {
-  failures.push('Opening Calendar from a compact note must use the medium note surface.');
+if (!composer.includes('roomForNoteTool(current, tool)') ||
+    !composer.includes('sizeAfterToolClose(temporaryToolSurface.current, current)') ||
+    !composer.includes("invoke('set_skrib_window_dimensions'") ||
+    !toolGeometry.includes('Math.max(current.width, 640)') ||
+    !toolGeometry.includes("tool === 'reminder' ? 660 : 600")) {
+  failures.push('Calendar must borrow readable medium-width room and restore valid unchanged manual dimensions.');
 }
 
 if (composer.includes('className="composer-tool-button primary-tool"')) {

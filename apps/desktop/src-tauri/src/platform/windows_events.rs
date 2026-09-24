@@ -59,6 +59,7 @@ struct WinEventPipelineInner {
     sender: SyncSender<WinEventNotice>,
     capacity: usize,
     active_target_hwnd: AtomicIsize,
+    context_target_hwnd: AtomicIsize,
     pending: Mutex<HashSet<WinEventKey>>,
     received: AtomicU64,
     filtered: AtomicU64,
@@ -111,6 +112,7 @@ impl WinEventPipeline {
                 sender,
                 capacity,
                 active_target_hwnd: AtomicIsize::new(0),
+                context_target_hwnd: AtomicIsize::new(0),
                 pending: Mutex::new(HashSet::with_capacity(capacity)),
                 received: AtomicU64::new(0),
                 filtered: AtomicU64::new(0),
@@ -127,6 +129,12 @@ impl WinEventPipeline {
     pub fn set_active_target(&self, hwnd_val: Option<isize>) {
         self.inner
             .active_target_hwnd
+            .store(hwnd_val.unwrap_or(0), Ordering::Release);
+    }
+
+    pub fn set_context_target(&self, hwnd_val: Option<isize>) {
+        self.inner
+            .context_target_hwnd
             .store(hwnd_val.unwrap_or(0), Ordering::Release);
     }
 
@@ -161,13 +169,23 @@ impl WinEventPipeline {
         self.inner.received.fetch_add(1, Ordering::Relaxed);
 
         let active_target_hwnd = self.inner.active_target_hwnd.load(Ordering::Acquire);
-        let Some(class) = classify_event(
+        let class = classify_event(
             event_type,
             hwnd_val,
             id_object,
             id_child,
             active_target_hwnd,
-        ) else {
+        )
+        .or_else(|| {
+            classify_event(
+                event_type,
+                hwnd_val,
+                id_object,
+                id_child,
+                self.inner.context_target_hwnd.load(Ordering::Acquire),
+            )
+        });
+        let Some(class) = class else {
             self.inner.filtered.fetch_add(1, Ordering::Relaxed);
             return;
         };
@@ -271,6 +289,22 @@ mod tests {
         assert_eq!(metrics.filtered, 3);
         assert_eq!(metrics.forwarded, 0);
         assert_eq!(metrics.pending, 0);
+    }
+
+    #[test]
+    fn context_presence_events_survive_a_detached_editor_without_forwarding_unrelated_moves() {
+        let (pipeline, receiver) = WinEventPipeline::new(8);
+        pipeline.set_active_target(None);
+        pipeline.set_context_target(Some(200));
+        pipeline.deliver_raw(EVENT_OBJECT_LOCATIONCHANGE, 200, 0, 0);
+        pipeline.deliver_raw(EVENT_OBJECT_LOCATIONCHANGE, 300, 0, 0);
+        let mut notice = receiver.try_recv().expect("independent context movement");
+        notice.mark_processing_started();
+        assert_eq!(notice.hwnd_val, 200);
+        assert!(receiver.try_recv().is_err());
+        pipeline.set_context_target(None);
+        pipeline.deliver_raw(EVENT_OBJECT_LOCATIONCHANGE, 200, 0, 0);
+        assert!(receiver.try_recv().is_err());
     }
 
     #[test]
