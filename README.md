@@ -13,7 +13,7 @@ A verified account is mandatory for write access in enforced builds. The account
 
 ## Current Windows build contract
 
-The current [v0.1.37 owner candidate](docs/04-operations/OWNER_CANDIDATE_V0.1.37.md) refines the Living Paper chip and note curves and balances both icon rails. It includes [v0.1.36 direct attachment removal](docs/04-operations/OWNER_CANDIDATE_V0.1.36.md), the note-edge correction, and the v0.1.31 sign-in packaging correction. Owner sign-in and native Windows visual acceptance remain open.
+The current [v0.1.38 owner candidate](docs/04-operations/OWNER_CANDIDATE_V0.1.38.md) places the context pill halfway across the paper edge with an opaque, note-coloured backing to avoid the former white gutter, removes the drag tooltip, and reduces the in-app presence dot while preserving its click target. It includes the [v0.1.37 curve and icon-rail pass](docs/04-operations/OWNER_CANDIDATE_V0.1.37.md), direct attachment removal, and the v0.1.31 sign-in packaging correction. Owner sign-in and native Windows visual acceptance remain open.
 
 The unreleased [17 September refinement foundation](docs/04-operations/REFINEMENT_FOUNDATION_2026-09-17.md) records the smaller horizontal-band widget, native rail-state synchronization, note-surface correction and temporary reminder sizing, together with the remaining Windows acceptance gaps.
 

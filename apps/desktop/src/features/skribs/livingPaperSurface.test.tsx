@@ -12,6 +12,12 @@ const note: SkribNote = {
 };
 
 describe('Living Paper note structure', () => {
+  it('uses the selected paper colour for the exposed chip edge', () => {
+    const html = renderToStaticMarkup(<SkribComposer note={{ ...note, color: 'rose' }} target={null} openAction="reopened" />);
+    expect(html).toContain('class="skrib-composer-backdrop skrib-color-rose"');
+    expect(html).toContain('class="skrib-composer skrib-color-rose"');
+  });
+
   it('keeps the paper quiet until tools are requested', () => {
     const html = renderToStaticMarkup(<SkribComposer note={note} target={null} openAction="reopened" />);
     expect(html).toContain('GitHub · Issue #203');

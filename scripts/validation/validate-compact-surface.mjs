@@ -12,6 +12,7 @@ async function read(relativePath) {
 }
 
 const styles = await read('apps/desktop/src/styles/note-experience.css');
+const paperStyles = await read('apps/desktop/src/styles/living-paper-polish.css');
 const globalStyles = await read('apps/desktop/src/styles/global.css');
 const websiteTheme = await read('apps/desktop/src/styles/website-theme.css');
 const composer = await read('apps/desktop/src/features/skribs/SkribComposer.tsx');
@@ -86,7 +87,10 @@ for (const [source, marker] of [
   [composer, 'className="composer-paper-top" data-tauri-drag-region'],
   [composer, "startResizeDragging(direction)"],
   [composer, 'className={`composer-resize-handle ${direction.toLowerCase()}`}'],
-  [composer, 'className="skrib-composer-backdrop"'],
+  [composer, 'className={`skrib-composer-backdrop skrib-color-${note.color}`}'],
+  [paperStyles, 'padding-left: 14px;'],
+  [paperStyles, 'var(--skribli-paper) 0 34px, transparent 34px'],
+  [paperStyles, 'left: -14px; width: 30px'],
   [attachments, 'className="attachment-photo-stack"'],
   [attachments, 'className="attachment-drawer-handle"'],
   [attachments, 'className="attachment-drawer-content"'],

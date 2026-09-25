@@ -80,7 +80,7 @@ html[data-skribly-window='context-rail'] #root,
   gap: 8px;
   width: 28px;
   height: 28px;
-  padding: 0 3px;
+  padding: 0 8px;
   box-sizing: border-box;
   overflow: hidden;
   color: var(--ink);
@@ -92,9 +92,9 @@ html[data-skribly-window='context-rail'] #root,
   transition: width 170ms ease, background-color 170ms ease, border-color 170ms ease;
 }
 .context-presence-dot {
-  width: 14px;
-  height: 14px;
-  flex: 0 0 14px;
+  width: 10px;
+  height: 10px;
+  flex: 0 0 10px;
   border-radius: 50%;
   background: linear-gradient(180deg, var(--yellow) 0%, var(--peach) 52%, var(--lavender) 100%);
   border: 1px solid color-mix(in srgb, var(--ink) 16%, transparent);

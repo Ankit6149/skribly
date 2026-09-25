@@ -1003,7 +1003,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
   const menuVisible = noteMenuOpen;
 
   return (
-    <div className="skrib-composer-backdrop" data-overlay-surface="composer">
+    <div className={`skrib-composer-backdrop skrib-color-${note.color}`} data-overlay-surface="composer">
       <section
         ref={paperRef}
         className={`skrib-composer skrib-color-${note.color}`}
@@ -1017,7 +1017,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
             : 'View contextual note'
         }
       >
-        <header className="composer-paper-top" data-tauri-drag-region title="Drag the paper margin to move this Skrib">
+        <header className="composer-paper-top" data-tauri-drag-region>
           <div className="composer-context-tab" data-tauri-drag-region tabIndex={0}
             aria-label={`Place: ${contextLabel}`}
             aria-describedby="composer-place-detail"

@@ -206,8 +206,13 @@
   .composer-context-tab, .composer-color-popover, .composer-note-menu, .composer-intent-tray { background: Canvas; color: CanvasText; border-color: CanvasText; }
 }
 
-/* Keep the paper flush with the native window: a transparent side gutter can flash white when WebView redraws. */
-.skrib-composer-backdrop { padding-left: 0; }
+/* The chip straddles the paper edge inside the HWND. Fill the exposed strip with the note's
+   opaque paper colour so WebView redraws never reveal a transparent white gutter. */
+.skrib-composer-backdrop {
+  padding-left: 14px;
+  border-radius: 20px 0 0 20px;
+  background: linear-gradient(to right, var(--skribli-paper) 0 34px, transparent 34px);
+}
 .skrib-composer {
   overflow: visible;
   border-radius: 18px 18px 34px 18px;
@@ -388,7 +393,7 @@
 .composer-unified-workspace { border-radius: 0 0 37px 19px; }
 .composer-resize-handle.southeast::after { border-radius: 0 0 20px 0; }
 .composer-context-tab {
-  top: 18px; left: 3px; width: 30px; max-width: 30px;
+  top: 20px; left: -14px; width: 30px; max-width: 30px;
   padding: 10px 6px;
   border: 1px solid rgb(38 41 35 / 16%);
   border-radius: 999px;
