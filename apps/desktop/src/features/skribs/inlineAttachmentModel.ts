@@ -27,7 +27,7 @@ export function editorPlainText(editor: HTMLElement): string {
     if (!(node instanceof HTMLElement) || node.hasAttribute(ATTACHMENT_ATTRIBUTE) || node.tagName === 'INPUT') return '';
     if (node.tagName === 'BR') return '\n';
     const text = Array.from(node.childNodes).map(read).join('');
-    return ['DIV', 'P', 'LI'].includes(node.tagName) && !text.endsWith('\n') ? `${text}\n` : text;
+    return ['DIV', 'P', 'H2', 'LI'].includes(node.tagName) && !text.endsWith('\n') ? `${text}\n` : text;
   };
   return Array.from(editor.childNodes).map(read).join('').replaceAll('\u00a0', ' ').replace(/\n$/, '');
 }

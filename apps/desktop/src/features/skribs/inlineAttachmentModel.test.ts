@@ -31,6 +31,12 @@ describe('inline attachment references', () => {
     editor.innerHTML = '<div>First <strong>thought</strong></div><div><br></div><ul><li><input type="checkbox">Task</li><li>Next</li></ul>';
     expect(editorPlainText(editor)).toBe('First thought\n\nTask\nNext');
   });
+  it('preserves a heading and its line break through rich text storage', () => {
+    const editor = document.createElement('div');
+    editor.innerHTML = '<h2>Release note</h2><p>The thought follows.</p>';
+    expect(sanitizeRichTextHtml(editor.innerHTML)).toBe(editor.innerHTML);
+    expect(editorPlainText(editor)).toBe('Release note\nThe thought follows.');
+  });
   it('moves a reference between paragraphs without moving or removing typed text', () => {
     const editor = document.createElement('div');
     editor.innerHTML = '<p>First</p><p>Second</p>';

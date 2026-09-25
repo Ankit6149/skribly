@@ -38,23 +38,24 @@ describe('note icon ribbons', () => {
     await click('Add or mark this Skrib');
     expect(container.querySelector('.composer-intent-tray')).toBeNull();
   });
-  it('reveals the colour sub-rail by hover and allows keyboard dismissal one layer at a time', async () => {
-    await click('More Skrib options');
+  it('reveals the paper palette on click and dismisses it one layer at a time', async () => {
+    await click('More note actions');
     expect(container.querySelector('[aria-label="Undo last edit"]')).not.toBeNull();
     expect(container.querySelector('[aria-label="Redo last edit"]')).not.toBeNull();
     const palette = container.querySelector('[aria-label="Paper colour"]')!;
-    await act(async () => palette.dispatchEvent(new MouseEvent('pointerover', { bubbles: true })));
+    await act(async () => (palette as HTMLButtonElement).click());
     expect(container.querySelectorAll('.composer-color-popover button')).toHaveLength(8);
     await act(async () => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })));
     expect(container.querySelector('.composer-color-popover')).toBeNull();
     expect(container.querySelector('.composer-note-menu')).not.toBeNull();
     expect(document.activeElement).toBe(palette);
     await act(async () => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })));
-    expect(container.querySelector('.composer-note-menu')).toBeNull();
-    expect(document.activeElement?.getAttribute('aria-label')).toBe('More Skrib options');
+    expect(container.querySelector('[aria-label="Undo last edit"]')).toBeNull();
+    expect(container.querySelector('.composer-note-menu')).not.toBeNull();
+    expect(document.activeElement?.getAttribute('aria-label')).toBe('More note actions');
   });
   it('keeps only one primary ribbon open and dismisses it when writing resumes', async () => {
-    await click('More Skrib options');
+    await click('More note actions');
     await click('Add or mark this Skrib');
     expect(container.querySelector('.composer-note-menu')).toBeNull();
     expect(container.querySelector('.composer-intent-tray')).not.toBeNull();

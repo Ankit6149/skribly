@@ -15,9 +15,51 @@ beforeEach(() => {
   container = document.createElement('div'); document.body.append(container);
   root = createRoot(container);
 });
-afterEach(async () => { await act(async () => root.unmount()); container.remove(); vi.restoreAllMocks(); });
+afterEach(async () => { await act(async () => root.unmount()); container.remove(); Reflect.deleteProperty(document, 'execCommand'); vi.restoreAllMocks(); });
 
 describe('inline attachment editing', () => {
+  it('opens the inline file picker from the caret rail and slash shortcut', async () => {
+    const onRequestAttachment = vi.fn();
+    await act(async () => root.render(<RichTextEditor noteId="n" initialHtml="<p>Thought</p>"
+      disabled={false} drawingEnabled={false} describedBy="status" onChange={() => true}
+      onBlur={() => undefined} onPasteFiles={() => undefined} onRequestAttachment={onRequestAttachment} />));
+    const editor = container.querySelector('[role="textbox"]') as HTMLDivElement;
+    await act(async () => (container.querySelector('[aria-label="Attach a file at the cursor"]') as HTMLButtonElement).click());
+    expect(onRequestAttachment).toHaveBeenCalledTimes(1);
+    await act(async () => editor.dispatchEvent(new KeyboardEvent('keydown', {
+      key: '/', ctrlKey: true, bubbles: true, cancelable: true,
+    })));
+    expect(container.querySelector('[aria-label="Insert in note"]')).not.toBeNull();
+    await act(async () => editor.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'a', bubbles: true, cancelable: true,
+    })));
+    expect(onRequestAttachment).toHaveBeenCalledTimes(2);
+    expect(container.querySelector('[aria-label="Insert in note"]')).toBeNull();
+    expect(editor.textContent).toBe('Thought');
+  });
+
+  it('removes checklist controls at the current item without deleting its text', async () => {
+    const ref = createRef<RichTextEditorHandle>();
+    const onChange = vi.fn(() => true);
+    const execCommand = vi.fn(() => true);
+    Object.defineProperty(document, 'execCommand', { value: execCommand, configurable: true });
+    await act(async () => root.render(<RichTextEditor ref={ref} noteId="n"
+      initialHtml='<ul data-checklist="true"><li><input type="checkbox"> Keep this task</li></ul>'
+      disabled={false} drawingEnabled={false} describedBy="status" onChange={onChange}
+      onBlur={() => undefined} onPasteFiles={() => undefined} />));
+    const editor = container.querySelector('[role="textbox"]') as HTMLDivElement;
+    const taskText = editor.querySelector('li')!.lastChild!;
+    const range = document.createRange(); range.setStart(taskText, 4); range.collapse(true);
+    window.getSelection()!.removeAllRanges(); window.getSelection()!.addRange(range);
+    await act(async () => editor.dispatchEvent(new MouseEvent('mouseup', { bubbles: true })));
+    await act(async () => ref.current!.insertChecklist());
+    expect(editor.textContent).toContain('Keep this task');
+    expect(editor.querySelector('input[type="checkbox"]')).toBeNull();
+    expect(editor.querySelector('[data-checklist]')).toBeNull();
+    expect(execCommand).toHaveBeenCalledWith('insertUnorderedList');
+    expect(onChange).toHaveBeenCalled();
+  });
+
   it('keeps an undo and redo trail for inline objects and keyboard editing', async () => {
     const ref = createRef<RichTextEditorHandle>();
     const onChange = vi.fn(() => true);

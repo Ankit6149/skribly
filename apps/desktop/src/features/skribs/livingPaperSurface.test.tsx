@@ -17,7 +17,8 @@ describe('Living Paper note structure', () => {
     expect(html).toContain('GitHub · Issue #203');
     expect(html).toContain('Place: GitHub · Issue #203');
     expect(html).toContain('>Chrome</strong>');
-    expect(html).toContain('aria-label="More Skrib options"');
+    expect(html).toContain('aria-label="More note actions"');
+    expect(html).toContain('id="composer-place-detail"');
     expect(html).toContain('aria-controls="composer-add-options"');
     expect(html).not.toContain('class="composer-format-bar"');
     expect(html).not.toContain('class="composer-note-menu"');

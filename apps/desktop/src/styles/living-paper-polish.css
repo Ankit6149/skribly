@@ -205,3 +205,175 @@
 @media (forced-colors: active) {
   .composer-context-tab, .composer-color-popover, .composer-note-menu, .composer-intent-tray { background: Canvas; color: CanvasText; border-color: CanvasText; }
 }
+
+/* Note-only refinement: the tab is attached to the outer paper edge and actions form rails. */
+.skrib-composer-backdrop { padding-left: 8px; }
+.skrib-composer {
+  overflow: visible;
+  border-radius: 18px 18px 34px 18px;
+  background: var(--skribli-paper);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 32%), 0 12px 28px rgb(38 41 35 / 11%);
+}
+.composer-paper-top { border-radius: 18px 18px 0 0; }
+.composer-unified-workspace { overflow: hidden; border-radius: 0 0 33px 17px; }
+.composer-context-tab {
+  top: 20px; left: -8px; width: 32px; max-width: 32px; min-height: 0;
+  padding: 10px 8px; border: 1px solid rgb(38 41 35 / 14%); border-right: 0;
+  border-radius: 0 8px 8px 0;
+  background: var(--context-tag-color, var(--sky));
+  box-shadow: -2px 3px 8px rgb(38 41 35 / 9%);
+  transition: background-color 180ms ease, box-shadow 180ms ease;
+}
+.composer-context-tab:hover { box-shadow: -3px 4px 10px rgb(38 41 35 / 14%); }
+.composer-context-tab:focus-visible { outline: 2px solid var(--olive); outline-offset: 2px; }
+.composer-context-tab strong { max-height: 88px; font-size: 10px; }
+.composer-place-detail {
+  position: absolute; top: 22px; left: 29px; z-index: 35;
+  width: min(210px, calc(100% - 98px)); display: grid; gap: 2px;
+  padding: 9px 11px; border: 1px solid rgb(38 41 35 / 12%); border-radius: 10px;
+  background: var(--paper); box-shadow: 0 9px 22px rgb(38 41 35 / 13%);
+  color: var(--skribli-ink); opacity: 0; visibility: hidden; pointer-events: none;
+  transform: translateX(-5px); transition: opacity 150ms ease, transform 150ms ease, visibility 150ms ease;
+}
+.composer-place-detail small { color: var(--skribli-muted); font: 700 9px/1.2 var(--skribli-ui-font); text-transform: uppercase; letter-spacing: .07em; }
+.composer-place-detail strong { font: 700 12px/1.3 var(--skribli-ui-font); }
+.composer-place-detail span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--skribli-muted); font: 500 11px/1.3 var(--skribli-ui-font); }
+.composer-context-tab:is(:hover,:focus-visible) + .composer-place-detail {
+  opacity: 1; visibility: visible; transform: translateX(0);
+}
+.composer-side-tools {
+  position: absolute; top: 12px; right: 12px; bottom: 47px; z-index: 42;
+  width: 42px;
+}
+.composer-side-tools .composer-more {
+  position: absolute; top: 0; right: 3px; width: 34px; height: 34px;
+  opacity: .46; pointer-events: auto;
+}
+.composer-side-tools:is(:hover,:focus-within) .composer-more,
+.composer-side-tools[data-pinned='true'] .composer-more { opacity: 1; }
+.composer-note-menu {
+  position: absolute; top: 42px; right: 1px; left: auto;
+  width: 40px; max-width: 40px; max-height: none; overflow: visible;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 5px 3px; border: 0; border-left: 1px solid rgb(38 41 35 / 12%);
+  border-radius: 20px; background: color-mix(in srgb, var(--paper) 88%, transparent);
+  box-shadow: 0 6px 18px rgb(38 41 35 / 8%);
+  animation: composer-side-rail-in 180ms cubic-bezier(.2,.8,.2,1) both;
+}
+.composer-note-menu > button {
+  position: relative; width: 32px; height: 32px; min-height: 32px;
+  display: grid; place-items: center; flex: 0 0 32px; gap: 0;
+  padding: 0; border-radius: 50%; overflow: visible;
+  background: transparent; color: var(--skribli-ink);
+}
+.composer-note-menu > button:is(:hover,:focus-visible),
+.composer-note-menu > button.active { background: color-mix(in srgb, var(--mint) 55%, white); }
+.composer-note-menu > button.danger:is(:hover,:focus-visible) { background: color-mix(in srgb, var(--rose) 58%, white); }
+.composer-note-menu > button > span:not(.composer-button-spinner) {
+  position: absolute; top: 50%; right: calc(100% + 9px); left: auto;
+  width: max-content; max-width: 158px; padding: 7px 9px;
+  border-radius: 8px; background: var(--skribli-ink); color: var(--paper);
+  font: 600 11px/1.25 var(--skribli-ui-font); white-space: nowrap;
+  opacity: 0; visibility: hidden; pointer-events: none;
+  transform: translate(4px, -50%);
+  transition: opacity 130ms ease, transform 130ms ease, visibility 130ms ease;
+}
+.composer-note-menu > button:is(:hover,:focus-visible) > span:not(.composer-button-spinner) {
+  opacity: 1; visibility: visible; transform: translate(0, -50%);
+}
+.composer-note-menu .composer-note-menu-divider {
+  width: 22px; height: 1px; margin: 3px 0; flex: 0 0 1px;
+}
+.composer-color-popover {
+  top: 95px; right: 62px; bottom: auto; left: auto;
+  max-width: calc(100% - 80px); padding: 8px; overflow-x: auto;
+  border-radius: 18px; background: var(--paper);
+}
+.composer-rich-editor-shell { position: absolute; inset: 0; min-height: 0; }
+.composer-rich-editor-shell .composer-textarea,
+.composer-format-bar + .composer-textarea {
+  padding: 14px 64px 18px 70px;
+}
+.composer-caret-tools {
+  position: absolute; left: 34px; z-index: 12;
+  display: flex; flex-direction: column; gap: 2px; width: 30px;
+  opacity: 0; pointer-events: none; transform: translateX(-5px);
+  transition: opacity 150ms ease, transform 150ms ease;
+}
+.composer-rich-editor-shell:is(:hover,:focus-within) .composer-caret-tools {
+  opacity: .75; pointer-events: auto; transform: translateX(0);
+}
+.composer-caret-tools:hover { opacity: 1 !important; }
+.composer-caret-tools button {
+  width: 28px; height: 28px; display: grid; place-items: center;
+  padding: 0; border: 0; border-radius: 50%;
+  background: color-mix(in srgb, var(--paper) 68%, transparent);
+  color: var(--skribli-ink); cursor: pointer;
+}
+.composer-caret-tools button:is(:hover,:focus-visible) { background: var(--paper); outline: 1px solid rgb(38 41 35 / 16%); }
+.composer-caret-tools button:disabled { opacity: .35; cursor: not-allowed; }
+.composer-format-bar {
+  position: absolute; inset: auto; z-index: 26; margin: 0;
+  width: max-content; max-width: calc(100% - 24px); display: flex; flex-wrap: wrap;
+  padding: 5px; gap: 2px; border-radius: 13px;
+  background: var(--paper); box-shadow: 0 8px 20px rgb(38 41 35 / 14%);
+  transform: none; animation: none;
+}
+.composer-format-bar button { width: 27px; height: 27px; border-radius: 50%; }
+.composer-slash-menu {
+  position: absolute; z-index: 35; width: 190px; max-width: calc(100% - 24px);
+  display: grid; gap: 2px; padding: 6px; max-height: calc(100% - 16px); overflow-y: auto;
+  border: 1px solid rgb(38 41 35 / 11%); border-radius: 12px;
+  background: var(--paper); box-shadow: 0 10px 24px rgb(38 41 35 / 15%);
+}
+.composer-slash-menu button {
+  min-height: 34px; display: grid; grid-template-columns: 18px 1fr 16px;
+  align-items: center; gap: 7px; padding: 0 8px; border: 0; border-radius: 7px;
+  background: transparent; color: var(--skribli-ink); text-align: left;
+  font: 600 11px/1.2 var(--skribli-ui-font); cursor: pointer;
+}
+.composer-slash-menu button:is(:hover,[aria-selected='true']) { background: color-mix(in srgb, var(--mint) 45%, var(--paper)); }
+.composer-slash-menu button:disabled { opacity: .4; cursor: not-allowed; }
+.composer-slash-menu kbd { font: 600 10px var(--skribli-ui-font); color: var(--skribli-muted); }
+.composer-textarea h2 {
+  margin: 0 0 .25em; font: 750 1.15em/1.3 var(--font-display);
+  letter-spacing: -.025em; color: var(--skribli-ink);
+}
+.composer-intent-tray {
+  display: flex; flex-wrap: nowrap; width: max-content; max-width: calc(100vw - 48px);
+  border-radius: 22px; background: var(--paper);
+}
+.composer-intent-tray > button { flex: 0 0 34px; }
+.composer-resize-handle.southeast::after { border-radius: 0 0 17px 0; }
+@keyframes composer-side-rail-in {
+  from { opacity: 0; transform: translateX(8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@media (max-height: 400px) {
+  .composer-note-menu { gap: 1px; padding-block: 3px; }
+  .composer-note-menu > button { width: 26px; height: 26px; min-height: 26px; flex-basis: 26px; }
+  .composer-note-menu > button svg { width: 15px; height: 15px; }
+}
+@media (max-width: 360px) {
+  .composer-rich-editor-shell .composer-textarea { padding-left: 66px; padding-right: 54px; }
+  .composer-color-popover { right: 58px; }
+}
+@media (max-height: 320px) {
+  .composer-note-menu { max-height: calc(100% - 40px); overflow-y: auto; overflow-x: hidden; scrollbar-width: none; }
+  .composer-side-tools[data-pinned='true'] .composer-note-menu {
+    width: 68px; max-width: 68px; max-height: none; overflow: visible;
+    display: grid; grid-template-columns: repeat(2, 26px); justify-content: center;
+    gap: 2px; padding: 4px;
+  }
+  .composer-side-tools[data-pinned='true'] .composer-note-menu-divider {
+    grid-column: 1 / -1; width: 52px; margin: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .composer-context-tab, .composer-place-detail, .composer-caret-tools, .composer-note-menu,
+  .composer-note-menu > button > span:not(.composer-button-spinner) { animation: none; transition: none; }
+}
+@media (forced-colors: active) {
+  .composer-note-menu, .composer-caret-tools button, .composer-slash-menu { background: Canvas; color: CanvasText; border: 1px solid CanvasText; }
+  .composer-note-menu > button > span:not(.composer-button-spinner) { background: Canvas; color: CanvasText; border: 1px solid CanvasText; }
+}

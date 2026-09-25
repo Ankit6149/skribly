@@ -14,7 +14,12 @@ describe('context tag pastel', () => {
   });
   it('varies between notes but stays stable when reopened', () => {
     const choices = Array.from({ length: 64 }, (_, index) => contextTagColor(`note-${index}`, 'yellow'));
-    expect(new Set(choices).size).toBe(7);
+    expect(new Set(choices).size).toBe(4);
     expect(choices).toEqual(Array.from({ length: 64 }, (_, index) => contextTagColor(`note-${index}`, 'yellow')));
+  });
+  it('uses visibly different colour families as the paper changes', () => {
+    const choices = colors.map((paper) => contextTagColor('same-note', paper));
+    expect(new Set(choices).size).toBeGreaterThanOrEqual(4);
+    expect(contextTagColor('same-note', 'yellow')).not.toBe('rose');
   });
 });

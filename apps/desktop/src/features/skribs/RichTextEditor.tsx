@@ -7,7 +7,7 @@ import React, {
   type ClipboardEvent,
   type FormEvent,
 } from 'react';
-import { Bold, Highlighter, List, ListChecks, ListOrdered } from 'lucide-react';
+import { Bold, Heading2, Highlighter, List, ListChecks, ListOrdered, Paperclip } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import type { SkribAttachment } from '../../lib/richContentStore';
 import { InlineAttachment, INLINE_ATTACHMENT_MIME } from './InlineAttachment';
@@ -31,13 +31,14 @@ interface RichTextEditorProps {
   onChange: (html: string, plainText: string) => boolean;
   onBlur: () => void;
   onPasteFiles: (files: File[]) => void;
+  onRequestAttachment?: (() => void) | undefined;
   onHistoryChange?: (canUndo: boolean, canRedo: boolean) => void;
   attachments?: SkribAttachment[];
 }
 
 const NO_ATTACHMENTS: SkribAttachment[] = [];
 
-const SAFE_ELEMENTS = new Set(['DIV', 'P', 'BR', 'STRONG', 'B', 'MARK', 'UL', 'OL', 'LI', 'INPUT']);
+const SAFE_ELEMENTS = new Set(['DIV', 'P', 'H2', 'BR', 'STRONG', 'B', 'MARK', 'UL', 'OL', 'LI', 'INPUT']);
 
 function escapeHtml(value: string): string {
   return value
@@ -110,12 +111,18 @@ function clipboardFiles(event: ClipboardEvent<HTMLDivElement>): File[] {
 }
 
 export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(function RichTextEditor(
-  { noteId, initialHtml, disabled, drawingEnabled, describedBy, onChange, onBlur, onPasteFiles, onHistoryChange, attachments = NO_ATTACHMENTS },
+  { noteId, initialHtml, disabled, drawingEnabled, describedBy, onChange, onBlur, onPasteFiles, onRequestAttachment, onHistoryChange, attachments = NO_ATTACHMENTS },
   forwardedRef
 ) {
   const editorRef = useRef<HTMLDivElement>(null);
   const lastAcceptedHtml = useRef(initialHtml);
   const [formatBarVisible, setFormatBarVisible] = useState(false);
+  const [formatBarAnchor, setFormatBarAnchor] = useState({ top: 8, left: 48 });
+  const [caretToolTop, setCaretToolTop] = useState(12);
+  const [checklistAtCaret, setChecklistAtCaret] = useState(false);
+  const [slashMenuOpen, setSlashMenuOpen] = useState(false);
+  const [slashIndex, setSlashIndex] = useState(0);
+  const [slashMenuAnchor, setSlashMenuAnchor] = useState({ top: 44, left: 48 });
   const savedSelection = useRef<Range | null>(null);
   const [attachmentHosts, setAttachmentHosts] = useState<HTMLElement[]>([]);
   const activeNoteId = useRef(noteId);
@@ -144,6 +151,7 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
       editor.innerHTML = next;
       savedSelection.current = null;
       setFormatBarVisible(false);
+      setSlashMenuOpen(false);
     }
     activeNoteId.current = noteId;
     lastAcceptedHtml.current = next;
@@ -155,6 +163,23 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
     const timer = window.setTimeout(() => editorRef.current?.focus(), 0);
     return () => window.clearTimeout(timer);
   }, [disabled, noteId]);
+
+  useEffect(() => {
+    const keepFloatingToolsInsidePaper = () => {
+      const shell = editorRef.current?.parentElement;
+      if (!shell) return;
+      setSlashMenuAnchor((anchor) => ({
+        top: Math.max(8, Math.min(anchor.top, shell.clientHeight - 164)),
+        left: Math.max(8, Math.min(anchor.left, shell.clientWidth - 202)),
+      }));
+      setFormatBarAnchor((anchor) => ({
+        top: Math.max(4, Math.min(anchor.top, shell.clientHeight - 40)),
+        left: Math.max(8, Math.min(anchor.left, shell.clientWidth - 184)),
+      }));
+    };
+    window.addEventListener('resize', keepFloatingToolsInsidePaper);
+    return () => window.removeEventListener('resize', keepFloatingToolsInsidePaper);
+  }, []);
 
   const emitChange = (): boolean => {
     const editor = editorRef.current;
@@ -196,6 +221,7 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
     lastAcceptedHtml.current = next;
     savedSelection.current = null;
     setFormatBarVisible(false);
+    setSlashMenuOpen(false);
     refreshAttachmentHosts();
     notifyHistory();
     editor.focus();
@@ -206,12 +232,31 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
     const selection = window.getSelection();
     if (!editor || !selection || selection.rangeCount === 0) {
       setFormatBarVisible(false);
+      setChecklistAtCaret(false);
       return;
     }
     const range = selection.getRangeAt(0);
     const ancestor = range.commonAncestorContainer instanceof Element ? range.commonAncestorContainer : range.commonAncestorContainer.parentElement;
     const inside = editor.contains(range.commonAncestorContainer) && !ancestor?.closest(ATTACHMENT_SELECTOR);
     if (inside) savedSelection.current = range.cloneRange();
+    setChecklistAtCaret(Boolean(inside && ancestor?.closest('ul[data-checklist="true"]')));
+    if (inside && !selection.isCollapsed) {
+      const shell = editor.parentElement?.getBoundingClientRect();
+      const selected = range.getBoundingClientRect?.();
+      if (shell && selected && selected.width + selected.height > 0) {
+        setFormatBarAnchor({
+          top: Math.max(4, Math.min(shell.height - 40, selected.top - shell.top - 42)),
+          left: Math.max(8, Math.min(shell.width - 184, selected.left - shell.left)),
+        });
+      }
+    }
+    if (inside && selection.isCollapsed) {
+      const shell = editor.parentElement?.getBoundingClientRect();
+      const caret = range.getBoundingClientRect?.();
+      if (shell && caret && caret.width + caret.height > 0) {
+        setCaretToolTop(Math.max(8, Math.min(shell.height - 112, caret.top - shell.top)));
+      }
+    }
     setFormatBarVisible(inside && !selection.isCollapsed && !disabled && !drawingEnabled);
   };
 
@@ -278,15 +323,28 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
   const insertChecklist = () => {
     if (disabled || drawingEnabled) return;
     restoreSelection();
-    commandInProgress.current = true;
-    try { document.execCommand('insertUnorderedList'); }
-    finally { commandInProgress.current = false; }
     const selection = window.getSelection();
+    const selectedNode = selection?.anchorNode instanceof Element
+      ? selection.anchorNode
+      : selection?.anchorNode?.parentElement;
+    const existingList = selectedNode?.closest('ul');
+    const existingChecklist = existingList?.hasAttribute('data-checklist');
+    commandInProgress.current = true;
+    try {
+      if (existingChecklist && existingList) {
+        existingList.querySelectorAll(':scope > li > input[type="checkbox"]').forEach((input) => input.remove());
+        existingList.removeAttribute('data-checklist');
+        document.execCommand('insertUnorderedList');
+      } else if (!existingList) {
+        document.execCommand('insertUnorderedList');
+      }
+    }
+    finally { commandInProgress.current = false; }
     const node = selection?.anchorNode instanceof Element
       ? selection.anchorNode
       : selection?.anchorNode?.parentElement;
     const list = node?.closest('ul');
-    if (list && editorRef.current?.contains(list)) {
+    if (!existingChecklist && list && editorRef.current?.contains(list)) {
       list.setAttribute('data-checklist', 'true');
       list.querySelectorAll(':scope > li').forEach((item) => {
         if (!item.querySelector(':scope > input[type="checkbox"]')) {
@@ -298,6 +356,43 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
       });
     }
     emitChange();
+    updateFormatBarVisibility();
+  };
+
+  const toggleHeading = () => {
+    if (disabled || drawingEnabled) return;
+    restoreSelection();
+    const selection = window.getSelection();
+    const node = selection?.anchorNode instanceof Element ? selection.anchorNode : selection?.anchorNode?.parentElement;
+    runCommand('formatBlock', node?.closest('h2') ? 'p' : 'h2');
+  };
+
+  const openSlashMenu = () => {
+    updateFormatBarVisibility();
+    const editor = editorRef.current;
+    const range = window.getSelection()?.rangeCount ? window.getSelection()!.getRangeAt(0) : null;
+    const shell = editor?.parentElement?.getBoundingClientRect();
+    const caret = range?.getBoundingClientRect?.();
+    if (shell && caret && caret.width + caret.height > 0) {
+      setSlashMenuAnchor({
+        top: Math.max(8, Math.min(shell.height - 164, caret.bottom - shell.top + 8)),
+        left: Math.max(8, Math.min(shell.width - 202, caret.left - shell.left)),
+      });
+    }
+    setSlashIndex(0);
+    setSlashMenuOpen(true);
+  };
+
+  const slashActions = [
+    { label: 'Heading', shortcut: 'H', icon: Heading2, run: toggleHeading },
+    { label: checklistAtCaret ? 'Remove checklist' : 'Checklist', shortcut: 'C', icon: ListChecks, run: insertChecklist },
+    { label: 'Attach inline', shortcut: 'A', icon: Paperclip, run: () => onRequestAttachment?.() },
+    { label: 'Bulleted list', shortcut: 'B', icon: List, run: () => runCommand('insertUnorderedList') },
+  ];
+
+  const runSlashAction = (index: number) => {
+    setSlashMenuOpen(false);
+    slashActions[index]?.run();
   };
 
   useImperativeHandle(forwardedRef, () => ({
@@ -332,13 +427,43 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
 
   return (
     <div className="composer-rich-editor-shell">
+      {!disabled && !drawingEnabled && (
+        <div className="composer-caret-tools" style={{ top: caretToolTop }} role="toolbar" aria-label="Writing tools">
+          <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={onRequestAttachment}
+            disabled={!onRequestAttachment} aria-label="Attach a file at the cursor" title="Attach inline">
+            <Paperclip size={15} aria-hidden="true" />
+          </button>
+          <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={insertChecklist}
+            aria-label={checklistAtCaret ? 'Remove checklist at the cursor' : 'Add checklist at the cursor'}
+            title={checklistAtCaret ? 'Remove checklist' : 'Checklist'}>
+            <ListChecks size={15} aria-hidden="true" />
+          </button>
+          <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={toggleHeading}
+            aria-label="Toggle heading at the cursor" title="Heading">
+            <Heading2 size={15} aria-hidden="true" />
+          </button>
+        </div>
+      )}
       {formatBarVisible && !disabled && !drawingEnabled && (
-        <div className="composer-format-bar" aria-label="Selected text tools">
+        <div className="composer-format-bar" style={formatBarAnchor} aria-label="Selected text tools">
+          <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={toggleHeading} aria-label="Toggle heading" title="Heading"><Heading2 size={14} /></button>
           <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('bold')} disabled={disabled || drawingEnabled} aria-label="Bold selected text" title="Bold"><Bold size={14} /></button>
           <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('backColor', '#f8df78')} disabled={disabled || drawingEnabled} aria-label="Highlight selected text" title="Highlight"><Highlighter size={14} /></button>
           <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('insertUnorderedList')} disabled={disabled || drawingEnabled} aria-label="Bulleted list" title="Bulleted list"><List size={14} /></button>
           <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('insertOrderedList')} disabled={disabled || drawingEnabled} aria-label="Numbered list" title="Numbered list"><ListOrdered size={14} /></button>
-          <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={insertChecklist} disabled={disabled || drawingEnabled} aria-label="Checklist" title="Checklist"><ListChecks size={14} /></button>
+          <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={insertChecklist} aria-label={checklistAtCaret ? 'Remove checklist' : 'Checklist'} title="Checklist"><ListChecks size={14} /></button>
+          <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={onRequestAttachment} disabled={!onRequestAttachment} aria-label="Attach inline" title="Attach inline"><Paperclip size={14} /></button>
+        </div>
+      )}
+      {slashMenuOpen && !disabled && !drawingEnabled && (
+        <div className="composer-slash-menu" style={slashMenuAnchor} role="listbox" aria-label="Insert in note">
+          {slashActions.map(({ label, shortcut, icon: Icon }, index) => (
+            <button type="button" role="option" aria-selected={slashIndex === index} key={label}
+              disabled={label === 'Attach inline' && !onRequestAttachment}
+              onMouseDown={(event) => event.preventDefault()} onClick={() => runSlashAction(index)}>
+              <Icon size={15} aria-hidden="true" /><span>{label}</span><kbd>{shortcut}</kbd>
+            </button>
+          ))}
         </div>
       )}
       <div
@@ -350,7 +475,7 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
         aria-label="Skrib text"
         aria-multiline="true"
         aria-describedby={describedBy}
-        data-placeholder="Write the thought before it disappears…"
+        data-placeholder="Write a thought… Type / for tools"
         spellCheck
         onInput={handleInput}
         onDragOver={(event) => {
@@ -375,7 +500,36 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
         }}
         onMouseUp={updateFormatBarVisibility}
         onKeyUp={updateFormatBarVisibility}
+        onFocus={updateFormatBarVisibility}
         onKeyDown={(event) => {
+          if (slashMenuOpen) {
+            if (event.key === 'Escape') { event.preventDefault(); setSlashMenuOpen(false); return; }
+            if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+              event.preventDefault();
+              setSlashIndex((current) => (current + (event.key === 'ArrowDown' ? 1 : slashActions.length - 1)) % slashActions.length);
+              return;
+            }
+            if (event.key === 'Enter') { event.preventDefault(); runSlashAction(slashIndex); return; }
+            if (['h', 'c', 'a', 'b'].includes(event.key.toLowerCase())) {
+              event.preventDefault();
+              runSlashAction(['h', 'c', 'a', 'b'].indexOf(event.key.toLowerCase()));
+              return;
+            }
+            setSlashMenuOpen(false);
+          }
+          if (event.key === '/' && !event.altKey && !event.shiftKey && !event.metaKey) {
+            const range = window.getSelection()?.rangeCount ? window.getSelection()!.getRangeAt(0) : null;
+            const node = range?.startContainer instanceof Element ? range.startContainer : range?.startContainer.parentElement;
+            const block = node?.closest('p, div, li, h2');
+            const prefix = range?.cloneRange();
+            if (prefix && block?.closest('.composer-textarea') && range?.collapsed) {
+              prefix.selectNodeContents(block);
+              prefix.setEnd(range.startContainer, range.startOffset);
+            }
+            if (event.ctrlKey || (range?.collapsed && (!block || prefix?.toString().trim() === ''))) {
+              event.preventDefault(); openSlashMenu(); return;
+            }
+          }
           if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
           const key = event.key.toLowerCase();
           if (key === 'z' || key === 'y') {
@@ -394,6 +548,7 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
           updateFormatBarVisibility();
           if (!(event.relatedTarget instanceof Node) || !event.currentTarget.parentElement?.contains(event.relatedTarget)) {
             setFormatBarVisible(false);
+            setSlashMenuOpen(false);
           }
           onBlur();
         }}
