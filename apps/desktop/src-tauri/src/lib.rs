@@ -40,9 +40,9 @@ use platform::windows_focus::focus_external_window;
 use platform::windows_placement::{
     initialize_compact_window, position_compact_window_for_target, position_detached_note_window,
     position_note_window_for_target, position_note_workspace_for_target,
-    prepare_standard_compact_surface, redraw_note_window_surface, refresh_note_window_surface,
-    restore_standard_window_surface, transition_detached_note_window,
-    transition_note_window_for_target, COMPACT_WINDOW_LOGICAL_HEIGHT, COMPACT_WINDOW_LOGICAL_WIDTH,
+    prepare_standard_compact_surface, refresh_note_window_surface, restore_standard_window_surface,
+    transition_detached_note_window, transition_note_window_for_target,
+    COMPACT_WINDOW_LOGICAL_HEIGHT, COMPACT_WINDOW_LOGICAL_WIDTH,
 };
 #[cfg(target_os = "windows")]
 use platform::windows_target_capture::{
@@ -1816,6 +1816,19 @@ fn list_target_windows() -> Vec<TargetWindowInfo> {
 }
 
 #[tauri::command]
+fn get_app_icon(process_name: String) -> Option<String> {
+    #[cfg(target_os = "windows")]
+    {
+        platform::windows_icons::app_icon_data_url(&process_name)
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = process_name;
+        None
+    }
+}
+
+#[tauri::command]
 fn get_overlay_metrics(app_handle: AppHandle) -> OverlayMetrics {
     get_current_overlay_metrics(&app_handle)
 }
@@ -3454,6 +3467,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_foreground_window,
             list_target_windows,
+            get_app_icon,
             get_overlay_metrics,
             retry_overlay_initialization,
             reposition_compact_window,
@@ -4255,34 +4269,6 @@ pub fn run() {
         .expect("error while building Skribli");
 
     app.run(move |app_handle, event| match event {
-        RunEvent::WindowEvent {
-            label,
-            event: tauri::WindowEvent::Focused(_),
-            ..
-        } if label == "main" => {
-            // A Windows activation transition can expose stale white WebView host pixels in
-            // the transparent fringe around the paper. Wait for the focus paint to finish,
-            // then invalidate both the host and WebView; a native redraw clears the fringe.
-            #[cfg(target_os = "windows")]
-            {
-                let app_handle = app_handle.clone();
-                std::thread::spawn(move || {
-                    std::thread::sleep(Duration::from_millis(40));
-                    let _ = app_handle.clone().run_on_main_thread(move || {
-                        if let Some(window) = app_handle.get_webview_window("main") {
-                            if window.is_visible().unwrap_or(false)
-                                && window
-                                    .inner_size()
-                                    .map(|size| size.width >= 200 && size.height >= 200)
-                                    .unwrap_or(false)
-                            {
-                                let _ = redraw_note_window_surface(&window);
-                            }
-                        }
-                    });
-                });
-            }
-        }
         RunEvent::WindowEvent {
             label,
             event: tauri::WindowEvent::Focused(true),

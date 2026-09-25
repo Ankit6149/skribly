@@ -1,6 +1,6 @@
 [package]
 name = "skribly"
-version = "0.1.41"
+version = "0.1.42"
 description = "Local-first contextual annotations for Windows"
 authors = ["Ankit Bhardwaj"]
 edition = "2021"
@@ -38,6 +38,7 @@ sha2 = "0.11"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 winreg = "0.56.0"
+png = "0.18.1"
 windows = { version = "0.62", features = [
   "Win32_Foundation",
   "Win32_Security",

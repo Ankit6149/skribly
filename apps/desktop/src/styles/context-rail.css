@@ -204,7 +204,8 @@ html[data-skribly-window='context-rail'] #root,
 .context-rail-launcher:focus-visible { outline: 0; }
 .context-rail-launcher:focus-visible .context-rail-launcher-face { box-shadow: var(--focus-ring), 0 8px 20px rgb(38 41 35 / 16%); }
 
-/* Expanded is a fan of independent paper strips. There is deliberately no panel behind it. */
+/* The expanded surface grows inward from the docked edge. The small widget above
+   remains its own transparent control. */
 .context-rail.expanded {
   position: relative;
   width: 100%;
@@ -487,6 +488,144 @@ html[data-skribly-window='context-rail'] #root,
 .context-list .ribbon-message { min-width: 180px; flex: 0 0 180px; }
 @media (prefers-reduced-motion: reduce) { .context-list .skrib-ribbon { transition: none; } }
 
+/* A single quiet glass sheet holds the expanded library. Soft color lives in the
+   sheet; individual notes use their own color as a narrow reading cue. */
+.context-rail.expanded {
+  width: calc(100% - 10px);
+  height: calc(100% - 10px);
+  margin: 5px;
+  padding: 11px;
+  align-items: stretch;
+  gap: 8px;
+  border: 1px solid rgb(38 41 35 / 13%);
+  border-radius: 21px;
+  background: linear-gradient(138deg,
+    rgb(255 248 225 / 92%) 0%,
+    rgb(239 249 244 / 88%) 51%,
+    rgb(246 241 251 / 91%) 100%);
+  box-shadow: 0 13px 35px rgb(38 41 35 / 18%), inset 0 1px rgb(255 255 255 / 75%);
+  -webkit-backdrop-filter: blur(24px) saturate(130%);
+  backdrop-filter: blur(24px) saturate(130%);
+  animation: rail-panel-from-right 230ms cubic-bezier(.22, 1, .36, 1) both;
+  transform-origin: right center;
+}
+.context-rail.expanded.dock-left {
+  animation-name: rail-panel-from-left;
+  transform-origin: left center;
+}
+.context-rail.expanded .ribbon-rail-head {
+  min-height: 43px;
+  padding: 0 1px 7px;
+  border: 0;
+  border-bottom: 1px solid rgb(38 41 35 / 12%);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  animation: none;
+}
+.context-rail.expanded .ribbon-rail-brand { gap: 7px; }
+.context-rail.expanded .ribbon-rail-brand > svg { display: none; }
+.context-rail.expanded .ribbon-rail-brand img { width: 25px; height: 25px; }
+.context-rail.expanded .ribbon-rail-brand strong { font: 750 14px/1.15 var(--font-ui); letter-spacing: -.025em; }
+.context-rail.expanded .ribbon-rail-brand small { font-size: 10px; line-height: 1.2; }
+.context-rail.expanded .ribbon-rail-actions button {
+  width: 29px;
+  height: 29px;
+  border-color: transparent;
+  background: rgb(255 255 255 / 48%);
+}
+.context-rail.expanded .ribbon-context-strip {
+  width: 100%;
+  height: 38px;
+  padding: 1px 1px 5px;
+  justify-content: flex-start;
+  gap: 7px;
+}
+.context-rail.expanded .ribbon-context-strip button {
+  width: 30px;
+  height: 30px;
+  flex-basis: 30px;
+  border-color: rgb(38 41 35 / 11%);
+  background: rgb(255 255 255 / 62%);
+}
+.context-rail.expanded .ribbon-context-strip button.active {
+  border-color: rgb(38 41 35 / 45%);
+  background: rgb(255 255 255 / 92%);
+  color: var(--ink);
+  box-shadow: 0 0 0 2px rgb(38 41 35 / 9%);
+}
+.ribbon-app-icon { width: 18px; height: 18px; display: block; object-fit: contain; }
+.context-rail.expanded .ribbon-context-strip .ribbon-app-icon { width: 17px; height: 17px; }
+.context-rail.expanded .ribbon-fan { align-items: stretch; gap: 5px; padding-right: 1px; }
+.context-rail.expanded .skrib-ribbon {
+  --ribbon-tint: var(--yellow);
+  width: 100%;
+  min-height: 52px;
+  border: 1px solid rgb(38 41 35 / 10%);
+  border-left: 3px solid var(--ribbon-tint);
+  border-radius: 11px;
+  background: rgb(255 253 248 / 61%);
+  box-shadow: none;
+  animation: none;
+  transition: background-color 140ms ease, border-color 140ms ease;
+}
+.context-rail.expanded .skrib-color-peach { --ribbon-tint: var(--peach); }
+.context-rail.expanded .skrib-color-mint { --ribbon-tint: var(--mint); }
+.context-rail.expanded .skrib-color-sky { --ribbon-tint: var(--sky); }
+.context-rail.expanded .skrib-color-lavender { --ribbon-tint: var(--lavender); }
+.context-rail.expanded .skrib-color-rose { --ribbon-tint: var(--rose); }
+.context-rail.expanded .skrib-color-aqua { --ribbon-tint: var(--aqua); }
+.context-rail.expanded .skrib-color-sand { --ribbon-tint: var(--sand); }
+.context-rail.expanded .skrib-ribbon:hover,
+.context-rail.expanded .skrib-ribbon:focus-within {
+  background: rgb(255 253 248 / 88%);
+  border-color: rgb(38 41 35 / 20%);
+  border-left-color: var(--ribbon-tint);
+  box-shadow: none;
+}
+.context-rail.expanded .skrib-ribbon-read { padding: 6px 8px; gap: 7px; }
+.context-rail.expanded .skrib-ribbon-mark {
+  width: 25px;
+  height: 25px;
+  border-color: rgb(38 41 35 / 8%);
+  border-radius: 7px;
+  background: rgb(255 255 255 / 72%);
+}
+.context-rail.expanded .skrib-ribbon-copy { gap: 1px; }
+.context-rail.expanded .skrib-ribbon-copy strong { font-size: 12px; font-weight: 700; }
+.context-rail.expanded .skrib-ribbon-copy small { font-size: 10px; }
+.context-rail.expanded .skrib-ribbon-return { width: 39px; border-left: 1px solid rgb(38 41 35 / 9%) !important; }
+.context-rail.expanded .ribbon-empty,
+.context-rail.expanded .ribbon-message {
+  width: 100%;
+  border-color: rgb(38 41 35 / 10%);
+  background: rgb(255 253 248 / 63%);
+  box-shadow: none;
+}
+.context-rail.expanded .ribbon-more { align-self: flex-start; margin: 2px 0; box-shadow: none; }
+.context-rail.expanded .ribbon-scope-menu {
+  top: 52px;
+  right: 48px;
+  background: rgb(255 253 248 / 96%);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+}
+.context-rail.expanded.context-list { padding: 10px; gap: 6px; }
+.context-rail.expanded.context-list .ribbon-rail-head { min-height: 38px; height: 38px; }
+.context-rail.expanded.context-list .ribbon-fan { align-items: flex-start; padding-bottom: 4px; }
+.context-rail.expanded.context-list .skrib-ribbon {
+  flex: 0 0 156px;
+  width: 156px;
+  min-height: 142px;
+  height: 142px;
+}
+.context-rail.expanded.context-list .skrib-ribbon:hover,
+.context-rail.expanded.context-list .skrib-ribbon:focus-within { flex-basis: 224px; height: min(181px, calc(100vh - 62px)); }
+.context-rail.expanded.context-list .skrib-ribbon-mark { display: grid; margin-bottom: 7px; }
+
+@keyframes rail-panel-from-right { from { opacity: .65; transform: translateX(14px) scaleX(.96); } }
+@keyframes rail-panel-from-left { from { opacity: .65; transform: translateX(-14px) scaleX(.96); } }
+
 @keyframes rail-opening { to { transform: rotate(360deg); } }
 @keyframes ribbon-head-in { from { opacity: 0; transform: translateX(18px) scale(.98); } }
 @keyframes ribbon-slip-in { from { opacity: 0; transform: translateX(30px) scale(.98); } }
@@ -497,6 +636,7 @@ html[data-skribly-window='context-rail'] #root,
   .context-rail-launcher-layer,
   .context-rail-launcher-face,
   .context-rail-global-widget,
+  .context-rail.expanded,
   .ribbon-rail-head,
   .ribbon-scope-menu,
   .skrib-ribbon,
@@ -506,6 +646,7 @@ html[data-skribly-window='context-rail'] #root,
 }
 
 @media (forced-colors: active) {
+  .context-rail.expanded { border: 1px solid CanvasText; background: Canvas; box-shadow: none; backdrop-filter: none; }
   .context-presence-dot { background: ButtonText; border-color: ButtonText; }
   .context-widget.is-revealed .context-presence { color: ButtonText; background: ButtonFace; border-color: ButtonText; }
   .context-rail-launcher-layer,

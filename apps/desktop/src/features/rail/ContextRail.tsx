@@ -22,13 +22,25 @@ import { createContextPresence } from './contextPresence';
 type RailScope = 'context' | 'all' | 'archive';
 const RIBBON_LIMIT = 5;
 const nativeRuntimeAvailable = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+const APP_ICON_CACHE_KEY = 'skribli-app-icons-v1';
+
+function readCachedAppIcons(): Record<string, string> {
+  try {
+    const stored: unknown = JSON.parse(window.localStorage.getItem(APP_ICON_CACHE_KEY) || '{}');
+    if (!stored || typeof stored !== 'object' || Array.isArray(stored)) return {};
+    return Object.fromEntries(Object.entries(stored).filter(([name, value]) =>
+      name.length <= 128 && typeof value === 'string' && value.length <= 32_000
+      && value.startsWith('data:image/png;base64,')));
+  } catch { return {}; }
+}
 
 function noteTitle(note: SkribNote): string {
   const firstLine = note.text.trim().split(/\r?\n/, 1)[0]?.trim();
   return firstLine || note.target_title || applicationLabel(note.target_process_name);
 }
 
-function ContextIcon({ processName }: { processName: string }) {
+function ContextIcon({ processName, iconUrl }: { processName: string; iconUrl: string | undefined }) {
+  if (iconUrl) return <img className="ribbon-app-icon" src={iconUrl} alt="" aria-hidden="true" />;
   const process = processName.toLowerCase();
   if (process === 'explorer.exe') return <Folder size={14} aria-hidden="true" />;
   if (process.includes('chrome') || process.includes('edge') || process.includes('firefox')) {
@@ -66,6 +78,7 @@ export const ContextRail: React.FC<{ contextual: boolean }> = ({ contextual }) =
   const [openingId, setOpeningId] = useState<string | null>(null);
   const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
   const [selectedGroupKey, setSelectedGroupKey] = useState<string | null>(null);
+  const [appIcons, setAppIcons] = useState<Record<string, string>>(readCachedAppIcons);
   const [openingProgress, setOpeningProgress] = useState<OpenNoteProgress | null>(null);
   const refreshGeneration = useRef(0);
   const arrivalRevision = useRef<number | undefined>(undefined);
@@ -87,6 +100,35 @@ export const ContextRail: React.FC<{ contextual: boolean }> = ({ contextual }) =
   );
   const pillCount = railPillCount(activeNotes.length, contextNotes.length, contextualDock);
   const hiddenRibbonCount = Math.max(0, ribbonSource.length - ribbonNotes.length);
+  const iconProcessNames = useMemo(() => [...new Set(visibleNotes.map((note) => note.target_process_name)
+    .filter((name): name is string => Boolean(name)))].sort().join('\n'), [visibleNotes]);
+
+  useEffect(() => {
+    if (collapsed || !nativeRuntimeAvailable || !iconProcessNames) return;
+    let live = true;
+    const names = iconProcessNames.split('\n');
+    void Promise.allSettled(names.map(async (processName) => {
+      const iconUrl = await invoke<string | null>('get_app_icon', { processName });
+      return { processName: processName.toLowerCase(), iconUrl };
+    })).then((results) => {
+      if (!live) return;
+      setAppIcons((previous) => {
+        const next = { ...previous };
+        for (const result of results) {
+          if (result.status === 'fulfilled' && result.value.iconUrl?.startsWith('data:image/png;base64,')
+            && result.value.iconUrl.length <= 32_000) {
+            next[result.value.processName] = result.value.iconUrl;
+          }
+        }
+        return next;
+      });
+    });
+    return () => { live = false; };
+  }, [collapsed, iconProcessNames]);
+
+  useEffect(() => {
+    try { window.localStorage.setItem(APP_ICON_CACHE_KEY, JSON.stringify(appIcons)); } catch { /* cache is optional */ }
+  }, [appIcons]);
 
   const refresh = useCallback(async () => {
     if (!nativeRuntimeAvailable) {
@@ -340,7 +382,8 @@ export const ContextRail: React.FC<{ contextual: boolean }> = ({ contextual }) =
           aria-label="Show all apps" title="Every app in this view"><StickyNote size={14} aria-hidden="true" /><span>{visibleNotes.length}</span></button>
         {allGroups.map((group) => <button type="button" key={group.key} className={selectedGroupKey === group.key ? 'active' : ''}
           onClick={() => { setSelectedGroupKey(group.key); setShowAllRibbons(false); }} aria-label={`${group.label}, ${group.notes.length} Skribs`} title={`${group.label} · ${group.notes.length}`}>
-          <ContextIcon processName={group.notes[0]?.target_process_name ?? group.key} /><span>{group.notes.length}</span></button>)}
+          <ContextIcon processName={group.notes[0]?.target_process_name ?? group.key}
+            iconUrl={appIcons[(group.notes[0]?.target_process_name ?? group.key).toLowerCase()]} /><span>{group.notes.length}</span></button>)}
       </nav>}
 
       <div className="ribbon-fan" aria-live="polite">
@@ -353,7 +396,8 @@ export const ContextRail: React.FC<{ contextual: boolean }> = ({ contextual }) =
             style={{ '--ribbon-index': index } as React.CSSProperties} aria-busy={openingId === note.id}>
             <button type="button" className="skrib-ribbon-read" onClick={() => void (scope === 'archive' ? restoreArchived(note) : openHere(note))}
               disabled={openingId !== null} title={scope === 'archive' ? 'Return this Skrib to your active notes' : 'Open this Skrib beside the ribbon'}>
-              <span className="skrib-ribbon-mark" aria-hidden="true"><StickyNote size={14} strokeWidth={1.8} /></span>
+              <span className="skrib-ribbon-mark" aria-hidden="true"><ContextIcon processName={note.target_process_name ?? ''}
+                iconUrl={appIcons[(note.target_process_name ?? '').toLowerCase()]} /></span>
               <span className="skrib-ribbon-copy"><strong>{noteTitle(note)}</strong>
                 <small>{note.target_title || applicationLabel(note.target_process_name)}</small>
                 {contextualDock && <span className="skrib-card-preview">{note.text.trim() || 'A little room for your next thought.'}</span>}

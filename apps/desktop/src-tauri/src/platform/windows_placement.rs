@@ -12,8 +12,8 @@ use tauri::{LogicalSize, PhysicalPosition, PhysicalSize};
 use windows::Win32::Foundation::HWND;
 use windows::Win32::Graphics::Gdi::{
     CombineRgn, CreateEllipticRgn, CreateRectRgn, CreateRoundRectRgn, DeleteObject,
-    GetMonitorInfoW, MonitorFromWindow, RedrawWindow, SetWindowRgn, MONITORINFO,
-    MONITOR_DEFAULTTONEAREST, RDW_ALLCHILDREN, RDW_INVALIDATE, RDW_UPDATENOW, RGN_AND, RGN_OR,
+    GetMonitorInfoW, MonitorFromWindow, SetWindowRgn, MONITORINFO, MONITOR_DEFAULTTONEAREST,
+    RGN_AND, RGN_OR,
 };
 
 use crate::core::models::{OverlayMetrics, SkribNote, TargetWindowInfo, WindowRect};
@@ -406,27 +406,6 @@ pub fn refresh_note_window_surface(window: &tauri::WebviewWindow) -> Result<(), 
         },
     };
     apply_native_surface(window, &placement, NativeNoteSurface::Note)
-}
-
-pub fn redraw_note_window_surface(window: &tauri::WebviewWindow) -> Result<(), String> {
-    let hwnd = window
-        .hwnd()
-        .map_err(|error| format!("Skribli could not redraw the note window: {error}"))?;
-    // WebView2 can leave its white host pixels in the three-pixel transparent fringe after
-    // activation changes. Redrawing the parent and children clears those pixels without
-    // changing the native region or the paper's antialiased edge.
-    let redrawn = unsafe {
-        RedrawWindow(
-            Some(HWND(hwnd.0 as *mut _)),
-            None,
-            None,
-            RDW_INVALIDATE | RDW_UPDATENOW | RDW_ALLCHILDREN,
-        )
-    };
-    if !redrawn.as_bool() {
-        return Err("Windows could not redraw the transparent note surface.".into());
-    }
-    Ok(())
 }
 
 fn set_note_resize_bounds(window: &tauri::WebviewWindow, scale_factor: f64) -> Result<(), String> {
