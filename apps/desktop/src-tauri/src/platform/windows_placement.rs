@@ -11,8 +11,9 @@ use std::time::Duration;
 use tauri::{LogicalSize, PhysicalPosition, PhysicalSize};
 use windows::Win32::Foundation::HWND;
 use windows::Win32::Graphics::Gdi::{
-    CombineRgn, CreateEllipticRgn, CreateRoundRectRgn, DeleteObject, GetMonitorInfoW,
-    MonitorFromWindow, SetWindowRgn, MONITORINFO, MONITOR_DEFAULTTONEAREST, RGN_OR,
+    CombineRgn, CreateEllipticRgn, CreateRectRgn, CreateRoundRectRgn, DeleteObject,
+    GetMonitorInfoW, MonitorFromWindow, SetWindowRgn, MONITORINFO, MONITOR_DEFAULTTONEAREST,
+    RGN_AND, RGN_OR,
 };
 
 use crate::core::models::{OverlayMetrics, SkribNote, TargetWindowInfo, WindowRect};
@@ -31,6 +32,7 @@ const COMPACT_WINDOW_TARGET_RIGHT_INSET: i32 = 24;
 const COMPACT_WINDOW_TARGET_TOP_OFFSET: i32 = 48;
 const FINAL_RECT_TOLERANCE_PX: i32 = 8;
 const NOTE_SURFACE_LOGICAL_RADIUS: i32 = 20;
+const NOTE_SURFACE_BOTTOM_RIGHT_LOGICAL_RADIUS: i32 = 38;
 const COLLAPSED_NOTE_MAIN_REGION_LOGICAL_DIAMETER: i32 = 40;
 const COLLAPSED_NOTE_MAIN_REGION_LOGICAL_TOP: i32 = 4;
 const COLLAPSED_NOTE_BADGE_REGION_LOGICAL_DIAMETER: i32 = 18;
@@ -56,6 +58,7 @@ struct NativeSurfaceRegion {
     badge: Option<NativeEllipseRegion>,
     ellipse_width: i32,
     ellipse_height: i32,
+    bottom_right_radius: i32,
     circular: bool,
 }
 
@@ -134,6 +137,7 @@ fn calculate_native_surface_region(
                 badge: Some(badge),
                 ellipse_width: main_diameter,
                 ellipse_height: main_diameter,
+                bottom_right_radius: 0,
                 circular: true,
             })
         }
@@ -153,6 +157,10 @@ fn calculate_native_surface_region(
                 badge: None,
                 ellipse_width: ellipse,
                 ellipse_height: ellipse,
+                bottom_right_radius: logical_to_physical(
+                    NOTE_SURFACE_BOTTOM_RIGHT_LOGICAL_RADIUS,
+                    scale_factor,
+                ),
                 circular: false,
             })
         }
@@ -235,7 +243,7 @@ fn apply_native_surface(
         }
         primary
     } else {
-        unsafe {
+        let primary = unsafe {
             CreateRoundRectRgn(
                 bounds.primary.left,
                 bounds.primary.top,
@@ -244,7 +252,53 @@ fn apply_native_surface(
                 bounds.ellipse_width,
                 bounds.ellipse_height,
             )
+        };
+        if primary.0.is_null() {
+            return Err("Windows could not create the native paper region.".into());
         }
+        // CSS uses a 38px lower-right corner and 20px elsewhere. The old uniform 20px
+        // native region left a transparent wedge that WebView could flash white on focus,
+        // menu opening, or display changes. Intersect the base silhouette with a mask that
+        // rounds only that corner; keep the rest of the paper inside the same HWND.
+        let right = bounds.primary.right;
+        let bottom = bounds.primary.bottom;
+        let radius = bounds.bottom_right_radius;
+        let upper = unsafe { CreateRectRgn(0, 0, right, bottom - radius) };
+        let lower_left = unsafe { CreateRectRgn(0, bottom - radius, right - radius, bottom) };
+        let corner =
+            unsafe { CreateEllipticRgn(right - 2 * radius, bottom - 2 * radius, right, bottom) };
+        if upper.0.is_null() || lower_left.0.is_null() || corner.0.is_null() {
+            if !upper.0.is_null() {
+                let _ = unsafe { DeleteObject(upper.into()) };
+            }
+            if !lower_left.0.is_null() {
+                let _ = unsafe { DeleteObject(lower_left.into()) };
+            }
+            if !corner.0.is_null() {
+                let _ = unsafe { DeleteObject(corner.into()) };
+            }
+            let _ = unsafe { DeleteObject(primary.into()) };
+            return Err("Windows could not create the lower-right paper mask.".into());
+        }
+        let joined = unsafe { CombineRgn(Some(upper), Some(upper), Some(lower_left), RGN_OR) };
+        let joined_corner = if joined.0 != 0 {
+            unsafe { CombineRgn(Some(upper), Some(upper), Some(corner), RGN_OR) }.0 != 0
+        } else {
+            false
+        };
+        let clipped = if joined_corner {
+            unsafe { CombineRgn(Some(primary), Some(primary), Some(upper), RGN_AND) }.0 != 0
+        } else {
+            false
+        };
+        let _ = unsafe { DeleteObject(upper.into()) };
+        let _ = unsafe { DeleteObject(lower_left.into()) };
+        let _ = unsafe { DeleteObject(corner.into()) };
+        if !clipped {
+            let _ = unsafe { DeleteObject(primary.into()) };
+            return Err("Windows could not shape the lower-right paper corner.".into());
+        }
+        primary
     };
     if region.0.is_null() {
         return Err("Windows could not create the native note surface region.".into());
@@ -1246,6 +1300,7 @@ mod tests {
             (0, 0, 420, 360)
         );
         assert_eq!((note.ellipse_width, note.ellipse_height), (40, 40));
+        assert_eq!(note.bottom_right_radius, 38);
         assert!(!note.circular);
         assert!(note.badge.is_none());
 
@@ -1266,6 +1321,7 @@ mod tests {
             (26, 0, 44, 18)
         );
         assert!(dot.circular);
+        assert_eq!(dot.bottom_right_radius, 0);
         for point in [(4.0, 24.0), (20.0, 8.0), (36.0, 24.0), (20.0, 40.0)] {
             assert!(native_dot_region_contains(&dot, point.0, point.1));
         }
@@ -1318,6 +1374,7 @@ mod tests {
                 assert_eq!(region.primary.bottom, physical_height);
                 assert_eq!(region.ellipse_width, logical_to_physical(40, scale));
                 assert_eq!(region.ellipse_height, region.ellipse_width);
+                assert_eq!(region.bottom_right_radius, logical_to_physical(38, scale));
                 assert!(!region.circular);
                 assert!(region.badge.is_none());
             }

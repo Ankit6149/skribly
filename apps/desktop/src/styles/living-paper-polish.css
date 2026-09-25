@@ -206,8 +206,8 @@
   .composer-context-tab, .composer-color-popover, .composer-note-menu, .composer-intent-tray { background: Canvas; color: CanvasText; border-color: CanvasText; }
 }
 
-/* Note-only refinement: the tab is attached to the outer paper edge and actions form rails. */
-.skrib-composer-backdrop { padding-left: 8px; }
+/* Keep the paper flush with the native window: a transparent side gutter can flash white when WebView redraws. */
+.skrib-composer-backdrop { padding-left: 0; }
 .skrib-composer {
   overflow: visible;
   border-radius: 18px 18px 34px 18px;
@@ -217,7 +217,7 @@
 .composer-paper-top { border-radius: 18px 18px 0 0; }
 .composer-unified-workspace { overflow: hidden; border-radius: 0 0 33px 17px; }
 .composer-context-tab {
-  top: 20px; left: -8px; width: 32px; max-width: 32px; min-height: 0;
+  top: 20px; left: 0; width: 32px; max-width: 32px; min-height: 0;
   padding: 10px 8px; border: 1px solid rgb(38 41 35 / 14%); border-right: 0;
   border-radius: 0 8px 8px 0;
   background: var(--context-tag-color, var(--sky));
@@ -401,16 +401,19 @@
   border: 1px solid rgb(38 41 35 / 11%);
 }
 .composer-note-menu {
-  top: 36px; right: 2px; padding: 2px 0; gap: 6px;
+  top: 36px; right: 2px; width: 34px; max-width: 34px; padding: 1px 0; gap: 2px;
   border: 0; border-radius: 0; background: transparent; box-shadow: none;
 }
 .composer-note-menu > button {
+  width: 28px; height: 28px; min-height: 28px; flex-basis: 28px;
   background: color-mix(in srgb, var(--paper) 85%, transparent);
   border: 1px solid rgb(38 41 35 / 11%);
   box-shadow: 0 2px 5px rgb(38 41 35 / 8%);
 }
+.composer-note-menu > button:is(:hover,:focus-visible) { z-index: 2; }
+.composer-note-menu > button svg { width: 15px; height: 15px; }
 .composer-note-menu > button:disabled { opacity: .35; }
-.composer-note-menu .composer-note-menu-divider { background: rgb(38 41 35 / 20%); }
+.composer-note-menu .composer-note-menu-divider { width: 18px; margin: 1px 0; background: rgb(38 41 35 / 20%); }
 .composer-rich-editor-shell .composer-textarea,
 .composer-format-bar + .composer-textarea { padding: 17px 52px 18px 30px; }
 .composer-textarea h2 { font: 600 1.3em/1.25 var(--font-hand); letter-spacing: 0; }
@@ -466,15 +469,14 @@
   .inline-attachment-object[data-size='small'] { width: 82px; }
   .inline-attachment-object[data-size='small'] .inline-attachment-preview img { max-height: 72px; }
   .composer-side-tools[data-pinned='true'] .composer-note-menu {
-    width: 24px; max-width: 24px; padding: 2px 0;
-    display: flex; flex-direction: column; align-items: center; gap: 1px;
+    width: 64px; max-width: 64px; padding: 2px;
+    display: grid; grid-template-columns: repeat(2, 28px); justify-content: center; gap: 2px;
   }
   .composer-side-tools[data-pinned='true'] .composer-note-menu > button {
-    width: 22px; height: 22px; min-height: 22px; flex-basis: 22px;
+    width: 28px; height: 28px; min-height: 28px; flex-basis: 28px;
   }
-  .composer-side-tools[data-pinned='true'] .composer-note-menu > button svg { width: 13px; height: 13px; }
   .composer-side-tools[data-pinned='true'] .composer-note-menu .composer-note-menu-divider {
-    width: 20px; height: 1px; min-height: 1px; margin: 1px 0;
+    grid-column: 1 / -1; width: 58px; height: 1px; min-height: 1px; margin: 1px 0;
   }
 }
 @media (prefers-reduced-motion: reduce) { .inline-attachment-more { transition: none; } }
