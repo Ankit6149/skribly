@@ -33,6 +33,10 @@ const COMPACT_WINDOW_TARGET_TOP_OFFSET: i32 = 48;
 const FINAL_RECT_TOLERANCE_PX: i32 = 8;
 const NOTE_SURFACE_LOGICAL_RADIUS: i32 = 20;
 const NOTE_SURFACE_BOTTOM_RIGHT_LOGICAL_RADIUS: i32 = 38;
+const NOTE_SURFACE_PAPER_LEFT_LOGICAL: i32 = 14;
+const NOTE_SURFACE_TAB_WIDTH_LOGICAL: i32 = 32;
+const NOTE_SURFACE_TAB_TOP_LOGICAL: i32 = 12;
+const NOTE_SURFACE_TAB_BOTTOM_LOGICAL: i32 = 132;
 // GDI regions have binary edges. Leave the CSS curve's antialiased fringe inside the HWND.
 const NOTE_SURFACE_NATIVE_EDGE_MARGIN_LOGICAL: i32 = 2;
 const COLLAPSED_NOTE_MAIN_REGION_LOGICAL_DIAMETER: i32 = 40;
@@ -58,6 +62,7 @@ struct NativeEllipseRegion {
 struct NativeSurfaceRegion {
     primary: NativeEllipseRegion,
     badge: Option<NativeEllipseRegion>,
+    tab: Option<NativeEllipseRegion>,
     ellipse_width: i32,
     ellipse_height: i32,
     bottom_right_radius: i32,
@@ -137,6 +142,7 @@ fn calculate_native_surface_region(
             Ok(NativeSurfaceRegion {
                 primary,
                 badge: Some(badge),
+                tab: None,
                 ellipse_width: main_diameter,
                 ellipse_height: main_diameter,
                 bottom_right_radius: 0,
@@ -144,9 +150,9 @@ fn calculate_native_surface_region(
             })
         }
         NativeNoteSurface::Note => {
-            // The frontend keeps its small contained CSS shadow inside these bounds. Shape the
-            // entire transparent HWND as a rounded surface so corners do not intercept clicks,
-            // without clipping that deliberately contained shadow.
+            // The CSS paper starts 14 logical px inside the transparent HWND. Exclude the empty
+            // left strip from the native region, retaining only a small capsule around the
+            // overlapping place tab. This also prevents stale WebView pixels in that strip.
             let ellipse = logical_to_physical(
                 NOTE_SURFACE_LOGICAL_RADIUS
                     .saturating_sub(NOTE_SURFACE_NATIVE_EDGE_MARGIN_LOGICAL)
@@ -155,12 +161,19 @@ fn calculate_native_surface_region(
             );
             Ok(NativeSurfaceRegion {
                 primary: NativeEllipseRegion {
-                    left: 0,
+                    left: logical_to_physical(NOTE_SURFACE_PAPER_LEFT_LOGICAL, scale_factor),
                     top: 0,
                     right: physical_width,
                     bottom: physical_height,
                 },
                 badge: None,
+                tab: Some(NativeEllipseRegion {
+                    left: 0,
+                    top: logical_to_physical(NOTE_SURFACE_TAB_TOP_LOGICAL, scale_factor),
+                    right: logical_to_physical(NOTE_SURFACE_TAB_WIDTH_LOGICAL, scale_factor),
+                    bottom: logical_to_physical(NOTE_SURFACE_TAB_BOTTOM_LOGICAL, scale_factor)
+                        .min(physical_height),
+                }),
                 ellipse_width: ellipse,
                 ellipse_height: ellipse,
                 bottom_right_radius: logical_to_physical(
@@ -269,8 +282,9 @@ fn apply_native_surface(
         let right = bounds.primary.right;
         let bottom = bounds.primary.bottom;
         let radius = bounds.bottom_right_radius;
-        let upper = unsafe { CreateRectRgn(0, 0, right, bottom - radius) };
-        let lower_left = unsafe { CreateRectRgn(0, bottom - radius, right - radius, bottom) };
+        let upper = unsafe { CreateRectRgn(bounds.primary.left, 0, right, bottom - radius) };
+        let lower_left =
+            unsafe { CreateRectRgn(bounds.primary.left, bottom - radius, right - radius, bottom) };
         let corner =
             unsafe { CreateEllipticRgn(right - 2 * radius, bottom - 2 * radius, right, bottom) };
         if upper.0.is_null() || lower_left.0.is_null() || corner.0.is_null() {
@@ -303,6 +317,28 @@ fn apply_native_surface(
         if !clipped {
             let _ = unsafe { DeleteObject(primary.into()) };
             return Err("Windows could not shape the lower-right paper corner.".into());
+        }
+        if let Some(tab_bounds) = bounds.tab.as_ref() {
+            let tab = unsafe {
+                CreateRoundRectRgn(
+                    tab_bounds.left,
+                    tab_bounds.top,
+                    tab_bounds.right,
+                    tab_bounds.bottom,
+                    tab_bounds.right - tab_bounds.left,
+                    tab_bounds.right - tab_bounds.left,
+                )
+            };
+            if tab.0.is_null() {
+                let _ = unsafe { DeleteObject(primary.into()) };
+                return Err("Windows could not create the native place tab region.".into());
+            }
+            let combined = unsafe { CombineRgn(Some(primary), Some(primary), Some(tab), RGN_OR) };
+            let _ = unsafe { DeleteObject(tab.into()) };
+            if combined.0 == 0 {
+                let _ = unsafe { DeleteObject(primary.into()) };
+                return Err("Windows could not combine the native place tab region.".into());
+            }
         }
         primary
     };
@@ -1303,12 +1339,14 @@ mod tests {
                 note.primary.right,
                 note.primary.bottom,
             ),
-            (0, 0, 420, 360)
+            (14, 0, 420, 360)
         );
         assert_eq!((note.ellipse_width, note.ellipse_height), (36, 36));
         assert_eq!(note.bottom_right_radius, 36);
         assert!(!note.circular);
         assert!(note.badge.is_none());
+        let tab = note.tab.as_ref().expect("note place tab region");
+        assert_eq!((tab.left, tab.top, tab.right, tab.bottom), (0, 12, 32, 132));
 
         let dot = calculate_native_surface_region(44, 44, 1.0, NativeNoteSurface::Dot)
             .expect("dot region");
@@ -1322,6 +1360,7 @@ mod tests {
             (0, 4, 40, 44)
         );
         let badge = dot.badge.as_ref().expect("dot badge region");
+        assert!(dot.tab.is_none());
         assert_eq!(
             (badge.left, badge.top, badge.right, badge.bottom),
             (26, 0, 44, 18)
@@ -1374,7 +1413,10 @@ mod tests {
                     NativeNoteSurface::Note,
                 )
                 .expect("resized note region");
-                assert_eq!(region.primary.left, 0);
+                assert_eq!(
+                    region.primary.left,
+                    logical_to_physical(NOTE_SURFACE_PAPER_LEFT_LOGICAL, scale)
+                );
                 assert_eq!(region.primary.top, 0);
                 assert_eq!(region.primary.right, physical_width);
                 assert_eq!(region.primary.bottom, physical_height);
@@ -1383,6 +1425,21 @@ mod tests {
                 assert_eq!(region.bottom_right_radius, logical_to_physical(36, scale));
                 assert!(!region.circular);
                 assert!(region.badge.is_none());
+                let tab = region.tab.as_ref().expect("place tab region");
+                assert_eq!(tab.left, 0);
+                assert_eq!(
+                    tab.top,
+                    logical_to_physical(NOTE_SURFACE_TAB_TOP_LOGICAL, scale)
+                );
+                assert_eq!(
+                    tab.right,
+                    logical_to_physical(NOTE_SURFACE_TAB_WIDTH_LOGICAL, scale)
+                );
+                assert_eq!(
+                    tab.bottom,
+                    logical_to_physical(NOTE_SURFACE_TAB_BOTTOM_LOGICAL, scale)
+                        .min(physical_height)
+                );
             }
         }
     }

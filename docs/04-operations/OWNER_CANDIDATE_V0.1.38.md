@@ -1,5 +1,7 @@
 # Skribli v0.1.38 — private owner candidate
 
+Superseded by [v0.1.39](OWNER_CANDIDATE_V0.1.39.md). The owner's installed screenshot showed that the opaque side backing appeared as an unwanted solid pastel band.
+
 25 September 2026. This follows the owner's installed note feedback: the place pill should sit halfway outside the paper, its hover should not show “Drag the paper,” and the in-app dot should be smaller. The intermittent white strips reported after Attach, More, and switching applications remain a specific Windows acceptance check.
 
 ## Change

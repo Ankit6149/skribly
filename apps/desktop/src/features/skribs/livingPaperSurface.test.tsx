@@ -12,9 +12,9 @@ const note: SkribNote = {
 };
 
 describe('Living Paper note structure', () => {
-  it('uses the selected paper colour for the exposed chip edge', () => {
+  it('keeps the area outside the selected paper transparent', () => {
     const html = renderToStaticMarkup(<SkribComposer note={{ ...note, color: 'rose' }} target={null} openAction="reopened" />);
-    expect(html).toContain('class="skrib-composer-backdrop skrib-color-rose"');
+    expect(html).toContain('class="skrib-composer-backdrop"');
     expect(html).toContain('class="skrib-composer skrib-color-rose"');
   });
 

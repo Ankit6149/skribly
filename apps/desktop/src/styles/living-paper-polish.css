@@ -206,12 +206,11 @@
   .composer-context-tab, .composer-color-popover, .composer-note-menu, .composer-intent-tray { background: Canvas; color: CanvasText; border-color: CanvasText; }
 }
 
-/* The chip straddles the paper edge inside the HWND. Fill the exposed strip with the note's
-   opaque paper colour so WebView redraws never reveal a transparent white gutter. */
+/* The chip straddles the paper edge. Keep the exposed strip genuinely transparent so
+   the desktop remains visible around the chip instead of forming a coloured side rail. */
 .skrib-composer-backdrop {
   padding-left: 14px;
-  border-radius: 20px 0 0 20px;
-  background: linear-gradient(to right, var(--skribli-paper) 0 34px, transparent 34px);
+  background: transparent;
 }
 .skrib-composer {
   overflow: visible;

@@ -87,9 +87,9 @@ for (const [source, marker] of [
   [composer, 'className="composer-paper-top" data-tauri-drag-region'],
   [composer, "startResizeDragging(direction)"],
   [composer, 'className={`composer-resize-handle ${direction.toLowerCase()}`}'],
-  [composer, 'className={`skrib-composer-backdrop skrib-color-${note.color}`}'],
+  [composer, 'className="skrib-composer-backdrop"'],
   [paperStyles, 'padding-left: 14px;'],
-  [paperStyles, 'var(--skribli-paper) 0 34px, transparent 34px'],
+  [paperStyles, 'background: transparent;'],
   [paperStyles, 'left: -14px; width: 30px'],
   [attachments, 'className="attachment-photo-stack"'],
   [attachments, 'className="attachment-drawer-handle"'],
@@ -116,6 +116,14 @@ for (const [source, marker] of [
   [surfaceTests, 'never selects a visually empty surface'],
 ]) {
   if (!source.includes(marker)) failures.push(`Compact surface contract is missing: ${marker}`);
+}
+
+const backdropRules = [...paperStyles.matchAll(/\.skrib-composer-backdrop\s*\{([^}]*)\}/g)];
+const finalBackdropRule = backdropRules.at(-1)?.[1] ?? '';
+if (!/padding-left:\s*14px;/.test(finalBackdropRule)
+  || !/background:\s*transparent;/.test(finalBackdropRule)
+  || /linear-gradient|var\(--skribli-paper\)/.test(finalBackdropRule)) {
+  failures.push('The place tab gutter must stay transparent beside the paper.');
 }
 
 for (const marker of [
