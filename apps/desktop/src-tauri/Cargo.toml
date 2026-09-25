@@ -1,6 +1,6 @@
 [package]
 name = "skribly"
-version = "0.1.36"
+version = "0.1.37"
 description = "Local-first contextual annotations for Windows"
 authors = ["Ankit Bhardwaj"]
 edition = "2021"

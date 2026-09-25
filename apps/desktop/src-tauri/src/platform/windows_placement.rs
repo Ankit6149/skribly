@@ -33,6 +33,8 @@ const COMPACT_WINDOW_TARGET_TOP_OFFSET: i32 = 48;
 const FINAL_RECT_TOLERANCE_PX: i32 = 8;
 const NOTE_SURFACE_LOGICAL_RADIUS: i32 = 20;
 const NOTE_SURFACE_BOTTOM_RIGHT_LOGICAL_RADIUS: i32 = 38;
+// GDI regions have binary edges. Leave the CSS curve's antialiased fringe inside the HWND.
+const NOTE_SURFACE_NATIVE_EDGE_MARGIN_LOGICAL: i32 = 2;
 const COLLAPSED_NOTE_MAIN_REGION_LOGICAL_DIAMETER: i32 = 40;
 const COLLAPSED_NOTE_MAIN_REGION_LOGICAL_TOP: i32 = 4;
 const COLLAPSED_NOTE_BADGE_REGION_LOGICAL_DIAMETER: i32 = 18;
@@ -145,8 +147,12 @@ fn calculate_native_surface_region(
             // The frontend keeps its small contained CSS shadow inside these bounds. Shape the
             // entire transparent HWND as a rounded surface so corners do not intercept clicks,
             // without clipping that deliberately contained shadow.
-            let ellipse =
-                logical_to_physical(NOTE_SURFACE_LOGICAL_RADIUS.saturating_mul(2), scale_factor);
+            let ellipse = logical_to_physical(
+                NOTE_SURFACE_LOGICAL_RADIUS
+                    .saturating_sub(NOTE_SURFACE_NATIVE_EDGE_MARGIN_LOGICAL)
+                    .saturating_mul(2),
+                scale_factor,
+            );
             Ok(NativeSurfaceRegion {
                 primary: NativeEllipseRegion {
                     left: 0,
@@ -158,7 +164,8 @@ fn calculate_native_surface_region(
                 ellipse_width: ellipse,
                 ellipse_height: ellipse,
                 bottom_right_radius: logical_to_physical(
-                    NOTE_SURFACE_BOTTOM_RIGHT_LOGICAL_RADIUS,
+                    NOTE_SURFACE_BOTTOM_RIGHT_LOGICAL_RADIUS
+                        .saturating_sub(NOTE_SURFACE_NATIVE_EDGE_MARGIN_LOGICAL),
                     scale_factor,
                 ),
                 circular: false,
@@ -256,10 +263,9 @@ fn apply_native_surface(
         if primary.0.is_null() {
             return Err("Windows could not create the native paper region.".into());
         }
-        // CSS uses a 38px lower-right corner and 20px elsewhere. The old uniform 20px
-        // native region left a transparent wedge that WebView could flash white on focus,
-        // menu opening, or display changes. Intersect the base silhouette with a mask that
-        // rounds only that corner; keep the rest of the paper inside the same HWND.
+        // CSS uses a 38px lower-right corner and 20px elsewhere. The native edge is 2 logical
+        // pixels wider than the visible CSS silhouette so GDI's hard region boundary cannot
+        // clip the browser's antialiased border. Intersect the base with the larger-corner mask.
         let right = bounds.primary.right;
         let bottom = bounds.primary.bottom;
         let radius = bounds.bottom_right_radius;
@@ -1299,8 +1305,8 @@ mod tests {
             ),
             (0, 0, 420, 360)
         );
-        assert_eq!((note.ellipse_width, note.ellipse_height), (40, 40));
-        assert_eq!(note.bottom_right_radius, 38);
+        assert_eq!((note.ellipse_width, note.ellipse_height), (36, 36));
+        assert_eq!(note.bottom_right_radius, 36);
         assert!(!note.circular);
         assert!(note.badge.is_none());
 
@@ -1372,9 +1378,9 @@ mod tests {
                 assert_eq!(region.primary.top, 0);
                 assert_eq!(region.primary.right, physical_width);
                 assert_eq!(region.primary.bottom, physical_height);
-                assert_eq!(region.ellipse_width, logical_to_physical(40, scale));
+                assert_eq!(region.ellipse_width, logical_to_physical(36, scale));
                 assert_eq!(region.ellipse_height, region.ellipse_width);
-                assert_eq!(region.bottom_right_radius, logical_to_physical(38, scale));
+                assert_eq!(region.bottom_right_radius, logical_to_physical(36, scale));
                 assert!(!region.circular);
                 assert!(region.badge.is_none());
             }
