@@ -34,9 +34,9 @@ const FINAL_RECT_TOLERANCE_PX: i32 = 8;
 const NOTE_SURFACE_LOGICAL_RADIUS: i32 = 20;
 const NOTE_SURFACE_BOTTOM_RIGHT_LOGICAL_RADIUS: i32 = 38;
 const NOTE_SURFACE_PAPER_LEFT_LOGICAL: i32 = 14;
-const NOTE_SURFACE_TAB_WIDTH_LOGICAL: i32 = 32;
+const NOTE_SURFACE_TAB_WIDTH_LOGICAL: i32 = 36;
 const NOTE_SURFACE_TAB_TOP_LOGICAL: i32 = 12;
-const NOTE_SURFACE_TAB_BOTTOM_LOGICAL: i32 = 132;
+const NOTE_SURFACE_TAB_BOTTOM_LOGICAL: i32 = 136;
 // GDI regions have binary edges. Leave the CSS curve's antialiased fringe inside the HWND.
 const NOTE_SURFACE_NATIVE_EDGE_MARGIN_LOGICAL: i32 = 2;
 const COLLAPSED_NOTE_MAIN_REGION_LOGICAL_DIAMETER: i32 = 40;
@@ -150,9 +150,10 @@ fn calculate_native_surface_region(
             })
         }
         NativeNoteSurface::Note => {
-            // The CSS paper starts 14 logical px inside the transparent HWND. Exclude the empty
-            // left strip from the native region, retaining only a small capsule around the
-            // overlapping place tab. This also prevents stale WebView pixels in that strip.
+            // The CSS paper starts 17 logical px inside the transparent HWND; this region
+            // starts 3 px earlier so its hard GDI edge cannot clip the browser's smooth curve.
+            // Keep the rest of the empty left strip outside the native region, retaining only
+            // a small capsule around the overlapping place tab.
             let ellipse = logical_to_physical(
                 NOTE_SURFACE_LOGICAL_RADIUS
                     .saturating_sub(NOTE_SURFACE_NATIVE_EDGE_MARGIN_LOGICAL)
@@ -1346,7 +1347,7 @@ mod tests {
         assert!(!note.circular);
         assert!(note.badge.is_none());
         let tab = note.tab.as_ref().expect("note place tab region");
-        assert_eq!((tab.left, tab.top, tab.right, tab.bottom), (0, 12, 32, 132));
+        assert_eq!((tab.left, tab.top, tab.right, tab.bottom), (0, 12, 36, 136));
 
         let dot = calculate_native_surface_region(44, 44, 1.0, NativeNoteSurface::Dot)
             .expect("dot region");

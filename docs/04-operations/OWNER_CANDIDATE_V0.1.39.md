@@ -1,5 +1,7 @@
 # Skribli v0.1.39 — private owner candidate
 
+Superseded by [v0.1.40](OWNER_CANDIDATE_V0.1.40.md) after the owner's screenshots showed rough native note edges and an overly rounded Code chip.
+
 25 September 2026. The owner's screenshot of v0.1.38 showed a solid peach band beside the note. That band was the 14 px opaque backing added behind the half-outside place pill. It was visible by design in code, but wrong for the intended transparent edge.
 
 ## Change

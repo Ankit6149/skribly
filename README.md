@@ -13,7 +13,7 @@ A verified account is mandatory for write access in enforced builds. The account
 
 ## Current Windows build contract
 
-The current [v0.1.39 owner candidate](docs/04-operations/OWNER_CANDIDATE_V0.1.39.md) keeps the context pill halfway across the paper edge and restores a genuinely transparent area outside the note. It includes the [v0.1.38 smaller app dot and drag-tooltip removal](docs/04-operations/OWNER_CANDIDATE_V0.1.38.md), direct attachment removal, and the v0.1.31 sign-in packaging correction. Owner sign-in and native Windows visual acceptance remain open.
+The current [v0.1.40 owner candidate](docs/04-operations/OWNER_CANDIDATE_V0.1.40.md) gives the paper and half-outside place chip a transparent antialiasing margin inside the native Windows region, softens the chip curve, and removes the paper's clipped outer shadow. It includes the [v0.1.39 transparent-edge correction](docs/04-operations/OWNER_CANDIDATE_V0.1.39.md), direct attachment removal, and the v0.1.31 sign-in packaging correction. Owner sign-in and native Windows visual acceptance remain open.
 
 The unreleased [17 September refinement foundation](docs/04-operations/REFINEMENT_FOUNDATION_2026-09-17.md) records the smaller horizontal-band widget, native rail-state synchronization, note-surface correction and temporary reminder sizing, together with the remaining Windows acceptance gaps.
 
