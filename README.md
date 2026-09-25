@@ -13,7 +13,7 @@ A verified account is mandatory for write access in enforced builds. The account
 
 ## Current Windows build contract
 
-The [v0.1.32 owner candidate](docs/04-operations/OWNER_CANDIDATE_V0.1.32.md) addresses the v0.1.31 sign-in failure caused by a missing licence verification key in that installer. It also refines the actual compact note toward Direction A and makes the in-app context presence a small circular dot. The installer is for owner testing; account sign-in and final native visual acceptance remain to be checked on the installed build.
+The current [v0.1.33 owner candidate](docs/04-operations/OWNER_CANDIDATE_V0.1.33.md) includes the v0.1.31 sign-in packaging correction, the circular context presence, and the latest Living Paper note interaction pass. The earlier [v0.1.32 candidate](docs/04-operations/OWNER_CANDIDATE_V0.1.32.md) predates that interaction pass. Owner sign-in and native Windows visual acceptance remain open.
 
 The unreleased [17 September refinement foundation](docs/04-operations/REFINEMENT_FOUNDATION_2026-09-17.md) records the smaller horizontal-band widget, native rail-state synchronization, note-surface correction and temporary reminder sizing, together with the remaining Windows acceptance gaps.
 
