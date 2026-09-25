@@ -8,6 +8,8 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::{channel, Receiver};
 use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
 use std::time::Duration;
+#[cfg(target_os = "windows")]
+use tauri::window::{Effect, EffectsBuilder};
 use tauri::{
     AppHandle, Emitter, LogicalSize, Manager, PhysicalPosition, PhysicalSize, RunEvent, State,
     WebviewWindow,
@@ -103,8 +105,8 @@ const CONTEXT_RAIL_COLLAPSED_WIDTH: f64 = 28.0;
 const CONTEXT_RAIL_COLLAPSED_HEIGHT: f64 = 28.0;
 const CONTEXT_RAIL_PEEK_WIDTH: f64 = 164.0;
 const CONTEXT_RAIL_PEEK_HEIGHT: f64 = 36.0;
-const RAIL_EXPANDED_WIDTH: f64 = 364.0;
-const RAIL_EXPANDED_HEIGHT: f64 = 430.0;
+const RAIL_EXPANDED_WIDTH: f64 = 388.0;
+const RAIL_EXPANDED_FALLBACK_HEIGHT: f64 = 430.0;
 const GLOBAL_RAIL_EDGE_MARGIN_LOGICAL: f64 = 0.0;
 const CONTEXT_RAIL_EDGE_MARGIN_LOGICAL: f64 = 8.0;
 const RAIL_DOCK_DEBOUNCE: Duration = Duration::from_millis(180);
@@ -122,6 +124,7 @@ struct RailWindowRuntime {
     movement_generation: AtomicU64,
     pending_programmatic_positions: Mutex<VecDeque<(i32, i32)>>,
     has_docked_position: AtomicBool,
+    global_widget_return_y: Mutex<Option<i32>>,
     expanded: AtomicBool,
     revealed: AtomicBool,
     arrival_revision: AtomicU64,
@@ -200,6 +203,19 @@ fn emit_rail_window_state(app_handle: &AppHandle, contextual: bool) {
 }
 
 impl RailWindowRuntime {
+    fn remember_global_widget_y(&self, y: i32) {
+        if let Ok(mut saved) = self.global_widget_return_y.lock() {
+            *saved = Some(y);
+        }
+    }
+
+    fn global_widget_return_y(&self) -> Option<i32> {
+        self.global_widget_return_y
+            .lock()
+            .ok()
+            .and_then(|saved| *saved)
+    }
+
     fn foreground_target(&self) -> Option<TargetWindowInfo> {
         self.foreground_target
             .lock()
@@ -631,6 +647,7 @@ fn size_and_dock_rail(
     rail: &WebviewWindow,
     logical_width: f64,
     logical_height: f64,
+    expanded: bool,
 ) -> Result<(), String> {
     rail_window_runtime()
         .movement_generation
@@ -657,10 +674,15 @@ fn size_and_dock_rail(
         .flatten()
         .or_else(|| rail.primary_monitor().ok().flatten());
 
-    rail.set_size(LogicalSize::new(logical_width, logical_height))
-        .map_err(|error| format!("Skribli could not resize the note rail: {error}"))?;
+    // The compact edge widget must not inherit the acrylic backdrop of its open panel.
+    #[cfg(target_os = "windows")]
+    if !expanded {
+        let _ = rail.set_effects(None);
+    }
 
     let Some(monitor) = monitor else {
+        rail.set_size(LogicalSize::new(logical_width, logical_height))
+            .map_err(|error| format!("Skribli could not resize the note rail: {error}"))?;
         return Ok(());
     };
     let work_area = monitor.work_area();
@@ -672,19 +694,43 @@ fn size_and_dock_rail(
         width: i32::try_from(work_area.size.width).unwrap_or(i32::MAX),
         height: i32::try_from(work_area.size.height).unwrap_or(i32::MAX),
     };
-    let next_size = PhysicalSize::new(
-        (logical_width * scale).round().max(0.0) as u32,
-        (logical_height * scale).round().max(0.0) as u32,
-    );
-    let position = match (had_docked_position, previous_position, previous_size) {
-        (true, Some(position), Some(size)) => {
-            rail_position_after_size_change(position, size, next_size, bounds, margin)
+    let next_size =
+        global_rail_physical_size(expanded, logical_width, logical_height, scale, bounds);
+    if expanded {
+        if let (Some(position), Some(size)) = (previous_position, previous_size) {
+            if size.height < next_size.height {
+                rail_window_runtime().remember_global_widget_y(position.y);
+            }
         }
+    }
+    rail.set_size(next_size)
+        .map_err(|error| format!("Skribli could not resize the note rail: {error}"))?;
+    let preferred_y = if expanded {
+        work_area.position.y
+    } else if previous_size.is_some_and(|size| size.height > next_size.height) {
+        rail_window_runtime()
+            .global_widget_return_y()
+            .unwrap_or(work_area.position.y)
+    } else {
+        previous_position.map_or(work_area.position.y, |position| position.y)
+    };
+    let position = match (had_docked_position, previous_position, previous_size) {
+        (true, Some(position), Some(size)) => rail_position_after_size_change(
+            PhysicalPosition::new(position.x, preferred_y),
+            size,
+            next_size,
+            bounds,
+            margin,
+        ),
         _ => rail_position_for_side_and_y(
             RailDockSide::Right,
-            work_area.position.y.saturating_add(
-                (work_area.size.height as i32 - next_size.height as i32).max(0) / 2,
-            ),
+            if expanded {
+                work_area.position.y
+            } else {
+                work_area.position.y.saturating_add(
+                    (work_area.size.height as i32 - next_size.height as i32).max(0) / 2,
+                )
+            },
             next_size,
             bounds,
             margin,
@@ -695,7 +741,30 @@ fn size_and_dock_rail(
         Ordering::Release,
     );
     set_rail_position(app_handle, rail, position, rail_window_runtime())
-        .map_err(|error| format!("Skribli could not dock the note rail: {error}"))
+        .map_err(|error| format!("Skribli could not dock the note rail: {error}"))?;
+    #[cfg(target_os = "windows")]
+    if expanded {
+        // CSS backdrop-filter cannot sample another Windows application's pixels.
+        // Desktop Acrylic supplies the actual blurred desktop backdrop for this rail only.
+        let _ = rail.set_effects(Some(EffectsBuilder::new().effect(Effect::Acrylic).build()));
+    }
+    Ok(())
+}
+
+fn global_rail_physical_size(
+    expanded: bool,
+    logical_width: f64,
+    logical_height: f64,
+    scale: f64,
+    bounds: RailDockBounds,
+) -> PhysicalSize<u32> {
+    let width = (logical_width * scale).round().max(0.0) as u32;
+    let height = if expanded {
+        bounds.height.max(0) as u32
+    } else {
+        (logical_height * scale).round().max(0.0) as u32
+    };
+    PhysicalSize::new(width.min(bounds.width.max(0) as u32), height)
 }
 
 fn size_and_place_context_rail(
@@ -1075,7 +1144,13 @@ fn show_global_note_rail(app_handle: AppHandle) -> Result<(), String> {
     rail.set_always_on_top(true)
         .map_err(|error| format!("Skribli could not dock the desktop note pill: {error}"))?;
     rail_window_runtime().clear_context_placement();
-    size_and_dock_rail(&app_handle, &rail, width, height)?;
+    size_and_dock_rail(
+        &app_handle,
+        &rail,
+        width,
+        height,
+        rail_window_runtime().expanded.load(Ordering::Acquire),
+    )?;
 
     let _ = app_handle.emit("skribly://global-rail-refresh", ());
     rail.show()
@@ -1913,7 +1988,7 @@ fn rail_surface_dimensions(expanded: bool, contextual: bool) -> (f64, f64) {
     if expanded && contextual {
         (460.0, 250.0)
     } else if expanded {
-        (RAIL_EXPANDED_WIDTH, RAIL_EXPANDED_HEIGHT)
+        (RAIL_EXPANDED_WIDTH, RAIL_EXPANDED_FALLBACK_HEIGHT)
     } else if contextual {
         (CONTEXT_RAIL_COLLAPSED_WIDTH, CONTEXT_RAIL_COLLAPSED_HEIGHT)
     } else {
@@ -2409,7 +2484,7 @@ fn set_context_rail_expanded(
             .store(false, Ordering::Release);
     } else {
         rail_window_runtime().clear_context_placement();
-        size_and_dock_rail(&app_handle, &rail, width, height)?;
+        size_and_dock_rail(&app_handle, &rail, width, height, expanded)?;
         rail_window_runtime()
             .expanded
             .store(expanded, Ordering::Release);
@@ -2447,7 +2522,7 @@ fn collapse_other_rail_locked(
         };
         size_and_place_context_rail(app_handle, &rail, &target, width, height)?;
     } else {
-        size_and_dock_rail(app_handle, &rail, width, height)?;
+        size_and_dock_rail(app_handle, &rail, width, height, false)?;
     }
     runtime.expanded.store(false, Ordering::Release);
     runtime.revealed.store(false, Ordering::Release);
@@ -4422,10 +4497,45 @@ mod tests {
 
     #[test]
     fn global_and_context_rail_have_distinct_collapsed_sizes() {
-        assert_eq!(rail_surface_dimensions(true, false), (364.0, 430.0));
+        assert_eq!(rail_surface_dimensions(true, false), (388.0, 430.0));
         assert_eq!(rail_surface_dimensions(true, true), (460.0, 250.0));
         assert_eq!(rail_surface_dimensions(false, false), (28.0, 80.0));
         assert_eq!(rail_surface_dimensions(false, true), (28.0, 28.0));
+    }
+
+    #[test]
+    fn global_widget_panel_fills_the_work_area_and_returns_to_its_previous_height() {
+        let bounds = RailDockBounds {
+            x: -1600,
+            y: 24,
+            width: 1600,
+            height: 876,
+        };
+        let compact = global_rail_physical_size(false, 28.0, 80.0, 1.25, bounds);
+        let panel = global_rail_physical_size(true, 388.0, 430.0, 1.25, bounds);
+        assert_eq!(compact, PhysicalSize::new(35, 100));
+        assert_eq!(panel, PhysicalSize::new(485, 876));
+
+        let widget = PhysicalPosition::new(-1600, 540);
+        let opened = rail_position_after_size_change(widget, compact, panel, bounds, 0);
+        assert_eq!(opened, PhysicalPosition::new(-1600, 24));
+        let returned = rail_position_after_size_change(
+            PhysicalPosition::new(opened.x, widget.y),
+            panel,
+            compact,
+            bounds,
+            0,
+        );
+        assert_eq!(returned, widget);
+
+        let narrow = RailDockBounds {
+            width: 320,
+            ..bounds
+        };
+        assert_eq!(
+            global_rail_physical_size(true, 388.0, 430.0, 1.25, narrow).width,
+            320
+        );
     }
 
     #[test]

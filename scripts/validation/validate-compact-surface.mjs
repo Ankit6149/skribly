@@ -198,10 +198,13 @@ if (
   railWindow.height !== 80 ||
   railWindow.minWidth !== 28 ||
   railWindow.minHeight !== 50 ||
-  railWindow.maxWidth !== 364 ||
-  railWindow.maxHeight !== 430
+  railWindow.maxWidth !== 388 ||
+  railWindow.maxHeight !== undefined ||
+  !nativeEntry.includes('global_rail_physical_size(expanded, logical_width, logical_height, scale, bounds)') ||
+  !nativeEntry.includes('bounds.height.max(0) as u32') ||
+  !nativeEntry.includes('EffectsBuilder::new().effect(Effect::Acrylic).build()')
 ) {
-  failures.push('The global edge widget and contextual ribbon must stay outside Windows Snap Layouts while allowing their fixed collapsed and expanded sizes.');
+  failures.push('The global edge widget must stay outside Windows Snap Layouts while its open panel uses the monitor work area height and native Acrylic backdrop.');
 }
 
 if (

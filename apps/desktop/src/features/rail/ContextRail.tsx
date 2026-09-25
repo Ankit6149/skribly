@@ -20,7 +20,6 @@ import { observeRailWindowState, type RailWindowState } from './railWindowState'
 import { createContextPresence } from './contextPresence';
 
 type RailScope = 'context' | 'all' | 'archive';
-const RIBBON_LIMIT = 5;
 const nativeRuntimeAvailable = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 const APP_ICON_CACHE_KEY = 'skribli-app-icons-v1';
 
@@ -70,7 +69,6 @@ export const ContextRail: React.FC<{ contextual: boolean }> = ({ contextual }) =
   const launcherButton = useRef<HTMLButtonElement>(null);
   const focusLauncherAfterCollapse = useRef(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [showAllRibbons, setShowAllRibbons] = useState(false);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
   const opening = useRef(false);
@@ -94,12 +92,8 @@ export const ContextRail: React.FC<{ contextual: boolean }> = ({ contextual }) =
     [allGroups, selectedGroupKey]
   );
   const ribbonSource = useMemo(() => groups.flatMap((group) => group.notes), [groups]);
-  const ribbonNotes = useMemo(
-    () => contextualDock || showAllRibbons ? ribbonSource : ribbonSource.slice(0, RIBBON_LIMIT),
-    [ribbonSource, showAllRibbons, contextualDock]
-  );
+  const ribbonNotes = ribbonSource;
   const pillCount = railPillCount(activeNotes.length, contextNotes.length, contextualDock);
-  const hiddenRibbonCount = Math.max(0, ribbonSource.length - ribbonNotes.length);
   const iconProcessNames = useMemo(() => [...new Set(visibleNotes.map((note) => note.target_process_name)
     .filter((name): name is string => Boolean(name)))].sort().join('\n'), [visibleNotes]);
 
@@ -315,7 +309,7 @@ export const ContextRail: React.FC<{ contextual: boolean }> = ({ contextual }) =
   };
 
   const selectScope = (nextScope: RailScope) => {
-    setScope(nextScope); setSelectedGroupKey(null); setShowAllRibbons(false); setMenuOpen(false);
+    setScope(nextScope); setSelectedGroupKey(null); setMenuOpen(false);
   };
 
   if (collapsed) {
@@ -378,10 +372,10 @@ export const ContextRail: React.FC<{ contextual: boolean }> = ({ contextual }) =
       </nav>}
 
       {!contextualDock && allGroups.length > 1 && <nav className="ribbon-context-strip" aria-label="Apps with Skribs">
-        <button type="button" className={selectedGroupKey === null ? 'active' : ''} onClick={() => { setSelectedGroupKey(null); setShowAllRibbons(false); }}
+        <button type="button" className={selectedGroupKey === null ? 'active' : ''} onClick={() => setSelectedGroupKey(null)}
           aria-label="Show all apps" title="Every app in this view"><StickyNote size={14} aria-hidden="true" /><span>{visibleNotes.length}</span></button>
         {allGroups.map((group) => <button type="button" key={group.key} className={selectedGroupKey === group.key ? 'active' : ''}
-          onClick={() => { setSelectedGroupKey(group.key); setShowAllRibbons(false); }} aria-label={`${group.label}, ${group.notes.length} Skribs`} title={`${group.label} · ${group.notes.length}`}>
+          onClick={() => setSelectedGroupKey(group.key)} aria-label={`${group.label}, ${group.notes.length} Skribs`} title={`${group.label} · ${group.notes.length}`}>
           <ContextIcon processName={group.notes[0]?.target_process_name ?? group.key}
             iconUrl={appIcons[(group.notes[0]?.target_process_name ?? group.key).toLowerCase()]} /><span>{group.notes.length}</span></button>)}
       </nav>}
@@ -408,8 +402,6 @@ export const ContextRail: React.FC<{ contextual: boolean }> = ({ contextual }) =
               disabled={openingId !== null} aria-label={`Return to where ${noteTitle(note)} was placed`}
               title="Return to the app where this Skrib was placed"><MapPinned size={16} strokeWidth={1.9} aria-hidden="true" /></button>}
           </article>)}
-        {hiddenRibbonCount > 0 && <button className="ribbon-more" type="button" onClick={() => setShowAllRibbons(true)}>
-          +{hiddenRibbonCount} more</button>}
         {message && <div className="ribbon-message" role="status">{message}</div>}
       </div>
     </main>
