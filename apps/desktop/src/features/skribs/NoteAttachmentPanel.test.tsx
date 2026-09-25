@@ -43,6 +43,11 @@ describe('attachment collection', () => {
     expect(container.querySelector('.note-attachment-strip')?.getAttribute('data-expanded')).toBe('true');
     expect(container.querySelector('.attachment-drawer-handle')?.textContent).toContain('Hide the collection');
     expect(container.querySelector('.attachment-tray-item strong')?.textContent).toBe('photo.png');
+    await act(async () => {
+      (container.querySelector('.attachment-tray-remove') as HTMLButtonElement).click();
+    });
+    expect(removeAttachmentFromNote).toHaveBeenCalledWith('test-note', 'new-photo');
+    expect(container.querySelector('.attachment-tray-item')).toBeNull();
   });
 
   it('removes a file from storage when its inline image requests removal', async () => {

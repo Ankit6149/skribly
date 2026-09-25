@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { emit } from '@tauri-apps/api/event';
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, FileText, Image, Paperclip, Play } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, FileText, Image, Paperclip, Play, X } from 'lucide-react';
 import {
   addFilesToNote,
   createAttachmentObjectUrl,
@@ -311,15 +311,19 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
                       ? <video src={urls[attachment.id]} controls preload="metadata" aria-label={attachment.name} />
                       : <FileText size={28} aria-hidden="true" />}
                 </div>
+                <button type="button" className="attachment-tray-remove"
+                  disabled={disabled || panelBusy}
+                  aria-label={`Remove ${attachment.name} from note`}
+                  title="Remove attached file from this note"
+                  onClick={() => void remove(attachment.id, true)}>
+                  <X size={12} aria-hidden="true" />
+                </button>
                 <strong title={attachment.name}>{attachment.name}</strong>
                 <div className="attachment-object-actions">
                   <button type="button" disabled={disabled || panelBusy} onClick={() => {
                     if (!onPlaceInline([attachment])) reportError('Could not place this file in the note. Select a writing position and try again.');
                   }} title="Place at your writing cursor">Place in note</button>
                   {urls[attachment.id] && <a href={urls[attachment.id]} download={attachment.name} aria-label={`Save a copy of ${attachment.name}`}>Save copy</a>}
-                  <button type="button" disabled={disabled || panelBusy}
-                    aria-label={`${confirmRemoveId === attachment.id ? 'Confirm removing' : 'Remove'} ${attachment.name}`}
-                    onClick={() => void remove(attachment.id)}>{confirmRemoveId === attachment.id ? 'Remove?' : 'Remove'}</button>
                 </div>
               </article>
             )) : <>

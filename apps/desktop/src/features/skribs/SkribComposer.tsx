@@ -551,11 +551,6 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
     [activePanel, drawingEnabled, isTauriAvailable, note.id]
   );
 
-  const prepareAttachmentDrawer = useCallback(async () => {
-    if (surfaceSize !== 'compact') return true;
-    return changeSurfaceSize('medium', true);
-  }, [changeSurfaceSize, surfaceSize]);
-
   const hasPersistedExtras = useCallback(async () => {
     const [richContent, reminders] = await Promise.all([
       getRichContent(note.id),
@@ -1297,7 +1292,6 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
             onAttachmentsChange={setInlineAttachments}
             onPlaceInline={(items) => richTextEditorRef.current?.insertAttachments(items) ?? false}
             onRemoved={(id) => richTextEditorRef.current?.removeAttachment(id)}
-            onRequestExpand={prepareAttachmentDrawer}
           />
 
           {activePanel === 'reminder' && (

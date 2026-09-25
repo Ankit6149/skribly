@@ -13,7 +13,7 @@ A verified account is mandatory for write access in enforced builds. The account
 
 ## Current Windows build contract
 
-The current [v0.1.35 owner candidate](docs/04-operations/OWNER_CANDIDATE_V0.1.35.md) removes the intermittent white strip beside the desktop note when controls open or the active application changes. It includes the v0.1.31 sign-in packaging correction and the [v0.1.34 Living Paper note changes](docs/04-operations/OWNER_CANDIDATE_V0.1.34.md). Owner sign-in and native Windows visual acceptance remain open.
+The current [v0.1.36 owner candidate](docs/04-operations/OWNER_CANDIDATE_V0.1.36.md) adds a visible, direct remove control to every inline photo, video, and file. It includes the [v0.1.35 note-edge correction](docs/04-operations/OWNER_CANDIDATE_V0.1.35.md) and the v0.1.31 sign-in packaging correction. Owner sign-in and native Windows visual acceptance remain open.
 
 The unreleased [17 September refinement foundation](docs/04-operations/REFINEMENT_FOUNDATION_2026-09-17.md) records the smaller horizontal-band widget, native rail-state synchronization, note-surface correction and temporary reminder sizing, together with the remaining Windows acceptance gaps.
 

@@ -536,7 +536,7 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
             else host.setAttribute(ATTACHMENT_SIZE_ATTRIBUTE, size);
             emitChange();
           }}
-          onDelete={() => onDeleteAttachment?.(attachment.id)}
+          onDelete={onDeleteAttachment ? () => onDeleteAttachment(attachment.id) : undefined}
           onMove={(direction) => {
             if (!disabled && !drawingEnabled && editorRef.current && moveAttachmentByBlock(editorRef.current, host, direction)) emitChange();
           }} /> : <span className="inline-attachment-missing">Attachment unavailable · check the tray</span>, host, id ?? undefined);

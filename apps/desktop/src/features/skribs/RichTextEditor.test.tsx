@@ -128,16 +128,18 @@ describe('inline attachment editing', () => {
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:test');
   });
 
-  it('requests removal of the actual attachment from the inline image menu', async () => {
+  it.each([
+    ['image', 'reference.png', 'image/png'],
+    ['video', 'clip.mp4', 'video/mp4'],
+    ['document', 'brief.pdf', 'application/pdf'],
+  ] as const)('requests removal of an inline %s from its visible cross', async (kind, name, mimeType) => {
     const onDeleteAttachment = vi.fn();
     await act(async () => root.render(<RichTextEditor noteId="n" initialHtml='<p>Thought<span data-skrib-attachment="attachment-1" contenteditable="false"></span></p>'
-      attachments={[attachment]} disabled={false} drawingEnabled={false} describedBy="status" onChange={() => true} onBlur={() => undefined} onPasteFiles={() => undefined}
+      attachments={[{ ...attachment, kind, name, mimeType }]} disabled={false} drawingEnabled={false} describedBy="status" onChange={() => true} onBlur={() => undefined} onPasteFiles={() => undefined}
       onDeleteAttachment={onDeleteAttachment} />));
-    await act(async () => (container.querySelector('[aria-label="Options for reference.png"]') as HTMLButtonElement).click());
-    expect(container.querySelector('[aria-label="Remove reference.png from text only"]')).toBeNull();
-    await act(async () => (container.querySelector('[aria-label="Remove reference.png from note"]') as HTMLButtonElement).click());
-    await act(async () => (container.querySelector('[aria-label="Confirm remove reference.png from note"]') as HTMLButtonElement).click());
+    await act(async () => (container.querySelector(`[aria-label="Remove ${name} from note"]`) as HTMLButtonElement).click());
     expect(onDeleteAttachment).toHaveBeenCalledWith('attachment-1');
+    expect(container.querySelector(`[aria-label="Options for ${name}"]`)).not.toBeNull();
   });
   it('removes an empty image paragraph without adding a newline to the note', async () => {
     const ref = createRef<RichTextEditorHandle>();

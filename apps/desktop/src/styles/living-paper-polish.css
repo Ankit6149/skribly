@@ -432,7 +432,7 @@
 .inline-attachment-object[data-size='large'] .inline-attachment-preview img { max-height: 208px; }
 .inline-attachment-name { margin-top: 5px; color: var(--skribli-muted); font-size: 10px; }
 .inline-attachment-more {
-  position: absolute; top: 8px; right: 7px; z-index: 3;
+  position: absolute; top: 8px; right: 33px; z-index: 3;
   width: 25px; height: 25px; display: grid; place-items: center;
   border: 1px solid rgb(38 41 35 / 12%); border-radius: 50%;
   background: var(--paper); color: var(--skribli-ink); box-shadow: 0 2px 6px rgb(38 41 35 / 13%);
@@ -440,6 +440,15 @@
 }
 .inline-attachment:is(:hover,:focus-within) .inline-attachment-more { opacity: 1; }
 .inline-attachment-more:focus-visible { opacity: 1; outline: 2px solid var(--olive); }
+.inline-attachment-remove {
+  position: absolute; top: 9px; right: 7px; z-index: 4;
+  width: 21px; height: 21px; display: grid; place-items: center;
+  padding: 0; border: 1px solid rgb(38 41 35 / 15%); border-radius: 50%;
+  background: var(--paper); color: var(--skribli-ink);
+  box-shadow: 0 2px 6px rgb(38 41 35 / 13%); cursor: pointer;
+}
+.inline-attachment-remove:is(:hover,:focus-visible) { background: color-mix(in srgb, var(--rose) 55%, var(--paper)); outline: 1px solid var(--olive); }
+.inline-attachment-remove:disabled { opacity: .4; cursor: default; }
 .inline-attachment-popover {
   position: absolute; top: 36px; right: 2px; z-index: 34;
   display: grid; gap: 5px; width: max-content; max-width: 210px; padding: 7px;
@@ -456,7 +465,6 @@
 .inline-attachment-sizes button[aria-pressed='true'],
 .inline-attachment-popover :is(button,a):hover { background: color-mix(in srgb, var(--mint) 52%, var(--paper)); }
 .inline-attachment-popover button:focus-visible, .inline-attachment-popover a:focus-visible { outline: 2px solid var(--olive); }
-.inline-attachment-confirm { max-width: 160px; white-space: normal; color: var(--skribli-ink); }
 @media (max-width: 360px) {
   .composer-rich-editor-shell .composer-textarea { padding-left: 22px; padding-right: 43px; }
 }
@@ -465,7 +473,6 @@
   .composer-context-tab { top: 14px; }
   .composer-side-tools { top: 10px; }
   .composer-place-detail { top: 55px; }
-  .note-attachment-strip:not([data-expanded='true']) { display: none; }
   .inline-attachment-object[data-size='small'] { width: 82px; }
   .inline-attachment-object[data-size='small'] .inline-attachment-preview img { max-height: 72px; }
   .composer-side-tools[data-pinned='true'] .composer-note-menu {
@@ -514,16 +521,52 @@
 .composer-discard-confirmation button.danger { background: #82443f; color: #fff; border-color: #82443f; }
 .composer-discard-confirmation button:focus-visible { outline: 2px solid var(--olive); }
 .note-attachment-strip:not([data-empty='true']) {
-  width: min(174px, calc(100% - 44px)); max-width: none;
+  box-sizing: border-box; width: min(174px, calc(100% - 44px)); max-width: none;
   min-height: 30px; max-height: 30px; margin: 0 0 8px 22px;
   overflow: hidden; border: 1px solid rgb(38 41 35 / 12%); border-radius: 999px;
   background: color-mix(in srgb, var(--paper) 55%, transparent);
   container-type: normal;
 }
 .note-attachment-strip[data-expanded='true'] {
-  width: calc(100% - 32px); max-height: 174px; margin: 0 16px 7px;
-  border-radius: 12px; background: var(--paper);
+  position: absolute; left: 22px; bottom: 56px; z-index: 35;
+  display: flex; flex-direction: column-reverse;
+  width: min(174px, calc(100% - 44px)); max-height: min(410px, calc(100% - 82px));
+  margin: 0; border-radius: 12px; background: var(--paper);
+  box-shadow: 0 10px 24px rgb(38 41 35 / 14%);
 }
+.note-attachment-strip[data-expanded='true'] .attachment-drawer-handle {
+  flex: 0 0 28px; border-top: 1px solid rgb(38 41 35 / 10%);
+}
+.note-attachment-strip[data-expanded='true'] .attachment-drawer-content {
+  flex: 0 1 auto; height: auto; min-height: 0;
+  padding: 8px; overflow-x: hidden; overflow-y: auto;
+  border-top: 0;
+}
+.note-attachment-strip[data-expanded='true'] .attachment-media-grid {
+  min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+.note-attachment-strip[data-expanded='true'] .attachment-tray-item {
+  position: relative; padding-bottom: 7px; border-bottom: 1px solid rgb(38 41 35 / 10%);
+}
+.note-attachment-strip[data-expanded='true'] .attachment-tray-item:last-child { border-bottom: 0; padding-bottom: 0; }
+.note-attachment-strip[data-expanded='true'] .attachment-tray-thumbnail { height: 58px; }
+.note-attachment-strip[data-expanded='true'] .attachment-tray-item .attachment-object-actions {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px;
+  opacity: 1; transform: none;
+}
+.note-attachment-strip[data-expanded='true'] .attachment-tray-item .attachment-object-actions :is(a,button) {
+  min-height: 24px; padding: 3px 4px; text-align: center;
+}
+.attachment-tray-remove {
+  position: absolute; top: 3px; right: 3px; z-index: 3;
+  width: 20px; height: 20px; display: grid; place-items: center;
+  padding: 0; border: 1px solid rgb(38 41 35 / 15%); border-radius: 50%;
+  background: var(--paper); color: var(--skribli-ink);
+  box-shadow: 0 2px 6px rgb(38 41 35 / 14%); cursor: pointer;
+}
+.attachment-tray-remove:is(:hover,:focus-visible) { background: color-mix(in srgb, var(--rose) 55%, var(--paper)); outline: 1px solid var(--olive); }
+.attachment-tray-remove:disabled { opacity: .4; cursor: default; }
 .attachment-drawer-handle {
   width: 100%; min-height: 28px; padding: 3px 9px;
   grid-template-columns: 18px minmax(0,1fr) 14px; gap: 5px;
