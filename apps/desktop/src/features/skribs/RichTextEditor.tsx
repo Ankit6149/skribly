@@ -7,11 +7,11 @@ import React, {
   type ClipboardEvent,
   type FormEvent,
 } from 'react';
-import { Bold, Heading2, Highlighter, List, ListChecks, ListOrdered, Paperclip } from 'lucide-react';
+import { Bold, Highlighter, List, ListChecks, ListOrdered, Paperclip } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import type { SkribAttachment } from '../../lib/richContentStore';
 import { InlineAttachment, INLINE_ATTACHMENT_MIME } from './InlineAttachment';
-import { ATTACHMENT_ATTRIBUTE, ATTACHMENT_SELECTOR, canonicalAttachmentHtml, createAttachmentReference, editorPlainText, moveAttachmentByBlock, readAttachmentDrag } from './inlineAttachmentModel';
+import { ATTACHMENT_ATTRIBUTE, ATTACHMENT_SIZE_ATTRIBUTE, ATTACHMENT_SELECTOR, canonicalAttachmentHtml, createAttachmentReference, editorPlainText, moveAttachmentByBlock, readAttachmentDrag, readAttachmentSize } from './inlineAttachmentModel';
 
 export interface RichTextEditorHandle {
   flush: () => void;
@@ -32,6 +32,7 @@ interface RichTextEditorProps {
   onBlur: () => void;
   onPasteFiles: (files: File[]) => void;
   onRequestAttachment?: (() => void) | undefined;
+  onDeleteAttachment?: ((id: string) => void) | undefined;
   onHistoryChange?: (canUndo: boolean, canRedo: boolean) => void;
   attachments?: SkribAttachment[];
 }
@@ -64,7 +65,7 @@ export function sanitizeRichTextHtml(value: string, allowAttachmentReferences = 
     if (!(node instanceof HTMLElement)) return null;
 
     if (node.hasAttribute(ATTACHMENT_ATTRIBUTE)) {
-      return allowAttachmentReferences ? createAttachmentReference(node.getAttribute(ATTACHMENT_ATTRIBUTE) ?? '') : null;
+      return allowAttachmentReferences ? createAttachmentReference(node.getAttribute(ATTACHMENT_ATTRIBUTE) ?? '', readAttachmentSize(node)) : null;
     }
 
     const isVisualHighlight =
@@ -111,14 +112,13 @@ function clipboardFiles(event: ClipboardEvent<HTMLDivElement>): File[] {
 }
 
 export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(function RichTextEditor(
-  { noteId, initialHtml, disabled, drawingEnabled, describedBy, onChange, onBlur, onPasteFiles, onRequestAttachment, onHistoryChange, attachments = NO_ATTACHMENTS },
+  { noteId, initialHtml, disabled, drawingEnabled, describedBy, onChange, onBlur, onPasteFiles, onRequestAttachment, onDeleteAttachment, onHistoryChange, attachments = NO_ATTACHMENTS },
   forwardedRef
 ) {
   const editorRef = useRef<HTMLDivElement>(null);
   const lastAcceptedHtml = useRef(initialHtml);
   const [formatBarVisible, setFormatBarVisible] = useState(false);
   const [formatBarAnchor, setFormatBarAnchor] = useState({ top: 8, left: 48 });
-  const [caretToolTop, setCaretToolTop] = useState(12);
   const [checklistAtCaret, setChecklistAtCaret] = useState(false);
   const [slashMenuOpen, setSlashMenuOpen] = useState(false);
   const [slashIndex, setSlashIndex] = useState(0);
@@ -250,13 +250,6 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
         });
       }
     }
-    if (inside && selection.isCollapsed) {
-      const shell = editor.parentElement?.getBoundingClientRect();
-      const caret = range.getBoundingClientRect?.();
-      if (shell && caret && caret.width + caret.height > 0) {
-        setCaretToolTop(Math.max(8, Math.min(shell.height - 112, caret.top - shell.top)));
-      }
-    }
     setFormatBarVisible(inside && !selection.isCollapsed && !disabled && !drawingEnabled);
   };
 
@@ -305,7 +298,11 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
   const removeAttachment = (id: string) => {
     if (disabled || drawingEnabled) return;
     editorRef.current?.querySelectorAll(ATTACHMENT_SELECTOR).forEach((node) => {
-      if (node.getAttribute(ATTACHMENT_ATTRIBUTE) === id) node.remove();
+      if (node.getAttribute(ATTACHMENT_ATTRIBUTE) !== id) return;
+      const parent = node.parentElement;
+      node.remove();
+      if (parent && ['P', 'DIV'].includes(parent.tagName) && !parent.textContent?.trim() &&
+        !parent.querySelector(ATTACHMENT_SELECTOR) && parent !== editorRef.current) parent.remove();
     });
     emitChange();
   };
@@ -359,14 +356,6 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
     updateFormatBarVisibility();
   };
 
-  const toggleHeading = () => {
-    if (disabled || drawingEnabled) return;
-    restoreSelection();
-    const selection = window.getSelection();
-    const node = selection?.anchorNode instanceof Element ? selection.anchorNode : selection?.anchorNode?.parentElement;
-    runCommand('formatBlock', node?.closest('h2') ? 'p' : 'h2');
-  };
-
   const openSlashMenu = () => {
     updateFormatBarVisibility();
     const editor = editorRef.current;
@@ -384,7 +373,6 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
   };
 
   const slashActions = [
-    { label: 'Heading', shortcut: 'H', icon: Heading2, run: toggleHeading },
     { label: checklistAtCaret ? 'Remove checklist' : 'Checklist', shortcut: 'C', icon: ListChecks, run: insertChecklist },
     { label: 'Attach inline', shortcut: 'A', icon: Paperclip, run: () => onRequestAttachment?.() },
     { label: 'Bulleted list', shortcut: 'B', icon: List, run: () => runCommand('insertUnorderedList') },
@@ -427,26 +415,8 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
 
   return (
     <div className="composer-rich-editor-shell">
-      {!disabled && !drawingEnabled && (
-        <div className="composer-caret-tools" style={{ top: caretToolTop }} role="toolbar" aria-label="Writing tools">
-          <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={onRequestAttachment}
-            disabled={!onRequestAttachment} aria-label="Attach a file at the cursor" title="Attach inline">
-            <Paperclip size={15} aria-hidden="true" />
-          </button>
-          <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={insertChecklist}
-            aria-label={checklistAtCaret ? 'Remove checklist at the cursor' : 'Add checklist at the cursor'}
-            title={checklistAtCaret ? 'Remove checklist' : 'Checklist'}>
-            <ListChecks size={15} aria-hidden="true" />
-          </button>
-          <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={toggleHeading}
-            aria-label="Toggle heading at the cursor" title="Heading">
-            <Heading2 size={15} aria-hidden="true" />
-          </button>
-        </div>
-      )}
       {formatBarVisible && !disabled && !drawingEnabled && (
         <div className="composer-format-bar" style={formatBarAnchor} aria-label="Selected text tools">
-          <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={toggleHeading} aria-label="Toggle heading" title="Heading"><Heading2 size={14} /></button>
           <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('bold')} disabled={disabled || drawingEnabled} aria-label="Bold selected text" title="Bold"><Bold size={14} /></button>
           <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('backColor', '#f8df78')} disabled={disabled || drawingEnabled} aria-label="Highlight selected text" title="Highlight"><Highlighter size={14} /></button>
           <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('insertUnorderedList')} disabled={disabled || drawingEnabled} aria-label="Bulleted list" title="Bulleted list"><List size={14} /></button>
@@ -510,9 +480,9 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
               return;
             }
             if (event.key === 'Enter') { event.preventDefault(); runSlashAction(slashIndex); return; }
-            if (['h', 'c', 'a', 'b'].includes(event.key.toLowerCase())) {
+            if (['c', 'a', 'b'].includes(event.key.toLowerCase())) {
               event.preventDefault();
-              runSlashAction(['h', 'c', 'a', 'b'].indexOf(event.key.toLowerCase()));
+              runSlashAction(['c', 'a', 'b'].indexOf(event.key.toLowerCase()));
               return;
             }
             setSlashMenuOpen(false);
@@ -557,9 +527,16 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
       {attachmentHosts.map((host) => {
         const id = host.getAttribute(ATTACHMENT_ATTRIBUTE);
         const attachment = attachments.find((item) => item.id === id);
-        return createPortal(attachment ? <InlineAttachment attachment={attachment} noteId={noteId}
+        return createPortal(attachment ? <InlineAttachment attachment={attachment}
           disabled={disabled || drawingEnabled}
-          onRemove={() => removeAttachment(attachment.id)}
+          size={readAttachmentSize(host)}
+          onSizeChange={(size) => {
+            if (disabled || drawingEnabled) return;
+            if (size === 'small') host.removeAttribute(ATTACHMENT_SIZE_ATTRIBUTE);
+            else host.setAttribute(ATTACHMENT_SIZE_ATTRIBUTE, size);
+            emitChange();
+          }}
+          onDelete={() => onDeleteAttachment?.(attachment.id)}
           onMove={(direction) => {
             if (!disabled && !drawingEnabled && editorRef.current && moveAttachmentByBlock(editorRef.current, host, direction)) emitChange();
           }} /> : <span className="inline-attachment-missing">Attachment unavailable · check the tray</span>, host, id ?? undefined);

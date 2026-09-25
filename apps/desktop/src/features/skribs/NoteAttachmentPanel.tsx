@@ -18,6 +18,7 @@ interface NoteAttachmentPanelProps {
   pickerRequest?: number;
   openDrawerRequest?: number;
   filesRequest?: { id: number; files: File[] } | null;
+  removeRequest?: { id: string; nonce: number } | null;
   onError?: (message: string) => void;
   onBusyChange?: (busy: boolean) => void;
   onCountChange?: (count: number) => void;
@@ -56,6 +57,7 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
   pickerRequest = 0,
   openDrawerRequest = 0,
   filesRequest = null,
+  removeRequest = null,
   onError,
   onBusyChange,
   onCountChange,
@@ -68,6 +70,7 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
   const lastPickerRequestRef = useRef(pickerRequest);
   const lastOpenDrawerRequestRef = useRef(openDrawerRequest);
   const lastFilesRequestRef = useRef<number | null>(filesRequest?.id ?? null);
+  const lastRemoveRequestRef = useRef<number | null>(removeRequest?.nonce ?? null);
   const operationInProgressRef = useRef(false);
   const [attachments, setAttachments] = useState<SkribAttachment[]>([]);
   const [urls, setUrls] = useState<Record<string, string>>({});
@@ -209,9 +212,9 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
     })();
   }, [attachments.length, onRequestExpand, openDrawerRequest, reportError]);
 
-  const remove = async (attachmentId: string) => {
+  const remove = async (attachmentId: string, confirmed = false) => {
     if (disabled || operationInProgressRef.current) return;
-    if (confirmRemoveId !== attachmentId) {
+    if (!confirmed && confirmRemoveId !== attachmentId) {
       setConfirmRemoveId(attachmentId);
       return;
     }
@@ -232,6 +235,13 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
       onBusyChange?.(false);
     }
   };
+
+  useEffect(() => {
+    if (!removeRequest || removeRequest.nonce === lastRemoveRequestRef.current) return;
+    if (disabled || panelBusy || operationInProgressRef.current) return;
+    lastRemoveRequestRef.current = removeRequest.nonce;
+    void remove(removeRequest.id, true);
+  }, [disabled, panelBusy, removeRequest]);
 
   const hiddenPicker = (
     <input
@@ -271,6 +281,8 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
             <button
               type="button"
               className="attachment-drawer-handle"
+              aria-label={`${compactExpanded ? 'Hide' : 'View'} all attachments · ${attachmentTypes}`}
+              title={compactExpanded ? 'Hide attachments' : 'View all attachments'}
               aria-expanded={compactExpanded}
               aria-controls={drawerId}
               onClick={() => void toggleCompactDrawer()}

@@ -1,14 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, ArrowRight, Download, FileText, GripVertical, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Download, FileText, MoreHorizontal, Trash2 } from 'lucide-react';
 import { createAttachmentObjectUrl, revokeAttachmentObjectUrl, type SkribAttachment } from '../../lib/richContentStore';
+import type { InlineAttachmentSize } from './inlineAttachmentModel';
 
 export const INLINE_ATTACHMENT_MIME = 'application/x-skribli-attachment';
 
-export function InlineAttachment({ attachment, noteId, disabled, onMove, onRemove }: {
-  attachment: SkribAttachment; noteId: string; disabled: boolean;
-  onMove: (direction: -1 | 1) => void; onRemove: () => void;
+export function InlineAttachment({ attachment, disabled, size, onSizeChange, onMove, onDelete }: {
+  attachment: SkribAttachment; disabled: boolean; size: InlineAttachmentSize;
+  onSizeChange: (size: InlineAttachmentSize) => void;
+  onMove: (direction: -1 | 1) => void; onDelete: () => void;
 }) {
   const [url, setUrl] = useState<string | null>(null);
+  const [actionsOpen, setActionsOpen] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   useEffect(() => {
     let next: string | null = null;
     try { next = createAttachmentObjectUrl(attachment); } catch { /* Keep the file name readable. */ }
@@ -16,27 +20,37 @@ export function InlineAttachment({ attachment, noteId, disabled, onMove, onRemov
     return () => { if (next) revokeAttachmentObjectUrl(next); };
   }, [attachment.blob]);
   return (
-    <span className={`inline-attachment-object inline-attachment-${attachment.kind}`}>
+    <span className={`inline-attachment-object inline-attachment-${attachment.kind}`} data-size={size}
+      onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) { setActionsOpen(false); setConfirmDelete(false); } }}>
       <span className="inline-attachment-preview">
         {(attachment.kind === 'image' || attachment.kind === 'ink') && url
           ? <img src={url} alt={attachment.name} draggable={false} />
           : attachment.kind === 'video' && url
             ? <video src={url} controls preload="metadata" aria-label={attachment.name} />
-            : <FileText size={32} aria-hidden="true" />}
+            : <FileText size={28} aria-hidden="true" />}
       </span>
+      <button type="button" className="inline-attachment-more" disabled={disabled}
+        aria-label={`Options for ${attachment.name}`} aria-expanded={actionsOpen}
+        title="Attachment options" onClick={() => setActionsOpen((open) => !open)}>
+        <MoreHorizontal size={16} aria-hidden="true" />
+      </button>
       <span className="inline-attachment-name" title={attachment.name}>{attachment.name}</span>
-      <span className="inline-attachment-actions" role="group" aria-label={`Actions for ${attachment.name}`}>
-        <button type="button" draggable={!disabled} disabled={disabled} title="Drag into a different line"
-          aria-label={`Drag ${attachment.name} within this note`}
-          onDragStart={(event) => {
-            event.dataTransfer.setData(INLINE_ATTACHMENT_MIME, JSON.stringify({ noteId, attachmentId: attachment.id }));
-            event.dataTransfer.effectAllowed = 'move';
-          }}><GripVertical size={14} /></button>
-        <button type="button" disabled={disabled} onClick={() => onMove(-1)} title="Move before the previous paragraph" aria-label={`Move ${attachment.name} earlier`}><ArrowLeft size={14} /></button>
-        <button type="button" disabled={disabled} onClick={() => onMove(1)} title="Move after the next paragraph" aria-label={`Move ${attachment.name} later`}><ArrowRight size={14} /></button>
-        {url && <a href={url} download={attachment.name} title="Save a copy" aria-label={`Save a copy of ${attachment.name}`}><Download size={14} /></a>}
-        <button type="button" disabled={disabled} onClick={onRemove} title="Remove from the text; keep in attachments" aria-label={`Remove ${attachment.name} from text only`}><X size={14} /></button>
-      </span>
+      {actionsOpen && <span className="inline-attachment-popover" role="group" aria-label={`Options for ${attachment.name}`}>
+        {(attachment.kind === 'image' || attachment.kind === 'ink') && <span className="inline-attachment-sizes" role="group" aria-label="Image size">
+          {(['small', 'medium', 'large'] as const).map((option) => <button key={option} type="button"
+            disabled={disabled} aria-label={`${option} image`} aria-pressed={size === option}
+            onClick={() => onSizeChange(option)}>{option[0]!.toUpperCase()}</button>)}
+        </span>}
+        <span className="inline-attachment-menu-row">
+          <button type="button" disabled={disabled} onClick={() => onMove(-1)} aria-label={`Move ${attachment.name} earlier`} title="Move earlier"><ArrowLeft size={15} /></button>
+          <button type="button" disabled={disabled} onClick={() => onMove(1)} aria-label={`Move ${attachment.name} later`} title="Move later"><ArrowRight size={15} /></button>
+          {url && <a href={url} download={attachment.name} aria-label={`Save a copy of ${attachment.name}`} title="Save a copy"><Download size={15} /></a>}
+          <button type="button" disabled={disabled} onClick={() => { if (confirmDelete) onDelete(); else setConfirmDelete(true); }}
+            aria-label={confirmDelete ? `Confirm remove ${attachment.name} from note` : `Remove ${attachment.name} from note`}
+            title={confirmDelete ? 'Click again to remove file from this note' : 'Remove file from note'}><Trash2 size={15} /></button>
+        </span>
+        {confirmDelete && <span className="inline-attachment-confirm">Remove file? Click the trash icon again.</span>}
+      </span>}
     </span>
   );
 }

@@ -19,6 +19,20 @@ describe('inline attachment references', () => {
     expect(sanitizeRichTextHtml('<span data-skrib-attachment="attachment-1" onclick="bad()"><script>bad()</script></span>', true))
       .toBe('<span data-skrib-attachment="attachment-1" contenteditable="false"></span>');
   });
+  it('keeps only safe image sizes across storage and strips invalid values', () => {
+    const editor = document.createElement('div');
+    editor.innerHTML = '<span data-skrib-attachment="attachment-1" data-skrib-attachment-size="medium"><img src="blob:private"></span>';
+    const saved = canonicalAttachmentHtml(editor);
+    expect(saved).toBe('<span data-skrib-attachment="attachment-1" data-skrib-attachment-size="medium" contenteditable="false"></span>');
+    expect(sanitizeRichTextHtml(saved, true)).toBe(saved);
+    expect(sanitizeRichTextHtml('<span data-skrib-attachment="attachment-1" data-skrib-attachment-size="gigantic"></span>', true))
+      .toBe('<span data-skrib-attachment="attachment-1" contenteditable="false"></span>');
+  });
+  it('does not change body text when an image in its own paragraph is resized', () => {
+    const editor = document.createElement('div');
+    editor.innerHTML = '<p>Keep this thought.</p><p><span data-skrib-attachment="attachment-1" data-skrib-attachment-size="medium"></span></p>';
+    expect(editorPlainText(editor)).toBe('Keep this thought.');
+  });
   it('accepts only a known attachment dragged within its own note', () => {
     const allowed = new Set(['attachment-1']);
     expect(readAttachmentDrag('{', 'note-1', allowed)).toBeNull();

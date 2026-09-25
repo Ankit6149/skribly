@@ -18,14 +18,13 @@ beforeEach(() => {
 afterEach(async () => { await act(async () => root.unmount()); container.remove(); Reflect.deleteProperty(document, 'execCommand'); vi.restoreAllMocks(); });
 
 describe('inline attachment editing', () => {
-  it('opens the inline file picker from the caret rail and slash shortcut', async () => {
+  it('opens the inline file picker from a slash shortcut without a persistent caret rail', async () => {
     const onRequestAttachment = vi.fn();
     await act(async () => root.render(<RichTextEditor noteId="n" initialHtml="<p>Thought</p>"
       disabled={false} drawingEnabled={false} describedBy="status" onChange={() => true}
       onBlur={() => undefined} onPasteFiles={() => undefined} onRequestAttachment={onRequestAttachment} />));
     const editor = container.querySelector('[role="textbox"]') as HTMLDivElement;
-    await act(async () => (container.querySelector('[aria-label="Attach a file at the cursor"]') as HTMLButtonElement).click());
-    expect(onRequestAttachment).toHaveBeenCalledTimes(1);
+    expect(container.querySelector('.composer-caret-tools')).toBeNull();
     await act(async () => editor.dispatchEvent(new KeyboardEvent('keydown', {
       key: '/', ctrlKey: true, bubbles: true, cancelable: true,
     })));
@@ -33,7 +32,7 @@ describe('inline attachment editing', () => {
     await act(async () => editor.dispatchEvent(new KeyboardEvent('keydown', {
       key: 'a', bubbles: true, cancelable: true,
     })));
-    expect(onRequestAttachment).toHaveBeenCalledTimes(2);
+    expect(onRequestAttachment).toHaveBeenCalledTimes(1);
     expect(container.querySelector('[aria-label="Insert in note"]')).toBeNull();
     expect(editor.textContent).toBe('Thought');
   });
@@ -129,14 +128,26 @@ describe('inline attachment editing', () => {
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:test');
   });
 
-  it('removes only an inline reference and leaves the attached file available', async () => {
-    const onChange = vi.fn(() => true);
+  it('requests removal of the actual attachment from the inline image menu', async () => {
+    const onDeleteAttachment = vi.fn();
     await act(async () => root.render(<RichTextEditor noteId="n" initialHtml='<p>Thought<span data-skrib-attachment="attachment-1" contenteditable="false"></span></p>'
-      attachments={[attachment]} disabled={false} drawingEnabled={false} describedBy="status" onChange={onChange} onBlur={() => undefined} onPasteFiles={() => undefined} />));
-    await act(async () => (container.querySelector('[aria-label="Remove reference.png from text only"]') as HTMLButtonElement).click());
+      attachments={[attachment]} disabled={false} drawingEnabled={false} describedBy="status" onChange={() => true} onBlur={() => undefined} onPasteFiles={() => undefined}
+      onDeleteAttachment={onDeleteAttachment} />));
+    await act(async () => (container.querySelector('[aria-label="Options for reference.png"]') as HTMLButtonElement).click());
+    expect(container.querySelector('[aria-label="Remove reference.png from text only"]')).toBeNull();
+    await act(async () => (container.querySelector('[aria-label="Remove reference.png from note"]') as HTMLButtonElement).click());
+    await act(async () => (container.querySelector('[aria-label="Confirm remove reference.png from note"]') as HTMLButtonElement).click());
+    expect(onDeleteAttachment).toHaveBeenCalledWith('attachment-1');
+  });
+  it('removes an empty image paragraph without adding a newline to the note', async () => {
+    const ref = createRef<RichTextEditorHandle>();
+    const onChange = vi.fn(() => true);
+    await act(async () => root.render(<RichTextEditor ref={ref} noteId="n"
+      initialHtml='<p>Thought</p><p><span data-skrib-attachment="attachment-1" contenteditable="false"></span></p>'
+      attachments={[attachment]} disabled={false} drawingEnabled={false} describedBy="status"
+      onChange={onChange} onBlur={() => undefined} onPasteFiles={() => undefined} />));
+    await act(async () => ref.current!.removeAttachment('attachment-1'));
     expect(onChange).toHaveBeenLastCalledWith('<p>Thought</p>', 'Thought');
-    expect(attachment.blob.size).toBe(4);
-    expect(container.querySelector('[data-skrib-attachment]')).toBeNull();
   });
 
   it('does not insert or move attachments while writing is disabled', async () => {

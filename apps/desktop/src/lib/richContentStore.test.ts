@@ -35,6 +35,33 @@ it('retains inline attachment positions across repository reopening and queued t
   expect((await reopened.get('inline-note')).attachments).toHaveLength(1);
 });
 
+it('restores the opening note content after edits, including its image, text size, and drawing', async () => {
+  const repository = createRichContentRepository(createMemoryRichContentPersistence(), { createId: () => 'photo-1', now: () => 42 });
+  await repository.addFiles('note', [new File(['photo'], 'photo.png', { type: 'image/png' })]);
+  await repository.updateView('note', { textSize: 'large' });
+  await repository.replaceRichText('note', { html: '<p>Original</p>', plainText: 'Original' });
+  await repository.replaceInk('note', [stroke()]);
+  const opening = await repository.get('note');
+  await repository.removeAttachment('note', 'photo-1');
+  await repository.updateView('note', { textSize: 'small' });
+  await repository.replaceRichText('note', { html: '<p>Changed</p>', plainText: 'Changed' });
+  await repository.replaceInk('note', []);
+  await repository.restoreContent('note', opening);
+  expect(await repository.get('note')).toMatchObject({
+    attachments: [{ id: 'photo-1' }], view: { textSize: 'large' },
+    richText: { plainText: 'Original' }, inkDocument: { strokes: [{ id: 'stroke-1' }] },
+  });
+});
+
+it('removes newly attached files when restoring an empty opening note', async () => {
+  const persistence = createMemoryRichContentPersistence();
+  const repository = createRichContentRepository(persistence, { createId: () => 'photo-1' });
+  const opening = await repository.get('new-note');
+  await repository.addFiles('new-note', [new File(['photo'], 'photo.png', { type: 'image/png' })]);
+  await repository.restoreContent('new-note', opening);
+  expect(await persistence.get('new-note')).toBeUndefined();
+});
+
 function createFirstPutGate(initialContent: StoredRichContent[] = []) {
   const memory = createMemoryRichContentPersistence(initialContent);
   const putStarted = deferred();

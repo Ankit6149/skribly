@@ -18,8 +18,6 @@ import {
   Paperclip,
   ListChecks,
   Palette,
-  Undo2,
-  Redo2,
 } from 'lucide-react';
 import { OverlayMetrics, SkribNote, TargetWindowInfo } from '../../lib/geometry';
 import {
@@ -28,12 +26,14 @@ import {
   getRichContent,
   replaceInkForNote,
   replaceRichTextForNote,
+  restoreRichContentForNote,
   updateNoteViewPreferences,
   type InkStroke,
   type SkribTextSize,
   type SkribAttachment,
+  type StoredRichContent,
 } from '../../lib/richContentStore';
-import { completeReminder, dismissReminder, listReminders } from '../../lib/reminderStore';
+import { completeReminder, dismissReminder, listReminders, restoreRemindersForNote, type SkribReminder } from '../../lib/reminderStore';
 import { useLicenseStore } from '../../stores/licenseStore';
 import { useSkribStore } from '../../stores/skribStore';
 import { useSkribUiStore } from '../../stores/skribUiStore';
@@ -128,9 +128,12 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
     note.width >= 680 ? 'large' : note.width >= 500 ? 'medium' : 'compact'
   );
   const [textSize, setTextSize] = useState<SkribTextSize>('medium');
+  const [placeDetailOpen, setPlaceDetailOpen] = useState(false);
+  const [cancelConfirmationOpen, setCancelConfirmationOpen] = useState(false);
+  const sessionSnapshot = useRef<{ text: string; color: SkribNote['color']; rich: StoredRichContent; reminders: SkribReminder[] } | null>(null);
+  const [inlineDeleteRequest, setInlineDeleteRequest] = useState<{ id: string; nonce: number } | null>(null);
   const [attachmentPickerRequest, setAttachmentPickerRequest] = useState(0);
   const [attachmentDrawerRequest, setAttachmentDrawerRequest] = useState(0);
-  const [editorHistory, setEditorHistory] = useState({ canUndo: false, canRedo: false });
   const [pastedFilesRequest, setPastedFilesRequest] = useState<{ id: number; files: File[] } | null>(null);
   const [attachmentCount, setAttachmentCount] = useState(0);
   const [inlineAttachments, setInlineAttachments] = useState<SkribAttachment[]>([]);
@@ -138,7 +141,6 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
   const [isInkLoading, setIsInkLoading] = useState(true);
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
   const [noteMenuOpen, setNoteMenuOpen] = useState(false);
-  const [hoverTools, setHoverTools] = useState(false);
   const [toolGatewayOpen, setToolGatewayOpen] = useState(false);
   const paletteButtonRef = useRef<HTMLButtonElement>(null);
   const moreButtonRef = useRef<HTMLButtonElement>(null);
@@ -259,6 +261,8 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
     return target.title || target.process_name;
   }, [note.target_process_name, note.target_title, target]);
   const contextTabLabel = applicationLabel(target?.process_name || note.target_process_name || '');
+  const contextFullAppLabel = /^(code|code - insiders)(\.exe)?$/i.test(target?.process_name || note.target_process_name || '')
+    ? 'Visual Studio Code' : contextTabLabel;
 
   useEffect(() => {
     setText(saveController.getSnapshot().draft);
@@ -271,6 +275,8 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
     setAttachmentCount(0);
     setInlineAttachments([]);
     setRichTextHtml(plainTextToRichHtml(note.text));
+    sessionSnapshot.current = null;
+    setCancelConfirmationOpen(false);
     pendingRichText.current = null;
     if (richTextSaveTimer.current) clearTimeout(richTextSaveTimer.current);
     richOperationsInProgress.current.clear();
@@ -379,9 +385,13 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
   useEffect(() => {
     let cancelled = false;
     setIsInkLoading(true);
-    void Promise.all([getInkForNote(note.id), getRichContent(note.id)])
-      .then(([document, richContent]) => {
+    void Promise.all([getInkForNote(note.id), getRichContent(note.id), listReminders()])
+      .then(([document, richContent, reminders]) => {
         if (!cancelled) {
+          sessionSnapshot.current = {
+            text: note.text, color: note.color, rich: richContent,
+            reminders: reminders.filter((item) => item.noteId === note.id).map(({ status: _status, ...item }) => item),
+          };
           setInkStrokes(document.strokes);
           setTextSize(richContent.view?.textSize ?? 'medium');
           setAttachmentCount(richContent.attachments.length);
@@ -660,6 +670,42 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
     storageWritable,
   ]);
 
+  const discardSessionAndClose = useCallback(async () => {
+    const baseline = sessionSnapshot.current;
+    if (!baseline || !canWrite || richOperationsInProgress.current.size > 0 ||
+      inkPersistenceStateRef.current.hasUnsavedChanges || inkPersistenceStateRef.current.status === 'saving') {
+      setComposerError('Wait for this note to finish loading or saving before discarding edits.');
+      return;
+    }
+    await runExclusive(async () => {
+      const currentDraft = saveController.getSnapshot().draft;
+      await saveController.prepareForDelete();
+      if (richTextSaveTimer.current) clearTimeout(richTextSaveTimer.current);
+      pendingRichText.current = null;
+      try {
+        await restoreRichContentForNote(note.id, baseline.rich);
+        await restoreRemindersForNote(note.id, baseline.reminders);
+        void emit('skribly://rich-content-updated', { noteId: note.id }).catch(() => undefined);
+        void emit('skribly://reminders-updated', { noteId: note.id }).catch(() => undefined);
+        if (note.color !== baseline.color) await updateSkribColor(note.id, baseline.color);
+        discardSkribDraft(note.id);
+        if (!await persistSkribText(note.id, baseline.text)) throw new Error('The original text could not be restored.');
+        if (openAction === 'created') {
+          if (!await discardEmptySkrib(note.id)) throw new Error('The new note could not be discarded safely.');
+          await hideWindow();
+        } else if (openAction === 'detached') {
+          await hideWindow();
+        } else if (!await setSkribCollapsed(note.id, true)) {
+          throw new Error('The note could not close safely.');
+        }
+      } catch (reason) {
+        stageSkribDraft(note.id, currentDraft);
+        saveController.resumeAfterDeleteFailure('Discard did not finish. The editor stayed open; retry or save the note.');
+        setComposerError(`Discard did not finish: ${reason instanceof Error ? reason.message : String(reason)}`);
+      }
+    });
+  }, [canWrite, discardEmptySkrib, hideWindow, note.color, note.id, openAction, runExclusive, saveController, setSkribCollapsed, updateSkribColor]);
+
   const cancelDeleteConfirmation = useCallback(() => {
     setDeleteConfirmation((state) => reduceDeleteConfirmation(state, 'cancel'));
   }, []);
@@ -667,6 +713,11 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
+      if (event.key === 'Escape' && cancelConfirmationOpen) {
+        event.preventDefault();
+        setCancelConfirmationOpen(false);
+        return;
+      }
       if (event.key === 'Escape' && (noteMenuOpen || toolGatewayOpen || colorPickerOpen)) {
         event.preventDefault();
         if (colorPickerOpen) {
@@ -717,7 +768,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activePanel, colorPickerOpen, noteMenuOpen, toolGatewayOpen, drawingEnabled, cancelDeleteConfirmation, deleteConfirmation, finishAndHide, openRoomyTool]);
+  }, [activePanel, cancelConfirmationOpen, colorPickerOpen, noteMenuOpen, toolGatewayOpen, drawingEnabled, cancelDeleteConfirmation, deleteConfirmation, finishAndHide, openRoomyTool]);
 
   const handleTextChange = (value: string): boolean => {
     if (!canWrite) {
@@ -954,7 +1005,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
       ? 'composer-delete-warning'
       : 'composer-open-state composer-save-status composer-character-count';
   const isNewNote = openAction === 'created';
-  const menuVisible = hoverTools || noteMenuOpen || colorPickerOpen;
+  const menuVisible = noteMenuOpen;
 
   return (
     <div className="skrib-composer-backdrop" data-overlay-surface="composer">
@@ -972,16 +1023,13 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
         }
       >
         <header className="composer-paper-top" data-tauri-drag-region title="Drag the paper margin to move this Skrib">
-          <div className="composer-context-tab" data-tauri-drag-region title={contextLabel} tabIndex={0}
+          <div className="composer-context-tab" data-tauri-drag-region tabIndex={0}
             aria-label={`Place: ${contextLabel}`}
             aria-describedby="composer-place-detail"
+            onPointerEnter={() => setPlaceDetailOpen(true)} onPointerLeave={() => setPlaceDetailOpen(false)}
+            onFocus={() => setPlaceDetailOpen(true)} onBlur={() => setPlaceDetailOpen(false)}
             style={{ '--context-tag-color': `var(--${contextTagColor(note.id, note.color)})` } as React.CSSProperties}>
             <strong data-tauri-drag-region>{contextTabLabel}</strong>
-          </div>
-          <div id="composer-place-detail" className="composer-place-detail" role="note">
-            <small>Saved place</small>
-            <strong>{contextTabLabel}</strong>
-            <span>{contextLabel}</span>
           </div>
           <span id="composer-open-state" className="sr-only">
             {isNewNote
@@ -989,10 +1037,10 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
               : 'Skribli reopened the existing Skrib for this application context.'}
           </span>
         </header>
-        <div className="composer-side-tools" data-pinned={noteMenuOpen || undefined}
-          onPointerEnter={() => setHoverTools(true)} onPointerLeave={() => setHoverTools(false)}
-          onFocusCapture={() => setHoverTools(true)}
-          onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setHoverTools(false); }}>
+        <div id="composer-place-detail" className="composer-place-detail" role="note" data-open={placeDetailOpen}>
+          <small>Saved place</small><strong>{contextFullAppLabel}</strong><span>{contextLabel}</span>
+        </div>
+        <div className="composer-side-tools" data-pinned={noteMenuOpen || undefined}>
             <button
               type="button"
               className="composer-more"
@@ -1011,16 +1059,6 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
             </button>
           {menuVisible && (
             <div id="composer-note-options" className="composer-note-menu" role="toolbar" aria-label="Note actions">
-              {noteMenuOpen && <>
-                <button type="button" aria-label="Undo last edit" disabled={!canWrite || !editorHistory.canUndo || drawingEnabled}
-                  onClick={() => richTextEditorRef.current?.undo()}>
-                  <Undo2 size={17} aria-hidden="true" /><span>Undo</span>
-                </button>
-                <button type="button" aria-label="Redo last edit" disabled={!canWrite || !editorHistory.canRedo || drawingEnabled}
-                  onClick={() => richTextEditorRef.current?.redo()}>
-                  <Redo2 size={17} aria-hidden="true" /><span>Redo</span>
-                </button>
-              </>}
               <button type="button" className={activePanel === 'reminder' ? 'active' : ''}
                 aria-label={activePanel === 'reminder' ? 'Close reminder' : 'Set a reminder'}
                 disabled={!canWrite || isFinishing || hasPendingRichOperation}
@@ -1049,7 +1087,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
                 {isRepositioning ? <span className="composer-button-spinner" aria-hidden="true" /> : <LocateFixed size={17} aria-hidden="true" />}
                 <span>Return to app</span>
               </button>}
-              {noteMenuOpen && <>
+              <>
                 <span className="composer-note-menu-divider" aria-hidden="true" />
                 <button type="button" aria-label="Complete task and move note to Archive"
                   disabled={!canWrite || isFinishing || hasPendingRichOperation || hasUnsavedInk}
@@ -1061,7 +1099,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
                   onClick={() => { setNoteMenuOpen(false); setColorPickerOpen(false); requestDeleteConfirmation(); }}>
                   <Trash2 size={17} aria-hidden="true" /><span>Move to Trash</span>
                 </button>
-              </>}
+              </>
             </div>
           )}
         </div>
@@ -1208,14 +1246,14 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
               noteId={note.id}
               initialHtml={richTextHtml}
               attachments={inlineAttachments}
-              disabled={!canWrite}
+              disabled={!canWrite || isInkLoading}
               drawingEnabled={drawingEnabled}
               describedBy={textareaDescription}
               onChange={handleRichTextChange}
-              onHistoryChange={(canUndo, canRedo) => setEditorHistory({ canUndo, canRedo })}
               onPasteFiles={(files) => setPastedFilesRequest({ id: Date.now(), files })}
               onRequestAttachment={canWrite && !isFinishing && !hasPendingRichOperation
                 ? () => setAttachmentPickerRequest((request) => request + 1) : undefined}
+              onDeleteAttachment={(id) => setInlineDeleteRequest((previous) => ({ id, nonce: (previous?.nonce ?? 0) + 1 }))}
               onBlur={() => {
                 if (!canWrite || operationInProgress.current) return;
                 richTextEditorRef.current?.flush();
@@ -1249,9 +1287,10 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
             noteId={note.id}
             compact
             pickerRequest={attachmentPickerRequest}
+            removeRequest={inlineDeleteRequest}
             openDrawerRequest={attachmentDrawerRequest}
             filesRequest={pastedFilesRequest}
-            disabled={!canWrite || isFinishing || drawingEnabled || deleteConfirmation === 'confirming'}
+            disabled={!canWrite || isInkLoading || isFinishing || drawingEnabled || deleteConfirmation === 'confirming'}
             onError={setComposerError}
             onBusyChange={handleAttachmentsBusy}
             onCountChange={setAttachmentCount}
@@ -1325,11 +1364,28 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
           </div>
         )}
 
+        {cancelConfirmationOpen && (
+          <div className="composer-discard-confirmation" role="alertdialog" aria-label="Discard this editing session">
+            <strong>{openAction === 'created' ? 'Discard this new note?' : 'Discard changes since opening?'}</strong>
+            <span>{openAction === 'created' ? 'The new note and its files will be removed.' : 'The previously saved note will stay.'}</span>
+            <div>
+              <button type="button" onClick={() => setCancelConfirmationOpen(false)}>Keep editing</button>
+              <button type="button" className="danger" onClick={() => void discardSessionAndClose()}
+                disabled={isFinishing || hasPendingRichOperation || hasUnsavedInk}>Discard</button>
+            </div>
+          </div>
+        )}
+        <button type="button" className="composer-cancel-session" aria-label="Cancel and discard edits since opening"
+          title="Cancel · discard edits since opening" onClick={() => setCancelConfirmationOpen(true)}
+          disabled={!canWrite || isFinishing || isInkLoading || !sessionSnapshot.current || hasPendingRichOperation || hasUnsavedInk || deleteConfirmation === 'confirming'}>
+          <X size={17} aria-hidden="true" />
+        </button>
+
         <button
           type="button"
           className="composer-put-away-fold"
           onClick={() => void finishAndHide()}
-          disabled={isFinishing || isRepositioning || hasPendingRichOperation || hasUnsavedInk || deleteConfirmation === 'confirming'}
+          disabled={isFinishing || isRepositioning || hasPendingRichOperation || hasUnsavedInk || deleteConfirmation === 'confirming' || cancelConfirmationOpen}
           aria-label={
             storageWritable
               ? openAction === 'detached'
