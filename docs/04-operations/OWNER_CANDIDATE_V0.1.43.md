@@ -1,5 +1,11 @@
 # Skribli v0.1.43 — private owner candidate
 
+## Post-install regression — owner report
+
+The owner installed v0.1.43 and could not see the compact widget. A DPI-aware inspection found its native window visible at the right edge (`1885,460`, `35×100` physical px at 125% scaling), and UI Automation found the “Open My Skribs” button, but a screen capture showed no pastel strips. The expanded panel itself rendered. After collapse, `DWMWA_SYSTEMBACKDROP_TYPE` was `DWMSBT_NONE` (`1`). Setting that attribute to `DWMSBT_AUTO` (`0`) on the running widget restored the yellow, peach, and lavender strips immediately. The cause is the v0.1.43 `set_effects(None)` collapse path, which selected `DWMSBT_NONE` for the transparent WebView window.
+
+The repository now uses the native DWM backdrop attribute directly: `DWMSBT_TRANSIENTWINDOW` while the panel is open and `DWMSBT_AUTO` when the compact widget is shown. The current installed v0.1.43 executable does **not** contain this source correction. No new installer was built at the owner's request; incorporate and verify the fix in the next candidate. The live `AUTO` adjustment on the running process is temporary and may reset on restart or after opening and closing the panel. Treat the v0.1.43 installer as a known regression, not an accepted candidate.
+
 26 September 2026. The owner clarified that the view opened from the **compact desktop edge widget** should be a full-height side panel with a pastel frosted glass surface that blurs other content behind it. The separate in-app Skribs view is a different surface and is unchanged by this pass.
 
 ## Change

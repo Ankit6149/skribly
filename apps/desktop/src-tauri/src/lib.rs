@@ -8,8 +8,6 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::{channel, Receiver};
 use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
 use std::time::Duration;
-#[cfg(target_os = "windows")]
-use tauri::window::{Effect, EffectsBuilder};
 use tauri::{
     AppHandle, Emitter, LogicalSize, Manager, PhysicalPosition, PhysicalSize, RunEvent, State,
     WebviewWindow,
@@ -49,6 +47,10 @@ use platform::windows_placement::{
 #[cfg(target_os = "windows")]
 use platform::windows_target_capture::{
     capture_foreground_target, revalidate_captured_target, TargetCaptureError,
+};
+#[cfg(target_os = "windows")]
+use windows::Win32::Graphics::Dwm::{
+    DwmSetWindowAttribute, DWMSBT_AUTO, DWMSBT_TRANSIENTWINDOW, DWMWA_SYSTEMBACKDROP_TYPE,
 };
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -674,10 +676,11 @@ fn size_and_dock_rail(
         .flatten()
         .or_else(|| rail.primary_monitor().ok().flatten());
 
-    // The compact edge widget must not inherit the acrylic backdrop of its open panel.
+    // Restore the system default, not DWMSBT_NONE: NONE made the installed v0.1.43
+    // WebView button interactive but visually transparent after panel collapse.
     #[cfg(target_os = "windows")]
     if !expanded {
-        let _ = rail.set_effects(None);
+        set_global_rail_backdrop(rail, false);
     }
 
     let Some(monitor) = monitor else {
@@ -744,11 +747,32 @@ fn size_and_dock_rail(
         .map_err(|error| format!("Skribli could not dock the note rail: {error}"))?;
     #[cfg(target_os = "windows")]
     if expanded {
-        // CSS backdrop-filter cannot sample another Windows application's pixels.
-        // Desktop Acrylic supplies the actual blurred desktop backdrop for this rail only.
-        let _ = rail.set_effects(Some(EffectsBuilder::new().effect(Effect::Acrylic).build()));
+        set_global_rail_backdrop(rail, true);
     }
     Ok(())
+}
+
+#[cfg(target_os = "windows")]
+fn set_global_rail_backdrop(rail: &WebviewWindow, expanded: bool) {
+    let Ok(raw_hwnd) = rail.hwnd() else {
+        return;
+    };
+    let hwnd = windows::Win32::Foundation::HWND(raw_hwnd.0 as *mut _);
+    let material = if expanded {
+        DWMSBT_TRANSIENTWINDOW
+    } else {
+        DWMSBT_AUTO
+    };
+    // This API is available on supported Windows 11 builds. If unavailable, the
+    // CSS panel remains readable and the compact widget's compositor is untouched.
+    let _ = unsafe {
+        DwmSetWindowAttribute(
+            hwnd,
+            DWMWA_SYSTEMBACKDROP_TYPE,
+            &material as *const _ as *const std::ffi::c_void,
+            std::mem::size_of_val(&material) as u32,
+        )
+    };
 }
 
 fn global_rail_physical_size(

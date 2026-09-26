@@ -202,9 +202,11 @@ if (
   railWindow.maxHeight !== undefined ||
   !nativeEntry.includes('global_rail_physical_size(expanded, logical_width, logical_height, scale, bounds)') ||
   !nativeEntry.includes('bounds.height.max(0) as u32') ||
-  !nativeEntry.includes('EffectsBuilder::new().effect(Effect::Acrylic).build()')
+  !nativeEntry.includes('DWMSBT_TRANSIENTWINDOW') ||
+  !nativeEntry.includes('DWMSBT_AUTO') ||
+  nativeEntry.includes('rail.set_effects(None)')
 ) {
-  failures.push('The global edge widget must stay outside Windows Snap Layouts while its open panel uses the monitor work area height and native Acrylic backdrop.');
+  failures.push('The global edge widget must keep its visible default backdrop while the open panel uses full work-area height and native Acrylic.');
 }
 
 if (
