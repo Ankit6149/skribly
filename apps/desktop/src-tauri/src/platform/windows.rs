@@ -13,6 +13,7 @@ use std::time::{Duration, Instant};
 
 use windows::core::BOOL;
 use windows::Win32::Foundation::{CloseHandle, HANDLE, HWND, LPARAM, LRESULT, RECT, WPARAM};
+use windows::Win32::Graphics::Gdi::{RedrawWindow, RDW_ALLCHILDREN, RDW_INVALIDATE, RDW_UPDATENOW};
 use windows::Win32::System::ProcessStatus::K32GetModuleFileNameExW;
 use windows::Win32::System::Threading::{OpenProcess, PROCESS_QUERY_INFORMATION, PROCESS_VM_READ};
 use windows::Win32::UI::Accessibility::{SetWinEventHook, UnhookWinEvent, HWINEVENTHOOK};
@@ -25,8 +26,9 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
 use windows::Win32::UI::WindowsAndMessaging::{
     CallWindowProcW, EnumWindows, GetClassNameW, GetForegroundWindow, GetMessageW,
     GetWindowLongPtrW, GetWindowRect, GetWindowTextW, GetWindowThreadProcessId, IsIconic, IsWindow,
-    IsWindowVisible, SetWindowLongPtrW, GWLP_WNDPROC, MSG, WINEVENT_OUTOFCONTEXT,
-    WINEVENT_SKIPOWNPROCESS, WM_HOTKEY, WNDPROC,
+    IsWindowVisible, KillTimer, SetTimer, SetWindowLongPtrW, GWLP_WNDPROC, MSG,
+    WINEVENT_OUTOFCONTEXT, WINEVENT_SKIPOWNPROCESS, WM_ACTIVATE, WM_ACTIVATEAPP, WM_HOTKEY,
+    WM_TIMER, WNDPROC,
 };
 
 use crate::core::coordinator::Coordinator;
@@ -39,6 +41,7 @@ pub use super::windows_events::{
 };
 
 static ORIGINAL_WNDPROC: AtomicIsize = AtomicIsize::new(0);
+const NOTE_FOCUS_REDRAW_TIMER: usize = 0x534B_5041;
 static GLOBAL_COORDINATOR: OnceLock<Coordinator> = OnceLock::new();
 static ACTIVE_WINEVENT_HOOKS: std::sync::Mutex<Vec<isize>> = std::sync::Mutex::new(Vec::new());
 static ENUMERATION_COUNT: AtomicU64 = AtomicU64::new(0);
@@ -248,13 +251,39 @@ unsafe extern "system" fn overlay_subclass_proc(
     wparam: WPARAM,
     lparam: LPARAM,
 ) -> LRESULT {
+    if msg == WM_TIMER && wparam.0 == NOTE_FOCUS_REDRAW_TIMER {
+        let _ = KillTimer(Some(hwnd), NOTE_FOCUS_REDRAW_TIMER);
+        let mut bounds = RECT::default();
+        if IsWindowVisible(hwnd).as_bool()
+            && GetWindowRect(hwnd, &mut bounds).is_ok()
+            && bounds.right - bounds.left >= 200
+            && bounds.bottom - bounds.top >= 200
+        {
+            // Installed v0.1.41 left four opaque white pixels in the transparent fringe
+            // after activation. A redraw 40 ms after the native transition cleared them
+            // while the editor remained unfocused; Tauri's focus event did not.
+            let _ = RedrawWindow(
+                Some(hwnd),
+                None,
+                None,
+                RDW_INVALIDATE | RDW_UPDATENOW | RDW_ALLCHILDREN,
+            );
+        }
+        return LRESULT(0);
+    }
     // Always delegate hit testing to Tauri's original procedure. Tauri uses that path to turn
     // only `data-tauri-drag-region` elements into native caption drags while leaving buttons,
     // inputs, the editor canvas, and other controls as normal client interactions.
     let original = ORIGINAL_WNDPROC.load(Ordering::Relaxed);
     if original != 0 {
         let original_fn: WNDPROC = std::mem::transmute(original);
-        CallWindowProcW(original_fn, hwnd, msg, wparam, lparam)
+        let result = CallWindowProcW(original_fn, hwnd, msg, wparam, lparam);
+        if msg == WM_ACTIVATE || msg == WM_ACTIVATEAPP {
+            // Native activation reaches this top-level HWND even when WebView2 focus events
+            // do not reach Tauri. Restarting this one-shot timer coalesces both messages.
+            let _ = SetTimer(Some(hwnd), NOTE_FOCUS_REDRAW_TIMER, 40, None);
+        }
+        result
     } else {
         LRESULT(0)
     }
@@ -284,6 +313,7 @@ pub fn install_overlay_subclass(hwnd: HWND, coordinator: Coordinator) -> Result<
 
 /// Restore original WndProc on shutdown.
 pub fn uninstall_overlay_subclass(hwnd: HWND) {
+    let _ = unsafe { KillTimer(Some(hwnd), NOTE_FOCUS_REDRAW_TIMER) };
     let original = ORIGINAL_WNDPROC.swap(0, Ordering::Relaxed);
     if original != 0 {
         unsafe {

@@ -28,6 +28,15 @@ function reminder(overrides: Partial<SkribReminder> = {}): SkribReminder {
 }
 
 describe('reminder state', () => {
+  it('restores the opening reminder set when a note edit is discarded', async () => {
+    const persistence = createMemoryReminderPersistence([reminder()]);
+    const store = createReminderStore(persistence, { now: () => BASE_TIME, createId: () => 'new-reminder' });
+    const opening = (await store.list()).filter((item) => item.noteId === 'note-1');
+    await store.delete('reminder-1');
+    await store.schedule({ noteId: 'note-1', dueAt: BASE_TIME + 2 * HOUR });
+    await store.restoreForNote('note-1', opening);
+    expect((await store.list()).filter((item) => item.noteId === 'note-1').map((item) => item.id)).toEqual(['reminder-1']);
+  });
   it('advances recurring reminders instead of completing the entire series', async () => {
     let currentTime = BASE_TIME;
     const persistence = createMemoryReminderPersistence();

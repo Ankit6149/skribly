@@ -12,9 +12,11 @@ async function read(relativePath) {
 }
 
 const styles = await read('apps/desktop/src/styles/note-experience.css');
+const paperStyles = await read('apps/desktop/src/styles/living-paper-polish.css');
 const globalStyles = await read('apps/desktop/src/styles/global.css');
 const websiteTheme = await read('apps/desktop/src/styles/website-theme.css');
 const composer = await read('apps/desktop/src/features/skribs/SkribComposer.tsx');
+const toolGeometry = await read('apps/desktop/src/features/skribs/toolSurfaceGeometry.ts');
 const attachments = await read(
   'apps/desktop/src/features/skribs/NoteAttachmentPanel.tsx'
 );
@@ -82,10 +84,13 @@ for (const marker of [
 
 for (const [source, marker] of [
   [composer, 'data-overlay-surface="composer"'],
-  [composer, 'className="composer-drag-grip" data-tauri-drag-region'],
+  [composer, 'className="composer-paper-top" data-tauri-drag-region'],
   [composer, "startResizeDragging(direction)"],
   [composer, 'className={`composer-resize-handle ${direction.toLowerCase()}`}'],
   [composer, 'className="skrib-composer-backdrop"'],
+  [paperStyles, 'padding: 3px 3px 3px 17px;'],
+  [paperStyles, 'background: transparent;'],
+  [paperStyles, 'left: -14px; width: 30px'],
   [attachments, 'className="attachment-photo-stack"'],
   [attachments, 'className="attachment-drawer-handle"'],
   [attachments, 'className="attachment-drawer-content"'],
@@ -111,6 +116,18 @@ for (const [source, marker] of [
   [surfaceTests, 'never selects a visually empty surface'],
 ]) {
   if (!source.includes(marker)) failures.push(`Compact surface contract is missing: ${marker}`);
+}
+
+const backdropRules = [...paperStyles.matchAll(/\.skrib-composer-backdrop\s*\{([^}]*)\}/g)];
+const finalBackdropRule = backdropRules.at(-1)?.[1] ?? '';
+if (!/padding:\s*3px 3px 3px 17px;/.test(finalBackdropRule)
+  || !/background:\s*transparent;/.test(finalBackdropRule)
+  || /linear-gradient|var\(--skribli-paper\)/.test(finalBackdropRule)) {
+  failures.push('The place tab gutter must stay transparent beside the paper.');
+}
+const chipRules = [...paperStyles.matchAll(/\.composer-context-tab\s*\{([^}]*)\}/g)];
+if (!/border-radius:\s*12px;/.test(chipRules.findLast((rule) => rule[1].includes('border-radius'))?.[1] ?? '')) {
+  failures.push('The final place tab rule must use the softer 12px curve.');
 }
 
 for (const marker of [
@@ -177,34 +194,39 @@ if (
   !railWindow ||
   railWindow.resizable !== false ||
   railWindow.maximizable !== false ||
-  railWindow.width !== 36 ||
-  railWindow.height !== 128 ||
-  railWindow.minWidth !== 36 ||
+  railWindow.width !== 28 ||
+  railWindow.height !== 80 ||
+  railWindow.minWidth !== 28 ||
   railWindow.minHeight !== 50 ||
-  railWindow.maxWidth !== 364 ||
-  railWindow.maxHeight !== 430
+  railWindow.maxWidth !== 388 ||
+  railWindow.maxHeight !== undefined ||
+  !nativeEntry.includes('global_rail_physical_size(expanded, logical_width, logical_height, scale, bounds)') ||
+  !nativeEntry.includes('bounds.height.max(0) as u32') ||
+  !nativeEntry.includes('DWMSBT_TRANSIENTWINDOW') ||
+  !nativeEntry.includes('DWMSBT_AUTO') ||
+  nativeEntry.includes('rail.set_effects(None)')
 ) {
-  failures.push('The global edge widget and contextual ribbon must stay outside Windows Snap Layouts while allowing their fixed collapsed and expanded sizes.');
+  failures.push('The global edge widget must keep its visible default backdrop while the open panel uses full work-area height and native Acrylic.');
 }
 
 if (
   !contextRailWindow ||
   contextRailWindow.resizable !== false ||
   contextRailWindow.maximizable !== false ||
-  contextRailWindow.width !== 164 ||
-  contextRailWindow.height !== 50 ||
-  contextRailWindow.minWidth !== 164 ||
-  contextRailWindow.minHeight !== 50 ||
-  contextRailWindow.maxWidth !== 364 ||
-  contextRailWindow.maxHeight !== 430
+  contextRailWindow.width !== 28 ||
+  contextRailWindow.height !== 28 ||
+  contextRailWindow.minWidth !== 28 ||
+  contextRailWindow.minHeight !== 28 ||
+  contextRailWindow.maxWidth !== 460 ||
+  contextRailWindow.maxHeight !== 250
 ) {
   failures.push('The in-app Skribs bar must use its own fixed, snap-proof native window.');
 }
 
 for (const marker of [
-  'className="context-rail collapsed global-widget"',
+  'context-rail collapsed global-widget dock-${dockSide}',
   'className="context-rail-global-widget"',
-  'className="context-rail collapsed context-widget"',
+  'className="context-presence"',
   'strip-yellow',
   'strip-peach',
   'strip-lavender',
@@ -261,8 +283,12 @@ if (!desktopCapabilities.permissions?.includes('core:window:allow-start-resize-d
   failures.push('Desktop capabilities must allow the note corner handles to start native resizing.');
 }
 
-if (!composer.includes("surfaceSize === 'compact'") || !composer.includes("changeSurfaceSize('medium', true)")) {
-  failures.push('Opening Calendar from a compact note must use the medium note surface.');
+if (!composer.includes('roomForNoteTool(current, tool)') ||
+    !composer.includes('sizeAfterToolClose(temporaryToolSurface.current, current)') ||
+    !composer.includes("invoke('set_skrib_window_dimensions'") ||
+    !toolGeometry.includes('Math.max(current.width, 640)') ||
+    !toolGeometry.includes("tool === 'reminder' ? 660 : 600")) {
+  failures.push('Calendar must borrow readable medium-width room and restore valid unchanged manual dimensions.');
 }
 
 if (composer.includes('className="composer-tool-button primary-tool"')) {

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { invoke } from '@tauri-apps/api/core';
 import { emitTo, listen } from '@tauri-apps/api/event';
 import type { SkribNote, TargetWindowInfo } from '../../lib/geometry';
@@ -15,8 +15,67 @@ const note: SkribNote = {
 const target = { hwnd_val: 42, process_name: 'chrome.exe', title: note.target_title } as TargetWindowInfo;
 
 beforeEach(() => { vi.resetAllMocks(); });
+afterEach(() => { vi.useRealTimers(); });
 
 describe('rail note actions', () => {
+  it('passes the initiating context revision through the draft-save handoff', async () => {
+    invokeMock.mockImplementation(async (command) => command === 'get_open_skrib_note_id' ? 'other-note' : undefined);
+    const dispose = vi.fn();
+    let respond: (event: { payload: { requestId: string; ready: boolean } }) => void;
+    vi.mocked(listen).mockImplementation(async (_event, callback) => {
+      respond = callback as typeof respond;
+      return dispose;
+    });
+    vi.mocked(emitTo).mockImplementation(async (_window, _event, payload) => {
+      expect(invokeMock).not.toHaveBeenCalledWith('open_skrib_note_here', expect.anything());
+      respond({ payload: { requestId: (payload as { requestId: string }).requestId, ready: true } });
+    });
+    await openNoteHere(note, 7);
+    expect(invokeMock).toHaveBeenLastCalledWith('open_skrib_note_here', { id: note.id, arrivalRevision: 7 });
+    expect(dispose).toHaveBeenCalledOnce();
+  });
+
+  it('surfaces a context-switch rejection without navigation or a global fallback', async () => {
+    invokeMock.mockImplementation(async (command) => {
+      if (command === 'open_skrib_note_here') throw new Error('The active app changed.');
+      return null;
+    });
+    await expect(openNoteHere(note, 4)).rejects.toThrow('The active app changed.');
+    expect(invokeMock.mock.calls).toEqual([
+      ['get_open_skrib_note_id'], ['open_skrib_note_here', { id: note.id, arrivalRevision: 4 }],
+    ]);
+  });
+
+  it('does not replace a draft when the save acknowledgement times out', async () => {
+    vi.useFakeTimers();
+    invokeMock.mockResolvedValue('other-note');
+    const dispose = vi.fn();
+    vi.mocked(listen).mockResolvedValue(dispose);
+    vi.mocked(emitTo).mockResolvedValue(undefined);
+    const result = expect(openNoteHere(note, 7)).rejects.toThrow('still opening or saving');
+    await vi.advanceTimersByTimeAsync(4000);
+    await result;
+    expect(dispose).toHaveBeenCalledOnce();
+    expect(invokeMock).not.toHaveBeenCalledWith('open_skrib_note_here', expect.anything());
+  });
+
+  it('ignores another save request acknowledgement until this draft is confirmed', async () => {
+    invokeMock.mockResolvedValue('other-note');
+    let respond: (event: { payload: { requestId: string; ready: boolean } }) => void;
+    vi.mocked(listen).mockImplementation(async (_event, callback) => {
+      respond = callback as typeof respond;
+      return vi.fn<() => void>();
+    });
+    vi.mocked(emitTo).mockImplementation(async (_window, _event, payload) => {
+      respond({ payload: { requestId: 'unrelated-request', ready: true } });
+      await Promise.resolve();
+      expect(invokeMock).not.toHaveBeenCalledWith('open_skrib_note_here', expect.anything());
+      respond({ payload: { requestId: (payload as { requestId: string }).requestId, ready: true } });
+    });
+    await openNoteHere(note);
+    expect(invokeMock).toHaveBeenLastCalledWith('open_skrib_note_here', { id: note.id });
+  });
+
   it('Open here opens a real detached note without focus, navigation, or collapse mutations', async () => {
     invokeMock.mockResolvedValue(undefined);
     await openNoteHere(note);

@@ -534,6 +534,15 @@ export function createReminderStore(persistence: ReminderPersistence, options: R
   const calendar = async (at = now(), timeZone = getLocalTimeZone()): Promise<CalendarReminderGroup[]> =>
     groupRemindersByCalendarDay(await readAll(), at, timeZone);
 
+  const restoreForNote = async (noteId: string, snapshot: ReadonlyArray<SkribReminder>): Promise<void> => {
+    validateNoteId(noteId);
+    if (snapshot.some((item) => item.noteId !== noteId)) throw new Error('Cannot restore another note\'s reminder.');
+    const savedIds = new Set(snapshot.map((item) => item.id));
+    const current = (await readAll()).filter((item) => item.noteId === noteId);
+    for (const item of current) if (!savedIds.has(item.id)) await persistence.delete(item.id);
+    for (const item of snapshot) await persistence.put(normalizeStoredReminder(item));
+  };
+
   return {
     schedule,
     get,
@@ -543,6 +552,7 @@ export function createReminderStore(persistence: ReminderPersistence, options: R
     dismiss,
     claimDue,
     calendar,
+    restoreForNote,
     delete: (id: string) => persistence.delete(id),
     deleteForNote: (noteId: string) => persistence.deleteForNote(validateNoteId(noteId)),
   };
@@ -560,6 +570,7 @@ export const claimDueReminders = defaultStore.claimDue;
 export const getReminderCalendar = defaultStore.calendar;
 export const deleteReminder = defaultStore.delete;
 export const deleteRemindersForNote = defaultStore.deleteForNote;
+export const restoreRemindersForNote = defaultStore.restoreForNote;
 
 export function createReminderDeletionHook(
   store: Pick<ReturnType<typeof createReminderStore>, 'deleteForNote'> = defaultStore

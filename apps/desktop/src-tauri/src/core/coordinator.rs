@@ -240,7 +240,7 @@ impl Coordinator {
                 .filter(|note| {
                     note.deleted_at.is_none()
                         && note.archived_at.is_none()
-                        && target.matches_context(&note.target_process_name, &note.target_title)
+                        && crate::core::preferences::note_belongs_to_context(note, target)
                 })
                 .cloned()
                 .collect()

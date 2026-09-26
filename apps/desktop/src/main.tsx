@@ -20,6 +20,7 @@ import "./styles/account.css";
 import "./styles/trash.css";
 import "./styles/startup-recovery.css";
 import "./styles/website-theme.css";
+import "./styles/living-paper-polish.css";
 
 const rootElement = document.getElementById("root");
 
