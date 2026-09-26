@@ -157,7 +157,7 @@ const AccountSetupSurface: React.FC = () => {
           <ul>
             <li>Skrib content stays on this Windows device.</li>
             <li>The account stores entitlement and update preferences, not note content.</li>
-            <li>Changing accounts does not silently create another device trial.</li>
+            <li>Changing accounts on this device does not restart its trial.</li>
           </ul>
           <aside className="account-local-note" aria-label="Local-first promise">
             <span>LOCAL-FIRST</span>
