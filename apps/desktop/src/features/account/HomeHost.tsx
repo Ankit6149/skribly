@@ -51,13 +51,13 @@ const WORKSPACE_ITEMS = [
   { id: 'settings' as const, label: 'Settings', detail: 'Control and recovery', icon: Settings },
 ];
 
-const SETTINGS_ITEMS: { id: SettingsSection; label: string; icon: React.ComponentType<{ size?: number }> }[] = [
+const SETTINGS_ITEMS = [
   { id: 'general', label: 'General', icon: Keyboard },
   { id: 'privacy', label: 'Context & privacy', icon: ShieldCheck },
   { id: 'data', label: 'Data & recovery', icon: Database },
   { id: 'account', label: 'Account & device', icon: UserRound },
   { id: 'about', label: 'About & updates', icon: Info },
-];
+] as const;
 
 const BusySurface: React.FC<{ label: string }> = ({ label }) => (
   <div className="account-page account-page-centered" role="status" aria-live="polite">
