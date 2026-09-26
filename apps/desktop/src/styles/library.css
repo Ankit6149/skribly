@@ -977,3 +977,384 @@ html[data-skribly-window='library'] #root {
     outline-offset: -3px;
   }
 }
+
+/* Desktop app V2 presentation. Scoped to the normal home window. */
+.desktop-app-v2 .library-shell {
+  padding: 22px 26px 20px;
+  gap: 12px;
+  background:
+    radial-gradient(circle at 100% 0%, rgb(220 234 223 / 24%), transparent 26rem),
+    var(--paper);
+}
+
+.desktop-app-v2 .library-shell.find-mode {
+  grid-template-rows: auto auto minmax(0, 1fr);
+}
+
+.desktop-app-v2 .library-shell.reminder-mode {
+  padding: 18px 22px;
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.desktop-app-v2 .library-shell.reminder-mode > .library-topbar,
+.desktop-app-v2 .library-shell.reminder-mode > .library-lifecycle-tabs,
+.desktop-app-v2 .library-shell.reminder-mode > .library-standard-view {
+  display: none;
+}
+
+.desktop-app-v2 .library-shell.reminder-mode > .reminder-calendar {
+  height: 100%;
+}
+
+.desktop-app-v2 .library-shell.find-mode .library-topbar-actions {
+  display: none;
+}
+
+.desktop-app-v2 .library-topbar {
+  min-height: 70px;
+  padding-bottom: 13px;
+  align-items: flex-end;
+  border-bottom: 1px solid var(--library-line);
+}
+
+.desktop-app-v2 .library-topbar h1 {
+  margin: 5px 0 4px;
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.05em;
+}
+
+.desktop-app-v2 .library-topbar p {
+  max-width: 650px;
+  font-size: 9px;
+}
+
+.desktop-app-v2 .library-lifecycle-tabs {
+  min-height: 36px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  background: transparent;
+}
+
+.desktop-app-v2 .library-lifecycle-tabs button {
+  min-height: 31px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--paper-deep);
+  color: var(--library-muted);
+  font-size: 8px;
+  font-weight: 750;
+}
+
+.desktop-app-v2 .library-lifecycle-tabs button:nth-child(2) {
+  display: none;
+}
+
+.desktop-app-v2 .library-lifecycle-tabs button.active {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.desktop-app-v2 .library-lifecycle-tabs button span {
+  margin-left: 4px;
+  opacity: .65;
+}
+
+.desktop-app-v2 .library-readonly-status {
+  margin-left: auto;
+  color: var(--library-muted);
+  font-size: 8px;
+}
+
+.desktop-app-v2 .library-standard-view {
+  gap: 10px;
+}
+
+.desktop-app-v2 .library-toolbar {
+  min-height: 42px;
+  gap: 10px;
+}
+
+.desktop-app-v2 .library-search input {
+  min-height: 39px;
+  padding-inline: 13px 44px;
+  border-radius: 11px;
+  box-shadow: none;
+  font-size: 10px;
+}
+
+.desktop-app-v2 .library-search kbd {
+  right: 9px;
+  font-size: 7px;
+}
+
+.desktop-app-v2 .library-result-count {
+  font-size: 8px;
+  font-weight: 650;
+}
+
+.desktop-app-v2 .library-workspace {
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: 0;
+  overflow: hidden;
+  border-top: 1px solid var(--library-line);
+}
+
+.desktop-app-v2 .library-sidebar,
+.desktop-app-v2 .library-detail {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.desktop-app-v2 .library-sidebar {
+  border-right: 1px solid var(--library-line);
+}
+
+.desktop-app-v2 .library-results {
+  padding: 8px 12px 12px 0;
+  gap: 0;
+}
+
+.desktop-app-v2 .library-note-row {
+  min-height: 68px;
+  padding: 11px 10px 11px 13px;
+  gap: 3px;
+  border: 0;
+  border-bottom: 1px solid var(--library-line);
+  border-radius: 0;
+  background: transparent !important;
+  box-shadow: none;
+  transform: none;
+}
+
+.desktop-app-v2 .library-note-row::before {
+  content: '';
+  position: absolute;
+}
+
+.desktop-app-v2 .library-note-row:hover,
+.desktop-app-v2 .library-note-row.selected {
+  border-color: var(--library-line);
+  background: rgb(245 241 231 / 68%) !important;
+  box-shadow: none;
+  transform: none;
+}
+
+.desktop-app-v2 .library-note-row.selected {
+  box-shadow: inset 3px 0 0 var(--olive);
+}
+
+.desktop-app-v2 .library-note-row-title {
+  font-size: 9.5px;
+  font-weight: 750;
+}
+
+.desktop-app-v2 .library-note-row-context {
+  font-size: 7.5px;
+}
+
+.desktop-app-v2 .library-note-row-preview {
+  margin-top: 1px;
+  font-family: var(--font-ui);
+  font-size: 8px;
+  color: var(--library-muted);
+}
+
+.desktop-app-v2 .library-note-row time,
+.desktop-app-v2 .library-retention-label {
+  margin-top: 1px;
+  font-size: 7px;
+}
+
+.desktop-app-v2 .library-detail {
+  padding: 23px 27px 26px;
+}
+
+.desktop-app-v2 .library-detail-header {
+  gap: 15px;
+}
+
+.desktop-app-v2 .library-detail-header h2 {
+  margin: 5px 0 4px;
+  font-family: var(--font-display);
+  font-size: clamp(20px, 2.6vw, 28px);
+  font-weight: 700;
+  letter-spacing: -0.045em;
+}
+
+.desktop-app-v2 .library-detail-header p {
+  font-size: 8px;
+}
+
+.desktop-app-v2 .library-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+.desktop-app-v2 .library-button,
+.desktop-app-v2 .library-state button,
+.desktop-app-v2 .library-export-message button {
+  min-height: 32px;
+  padding-inline: 10px;
+  border-radius: 999px;
+  font-size: 8px;
+}
+
+.desktop-app-v2 .library-note-paper {
+  max-width: 700px;
+  padding: 20px 22px;
+  border-radius: 10px 10px 22px 10px;
+  background: var(--yellow);
+  background-image: none;
+  box-shadow: 0 9px 24px rgb(38 41 35 / 7%);
+}
+
+.desktop-app-v2 .library-note-paper p {
+  font-size: clamp(14px, 1.45vw, 17px) !important;
+  line-height: 1.55 !important;
+}
+
+.desktop-app-v2 .library-note-metadata {
+  max-width: 700px;
+  padding-top: 12px;
+  border-top: 1px solid var(--library-line);
+}
+
+.desktop-app-v2 .library-note-metadata div {
+  padding: 0 12px 0 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.desktop-app-v2 .library-note-metadata dt {
+  font-size: 7px;
+}
+
+.desktop-app-v2 .library-note-metadata dd {
+  margin-top: 3px;
+  font-size: 8px;
+}
+
+.desktop-app-v2 .library-safety-note {
+  max-width: 700px;
+  padding: 9px 11px;
+  border-left-width: 2px;
+  font-size: 8px;
+}
+
+.desktop-app-v2 .library-state,
+.desktop-app-v2 .library-detail-empty {
+  padding: 28px 22px;
+}
+
+.desktop-app-v2 .library-state strong,
+.desktop-app-v2 .library-detail-empty strong {
+  font-family: var(--font-display);
+  font-size: 13px;
+  letter-spacing: -0.02em;
+}
+
+.desktop-app-v2 .library-state span,
+.desktop-app-v2 .library-detail-empty span {
+  font-size: 8.5px;
+}
+
+.desktop-app-v2 .library-export-message {
+  padding: 9px 10px;
+  border-radius: 9px;
+  font-size: 8px;
+}
+
+/* Reminder surface becomes agenda-first. Calendar remains a secondary orientation panel. */
+.desktop-app-v2 .reminder-calendar {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.desktop-app-v2 .reminder-calendar-header {
+  min-height: 73px;
+  padding: 4px 4px 14px;
+  align-items: flex-end;
+}
+
+.desktop-app-v2 .reminder-calendar-header h2 {
+  margin-top: 5px;
+  font-size: 27px;
+}
+
+.desktop-app-v2 .reminder-calendar-header p {
+  font-size: 8.5px;
+}
+
+.desktop-app-v2 .reminder-calendar-navigation button,
+.desktop-app-v2 .reminder-agenda-actions button {
+  min-height: 30px;
+  padding-inline: 9px;
+  font-size: 7.5px;
+}
+
+.desktop-app-v2 .reminder-calendar-layout {
+  padding-top: 0;
+  grid-template-columns: minmax(0, 1.18fr) 280px;
+  gap: 0;
+  border-top: 1px solid var(--library-line);
+}
+
+.desktop-app-v2 .reminder-month-grid {
+  order: 2;
+  padding: 18px 0 0 20px;
+  border-left: 1px solid var(--library-line);
+}
+
+.desktop-app-v2 .reminder-day-agenda {
+  order: 1;
+  padding: 18px 22px 0 4px;
+  border-left: 0;
+}
+
+.desktop-app-v2 .reminder-day-agenda > header strong {
+  font-size: 13px;
+}
+
+.desktop-app-v2 .reminder-agenda-list article {
+  padding: 12px 0 12px 11px;
+  gap: 7px;
+}
+
+.desktop-app-v2 .reminder-agenda-list article p {
+  font-family: var(--font-ui);
+  font-size: 9px;
+  font-weight: 650;
+}
+
+.desktop-app-v2 .reminder-weekdays span,
+.desktop-app-v2 .reminder-days > button {
+  font-size: 7px;
+}
+
+.desktop-app-v2 .reminder-days {
+  grid-template-rows: repeat(6, minmax(40px, 1fr));
+}
+
+@media (max-width: 840px) {
+  .desktop-app-v2 .library-workspace {
+    grid-template-columns: 280px minmax(0, 1fr);
+  }
+
+  .desktop-app-v2 .reminder-calendar-layout {
+    grid-template-columns: minmax(0, 1fr) 235px;
+  }
+}
