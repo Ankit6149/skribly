@@ -66,10 +66,12 @@ function timestampDateTime(timestampSeconds: number): string | undefined {
 
 export const LibraryHost: React.FC<{
   active?: boolean;
-  request?: { view: LibraryView };
+  mode?: 'find' | 'reminders';
+  request?: { view: LibraryView; noteId?: string };
   onBack?: () => void;
   onViewChange?: (view: LibraryView) => void;
-}> = ({ active = true, request, onBack, onViewChange }) => {
+  onOpenReminderNote?: (noteId: string) => void;
+}> = ({ active = true, mode = 'find', request, onBack, onViewChange, onOpenReminderNote }) => {
   const [notes, setNotes] = useState<SkribNote[]>([]);
   const [lifecycleView, setLifecycleView] = useState<LibraryView>('notes');
   const [query, setQuery] = useState('');
@@ -153,8 +155,14 @@ export const LibraryHost: React.FC<{
   }, [active, refreshNotes]);
 
   useEffect(() => {
-    if (request) setLifecycleView(request.view);
-  }, [request]);
+    if (!request) return;
+    setLifecycleView(mode === 'reminders' ? 'calendar' : request.view);
+    if (request.noteId) setSelectedNoteId(request.noteId);
+  }, [mode, request]);
+
+  useEffect(() => {
+    if (mode === 'reminders' && lifecycleView !== 'calendar') setLifecycleView('calendar');
+  }, [lifecycleView, mode]);
 
   useEffect(() => {
     if (active) onViewChange?.(lifecycleView);
@@ -375,13 +383,13 @@ export const LibraryHost: React.FC<{
     : null;
 
   return (
-    <main className="library-shell" aria-labelledby="library-title">
+    <main className={`library-shell ${mode === 'reminders' ? 'reminder-mode' : 'find-mode'}`} aria-labelledby="library-title">
       {openingProgress && <OpeningJourney progress={openingProgress} />}
       <header className="library-topbar">
         <div>
-          <span className="library-kicker">LOCAL NOTE LIBRARY</span>
-          <h1 id="library-title">All Skribs</h1>
-          <p>Find, restore, reopen, import, and export notes from one local workspace.</p>
+          <span className="library-kicker">{mode === 'find' ? 'RETRIEVE, DON’T ORGANISE' : 'WHAT IS COMING BACK'}</span>
+          <h1 id="library-title">{mode === 'find' ? 'Find' : 'Reminders'}</h1>
+          <p>{mode === 'find' ? 'Search any local Skrib, read it in place, then open it here or return toward its saved context.' : 'See when a thought returns and open the Skrib it belongs to.'}</p>
         </div>
         <div className="library-topbar-actions">
           <button
@@ -428,7 +436,7 @@ export const LibraryHost: React.FC<{
           className={lifecycleView === 'calendar' ? 'active' : ''}
           onClick={() => setLifecycleView('calendar')}
         >
-          Calendar
+          Reminders
         </button>
         <button
           type="button"
@@ -436,7 +444,7 @@ export const LibraryHost: React.FC<{
           className={lifecycleView === 'archive' ? 'active' : ''}
           onClick={() => setLifecycleView('archive')}
         >
-          Archive <span>{archivedNotes.length.toLocaleString()}</span>
+          Past <span>{archivedNotes.length.toLocaleString()}</span>
         </button>
         <button
           type="button"
@@ -457,6 +465,10 @@ export const LibraryHost: React.FC<{
         <ReminderCalendar
           notes={activeNotes}
           onOpenNote={(noteId) => {
+            if (onOpenReminderNote) {
+              onOpenReminderNote(noteId);
+              return;
+            }
             setLifecycleView('notes');
             setSelectedNoteId(noteId);
           }}
@@ -475,7 +487,7 @@ export const LibraryHost: React.FC<{
             type="search"
             value={query}
             autoFocus={active}
-            placeholder={`Search ${lifecycleView === 'trash' ? 'Trash' : lifecycleView === 'archive' ? 'Archive' : 'notes'}, application, or context…`}
+            placeholder={`Search ${lifecycleView === 'trash' ? 'Trash' : lifecycleView === 'archive' ? 'Past' : 'thoughts'}, application, or context…`}
             onChange={(event) => setQuery(event.target.value)}
           />
           <kbd>/</kbd>
@@ -537,7 +549,7 @@ export const LibraryHost: React.FC<{
             </div>
           ) : notesInView.length === 0 ? (
             <div className="library-state">
-              <strong>{lifecycleView === 'trash' ? 'Trash is empty' : lifecycleView === 'archive' ? 'Archive is empty' : 'No saved notes yet'}</strong>
+              <strong>{lifecycleView === 'trash' ? 'Trash is empty' : lifecycleView === 'archive' ? 'Nothing in Past yet' : 'No saved Skribs yet'}</strong>
               <span>
                 {lifecycleView === 'trash'
                   ? 'Notes moved to Trash remain recoverable here for 30 days.'
