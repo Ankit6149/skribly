@@ -66,19 +66,24 @@ function timestampDateTime(timestampSeconds: number): string | undefined {
 
 export const LibraryHost: React.FC<{
   active?: boolean;
-  request?: { view: LibraryView };
+  mode?: 'find' | 'reminders';
+  request?: { view: LibraryView; noteId?: string };
   onBack?: () => void;
   onViewChange?: (view: LibraryView) => void;
-}> = ({ active = true, request, onBack, onViewChange }) => {
+  onOpenReminderNote?: (noteId: string) => void;
+}> = ({ active = true, mode = 'find', request, onBack, onViewChange, onOpenReminderNote }) => {
   const [notes, setNotes] = useState<SkribNote[]>([]);
   const [localLifecycleView, setLocalLifecycleView] = useState<LibraryView>(request?.view ?? 'notes');
-  // The workspace sidebar owns the view when embedded. Do not echo an old local
-  // view back through an effect while a newer navigation request is arriving.
-  const lifecycleView = onViewChange && request ? request.view : localLifecycleView;
+  // Main-app navigation owns this view. Keep it current during a destination
+  // change instead of echoing an older local view back to the sidebar.
+  const lifecycleView = mode === 'reminders'
+    ? 'calendar'
+    : onViewChange && request ? request.view : localLifecycleView;
   const setLifecycleView = useCallback((view: LibraryView) => {
+    if (mode === 'reminders') return;
     setLocalLifecycleView(view);
     onViewChange?.(view);
-  }, [onViewChange]);
+  }, [mode, onViewChange]);
   const [query, setQuery] = useState('');
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -160,7 +165,9 @@ export const LibraryHost: React.FC<{
   }, [active, refreshNotes]);
 
   useEffect(() => {
-    if (request) setLocalLifecycleView(request.view);
+    if (!request) return;
+    setLocalLifecycleView(request.view);
+    if (request.noteId) setSelectedNoteId(request.noteId);
   }, [request]);
 
   useEffect(() => {
@@ -378,12 +385,13 @@ export const LibraryHost: React.FC<{
     : null;
 
   return (
-    <main className={`library-shell ${onViewChange ? 'library-embedded' : ''}`} aria-labelledby="library-title">
+    <main className={`library-shell ${mode === 'reminders' ? 'reminder-mode' : 'find-mode'}`} aria-labelledby="library-title">
       {openingProgress && <OpeningJourney progress={openingProgress} />}
       <header className="library-topbar">
         <div>
-          <h1 id="library-title">{lifecycleView === 'calendar' ? 'Calendar' : lifecycleView === 'archive' ? 'Archive' : lifecycleView === 'trash' ? 'Trash' : 'All Skribs'}</h1>
-          {!canMutate && <span className="library-readonly-status" role="status">Read-only · reading and export are available</span>}
+          <span className="library-kicker">{mode === 'find' ? 'RETRIEVE, DON’T ORGANISE' : 'WHAT IS COMING BACK'}</span>
+          <h1 id="library-title">{mode === 'find' ? 'Find' : 'Reminders'}</h1>
+          <p>{mode === 'find' ? 'Search any local Skrib, read it in place, then open it here or return toward its saved context.' : 'See when a thought returns and open the Skrib it belongs to.'}</p>
         </div>
         <div className="library-topbar-actions">
           <button
@@ -403,9 +411,6 @@ export const LibraryHost: React.FC<{
               Back to Skribli
             </button>
           )}
-          <details className="library-manage">
-          <summary>Manage notes</summary>
-          <div className="library-manage-actions">
           <LibraryImportPanel canApply={canMutate} onApplied={handleImportApplied} />
           <button
             type="button"
@@ -415,12 +420,10 @@ export const LibraryHost: React.FC<{
           >
             {isExporting ? 'Exporting…' : 'Export note records'}
           </button>
-          </div>
-          </details>
         </div>
       </header>
 
-      {!onViewChange && <nav className="library-lifecycle-tabs" aria-label="All Skribs lifecycle views">
+      <nav className="library-lifecycle-tabs" aria-label="All Skribs lifecycle views">
         <button
           type="button"
           aria-current={lifecycleView === 'notes' ? 'page' : undefined}
@@ -435,7 +438,7 @@ export const LibraryHost: React.FC<{
           className={lifecycleView === 'calendar' ? 'active' : ''}
           onClick={() => setLifecycleView('calendar')}
         >
-          Calendar
+          Reminders
         </button>
         <button
           type="button"
@@ -443,7 +446,7 @@ export const LibraryHost: React.FC<{
           className={lifecycleView === 'archive' ? 'active' : ''}
           onClick={() => setLifecycleView('archive')}
         >
-          Archive <span>{archivedNotes.length.toLocaleString()}</span>
+          Past <span>{archivedNotes.length.toLocaleString()}</span>
         </button>
         <button
           type="button"
@@ -458,12 +461,16 @@ export const LibraryHost: React.FC<{
             Read-only: notes, previews, and exports remain available
           </span>
         )}
-      </nav>}
+      </nav>
 
       {lifecycleView === 'calendar' && (
         <ReminderCalendar
           notes={activeNotes}
           onOpenNote={(noteId) => {
+            if (onOpenReminderNote) {
+              onOpenReminderNote(noteId);
+              return;
+            }
             setLifecycleView('notes');
             setSelectedNoteId(noteId);
           }}
@@ -482,7 +489,7 @@ export const LibraryHost: React.FC<{
             type="search"
             value={query}
             autoFocus={active}
-            placeholder={`Search ${lifecycleView === 'trash' ? 'Trash' : lifecycleView === 'archive' ? 'Archive' : 'notes'}, application, or context…`}
+            placeholder={`Search ${lifecycleView === 'trash' ? 'Trash' : lifecycleView === 'archive' ? 'Past' : 'thoughts'}, application, or context…`}
             onChange={(event) => setQuery(event.target.value)}
           />
           <kbd>/</kbd>
@@ -544,7 +551,7 @@ export const LibraryHost: React.FC<{
             </div>
           ) : notesInView.length === 0 ? (
             <div className="library-state">
-              <strong>{lifecycleView === 'trash' ? 'Trash is empty' : lifecycleView === 'archive' ? 'Archive is empty' : 'No saved notes yet'}</strong>
+              <strong>{lifecycleView === 'trash' ? 'Trash is empty' : lifecycleView === 'archive' ? 'Nothing in Past yet' : 'No saved Skribs yet'}</strong>
               <span>
                 {lifecycleView === 'trash'
                   ? 'Notes moved to Trash remain recoverable here for 30 days.'
@@ -668,8 +675,6 @@ export const LibraryHost: React.FC<{
 
               <LibraryRichContent noteId={selectedNote.id} />
 
-              <details className="library-note-info">
-              <summary>Note details</summary>
               <dl className="library-note-metadata">
                 <div>
                   <dt>Application</dt>
@@ -692,10 +697,6 @@ export const LibraryHost: React.FC<{
                   </dd>
                 </div>
               </dl>
-              <p className="library-safety-note">
-                Skribli prefers the saved screen when it is open. Otherwise it uses the broader application home, so a note never appears missing just because a deeper tab or folder changed.
-              </p>
-              </details>
 
               {isTrashedNote(selectedNote) && (
                 <div className="library-permanent-delete">
@@ -738,6 +739,9 @@ export const LibraryHost: React.FC<{
                 </div>
               )}
 
+              <p className="library-safety-note">
+                Skribli prefers the saved screen when it is open. Otherwise it uses the broader application home, so a note never appears missing just because a deeper tab or folder changed.
+              </p>
               {contextMessage && <div className="library-inline-error" role="status">{contextMessage}</div>}
             </>
           ) : (

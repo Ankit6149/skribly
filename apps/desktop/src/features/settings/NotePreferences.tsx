@@ -42,7 +42,7 @@ export function NotePreferences() {
   }
 
   return (
-    <section className="home-announcement" aria-labelledby="note-preference-title" aria-busy={busy}>
+    <section className="home-announcement desktop-note-preferences" aria-labelledby="note-preference-title" aria-busy={busy}>
       <span className="account-kicker">MAKE IT YOURS</span>
       <h2 id="note-preference-title">One place for each thought.</h2>
       <p>Your shortcut returns to the first active Skrib in an app. Turn on multiple Skribs when you need a fresh note each time.</p>

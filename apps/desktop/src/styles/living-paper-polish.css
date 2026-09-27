@@ -618,7 +618,6 @@
   height: 26px;
   object-fit: contain;
   opacity: .7;
-  transform: translateX(-2px);
 }
 .composer-context-tab > svg { display: block; width: 20px; height: 20px; }
 .composer-place-detail { top: 60px; }
