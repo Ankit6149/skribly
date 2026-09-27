@@ -17,7 +17,6 @@ import {
   Plus,
   Paperclip,
   ListChecks,
-  Palette,
 } from 'lucide-react';
 import { OverlayMetrics, SkribNote, TargetWindowInfo } from '../../lib/geometry';
 import {
@@ -142,8 +141,10 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
   const [noteMenuOpen, setNoteMenuOpen] = useState(false);
   const [toolGatewayOpen, setToolGatewayOpen] = useState(false);
+  const [hasScheduledReminder, setHasScheduledReminder] = useState(false);
   const paletteButtonRef = useRef<HTMLButtonElement>(null);
   const moreButtonRef = useRef<HTMLButtonElement>(null);
+  const moreOpenedByKeyboard = useRef(false);
   const addButtonRef = useRef<HTMLButtonElement>(null);
   const paperRef = useRef<HTMLElement>(null);
 
@@ -160,8 +161,11 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
   }, [noteMenuOpen, toolGatewayOpen, colorPickerOpen]);
 
   useEffect(() => {
-    const selector = noteMenuOpen ? '.composer-note-menu' : toolGatewayOpen ? '.composer-intent-tray' : null;
-    if (selector) paperRef.current?.querySelector<HTMLButtonElement>(`${selector} button:not(:disabled)`)?.focus();
+    if (noteMenuOpen && moreOpenedByKeyboard.current) {
+      paperRef.current?.querySelector<HTMLButtonElement>('.composer-note-menu button:not(:disabled)')?.focus();
+    } else if (toolGatewayOpen) {
+      paperRef.current?.querySelector<HTMLButtonElement>('.composer-intent-tray button:not(:disabled)')?.focus();
+    }
   }, [noteMenuOpen, toolGatewayOpen]);
   const [richOperationCount, setRichOperationCount] = useState(0);
   const [inkPersistenceState, setInkPersistenceState] = useState<InkPersistenceState>({
@@ -291,6 +295,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
     setColorPickerOpen(false);
     setNoteMenuOpen(false);
     setToolGatewayOpen(false);
+    setHasScheduledReminder(false);
     setDeleteConfirmation((state) => reduceDeleteConfirmation(state, 'note-changed'));
     return saveController.subscribe((snapshot) => {
       setSaveSnapshot(snapshot);
@@ -392,6 +397,8 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
             text: note.text, color: note.color, rich: richContent,
             reminders: reminders.filter((item) => item.noteId === note.id).map(({ status: _status, ...item }) => item),
           };
+          setHasScheduledReminder(reminders.some((item) => item.noteId === note.id &&
+            (item.status === 'upcoming' || item.status === 'overdue')));
           setInkStrokes(document.strokes);
           setTextSize(richContent.view?.textSize ?? 'medium');
           setAttachmentCount(richContent.attachments.length);
@@ -416,6 +423,23 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
       cancelled = true;
     };
   }, [note.id]);
+
+  useEffect(() => {
+    if (!isTauriAvailable) return;
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+    void listen<{ noteId: string }>('skribly://reminders-updated', ({ payload }) => {
+      if (payload.noteId !== note.id) return;
+      void listReminders().then((reminders) => {
+        if (!disposed) setHasScheduledReminder(reminders.some((item) => item.noteId === note.id &&
+          (item.status === 'upcoming' || item.status === 'overdue')));
+      }).catch(() => undefined);
+    }).then((dispose) => {
+      if (disposed) dispose();
+      else unlisten = dispose;
+    }).catch(() => undefined);
+    return () => { disposed = true; unlisten?.(); };
+  }, [isTauriAvailable, note.id]);
 
   const hideWindow = useCallback(async () => {
     if (openAction === 'detached') await invoke('close_skrib_note_here');
@@ -489,12 +513,6 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
       setColorPickerOpen(false);
     }
   }, [changeSurfaceSize, surfaceSize]);
-
-  const cycleTextSize = useCallback(async () => {
-    const currentIndex = NOTE_TEXT_SIZES.indexOf(textSize);
-    const nextSize = NOTE_TEXT_SIZES[(currentIndex + 1) % NOTE_TEXT_SIZES.length]!;
-    await changeTextSize(nextSize);
-  }, [changeTextSize, textSize]);
 
   const openRoomyTool = useCallback(
     async (tool: 'draw' | 'reminder') => {
@@ -1035,52 +1053,70 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
         <div id="composer-place-detail" className="composer-place-detail" role="note" data-open={placeDetailOpen}>
           <small>Saved place</small><strong>{contextFullAppLabel}</strong><span>{contextLabel}</span>
         </div>
-        <div className="composer-side-tools" data-pinned={noteMenuOpen || undefined}>
-            <button
-              type="button"
-              className="composer-more"
-              ref={moreButtonRef}
-              aria-controls="composer-note-options"
-              onClick={() => {
-                setNoteMenuOpen((open) => !open);
-                setToolGatewayOpen(false);
-                setColorPickerOpen(false);
-              }}
-              aria-label="More note actions"
-              aria-expanded={noteMenuOpen}
-              title="More note actions"
-            >
-              <MoreHorizontal size={17} aria-hidden="true" />
-            </button>
+        <div className="composer-side-tools" data-pinned={noteMenuOpen || colorPickerOpen || undefined}>
+          <button type="button" className="composer-quick-color" ref={paletteButtonRef}
+            aria-label="Paper colour" aria-expanded={colorPickerOpen} aria-controls="composer-paper-palette"
+            title="Paper colour" disabled={!canWrite || isFinishing || hasPendingRichOperation || hasUnsavedInk}
+            onClick={() => {
+              setColorPickerOpen((open) => !open);
+              setNoteMenuOpen(false);
+              setToolGatewayOpen(false);
+            }}>
+            <span className="composer-paper-swatch" aria-hidden="true" />
+          </button>
+          <button type="button" className="composer-quick-reminder"
+            data-scheduled={hasScheduledReminder || undefined}
+            aria-label={hasScheduledReminder ? 'Edit reminder' : 'Set a reminder'}
+            aria-expanded={activePanel === 'reminder'} aria-controls="composer-reminder-panel"
+            title={hasScheduledReminder ? 'Edit reminder' : 'Set a reminder'}
+            disabled={!canWrite || isFinishing || hasPendingRichOperation}
+            onClick={() => {
+              setNoteMenuOpen(false);
+              setToolGatewayOpen(false);
+              setColorPickerOpen(false);
+              void openRoomyTool('reminder');
+            }}>
+            <Bell size={18} strokeWidth={1.75} aria-hidden="true" />
+          </button>
+          <button type="button" className="composer-more" ref={moreButtonRef}
+            aria-controls="composer-note-options" aria-label="More note actions"
+            aria-expanded={noteMenuOpen} title="More note actions"
+            onPointerDown={() => { moreOpenedByKeyboard.current = false; }}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') moreOpenedByKeyboard.current = true;
+            }}
+            onClick={() => {
+              setNoteMenuOpen((open) => !open);
+              setToolGatewayOpen(false);
+              setColorPickerOpen(false);
+            }}>
+            <MoreHorizontal size={18} strokeWidth={1.75} aria-hidden="true" />
+          </button>
           {menuVisible && (
             <div id="composer-note-options" className="composer-note-menu" role="toolbar" aria-label="Note actions">
-              <button type="button" className={activePanel === 'reminder' ? 'active' : ''}
-                aria-label={activePanel === 'reminder' ? 'Close reminder' : 'Set a reminder'}
-                disabled={!canWrite || isFinishing || hasPendingRichOperation}
-                onClick={() => { void openRoomyTool('reminder'); setNoteMenuOpen(false); }}>
-                <Bell size={17} aria-hidden="true" /><span>{activePanel === 'reminder' ? 'Close reminder' : 'Reminder'}</span>
-              </button>
-              <button type="button" ref={paletteButtonRef} aria-label="Paper colour"
-                aria-expanded={colorPickerOpen} aria-controls="composer-paper-palette"
-                onClick={() => setColorPickerOpen((open) => !open)}
-                disabled={!canWrite || isFinishing || hasPendingRichOperation || hasUnsavedInk}>
-                <Palette size={17} aria-hidden="true" /><span>Paper colour</span>
-              </button>
-              <button type="button" disabled={!canWrite || isFinishing}
-                aria-label={`Change text size, currently ${textSize}`} onClick={() => void cycleTextSize()}>
-                <Type size={17} aria-hidden="true" /><span>Text size · {textSize}</span>
-              </button>
+              <span className="composer-note-menu-heading">Note options</span>
+              <div className="composer-menu-text-size" role="group" aria-label="Text size">
+                <Type size={17} aria-hidden="true" /><span>Text size</span>
+                <div className="composer-size-options">
+                  {NOTE_TEXT_SIZES.map((size) => (
+                    <button key={size} type="button" aria-label={`${size} text`}
+                      aria-pressed={textSize === size} title={`${size} text`}
+                      disabled={!canWrite || isFinishing}
+                      onClick={() => void changeTextSize(size)}>{size[0]!.toUpperCase()}</button>
+                  ))}
+                </div>
+              </div>
               <button type="button" disabled={isResizing || isFinishing || hasPendingRichOperation || hasUnsavedInk}
                 aria-label={surfaceSize === 'large' ? 'Restore note size' : 'Expand note'}
                 onClick={() => void toggleExpandedSize()}>
                 {surfaceSize === 'large' ? <Minimize2 size={17} aria-hidden="true" /> : <Maximize2 size={17} aria-hidden="true" />}
-                <span>{surfaceSize === 'large' ? 'Restore size' : 'Work size'}</span>
+                <span>{surfaceSize === 'large' ? 'Restore size' : 'Expand note'}</span>
               </button>
               {openAction !== 'detached' && <button type="button" aria-label="Return beside app"
                 disabled={!isTauriAvailable || isRepositioning || isFinishing || hasPendingRichOperation}
                 onClick={() => { setNoteMenuOpen(false); setColorPickerOpen(false); void handleReposition(); }}>
                 {isRepositioning ? <span className="composer-button-spinner" aria-hidden="true" /> : <LocateFixed size={17} aria-hidden="true" />}
-                <span>Return to app</span>
+                <span>Return beside app</span>
               </button>}
               <>
                 <span className="composer-note-menu-divider" aria-hidden="true" />
@@ -1200,20 +1236,6 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
                 <ListChecks size={15} aria-hidden="true" />
                 <span>Checklist</span>
               </button>
-              <button
-                type="button"
-                className={activePanel === 'reminder' ? 'active' : ''}
-                aria-label={activePanel === 'reminder' ? 'Close reminder' : 'Set a reminder'}
-                aria-expanded={activePanel === 'reminder'}
-                disabled={!canWrite || isFinishing || hasPendingRichOperation}
-                onClick={() => {
-                  void openRoomyTool('reminder');
-                  setToolGatewayOpen(false);
-                }}
-              >
-                <Bell size={15} aria-hidden="true" />
-                <span>{activePanel === 'reminder' ? 'Close reminder' : 'Remind me'}</span>
-              </button>
             </div>
           )}
         </div>
@@ -1295,7 +1317,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
           />
 
           {activePanel === 'reminder' && (
-            <div className="composer-inline-panel">
+            <div id="composer-reminder-panel" className="composer-inline-panel">
               <button className="composer-panel-close" type="button" title="Back to your thought" aria-label="Close reminder panel" onClick={() => void openRoomyTool('reminder')} disabled={hasPendingRichOperation || isResizing}><X size={16} /></button>
               <NoteReminderPanel
                 noteId={note.id}

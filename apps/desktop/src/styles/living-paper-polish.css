@@ -245,53 +245,90 @@
 .composer-context-tab:is(:hover,:focus-visible) + .composer-place-detail {
   opacity: 1; visibility: visible; transform: translateX(0);
 }
+/* A quiet header keeps frequent controls visible; secondary actions use labelled rows. */
 .composer-side-tools {
-  position: absolute; top: 12px; right: 12px; bottom: 47px; z-index: 42;
-  width: 42px;
+  position: absolute; top: 14px; right: 13px; bottom: auto; z-index: 42;
+  width: auto; height: 34px; display: flex; align-items: center; gap: 5px;
 }
-.composer-side-tools .composer-more {
-  position: absolute; top: 0; right: 3px; width: 34px; height: 34px;
-  opacity: .46; pointer-events: auto;
+.composer-side-tools > button {
+  position: relative; top: auto; right: auto; flex: 0 0 32px;
+  width: 32px; height: 32px; min-height: 32px; padding: 0;
+  display: grid; place-items: center;
+  border: 0; border-radius: 50%; background: transparent;
+  color: var(--skribli-ink); cursor: pointer; opacity: .82;
+  box-shadow: none; pointer-events: auto;
+  transition: background 140ms ease, opacity 140ms ease;
 }
-.composer-side-tools:is(:hover,:focus-within) .composer-more,
-.composer-side-tools[data-pinned='true'] .composer-more { opacity: 1; }
+.composer-side-tools > button:is(:hover,:focus-visible),
+.composer-side-tools > button[aria-expanded='true'] {
+  background: rgb(255 255 255 / 48%); opacity: 1;
+}
+.composer-side-tools > button:focus-visible { outline: 2px solid var(--olive); outline-offset: 1px; }
+.composer-side-tools > button:disabled { opacity: .35; cursor: default; }
+.composer-side-tools svg, .composer-note-menu svg { stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+.composer-paper-swatch {
+  display: block; width: 16px; height: 16px; border-radius: 50%;
+  background: var(--skribli-paper); border: 1.5px solid rgb(38 41 35 / 42%);
+  box-shadow: 0 0 0 2px rgb(255 255 255 / 55%);
+}
+.composer-quick-reminder[data-scheduled='true']::after {
+  content: ''; position: absolute; top: 3px; right: 3px;
+  width: 6px; height: 6px; border-radius: 50%; background: var(--olive);
+  box-shadow: 0 0 0 2px var(--skribli-paper);
+}
 .composer-note-menu {
-  position: absolute; top: 42px; right: 1px; left: auto;
-  width: 40px; max-width: 40px; max-height: none; overflow: visible;
-  display: flex; flex-direction: column; align-items: center; gap: 2px;
-  padding: 5px 3px; border: 0; border-left: 1px solid rgb(38 41 35 / 12%);
-  border-radius: 20px; background: color-mix(in srgb, var(--paper) 88%, transparent);
-  box-shadow: 0 6px 18px rgb(38 41 35 / 8%);
-  animation: composer-side-rail-in 180ms cubic-bezier(.2,.8,.2,1) both;
+  position: absolute; top: 40px; right: 0; left: auto; z-index: 50;
+  box-sizing: border-box; width: min(232px, calc(100vw - 40px));
+  max-width: min(232px, calc(100vw - 40px)); max-height: calc(100vh - 110px);
+  overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain;
+  display: grid; grid-template-columns: minmax(0, 1fr); align-items: stretch; gap: 2px;
+  padding: 8px; border: 1px solid rgb(38 41 35 / 12%); border-radius: 14px;
+  background: color-mix(in srgb, var(--paper) 96%, white);
+  box-shadow: 0 10px 25px rgb(38 41 35 / 14%);
+  scrollbar-width: thin;
+  animation: composer-side-rail-in 150ms cubic-bezier(.2,.8,.2,1) both;
+}
+.composer-note-menu-heading {
+  padding: 3px 8px 5px; color: var(--skribli-muted);
+  font: 700 10px/1.2 var(--skribli-ui-font); letter-spacing: .07em; text-transform: uppercase;
 }
 .composer-note-menu > button {
-  position: relative; width: 32px; height: 32px; min-height: 32px;
-  display: grid; place-items: center; flex: 0 0 32px; gap: 0;
-  padding: 0; border-radius: 50%; overflow: visible;
-  background: transparent; color: var(--skribli-ink);
+  position: relative; width: 100%; height: 34px; min-height: 34px; flex: none;
+  display: flex; justify-content: flex-start; align-items: center; gap: 9px;
+  padding: 0 9px; border: 0; border-radius: 8px; overflow: hidden;
+  background: transparent; color: var(--skribli-ink); box-shadow: none;
+  font: 600 12px/1.3 var(--skribli-ui-font);
 }
 .composer-note-menu > button:is(:hover,:focus-visible),
-.composer-note-menu > button.active { background: color-mix(in srgb, var(--mint) 55%, white); }
-.composer-note-menu > button.danger:is(:hover,:focus-visible) { background: color-mix(in srgb, var(--rose) 58%, white); }
+.composer-note-menu > button.active { background: color-mix(in srgb, var(--mint) 45%, var(--paper)); }
+.composer-note-menu > button.danger:is(:hover,:focus-visible) { background: color-mix(in srgb, var(--rose) 50%, var(--paper)); }
 .composer-note-menu > button > span:not(.composer-button-spinner) {
-  position: absolute; top: 50%; right: calc(100% + 9px); left: auto;
-  width: max-content; max-width: 158px; padding: 7px 9px;
-  border-radius: 8px; background: var(--skribli-ink); color: var(--paper);
-  font: 600 11px/1.25 var(--skribli-ui-font); white-space: nowrap;
-  opacity: 0; visibility: hidden; pointer-events: none;
-  transform: translate(4px, -50%);
-  transition: opacity 130ms ease, transform 130ms ease, visibility 130ms ease;
+  position: static; top: auto; right: auto; left: auto;
+  width: auto; max-width: none; min-width: 0; padding: 0;
+  border-radius: 0; background: transparent; color: inherit;
+  font: inherit; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  opacity: 1; visibility: visible; pointer-events: auto; transform: none; transition: none;
 }
-.composer-note-menu > button:is(:hover,:focus-visible) > span:not(.composer-button-spinner) {
-  opacity: 1; visibility: visible; transform: translate(0, -50%);
+.composer-note-menu > button:is(:hover,:focus-visible) > span:not(.composer-button-spinner) { transform: none; }
+.composer-menu-text-size {
+  min-height: 36px; display: grid; grid-template-columns: 17px minmax(0, 1fr) auto;
+  align-items: center; gap: 9px; padding: 2px 9px;
+  color: var(--skribli-ink); font: 600 12px/1.3 var(--skribli-ui-font);
 }
-.composer-note-menu .composer-note-menu-divider {
-  width: 22px; height: 1px; margin: 3px 0; flex: 0 0 1px;
+.composer-size-options { display: flex; gap: 2px; padding: 2px; border-radius: 9px; background: rgb(38 41 35 / 6%); }
+.composer-size-options button {
+  width: 25px; height: 25px; min-height: 25px; padding: 0;
+  border: 0; border-radius: 7px; background: transparent; color: var(--skribli-ink);
+  cursor: pointer; font: 600 11px/1 var(--skribli-ui-font);
 }
+.composer-size-options button[aria-pressed='true'] { background: var(--paper); box-shadow: 0 1px 3px rgb(38 41 35 / 12%); }
+.composer-size-options button:focus-visible { outline: 2px solid var(--olive); }
+.composer-size-options button:disabled { opacity: .4; cursor: default; }
+.composer-note-menu .composer-note-menu-divider { width: auto; height: 1px; margin: 4px 7px; flex: none; }
 .composer-color-popover {
-  top: 95px; right: 62px; bottom: auto; left: auto;
-  max-width: calc(100% - 80px); padding: 8px; overflow-x: auto;
-  border-radius: 18px; background: var(--paper);
+  top: 55px; right: 14px; bottom: auto; left: auto;
+  max-width: calc(100% - 28px); padding: 8px; overflow-x: auto;
+  border-radius: 14px; background: var(--paper);
 }
 .composer-rich-editor-shell { position: absolute; inset: 0; min-height: 0; }
 .composer-rich-editor-shell .composer-textarea,
@@ -357,25 +394,11 @@
   to { opacity: 1; transform: translateX(0); }
 }
 @media (max-height: 400px) {
-  .composer-note-menu { gap: 1px; padding-block: 3px; }
-  .composer-note-menu > button { width: 30px; height: 30px; min-height: 30px; flex-basis: 30px; }
-  .composer-note-menu > button svg { width: 16px; height: 16px; }
+  .composer-note-menu { gap: 1px; padding-block: 5px; }
 }
 @media (max-width: 360px) {
   .composer-rich-editor-shell .composer-textarea { padding-left: 66px; padding-right: 54px; }
-  .composer-color-popover { right: 58px; }
-}
-@media (max-height: 320px) {
-  .composer-note-menu { max-height: calc(100% - 40px); overflow-y: auto; overflow-x: hidden; scrollbar-width: none; }
-  .composer-side-tools[data-pinned='true'] .composer-note-menu {
-    box-sizing: border-box; width: 68px; max-width: 68px;
-    max-height: none; overflow: visible;
-    display: grid; grid-template-columns: repeat(2, 30px); justify-content: center;
-    gap: 2px; padding: 3px;
-  }
-  .composer-side-tools[data-pinned='true'] .composer-note-menu-divider {
-    grid-column: 1 / -1; width: 62px; margin: 0;
-  }
+  .composer-color-popover { right: 14px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .composer-context-tab, .composer-place-detail, .composer-caret-tools, .composer-note-menu,
@@ -406,26 +429,6 @@
 }
 .composer-place-detail span { white-space: normal; overflow-wrap: anywhere; }
 .composer-place-detail[data-open='true'] { opacity: 1; visibility: visible; transform: translateY(0); }
-.composer-side-tools { top: 14px; bottom: auto; height: 36px; width: 40px; }
-.composer-side-tools .composer-more {
-  right: 3px; width: 34px; height: 34px;
-  opacity: .75; background: color-mix(in srgb, var(--paper) 82%, transparent);
-  border: 1px solid rgb(38 41 35 / 11%);
-}
-.composer-note-menu {
-  top: 36px; right: 2px; width: 36px; max-width: 36px; padding: 3px 0; gap: 3px;
-  border: 0; border-radius: 0; background: transparent; box-shadow: none;
-}
-.composer-note-menu > button {
-  width: 30px; height: 30px; min-height: 30px; flex-basis: 30px;
-  background: color-mix(in srgb, var(--paper) 85%, transparent);
-  border: 1px solid rgb(38 41 35 / 11%);
-  box-shadow: 0 2px 5px rgb(38 41 35 / 8%);
-}
-.composer-note-menu > button:is(:hover,:focus-visible) { z-index: 2; }
-.composer-note-menu > button svg { width: 16px; height: 16px; }
-.composer-note-menu > button:disabled { opacity: .35; }
-.composer-note-menu .composer-note-menu-divider { width: 22px; margin: 1px 0; background: rgb(38 41 35 / 20%); }
 .composer-rich-editor-shell .composer-textarea,
 .composer-format-bar + .composer-textarea { padding: 17px 52px 18px 30px; }
 .composer-textarea h2 { font: 600 1.3em/1.25 var(--font-hand); letter-spacing: 0; }
@@ -487,16 +490,6 @@
   .composer-place-detail { top: 55px; }
   .inline-attachment-object[data-size='small'] { width: 82px; }
   .inline-attachment-object[data-size='small'] .inline-attachment-preview img { max-height: 72px; }
-  .composer-side-tools[data-pinned='true'] .composer-note-menu {
-    box-sizing: border-box; width: 68px; max-width: 68px; padding: 3px;
-    display: grid; grid-template-columns: repeat(2, 30px); justify-content: center; gap: 2px;
-  }
-  .composer-side-tools[data-pinned='true'] .composer-note-menu > button {
-    width: 30px; height: 30px; min-height: 30px; flex-basis: 30px;
-  }
-  .composer-side-tools[data-pinned='true'] .composer-note-menu .composer-note-menu-divider {
-    grid-column: 1 / -1; width: 62px; height: 1px; min-height: 1px; margin: 1px 0;
-  }
 }
 @media (prefers-reduced-motion: reduce) { .inline-attachment-more { transition: none; } }
 .composer-cancel-session {

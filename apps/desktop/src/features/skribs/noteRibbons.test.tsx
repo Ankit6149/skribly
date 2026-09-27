@@ -30,27 +30,31 @@ async function click(label: string) {
 describe('note icon ribbons', () => {
   it('opens labelled icon actions from Add and closes them on a second click', async () => {
     await click('Add or mark this Skrib');
-    for (const label of ['Draw on this note', 'Attach a photo, video or file', 'Add a checklist', 'Set a reminder']) {
+    for (const label of ['Draw on this note', 'Attach a photo, video or file', 'Add a checklist']) {
       const button = container.querySelector(`[aria-label="${label}"]`)!;
       expect(button.querySelector('svg')).not.toBeNull();
       expect(button.querySelector('span')?.textContent).not.toBe('');
     }
+    expect(container.querySelector('.composer-intent-tray [aria-label="Set a reminder"]')).toBeNull();
     await click('Add or mark this Skrib');
     expect(container.querySelector('.composer-intent-tray')).toBeNull();
   });
-  it('reveals the paper palette on click and dismisses it one layer at a time', async () => {
-    await click('More note actions');
-    expect(container.querySelector('[aria-label="Undo last edit"]')).toBeNull();
-    expect(container.querySelector('[aria-label="Set a reminder"]')).not.toBeNull();
+  it('places colour and reminder in the header, with explicit text sizes in the labelled menu', async () => {
+    expect(container.querySelector('.composer-side-tools [aria-label="Set a reminder"]')).not.toBeNull();
     const palette = container.querySelector('[aria-label="Paper colour"]')!;
     await act(async () => (palette as HTMLButtonElement).click());
     expect(container.querySelectorAll('.composer-color-popover button')).toHaveLength(8);
     await act(async () => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })));
     expect(container.querySelector('.composer-color-popover')).toBeNull();
-    expect(container.querySelector('.composer-note-menu')).not.toBeNull();
     expect(document.activeElement).toBe(palette);
+    await click('More note actions');
+    const menu = container.querySelector('.composer-note-menu')!;
+    expect(menu.textContent).toContain('Expand note');
+    expect(menu.textContent).toContain('Move to Trash');
+    expect(menu.querySelector('[aria-label="Set a reminder"]')).toBeNull();
+    expect(menu.querySelectorAll('.composer-size-options button')).toHaveLength(3);
+    expect(menu.querySelector('[aria-label="medium text"]')?.getAttribute('aria-pressed')).toBe('true');
     await act(async () => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })));
-    expect(container.querySelector('[aria-label="Set a reminder"]')).toBeNull();
     expect(container.querySelector('.composer-note-menu')).toBeNull();
     expect(document.activeElement?.getAttribute('aria-label')).toBe('More note actions');
   });
