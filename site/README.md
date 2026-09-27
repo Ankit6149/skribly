@@ -6,8 +6,9 @@ This directory contains the Skribli product website. It uses plain HTML, CSS, Ja
 
 Skribli is in **Windows release-candidate validation**. Public installer access is disabled.
 
-- Every visible download control is disabled and states that downloads are unavailable.
+- Public installer access remains disabled; the owner download page requires a private key to decrypt its installer in the browser.
 - `/api/download` redirects to `/download-unavailable?reason=validation` and never resolves a release asset.
+- `/v0-download` delivers the encrypted v0.1.44 private owner candidate for installed Windows testing. Its key is kept outside the repository and website.
 - The landing demonstration shows only the implemented compact editor workflow.
 - The site must not advertise floating dots, attached tabs, checklists, persistent widgets, full-screen overlays, or selective click-through as current behavior.
 - No customer journey should send visitors to the source repository or a release file.
