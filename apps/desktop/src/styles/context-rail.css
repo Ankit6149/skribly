@@ -1,8 +1,11 @@
 html[data-skribly-window='rail'],
+html[data-skribly-window='global-rail-handle'],
 html[data-skribly-window='context-rail'],
 html[data-skribly-window='rail'] body,
+html[data-skribly-window='global-rail-handle'] body,
 html[data-skribly-window='context-rail'] body,
 html[data-skribly-window='rail'] #root,
+html[data-skribly-window='global-rail-handle'] #root,
 html[data-skribly-window='context-rail'] #root,
 .app-rail-root {
   width: 100%;
@@ -658,6 +661,25 @@ html[data-skribly-window='context-rail'] #root,
   background: rgb(255 253 248 / 94%);
 }
 
+/* The outside handle lives in its own widget-sized native window. */
+.context-rail.expanded.global-shelf.dock-right {
+  animation: global-shelf-in-right 210ms cubic-bezier(.22, 1, .36, 1) both;
+}
+.context-rail.expanded.global-shelf.dock-left {
+  animation: global-shelf-in-left 210ms cubic-bezier(.22, 1, .36, 1) both;
+}
+.context-rail.expanded.global-shelf.is-closing.dock-right {
+  animation: global-shelf-out-right 170ms ease-in both;
+}
+.context-rail.expanded.global-shelf.is-closing.dock-left {
+  animation: global-shelf-out-left 170ms ease-in both;
+}
+
+@keyframes global-shelf-in-right { from { transform: translateX(100%); } to { transform: translateX(0); } }
+@keyframes global-shelf-in-left { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+@keyframes global-shelf-out-right { to { transform: translateX(100%); } }
+@keyframes global-shelf-out-left { to { transform: translateX(-100%); } }
+
 @keyframes rail-panel-from-right { from { opacity: .65; transform: translateX(14px) scaleX(.96); } }
 @keyframes rail-panel-from-left { from { opacity: .65; transform: translateX(-14px) scaleX(.96); } }
 
@@ -672,6 +694,7 @@ html[data-skribly-window='context-rail'] #root,
   .context-rail-launcher-face,
   .context-rail-global-widget,
   .context-rail.expanded,
+  .context-rail.expanded.global-shelf,
   .ribbon-rail-head,
   .ribbon-scope-menu,
   .skrib-ribbon,

@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { OverlayHost } from './features/overlay/OverlayHost';
 import { HomeHost } from './features/account/HomeHost';
 import { ContextRail } from './features/rail/ContextRail';
+import { GlobalPanelHandle } from './features/rail/GlobalPanelHandle';
 import { useLicenseStore } from './stores/licenseStore';
 
 export function App() {
@@ -10,11 +11,11 @@ export function App() {
   const previewWindow = import.meta.env.DEV && typeof window !== 'undefined'
     ? new URLSearchParams(window.location.search).get('skriblyWindow')
     : null;
-  const windowLabel = previewWindow === 'rail'
+  const windowLabel = previewWindow === 'global-rail-handle' ? 'global-rail-handle' : previewWindow === 'rail'
     ? (new URLSearchParams(window.location.search).get('railMode') === 'context' ? 'context-rail' : 'rail')
     : getCurrentWindow().label;
   const isHomeWindow = windowLabel === 'home';
-  const isRailWindow = windowLabel === 'rail' || windowLabel === 'context-rail';
+  const isRailWindow = windowLabel === 'rail' || windowLabel === 'context-rail' || windowLabel === 'global-rail-handle';
 
   useEffect(() => {
     if (previewWindow) return;
@@ -40,6 +41,8 @@ export function App() {
     >
       {isHomeWindow ? (
         <HomeHost />
+      ) : windowLabel === 'global-rail-handle' ? (
+        <GlobalPanelHandle />
       ) : isRailWindow ? (
         <ContextRail contextual={windowLabel === 'context-rail'} />
       ) : (

@@ -745,6 +745,7 @@ fn size_and_dock_rail(
     );
     set_rail_position(app_handle, rail, position, rail_window_runtime())
         .map_err(|error| format!("Skribli could not dock the note rail: {error}"))?;
+    sync_global_panel_handle(app_handle, position, next_size, bounds, scale, expanded)?;
     #[cfg(target_os = "windows")]
     if expanded {
         set_global_rail_backdrop(rail, true);
@@ -791,6 +792,73 @@ fn global_rail_physical_size(
     PhysicalSize::new(width.min(bounds.width.max(0) as u32), height)
 }
 
+fn sync_global_panel_handle(
+    app_handle: &AppHandle,
+    panel_position: PhysicalPosition<i32>,
+    panel_size: PhysicalSize<u32>,
+    bounds: RailDockBounds,
+    scale: f64,
+    expanded: bool,
+) -> Result<(), String> {
+    let Some(handle) = app_handle.get_webview_window("global-rail-handle") else {
+        return Ok(());
+    };
+    if !expanded {
+        handle
+            .hide()
+            .map_err(|error| format!("Skribli could not hide the panel handle: {error}"))?;
+        return Ok(());
+    }
+    let size = PhysicalSize::new(
+        (GLOBAL_RAIL_COLLAPSED_WIDTH * scale).round() as u32,
+        (GLOBAL_RAIL_COLLAPSED_HEIGHT * scale).round() as u32,
+    );
+    let side = rail_dock_side(panel_position, panel_size, bounds, 0);
+    let x = global_panel_handle_x(panel_position.x, panel_size.width, size.width, side, bounds);
+    let top = rail_window_runtime()
+        .global_widget_return_y()
+        .unwrap_or(bounds.y + (bounds.height - size.height as i32).max(0) / 2);
+    let y = top.clamp(
+        bounds.y,
+        bounds.y + (bounds.height - size.height as i32).max(0),
+    );
+    handle
+        .set_size(size)
+        .map_err(|error| format!("Skribli could not size the panel handle: {error}"))?;
+    handle
+        .set_position(PhysicalPosition::new(x, y))
+        .map_err(|error| format!("Skribli could not place the panel handle: {error}"))?;
+    handle
+        .set_always_on_top(true)
+        .map_err(|error| format!("Skribli could not layer the panel handle: {error}"))?;
+    handle
+        .show()
+        .map_err(|error| format!("Skribli could not show the panel handle: {error}"))?;
+    let _ = app_handle.emit_to(
+        "global-rail-handle",
+        "skribly://global-rail-handle-state",
+        side,
+    );
+    Ok(())
+}
+
+fn global_panel_handle_x(
+    panel_x: i32,
+    panel_width: u32,
+    handle_width: u32,
+    side: RailDockSide,
+    bounds: RailDockBounds,
+) -> i32 {
+    let outside = if side == RailDockSide::Right {
+        panel_x - handle_width as i32
+    } else {
+        panel_x + panel_width as i32
+    };
+    outside.clamp(
+        bounds.x,
+        bounds.x + (bounds.width - handle_width as i32).max(0),
+    )
+}
 fn size_and_place_context_rail(
     app_handle: &AppHandle,
     rail: &WebviewWindow,
@@ -979,6 +1047,14 @@ fn schedule_rail_edge_dock(
         runtime.docked_left.store(
             rail_dock_side(docked, window_size, bounds, margin) == RailDockSide::Left,
             Ordering::Release,
+        );
+        let _ = sync_global_panel_handle(
+            &app_handle,
+            docked,
+            window_size,
+            bounds,
+            scale,
+            runtime.expanded.load(Ordering::Acquire),
         );
         emit_rail_window_state(&app_handle, false);
     });
@@ -1179,6 +1255,9 @@ fn show_global_note_rail(app_handle: AppHandle) -> Result<(), String> {
     let _ = app_handle.emit("skribly://global-rail-refresh", ());
     rail.show()
         .map_err(|error| format!("Skribli could not show the desktop note pill: {error}"))?;
+    if rail_window_runtime().expanded.load(Ordering::Acquire) {
+        let _ = rail.set_focus();
+    }
     emit_rail_window_state(&app_handle, false);
     Ok(())
 }
@@ -2515,6 +2594,11 @@ fn set_context_rail_expanded(
     }
     rail.show()
         .map_err(|error| format!("Skribli could not show the note rail: {error}"))?;
+    if expanded && !contextual {
+        // Light dismissal needs an actual focused rail HWND before Windows can report
+        // the next click outside it as Focused(false).
+        let _ = rail.set_focus();
+    }
     emit_rail_window_state(&app_handle, contextual);
     Ok(get_rail_window_state(contextual))
 }
@@ -4370,6 +4454,13 @@ pub fn run() {
     app.run(move |app_handle, event| match event {
         RunEvent::WindowEvent {
             label,
+            event: tauri::WindowEvent::Focused(false),
+            ..
+        } if label == "rail" && rail_window_runtime().expanded.load(Ordering::Acquire) => {
+            let _ = app_handle.emit_to("rail", "skribly://global-rail-dismiss", ());
+        }
+        RunEvent::WindowEvent {
+            label,
             event: tauri::WindowEvent::Focused(true),
             ..
         } if label == "home" || label == "library" => {
@@ -4559,6 +4650,24 @@ mod tests {
         assert_eq!(
             global_rail_physical_size(true, 388.0, 430.0, 1.25, narrow).width,
             320
+        );
+    }
+
+    #[test]
+    fn global_panel_handle_sits_outside_the_inner_wall_on_either_dock() {
+        let bounds = RailDockBounds {
+            x: -1920,
+            y: 0,
+            width: 1920,
+            height: 1080,
+        };
+        assert_eq!(
+            global_panel_handle_x(-388, 388, 28, RailDockSide::Right, bounds),
+            -416
+        );
+        assert_eq!(
+            global_panel_handle_x(-1920, 388, 28, RailDockSide::Left, bounds),
+            -1532
         );
     }
 

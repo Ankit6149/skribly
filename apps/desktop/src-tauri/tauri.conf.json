@@ -90,6 +90,26 @@
         "fullscreen": false,
         "maximized": false,
         "center": true
+      },
+      {
+        "label": "global-rail-handle",
+        "title": "My Skribs panel handle",
+        "width": 28,
+        "height": 80,
+        "minWidth": 28,
+        "minHeight": 80,
+        "maxWidth": 28,
+        "maxHeight": 80,
+        "visible": false,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "shadow": false,
+        "resizable": false,
+        "maximizable": false,
+        "fullscreen": false,
+        "maximized": false
       }
     ],
     "security": {

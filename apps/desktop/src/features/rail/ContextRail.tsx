@@ -63,6 +63,7 @@ export const ContextRail: React.FC<{ contextual: boolean }> = ({ contextual }) =
   const [contextNotes, setContextNotes] = useState<SkribNote[]>([]);
   const [scope, setScope] = useState<RailScope>(contextualDock ? 'context' : 'all');
   const [collapsed, setCollapsed] = useState(true);
+  const [closing, setClosing] = useState(false);
   const [revealed, setRevealed] = useState(false);
   const [dockSide, setDockSide] = useState<'left' | 'right'>('right');
   const presence = useRef<ReturnType<typeof createContextPresence> | null>(null);
@@ -73,6 +74,7 @@ export const ContextRail: React.FC<{ contextual: boolean }> = ({ contextual }) =
   const [message, setMessage] = useState<string | null>(null);
   const opening = useRef(false);
   const resizing = useRef(false);
+  const dismissAfterOpening = useRef(false);
   const [openingId, setOpeningId] = useState<string | null>(null);
   const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
   const [selectedGroupKey, setSelectedGroupKey] = useState<string | null>(null);
@@ -181,6 +183,7 @@ export const ContextRail: React.FC<{ contextual: boolean }> = ({ contextual }) =
       onState: (state) => {
         arrivalRevision.current = state.arrivalRevision;
         setCollapsed(!state.expanded);
+        if (!state.expanded) setClosing(false);
         setRevealed(Boolean(state.revealed));
         setDockSide(state.dockSide ?? 'right');
         controller?.sync(state);
@@ -215,7 +218,7 @@ export const ContextRail: React.FC<{ contextual: boolean }> = ({ contextual }) =
     setSelectedGroupKey((current) => current && allGroups.some((group) => group.key === current) ? current : null);
   }, [allGroups]);
 
-  const toggleCollapsed = async () => {
+  const toggleCollapsed = useCallback(async () => {
     if (resizing.current || opening.current) return;
     resizing.current = true;
     const next = !collapsed;
@@ -223,6 +226,10 @@ export const ContextRail: React.FC<{ contextual: boolean }> = ({ contextual }) =
     setMenuOpen(false);
     setMessage(null);
     try {
+      if (next && !contextualDock && !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+        setClosing(true);
+        await new Promise<void>((resolve) => window.setTimeout(resolve, 170));
+      }
       if (!nativeRuntimeAvailable) {
         setCollapsed(next);
         setRevealed(false);
@@ -238,10 +245,25 @@ export const ContextRail: React.FC<{ contextual: boolean }> = ({ contextual }) =
       // undo a newer collapse caused by switching the foreground application.
     } catch (reason) {
       setMessage(String(reason));
+      setClosing(false);
     } finally {
       resizing.current = false;
+      if (!next || contextualDock || !nativeRuntimeAvailable) setClosing(false);
     }
-  };
+  }, [collapsed, contextualDock, visibleNotes.length]);
+
+  useEffect(() => {
+    if (!nativeRuntimeAvailable || contextualDock || collapsed) return;
+    let live = true;
+    let unlisten: (() => void) | undefined;
+    void listen('skribly://global-rail-dismiss', () => {
+      if (!live) return;
+      if (opening.current) { dismissAfterOpening.current = true; return; }
+      void toggleCollapsed();
+    }).then((release) => { if (live) unlisten = release; else release(); })
+      .catch((reason) => { if (live) setMessage(String(reason)); });
+    return () => { live = false; unlisten?.(); };
+  }, [collapsed, contextualDock, toggleCollapsed]);
 
   const launcherDrag = useNativeDrag(() => void toggleCollapsed(), (reason) => setMessage(String(reason)));
 
@@ -271,6 +293,10 @@ export const ContextRail: React.FC<{ contextual: boolean }> = ({ contextual }) =
       opening.current = false;
       setOpeningId(null);
       window.setTimeout(() => setOpeningProgress(null), 260);
+      if (dismissAfterOpening.current) {
+        dismissAfterOpening.current = false;
+        void toggleCollapsed();
+      }
     }
   };
 
@@ -287,6 +313,10 @@ export const ContextRail: React.FC<{ contextual: boolean }> = ({ contextual }) =
     } finally {
       opening.current = false;
       setOpeningId(null);
+      if (dismissAfterOpening.current) {
+        dismissAfterOpening.current = false;
+        void toggleCollapsed();
+      }
     }
   };
 
@@ -316,7 +346,7 @@ export const ContextRail: React.FC<{ contextual: boolean }> = ({ contextual }) =
     if (!contextualDock) {
       return (
         <main className={`context-rail collapsed global-widget dock-${dockSide}`}>
-          <button type="button" className="context-rail-global-widget" {...launcherDrag}
+          <button ref={launcherButton} type="button" className="context-rail-global-widget" {...launcherDrag}
             aria-label={`Open My Skribs, ${pillCount} saved ${pillCount === 1 ? 'Skrib' : 'Skribs'}`}
             title={message || 'Your Skribs are right here. Click to open; double-click and drag to move.'}>
             <span className="global-widget-strip strip-yellow" aria-hidden="true" />
@@ -345,7 +375,9 @@ export const ContextRail: React.FC<{ contextual: boolean }> = ({ contextual }) =
   }
 
   return (
-    <main ref={expandedSurface} tabIndex={-1} className={`context-rail expanded dock-${dockSide} ${contextualDock ? 'context-list' : ''}`} onKeyDown={handleEscape}>
+    <main ref={expandedSurface} tabIndex={-1}
+      className={`context-rail expanded dock-${dockSide} ${contextualDock ? 'context-list' : `global-shelf ${closing ? 'is-closing' : ''}`}`}
+      onKeyDown={handleEscape}>
       {openingProgress && <OpeningJourney progress={openingProgress} compact />}
       <header className="ribbon-rail-head" data-tauri-drag-region>
         <span className="ribbon-rail-brand" data-tauri-drag-region>
