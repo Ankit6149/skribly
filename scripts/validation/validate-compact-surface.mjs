@@ -126,8 +126,8 @@ if (!/padding:\s*3px 3px 3px 17px;/.test(finalBackdropRule)
   failures.push('The place tab gutter must stay transparent beside the paper.');
 }
 const chipRules = [...paperStyles.matchAll(/\.composer-context-tab\s*\{([^}]*)\}/g)];
-if (!/border-radius:\s*12px;/.test(chipRules.findLast((rule) => rule[1].includes('border-radius'))?.[1] ?? '')) {
-  failures.push('The final place tab rule must use the softer 12px curve.');
+if (!/border-radius:\s*999px;/.test(chipRules.findLast((rule) => rule[1].includes('border-radius'))?.[1] ?? '')) {
+  failures.push('The final place tab rule must keep the curved pill shape.');
 }
 
 for (const marker of [

@@ -10,13 +10,14 @@ import {
   PenLine,
   Type,
   Check,
-  CheckCircle2,
+  Archive,
   Trash2,
   X,
   MoreHorizontal,
   Plus,
   Paperclip,
   ListChecks,
+  AppWindow,
 } from 'lucide-react';
 import { OverlayMetrics, SkribNote, TargetWindowInfo } from '../../lib/geometry';
 import {
@@ -47,7 +48,7 @@ import {
   type DeleteConfirmationState,
 } from './deleteConfirmation';
 import type { OpenNoteAction } from './noteLifecycle';
-import { contextTagColor } from './contextTagColor';
+import { bundledAppIcon } from './bundledAppIcon';
 import { applicationLabel } from '../rail/contextRailModel';
 import { InkCanvas } from './InkCanvas';
 import type { InkPersistenceState } from './inkPersistenceCoordinator';
@@ -142,6 +143,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
   const [noteMenuOpen, setNoteMenuOpen] = useState(false);
   const [toolGatewayOpen, setToolGatewayOpen] = useState(false);
   const [hasScheduledReminder, setHasScheduledReminder] = useState(false);
+  const [nativeAppIconUrl, setNativeAppIconUrl] = useState<string | null>(null);
   const paletteButtonRef = useRef<HTMLButtonElement>(null);
   const moreButtonRef = useRef<HTMLButtonElement>(null);
   const moreOpenedByKeyboard = useRef(false);
@@ -266,6 +268,22 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
     return target.title || target.process_name;
   }, [note.target_process_name, note.target_title, target]);
   const contextTabLabel = applicationLabel(target?.process_name || note.target_process_name || '');
+
+  useEffect(() => {
+    if (!isTauriAvailable) return;
+    const processName = target?.process_name || note.target_process_name;
+    if (!processName) return;
+    let live = true;
+    setNativeAppIconUrl(null);
+    void invoke<string | null>('get_app_icon', { processName }).then((url) => {
+      if (live && url?.startsWith('data:image/png;base64,') && url.length <= 32_000) {
+        setNativeAppIconUrl(url);
+      }
+    }).catch(() => undefined);
+    return () => { live = false; };
+  }, [isTauriAvailable, note.target_process_name, target?.process_name]);
+  const appIconUrl = bundledAppIcon(target?.process_name || note.target_process_name)
+    ?? nativeAppIconUrl;
 
   useEffect(() => {
     if (!isTauriAvailable) return;
@@ -992,7 +1010,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
     });
   };
 
-  const handleCompleteTask = async () => {
+  const handleArchiveNote = async () => {
     await runExclusive(async () => {
       if (!canWrite) {
         setComposerError(storageErrorMessage || licenseStatus.message || 'This build is currently read-only.');
@@ -1001,7 +1019,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
       richTextEditorRef.current?.flush();
       if (!await flushRichText()) return;
       if (inkPersistenceStateRef.current.hasUnsavedChanges || richOperationsInProgress.current.size > 0) {
-        setComposerError('Skribli is still saving this note. Wait a moment before completing it.');
+        setComposerError('Skribli is still saving this note. Wait a moment before archiving it.');
         return;
       }
       if (!await saveController.flush()) {
@@ -1009,7 +1027,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
         return;
       }
       if (!await archiveSkrib(note.id)) {
-        setComposerError('Skribli could not move this completed note to Archive. It remains active.');
+        setComposerError('Skribli could not move this note to Archive. It remains active.');
         return;
       }
       try {
@@ -1020,7 +1038,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
         await Promise.all(linkedReminders.map((reminder) => completeReminder(reminder.id)));
         void emit('skribly://reminders-updated', { noteId: note.id }).catch(() => undefined);
       } catch {
-        // The completed note is already safely archived; reminder refresh can retry later.
+        // The note is already safely archived; reminder refresh can retry later.
       }
       discardSkribDraft(note.id);
       await hideWindow();
@@ -1069,9 +1087,10 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
             aria-label={`Place: ${contextLabel}`}
             aria-describedby="composer-place-detail"
             onPointerEnter={() => setPlaceDetailOpen(true)} onPointerLeave={() => setPlaceDetailOpen(false)}
-            onFocus={() => setPlaceDetailOpen(true)} onBlur={() => setPlaceDetailOpen(false)}
-            style={{ '--context-tag-color': `var(--${contextTagColor(note.id, note.color)})` } as React.CSSProperties}>
-            <strong data-tauri-drag-region>{contextTabLabel}</strong>
+            onFocus={() => setPlaceDetailOpen(true)} onBlur={() => setPlaceDetailOpen(false)}>
+            {appIconUrl
+              ? <img className="composer-context-app-icon" src={appIconUrl} alt="" aria-hidden="true" data-tauri-drag-region />
+              : <AppWindow size={20} strokeWidth={1.8} aria-hidden="true" data-tauri-drag-region />}
           </div>
           <span id="composer-open-state" className="sr-only">
             {isNewNote
@@ -1106,6 +1125,11 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
               void openRoomyTool('reminder');
             }}>
             <Bell size={18} strokeWidth={1.75} aria-hidden="true" />
+          </button>
+          <button type="button" className="composer-cancel-session" aria-label="Cancel and discard edits since opening"
+            title="Cancel · discard edits since opening" onClick={() => setCancelConfirmationOpen(true)}
+            disabled={!canWrite || isFinishing || isInkLoading || !sessionSnapshot.current || hasPendingRichOperation || hasUnsavedInk || deleteConfirmation === 'confirming'}>
+            <X size={17} aria-hidden="true" />
           </button>
           <button type="button" className="composer-more" ref={moreButtonRef}
             aria-controls="composer-note-options" aria-label="More note actions"
@@ -1149,10 +1173,10 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
               </button>}
               <>
                 <span className="composer-note-menu-divider" aria-hidden="true" />
-                <button type="button" aria-label="Complete task and move note to Archive"
+                <button type="button" aria-label="Move note to Archive"
                   disabled={!canWrite || isFinishing || hasPendingRichOperation || hasUnsavedInk}
-                  onClick={() => { setNoteMenuOpen(false); setColorPickerOpen(false); void handleCompleteTask(); }}>
-                  <CheckCircle2 size={17} aria-hidden="true" /><span>Archive task</span>
+                  onClick={() => { setNoteMenuOpen(false); setColorPickerOpen(false); void handleArchiveNote(); }}>
+                  <Archive size={17} aria-hidden="true" /><span>Archive note</span>
                 </button>
                 <button type="button" className="danger" aria-label="Move to Trash"
                   disabled={!canWrite || isFinishing || hasPendingRichOperation}
@@ -1282,7 +1306,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
           </div>
         )}
 
-        <div className={`composer-unified-workspace ${activePanel ? 'panel-open' : ''}`}>
+        <div className="composer-unified-workspace">
           <div
             className={`composer-unified-canvas ${drawingEnabled ? 'drawing' : 'typing'}`}
             data-text-size={textSize}
@@ -1345,22 +1369,23 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
             onRemoved={(id) => richTextEditorRef.current?.removeAttachment(id)}
           />
 
-          {activePanel === 'reminder' && (
-            <div id="composer-reminder-panel" className="composer-inline-panel">
-              <button className="composer-panel-close" type="button" title="Back to your thought" aria-label="Close reminder panel" onClick={() => void openRoomyTool('reminder')} disabled={hasPendingRichOperation || isResizing}><X size={16} /></button>
-              <NoteReminderPanel
-                noteId={note.id}
-                noteText={text}
-                disabled={!canWrite || isFinishing || deleteConfirmation === 'confirming'}
-                onError={setComposerError}
-                onBusyChange={handleReminderBusy}
-              />
-            </div>
-          )}
           <span className="sr-only" aria-live="polite">
             {attachmentCount.toLocaleString()} attached files
           </span>
         </div>
+
+        {activePanel === 'reminder' && (
+          <div id="composer-reminder-panel" className="composer-inline-panel composer-reminder-window" role="dialog" aria-label="Set a reminder" aria-modal="false">
+            <button className="composer-panel-close" type="button" title="Close reminder window" aria-label="Close reminder window" onClick={() => void openRoomyTool('reminder')} disabled={hasPendingRichOperation || isResizing}><X size={16} /></button>
+            <NoteReminderPanel
+              noteId={note.id}
+              noteText={text}
+              disabled={!canWrite || isFinishing || deleteConfirmation === 'confirming'}
+              onError={setComposerError}
+              onBusyChange={handleReminderBusy}
+            />
+          </div>
+        )}
 
         <div
           id="composer-save-status"
@@ -1420,12 +1445,6 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
             </div>
           </div>
         )}
-        <button type="button" className="composer-cancel-session" aria-label="Cancel and discard edits since opening"
-          title="Cancel · discard edits since opening" onClick={() => setCancelConfirmationOpen(true)}
-          disabled={!canWrite || isFinishing || isInkLoading || !sessionSnapshot.current || hasPendingRichOperation || hasUnsavedInk || deleteConfirmation === 'confirming'}>
-          <X size={17} aria-hidden="true" />
-        </button>
-
         <button
           type="button"
           className="composer-put-away-fold"
