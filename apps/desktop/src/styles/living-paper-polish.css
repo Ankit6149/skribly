@@ -265,10 +265,13 @@
 }
 .composer-side-tools > button:focus-visible { outline: 2px solid var(--olive); outline-offset: 1px; }
 .composer-side-tools > button:disabled { opacity: .35; cursor: default; }
-.composer-side-tools svg, .composer-note-menu svg { stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+.composer-side-tools svg, .composer-intent-trigger svg,
+.composer-intent-tray svg, .composer-note-menu svg {
+  stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round;
+}
 .composer-paper-swatch {
   display: block; width: 16px; height: 16px; border-radius: 50%;
-  background: var(--skribli-paper); border: 1.5px solid rgb(38 41 35 / 42%);
+  background: var(--skribli-paper); border: 1.75px solid rgb(38 41 35 / 42%);
   box-shadow: 0 0 0 2px rgb(255 255 255 / 55%);
 }
 .composer-quick-reminder[data-scheduled='true']::after {
@@ -499,7 +502,6 @@
   background: color-mix(in srgb, var(--paper) 82%, transparent);
   color: var(--skribli-ink); cursor: pointer;
 }
-.composer-cancel-session:is(:hover,:focus-visible) { background: var(--paper); outline: 1px solid var(--olive); }
 .composer-cancel-session:disabled { opacity: .4; cursor: default; }
 .composer-intent-trigger {
   width: 32px; height: 32px;
@@ -616,6 +618,7 @@
   height: 26px;
   object-fit: contain;
   opacity: .7;
+  transform: translateX(-2px);
 }
 .composer-context-tab > svg { display: block; width: 20px; height: 20px; }
 .composer-place-detail { top: 60px; }
@@ -648,10 +651,32 @@
   background: transparent;
   box-shadow: none;
 }
-.composer-side-tools .composer-cancel-session:is(:hover,:focus-visible) {
-  background: rgb(255 255 255 / 48%);
-  outline: 2px solid var(--olive);
-  outline-offset: 1px;
+
+/* One icon weight and interaction language for the note's compact actions. */
+.composer-side-tools > button,
+.composer-intent-trigger {
+  color: color-mix(in srgb, var(--skribli-ink) 82%, transparent);
+  transition: background-color 140ms ease, color 140ms ease, transform 140ms ease;
+}
+.composer-side-tools > button,
+.skrib-composer:hover .composer-side-tools > .composer-more { opacity: 1; }
+.composer-intent-trigger { background: color-mix(in srgb, var(--paper) 55%, transparent); }
+.composer-side-tools > button:is(:hover:not(:disabled),:focus-visible,[aria-expanded='true']),
+.composer-intent-gateway > .composer-intent-trigger:is(:hover,:focus-visible,[aria-expanded='true']) {
+  background: color-mix(in srgb, var(--paper) 82%, transparent);
+  color: var(--skribli-ink);
+}
+.composer-side-tools > button:disabled:hover { background: transparent; }
+.composer-side-tools > button:active:not(:disabled),
+.composer-intent-trigger:active { transform: scale(.94); }
+.composer-note-menu > button:is(:hover:not(:disabled),:focus-visible),
+.composer-note-menu > button.active,
+.composer-intent-tray > button:is(:hover:not(:disabled),:focus-visible),
+.composer-intent-tray > button.active {
+  background: color-mix(in srgb, var(--mint) 45%, var(--paper));
+}
+@media (prefers-reduced-motion: reduce) {
+  .composer-side-tools > button, .composer-intent-trigger { transition: none; }
 }
 
 /* Reminder opens as one floating window; writing beneath keeps its size. */

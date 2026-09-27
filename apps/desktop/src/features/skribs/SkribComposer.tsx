@@ -1124,12 +1124,12 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
               setColorPickerOpen(false);
               void openRoomyTool('reminder');
             }}>
-            <Bell size={18} strokeWidth={1.75} aria-hidden="true" />
+            <Bell size={18} aria-hidden="true" />
           </button>
           <button type="button" className="composer-cancel-session" aria-label="Cancel and discard edits since opening"
             title="Cancel · discard edits since opening" onClick={() => setCancelConfirmationOpen(true)}
             disabled={!canWrite || isFinishing || isInkLoading || !sessionSnapshot.current || hasPendingRichOperation || hasUnsavedInk || deleteConfirmation === 'confirming'}>
-            <X size={17} aria-hidden="true" />
+            <X size={18} aria-hidden="true" />
           </button>
           <button type="button" className="composer-more" ref={moreButtonRef}
             aria-controls="composer-note-options" aria-label="More note actions"
@@ -1143,7 +1143,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
               setToolGatewayOpen(false);
               setColorPickerOpen(false);
             }}>
-            <MoreHorizontal size={18} strokeWidth={1.75} aria-hidden="true" />
+            <MoreHorizontal size={18} aria-hidden="true" />
           </button>
           {menuVisible && (
             <div id="composer-note-options" className="composer-note-menu" role="toolbar" aria-label="Note actions">
@@ -1235,7 +1235,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
             aria-expanded={toolGatewayOpen}
             title="Add something to this thought"
           >
-            <Plus size={17} aria-hidden="true" />
+            <Plus size={18} aria-hidden="true" />
           </button>
           {toolGatewayOpen && (
             <div id="composer-add-options" className="composer-intent-tray" role="group" aria-label="Skrib tools">
