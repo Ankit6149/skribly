@@ -12,6 +12,7 @@ import '@fontsource/kalam/400.css';
 import '@fontsource/kalam/700.css';
 import { SkribComposer } from './features/skribs/SkribComposer';
 import { useLicenseStore } from './stores/licenseStore';
+import { useSkribStore } from './stores/skribStore';
 import type { SkribNote } from './lib/geometry';
 import './styles/global.css';
 import './styles/accessibility.css';
@@ -39,6 +40,7 @@ const note: SkribNote = {
 };
 
 useLicenseStore.getState().init();
+useSkribStore.setState({ skribs: [note], allSkribs: [note] });
 document.documentElement.dataset.skriblyWindow = 'note';
 const style = document.createElement('style');
 style.textContent = `
@@ -50,4 +52,12 @@ style.textContent = `
   }
 `;
 document.head.appendChild(style);
-ReactDOM.createRoot(document.getElementById('root')!).render(<SkribComposer note={note} target={null} openAction="created" />);
+
+function NoteSourcePreview() {
+  const currentNote = useSkribStore((state) => state.skribs.find((item) => item.id === note.id));
+  return currentNote
+    ? <SkribComposer note={currentNote} target={null} openAction="created" />
+    : <p style={{ color: '#fff', fontFamily: 'sans-serif' }}>Sample note closed. Reload to start again.</p>;
+}
+
+ReactDOM.createRoot(document.getElementById('root')!).render(<NoteSourcePreview />);
