@@ -6,25 +6,29 @@ import '../../styles/context-rail.css';
 
 /** A separate, widget-sized window keeps the edge handle outside the panel. */
 export function GlobalPanelHandle() {
+  const nativeRuntimeAvailable = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
   const [dockSide, setDockSide] = useState<'left' | 'right'>('right');
 
   useEffect(() => {
+    if (!nativeRuntimeAvailable) return;
     let live = true;
     let unlisten: (() => void) | undefined;
     void invoke<RailWindowState>('get_rail_window_state', { contextual: false })
-      .then((state) => { if (live) setDockSide(state.dockSide ?? 'right'); });
+      .then((state) => { if (live) setDockSide(state.dockSide ?? 'right'); })
+      .catch(() => undefined);
     void listen<'left' | 'right'>('skribly://global-rail-handle-state', ({ payload }) => {
       if (live) setDockSide(payload);
     }).then((release) => {
       if (!live) release();
       else unlisten = release;
-    });
+    }).catch(() => undefined);
     return () => { live = false; unlisten?.(); };
-  }, []);
+  }, [nativeRuntimeAvailable]);
 
   const close = () => {
+    if (!nativeRuntimeAvailable) return;
     void emitTo('rail', 'skribly://global-rail-dismiss').catch(() => {
-      void invoke('set_context_rail_expanded', { contextual: false, expanded: false });
+      void invoke('set_context_rail_expanded', { contextual: false, expanded: false }).catch(() => undefined);
     });
   };
 
