@@ -5,6 +5,7 @@
 //! work area, and validates the final native window rectangle before Skribli is shown.
 
 use std::mem::size_of;
+use std::sync::{Mutex, OnceLock};
 use std::thread;
 use std::time::Duration;
 
@@ -33,12 +34,14 @@ const COMPACT_WINDOW_TARGET_TOP_OFFSET: i32 = 48;
 const FINAL_RECT_TOLERANCE_PX: i32 = 8;
 const NOTE_SURFACE_LOGICAL_RADIUS: i32 = 20;
 const NOTE_SURFACE_BOTTOM_RIGHT_LOGICAL_RADIUS: i32 = 38;
-const NOTE_SURFACE_PAPER_LEFT_LOGICAL: i32 = 14;
-const NOTE_SURFACE_TAB_WIDTH_LOGICAL: i32 = 36;
-const NOTE_SURFACE_TAB_TOP_LOGICAL: i32 = 12;
-const NOTE_SURFACE_TAB_BOTTOM_LOGICAL: i32 = 136;
-// GDI regions have binary edges. Leave the CSS curve's antialiased fringe inside the HWND.
-const NOTE_SURFACE_NATIVE_EDGE_MARGIN_LOGICAL: i32 = 2;
+const NOTE_SURFACE_PAPER_LEFT_LOGICAL: i32 = 17;
+const NOTE_SURFACE_PAPER_INSET_LOGICAL: i32 = 3;
+const NOTE_SURFACE_TAB_LEFT_LOGICAL: i32 = 3;
+const NOTE_SURFACE_TAB_RIGHT_LOGICAL: i32 = 33;
+const NOTE_SURFACE_TAB_TOP_LOGICAL: i32 = 23;
+const NOTE_SURFACE_TAB_BOTTOM_LOGICAL: i32 = 133;
+// Keep a one-pixel allowance only on curves; straight transparent fringe must be outside the HWND region.
+const NOTE_SURFACE_NATIVE_CURVE_ALLOWANCE_LOGICAL: i32 = 1;
 const COLLAPSED_NOTE_MAIN_REGION_LOGICAL_DIAMETER: i32 = 40;
 const COLLAPSED_NOTE_MAIN_REGION_LOGICAL_TOP: i32 = 4;
 const COLLAPSED_NOTE_BADGE_REGION_LOGICAL_DIAMETER: i32 = 18;
@@ -67,6 +70,20 @@ struct NativeSurfaceRegion {
     ellipse_height: i32,
     bottom_right_radius: i32,
     circular: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct NoteTabBounds {
+    pub left: f64,
+    pub top: f64,
+    pub width: f64,
+    pub height: f64,
+}
+
+static NOTE_TAB_BOUNDS: OnceLock<Mutex<Option<NoteTabBounds>>> = OnceLock::new();
+
+fn note_tab_bounds() -> &'static Mutex<Option<NoteTabBounds>> {
+    NOTE_TAB_BOUNDS.get_or_init(|| Mutex::new(None))
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -150,28 +167,28 @@ fn calculate_native_surface_region(
             })
         }
         NativeNoteSurface::Note => {
-            // The CSS paper starts 17 logical px inside the transparent HWND; this region
-            // starts 3 px earlier so its hard GDI edge cannot clip the browser's smooth curve.
-            // Keep the rest of the empty left strip outside the native region, retaining only
-            // a small capsule around the overlapping place tab.
+            // The previous three-pixel transparent allowance sat *inside* the native region.
+            // WebView2 could paint stale white there after focus changes. Align straight native
+            // edges with the visible paper and keep a small allowance only along the curves.
             let ellipse = logical_to_physical(
                 NOTE_SURFACE_LOGICAL_RADIUS
-                    .saturating_sub(NOTE_SURFACE_NATIVE_EDGE_MARGIN_LOGICAL)
+                    .saturating_sub(NOTE_SURFACE_NATIVE_CURVE_ALLOWANCE_LOGICAL)
                     .saturating_mul(2),
                 scale_factor,
             );
+            let inset = logical_to_physical(NOTE_SURFACE_PAPER_INSET_LOGICAL, scale_factor);
             Ok(NativeSurfaceRegion {
                 primary: NativeEllipseRegion {
                     left: logical_to_physical(NOTE_SURFACE_PAPER_LEFT_LOGICAL, scale_factor),
-                    top: 0,
-                    right: physical_width,
-                    bottom: physical_height,
+                    top: inset,
+                    right: physical_width - inset,
+                    bottom: physical_height - inset,
                 },
                 badge: None,
                 tab: Some(NativeEllipseRegion {
-                    left: 0,
+                    left: logical_to_physical(NOTE_SURFACE_TAB_LEFT_LOGICAL, scale_factor),
                     top: logical_to_physical(NOTE_SURFACE_TAB_TOP_LOGICAL, scale_factor),
-                    right: logical_to_physical(NOTE_SURFACE_TAB_WIDTH_LOGICAL, scale_factor),
+                    right: logical_to_physical(NOTE_SURFACE_TAB_RIGHT_LOGICAL, scale_factor),
                     bottom: logical_to_physical(NOTE_SURFACE_TAB_BOTTOM_LOGICAL, scale_factor)
                         .min(physical_height),
                 }),
@@ -179,7 +196,7 @@ fn calculate_native_surface_region(
                 ellipse_height: ellipse,
                 bottom_right_radius: logical_to_physical(
                     NOTE_SURFACE_BOTTOM_RIGHT_LOGICAL_RADIUS
-                        .saturating_sub(NOTE_SURFACE_NATIVE_EDGE_MARGIN_LOGICAL),
+                        .saturating_sub(NOTE_SURFACE_NATIVE_CURVE_ALLOWANCE_LOGICAL),
                     scale_factor,
                 ),
                 circular: false,
@@ -212,6 +229,60 @@ fn native_dot_region_contains(region: &NativeSurfaceRegion, x: f64, y: f64) -> b
                 .is_some_and(|badge| ellipse_region_contains(badge, x, y)))
 }
 
+fn measured_tab_region(
+    tab: NoteTabBounds,
+    scale: f64,
+    window_width: i32,
+    window_height: i32,
+) -> Option<NativeEllipseRegion> {
+    if ![tab.left, tab.top, tab.width, tab.height]
+        .iter()
+        .all(|value| value.is_finite())
+        || tab.width <= 0.0
+        || tab.height <= 0.0
+    {
+        return None;
+    }
+    let left = (tab.left * scale).round() as i32;
+    let top = (tab.top * scale).round() as i32;
+    let right = ((tab.left + tab.width) * scale).round() as i32;
+    let bottom = ((tab.top + tab.height) * scale).round() as i32;
+    if left < 0
+        || top < 0
+        || right > window_width
+        || bottom > window_height
+        || right <= left
+        || bottom <= top
+    {
+        return None;
+    }
+    Some(NativeEllipseRegion {
+        left,
+        top,
+        right,
+        bottom,
+    })
+}
+
+pub fn set_note_tab_bounds(
+    window: &tauri::WebviewWindow,
+    tab: NoteTabBounds,
+) -> Result<(), String> {
+    let size = window
+        .inner_size()
+        .map_err(|error| format!("Skribli could not measure the note window: {error}"))?;
+    let scale = window
+        .scale_factor()
+        .map_err(|error| format!("Skribli could not measure display scale: {error}"))?;
+    if measured_tab_region(tab, scale, size.width as i32, size.height as i32).is_none() {
+        return Err("Skribli received invalid place-tab bounds.".into());
+    }
+    *note_tab_bounds()
+        .lock()
+        .map_err(|_| "The note tab bounds are unavailable.")? = Some(tab);
+    refresh_note_window_surface(window)
+}
+
 fn apply_native_surface(
     window: &tauri::WebviewWindow,
     placement: &CompactWindowPlacement,
@@ -220,12 +291,28 @@ fn apply_native_surface(
     let hwnd = window
         .hwnd()
         .map_err(|error| format!("Skribli could not shape the note window: {error}"))?;
-    let bounds = calculate_native_surface_region(
+    let mut bounds = calculate_native_surface_region(
         placement.width,
         placement.height,
         placement.scale_factor,
         surface,
     )?;
+    if surface == NativeNoteSurface::Dot {
+        if let Ok(mut saved) = note_tab_bounds().lock() {
+            *saved = None;
+        }
+    } else if let Ok(saved) = note_tab_bounds().lock() {
+        if let Some(tab) = *saved {
+            if let Some(measured) = measured_tab_region(
+                tab,
+                placement.scale_factor,
+                placement.width,
+                placement.height,
+            ) {
+                bounds.tab = Some(measured);
+            }
+        }
+    }
     let region = if bounds.circular {
         let primary = unsafe {
             CreateEllipticRgn(
@@ -283,7 +370,14 @@ fn apply_native_surface(
         let right = bounds.primary.right;
         let bottom = bounds.primary.bottom;
         let radius = bounds.bottom_right_radius;
-        let upper = unsafe { CreateRectRgn(bounds.primary.left, 0, right, bottom - radius) };
+        let upper = unsafe {
+            CreateRectRgn(
+                bounds.primary.left,
+                bounds.primary.top,
+                right,
+                bottom - radius,
+            )
+        };
         let lower_left =
             unsafe { CreateRectRgn(bounds.primary.left, bottom - radius, right - radius, bottom) };
         let corner =
@@ -326,8 +420,8 @@ fn apply_native_surface(
                     tab_bounds.top,
                     tab_bounds.right,
                     tab_bounds.bottom,
-                    tab_bounds.right - tab_bounds.left,
-                    tab_bounds.right - tab_bounds.left,
+                    logical_to_physical(22, placement.scale_factor),
+                    logical_to_physical(22, placement.scale_factor),
                 )
             };
             if tab.0.is_null() {
@@ -1340,14 +1434,14 @@ mod tests {
                 note.primary.right,
                 note.primary.bottom,
             ),
-            (14, 0, 420, 360)
+            (17, 3, 417, 357)
         );
-        assert_eq!((note.ellipse_width, note.ellipse_height), (36, 36));
-        assert_eq!(note.bottom_right_radius, 36);
+        assert_eq!((note.ellipse_width, note.ellipse_height), (38, 38));
+        assert_eq!(note.bottom_right_radius, 37);
         assert!(!note.circular);
         assert!(note.badge.is_none());
         let tab = note.tab.as_ref().expect("note place tab region");
-        assert_eq!((tab.left, tab.top, tab.right, tab.bottom), (0, 12, 36, 136));
+        assert_eq!((tab.left, tab.top, tab.right, tab.bottom), (3, 23, 33, 133));
 
         let dot = calculate_native_surface_region(44, 44, 1.0, NativeNoteSurface::Dot)
             .expect("dot region");
@@ -1418,23 +1512,27 @@ mod tests {
                     region.primary.left,
                     logical_to_physical(NOTE_SURFACE_PAPER_LEFT_LOGICAL, scale)
                 );
-                assert_eq!(region.primary.top, 0);
-                assert_eq!(region.primary.right, physical_width);
-                assert_eq!(region.primary.bottom, physical_height);
-                assert_eq!(region.ellipse_width, logical_to_physical(36, scale));
+                let inset = logical_to_physical(NOTE_SURFACE_PAPER_INSET_LOGICAL, scale);
+                assert_eq!(region.primary.top, inset);
+                assert_eq!(region.primary.right, physical_width - inset);
+                assert_eq!(region.primary.bottom, physical_height - inset);
+                assert_eq!(region.ellipse_width, logical_to_physical(38, scale));
                 assert_eq!(region.ellipse_height, region.ellipse_width);
-                assert_eq!(region.bottom_right_radius, logical_to_physical(36, scale));
+                assert_eq!(region.bottom_right_radius, logical_to_physical(37, scale));
                 assert!(!region.circular);
                 assert!(region.badge.is_none());
                 let tab = region.tab.as_ref().expect("place tab region");
-                assert_eq!(tab.left, 0);
+                assert_eq!(
+                    tab.left,
+                    logical_to_physical(NOTE_SURFACE_TAB_LEFT_LOGICAL, scale)
+                );
                 assert_eq!(
                     tab.top,
                     logical_to_physical(NOTE_SURFACE_TAB_TOP_LOGICAL, scale)
                 );
                 assert_eq!(
                     tab.right,
-                    logical_to_physical(NOTE_SURFACE_TAB_WIDTH_LOGICAL, scale)
+                    logical_to_physical(NOTE_SURFACE_TAB_RIGHT_LOGICAL, scale)
                 );
                 assert_eq!(
                     tab.bottom,
@@ -1443,6 +1541,35 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn measured_place_tab_removes_the_unused_native_strip_below_short_labels() {
+        let tab = measured_tab_region(
+            NoteTabBounds {
+                left: 3.0,
+                top: 23.0,
+                width: 30.0,
+                height: 44.0,
+            },
+            1.25,
+            525,
+            450,
+        )
+        .expect("measured tab");
+        assert_eq!((tab.left, tab.top, tab.right, tab.bottom), (4, 29, 41, 84));
+        assert!(measured_tab_region(
+            NoteTabBounds {
+                left: 3.0,
+                top: 23.0,
+                width: f64::NAN,
+                height: 44.0
+            },
+            1.25,
+            525,
+            450,
+        )
+        .is_none());
     }
 
     #[test]

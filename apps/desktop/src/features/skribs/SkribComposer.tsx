@@ -147,6 +147,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
   const moreOpenedByKeyboard = useRef(false);
   const addButtonRef = useRef<HTMLButtonElement>(null);
   const paperRef = useRef<HTMLElement>(null);
+  const contextTabRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!noteMenuOpen && !toolGatewayOpen && !colorPickerOpen) return;
@@ -265,6 +266,34 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
     return target.title || target.process_name;
   }, [note.target_process_name, note.target_title, target]);
   const contextTabLabel = applicationLabel(target?.process_name || note.target_process_name || '');
+
+  useEffect(() => {
+    if (!isTauriAvailable) return;
+    const tab = contextTabRef.current;
+    if (!tab) return;
+    let live = true;
+    const syncBounds = () => {
+      if (!live) return;
+      const root = tab.closest('.skrib-composer-backdrop');
+      if (!root) return;
+      const rect = tab.getBoundingClientRect();
+      const origin = root.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return;
+      void invoke('set_skrib_tab_bounds', {
+        noteId: note.id,
+        left: rect.left - origin.left,
+        top: rect.top - origin.top,
+        width: rect.width,
+        height: rect.height,
+      }).catch(() => undefined);
+    };
+    syncBounds();
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(syncBounds);
+    observer?.observe(tab);
+    window.addEventListener('resize', syncBounds);
+    const retry = window.setTimeout(syncBounds, 90);
+    return () => { live = false; observer?.disconnect(); window.removeEventListener('resize', syncBounds); window.clearTimeout(retry); };
+  }, [contextTabLabel, isTauriAvailable, note.id]);
   const contextFullAppLabel = /^(code|code - insiders)(\.exe)?$/i.test(target?.process_name || note.target_process_name || '')
     ? 'Visual Studio Code' : contextTabLabel;
 
@@ -1036,7 +1065,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
         }
       >
         <header className="composer-paper-top" data-tauri-drag-region>
-          <div className="composer-context-tab" data-tauri-drag-region tabIndex={0}
+          <div ref={contextTabRef} className="composer-context-tab" data-tauri-drag-region tabIndex={0}
             aria-label={`Place: ${contextLabel}`}
             aria-describedby="composer-place-detail"
             onPointerEnter={() => setPlaceDetailOpen(true)} onPointerLeave={() => setPlaceDetailOpen(false)}

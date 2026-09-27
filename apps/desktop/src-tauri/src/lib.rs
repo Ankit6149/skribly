@@ -41,8 +41,9 @@ use platform::windows_placement::{
     initialize_compact_window, position_compact_window_for_target, position_detached_note_window,
     position_note_window_for_target, position_note_workspace_for_target,
     prepare_standard_compact_surface, refresh_note_window_surface, restore_standard_window_surface,
-    transition_detached_note_window, transition_note_window_for_target,
-    COMPACT_WINDOW_LOGICAL_HEIGHT, COMPACT_WINDOW_LOGICAL_WIDTH,
+    set_note_tab_bounds as set_native_note_tab_bounds, transition_detached_note_window,
+    transition_note_window_for_target, NoteTabBounds, COMPACT_WINDOW_LOGICAL_HEIGHT,
+    COMPACT_WINDOW_LOGICAL_WIDTH,
 };
 #[cfg(target_os = "windows")]
 use platform::windows_target_capture::{
@@ -3229,6 +3230,55 @@ fn begin_skrib_manual_resize(state: State<'_, AppState>, note_id: String) -> Res
     Ok(())
 }
 
+#[tauri::command]
+fn set_skrib_tab_bounds(
+    app_handle: AppHandle,
+    state: State<'_, AppState>,
+    note_id: String,
+    left: f64,
+    top: f64,
+    width: f64,
+    height: f64,
+) -> Result<(), String> {
+    let _operation_guard = state.native_window_operation_gate.lock()?;
+    let runtime = state
+        .note_window_runtime
+        .lock()
+        .map_err(|_| "The note window state is unavailable.")?;
+    if runtime
+        .active_note_id()
+        .is_some_and(|active| active != note_id)
+    {
+        return Ok(());
+    }
+    drop(runtime);
+    #[cfg(target_os = "windows")]
+    {
+        let window = app_handle
+            .get_webview_window("main")
+            .ok_or_else(|| "The note window is unavailable.".to_string())?;
+        let size = window.inner_size().map_err(|error| error.to_string())?;
+        // An observer callback from the outgoing editor must never re-shape its collapsed dot.
+        if size.width < 200 || size.height < 200 {
+            return Ok(());
+        }
+        set_native_note_tab_bounds(
+            &window,
+            NoteTabBounds {
+                left,
+                top,
+                width,
+                height,
+            },
+        )
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = (app_handle, left, top, width, height);
+        Ok(())
+    }
+}
+
 fn resize_skrib_window(
     app_handle: AppHandle,
     state: State<'_, AppState>,
@@ -3682,6 +3732,7 @@ pub fn run() {
             set_skrib_window_size,
             set_skrib_window_dimensions,
             begin_skrib_manual_resize,
+            set_skrib_tab_bounds,
             trash_skrib_note,
             archive_skrib_note,
             discard_empty_skrib_note,
