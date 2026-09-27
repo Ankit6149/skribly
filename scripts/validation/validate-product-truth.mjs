@@ -375,14 +375,14 @@ for (const claim of requiredOnboardingState) {
 }
 
 const requiredOnboardingGuidance = [
-  'Your first Skrib takes one shortcut.',
+  'Put one real thought where it belongs.',
   'Focus the application',
   'Press the shortcut',
-  'Type, then choose Done',
+  'Write, then put it away',
   'Private by default',
   'not screen recording',
   'Quit Skribli',
-  'Continue to Skribli home',
+  'Continue to Skribli',
   'Review later',
 ];
 for (const claim of requiredOnboardingGuidance) {

@@ -27,8 +27,8 @@ const STEPS: readonly OnboardingStep[] = [
   },
   {
     number: '03',
-    title: 'Type, then choose Done',
-    description: 'The Skrib saves locally and folds into a small dot you can move or reopen.',
+    title: 'Write, then put it away',
+    description: 'Skribli saves safely before the thought leaves the active surface, so you can return to it later from context or Find.',
   },
 ];
 
@@ -47,10 +47,10 @@ export const OnboardingSurface: React.FC<OnboardingSurfaceProps> = ({
           SETUP · 2 OF 3
         </span>
         <h1 id="onboarding-title" data-tauri-drag-region>
-          Your first Skrib takes one shortcut.
+          Put one real thought where it belongs.
         </h1>
         <p id="onboarding-summary" data-tauri-drag-region>
-          Skribli stays quiet until a thought needs somewhere to return.
+          Learn the loop once: capture in context, put the thought away, then return to it when you need it.
         </p>
       </header>
 
@@ -89,8 +89,8 @@ export const OnboardingSurface: React.FC<OnboardingSurfaceProps> = ({
         </aside>
 
         <p className="onboarding-lifecycle-note">
-          <strong>Done</strong> folds the saved Skrib into a movable dot. Use{' '}
-          <strong>Quit Skribli</strong> in the tray to stop the background process.
+          <strong>Putting a Skrib away</strong> never means losing it. Use Find when context is not enough, and use{' '}
+          <strong>Quit Skribli</strong> in the tray when you want the background process to stop.
         </p>
       </div>
 
@@ -99,7 +99,7 @@ export const OnboardingSurface: React.FC<OnboardingSurfaceProps> = ({
           Review later
         </button>
         <button type="button" className="onboarding-primary" onClick={onComplete} autoFocus>
-          Continue to Skribli home
+          Continue to Skribli
         </button>
       </footer>
     </section>
