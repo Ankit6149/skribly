@@ -123,6 +123,8 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
   const [slashMenuOpen, setSlashMenuOpen] = useState(false);
   const [slashIndex, setSlashIndex] = useState(0);
   const [slashMenuAnchor, setSlashMenuAnchor] = useState({ top: 44, left: 48 });
+  const slashTriggerRange = useRef<Range | null>(null);
+  const pendingSlashInput = useRef(false);
   const savedSelection = useRef<Range | null>(null);
   const [attachmentHosts, setAttachmentHosts] = useState<HTMLElement[]>([]);
   const activeNoteId = useRef(noteId);
@@ -152,6 +154,8 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
       savedSelection.current = null;
       setFormatBarVisible(false);
       setSlashMenuOpen(false);
+      slashTriggerRange.current = null;
+      pendingSlashInput.current = false;
     }
     activeNoteId.current = noteId;
     lastAcceptedHtml.current = next;
@@ -222,6 +226,7 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
     savedSelection.current = null;
     setFormatBarVisible(false);
     setSlashMenuOpen(false);
+    slashTriggerRange.current = null;
     refreshAttachmentHosts();
     notifyHistory();
     editor.focus();
@@ -373,13 +378,22 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
   };
 
   const slashActions = [
-    { label: checklistAtCaret ? 'Remove checklist' : 'Checklist', shortcut: 'C', icon: ListChecks, run: insertChecklist },
-    { label: 'Attach inline', shortcut: 'A', icon: Paperclip, run: () => onRequestAttachment?.() },
-    { label: 'Bulleted list', shortcut: 'B', icon: List, run: () => runCommand('insertUnorderedList') },
+    { label: checklistAtCaret ? 'Remove checklist' : 'Checklist', icon: ListChecks, run: insertChecklist },
+    { label: 'Attach inline', icon: Paperclip, run: () => onRequestAttachment?.() },
+    { label: 'Bulleted list', icon: List, run: () => runCommand('insertUnorderedList') },
   ];
 
   const runSlashAction = (index: number) => {
     setSlashMenuOpen(false);
+    const trigger = slashTriggerRange.current;
+    slashTriggerRange.current = null;
+    if (trigger?.toString() === '/' && editorRef.current?.contains(trigger.commonAncestorContainer)) {
+      trigger.deleteContents();
+      savedSelection.current = trigger.cloneRange();
+      window.getSelection()?.removeAllRanges();
+      window.getSelection()?.addRange(trigger);
+      if (!emitChange()) return;
+    }
     slashActions[index]?.run();
   };
 
@@ -392,7 +406,21 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
     redo: () => travelHistory('redo'),
   }));
 
-  const handleInput = (_event: FormEvent<HTMLDivElement>) => {
+  const handleInput = (event: FormEvent<HTMLDivElement>) => {
+    if (pendingSlashInput.current) {
+      pendingSlashInput.current = false;
+      const selection = window.getSelection();
+      const caret = selection?.rangeCount ? selection.getRangeAt(0) : null;
+      const node = caret?.startContainer;
+      const offset = caret?.startOffset ?? 0;
+      if (caret?.collapsed && node?.nodeType === Node.TEXT_NODE && offset > 0 &&
+        node.textContent?.[offset - 1] === '/' && editorRef.current?.contains(node)) {
+        const trigger = document.createRange();
+        trigger.setStart(node, offset - 1);
+        trigger.setEnd(node, offset);
+        slashTriggerRange.current = trigger;
+      }
+    }
     if (!commandInProgress.current) emitChange();
   };
   const handlePaste = (event: ClipboardEvent<HTMLDivElement>) => {
@@ -427,11 +455,11 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
       )}
       {slashMenuOpen && !disabled && !drawingEnabled && (
         <div className="composer-slash-menu" style={slashMenuAnchor} role="listbox" aria-label="Insert in note">
-          {slashActions.map(({ label, shortcut, icon: Icon }, index) => (
+          {slashActions.map(({ label, icon: Icon }, index) => (
             <button type="button" role="option" aria-selected={slashIndex === index} key={label}
               disabled={label === 'Attach inline' && !onRequestAttachment}
               onMouseDown={(event) => event.preventDefault()} onClick={() => runSlashAction(index)}>
-              <Icon size={15} aria-hidden="true" /><span>{label}</span><kbd>{shortcut}</kbd>
+              <Icon size={15} aria-hidden="true" /><span>{label}</span>
             </button>
           ))}
         </div>
@@ -473,21 +501,17 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
         onFocus={updateFormatBarVisibility}
         onKeyDown={(event) => {
           if (slashMenuOpen) {
-            if (event.key === 'Escape') { event.preventDefault(); setSlashMenuOpen(false); return; }
+            if (event.key === 'Escape') { event.preventDefault(); setSlashMenuOpen(false); slashTriggerRange.current = null; return; }
             if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
               event.preventDefault();
               setSlashIndex((current) => (current + (event.key === 'ArrowDown' ? 1 : slashActions.length - 1)) % slashActions.length);
               return;
             }
             if (event.key === 'Enter') { event.preventDefault(); runSlashAction(slashIndex); return; }
-            if (['c', 'a', 'b'].includes(event.key.toLowerCase())) {
-              event.preventDefault();
-              runSlashAction(['c', 'a', 'b'].indexOf(event.key.toLowerCase()));
-              return;
-            }
             setSlashMenuOpen(false);
+            slashTriggerRange.current = null;
           }
-          if (event.key === '/' && !event.altKey && !event.shiftKey && !event.metaKey) {
+          if (event.key === '/' && !event.altKey && !event.metaKey && !event.nativeEvent.isComposing) {
             const range = window.getSelection()?.rangeCount ? window.getSelection()!.getRangeAt(0) : null;
             const node = range?.startContainer instanceof Element ? range.startContainer : range?.startContainer.parentElement;
             const block = node?.closest('p, div, li, h2');
@@ -496,8 +520,17 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
               prefix.selectNodeContents(block);
               prefix.setEnd(range.startContainer, range.startOffset);
             }
-            if (event.ctrlKey || (range?.collapsed && (!block || prefix?.toString().trim() === ''))) {
-              event.preventDefault(); openSlashMenu(); return;
+            if (event.ctrlKey) {
+              event.preventDefault();
+              slashTriggerRange.current = null;
+              openSlashMenu();
+              return;
+            }
+            if (range?.collapsed && (!block || prefix?.toString().trim() === '')) {
+              pendingSlashInput.current = true;
+              slashTriggerRange.current = null;
+              openSlashMenu();
+              return;
             }
           }
           if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
@@ -519,6 +552,7 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
           if (!(event.relatedTarget instanceof Node) || !event.currentTarget.parentElement?.contains(event.relatedTarget)) {
             setFormatBarVisible(false);
             setSlashMenuOpen(false);
+            slashTriggerRange.current = null;
           }
           onBlur();
         }}

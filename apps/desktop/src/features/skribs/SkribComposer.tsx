@@ -282,7 +282,8 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
     }).catch(() => undefined);
     return () => { live = false; };
   }, [isTauriAvailable, note.target_process_name, target?.process_name]);
-  const appIconUrl = bundledAppIcon(target?.process_name || note.target_process_name)
+  const appProcessName = target?.process_name || note.target_process_name;
+  const appIconUrl = bundledAppIcon(appProcessName)
     ?? nativeAppIconUrl;
 
   useEffect(() => {
@@ -1089,7 +1090,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
             onPointerEnter={() => setPlaceDetailOpen(true)} onPointerLeave={() => setPlaceDetailOpen(false)}
             onFocus={() => setPlaceDetailOpen(true)} onBlur={() => setPlaceDetailOpen(false)}>
             {appIconUrl
-              ? <img className="composer-context-app-icon" src={appIconUrl} alt="" aria-hidden="true" data-tauri-drag-region />
+              ? <img className={`composer-context-app-icon${appProcessName?.trim().toLowerCase() === 'chrome.exe' ? ' is-chrome' : ''}`} src={appIconUrl} alt="" aria-hidden="true" data-tauri-drag-region />
               : <AppWindow size={20} strokeWidth={1.8} aria-hidden="true" data-tauri-drag-region />}
           </div>
           <span id="composer-open-state" className="sr-only">

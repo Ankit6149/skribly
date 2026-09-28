@@ -30,11 +30,69 @@ describe('inline attachment editing', () => {
     })));
     expect(container.querySelector('[aria-label="Insert in note"]')).not.toBeNull();
     await act(async () => editor.dispatchEvent(new KeyboardEvent('keydown', {
-      key: 'a', bubbles: true, cancelable: true,
+      key: 'ArrowDown', bubbles: true, cancelable: true,
+    })));
+    await act(async () => editor.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'Enter', bubbles: true, cancelable: true,
     })));
     expect(onRequestAttachment).toHaveBeenCalledTimes(1);
     expect(container.querySelector('[aria-label="Insert in note"]')).toBeNull();
     expect(editor.textContent).toBe('Thought');
+  });
+
+  it('shows a typed slash, then removes only that slash when a tool is selected', async () => {
+    const onChange = vi.fn(() => true);
+    const onRequestAttachment = vi.fn();
+    await act(async () => root.render(<RichTextEditor noteId="n" initialHtml=""
+      disabled={false} drawingEnabled={false} describedBy="status" onChange={onChange}
+      onBlur={() => undefined} onPasteFiles={() => undefined} onRequestAttachment={onRequestAttachment} />));
+    const editor = container.querySelector('[role="textbox"]') as HTMLDivElement;
+    const caret = document.createRange(); caret.selectNodeContents(editor); caret.collapse(true);
+    window.getSelection()!.removeAllRanges(); window.getSelection()!.addRange(caret);
+    const slashKey = new KeyboardEvent('keydown', { key: '/', bubbles: true, cancelable: true });
+    await act(async () => editor.dispatchEvent(slashKey));
+    expect(slashKey.defaultPrevented).toBe(false);
+    expect(container.querySelector('[aria-label="Insert in note"]')).not.toBeNull();
+    await act(async () => {
+      editor.textContent = '/';
+      const afterSlash = document.createRange(); afterSlash.setStart(editor.firstChild!, 1); afterSlash.collapse(true);
+      window.getSelection()!.removeAllRanges(); window.getSelection()!.addRange(afterSlash);
+      editor.dispatchEvent(new InputEvent('input', { data: '/', inputType: 'insertText', bubbles: true }));
+    });
+    expect(editor.textContent).toBe('/');
+    expect(onChange).toHaveBeenLastCalledWith('/', '/');
+    await act(async () => (container.querySelector('[role="option"]:nth-child(2)') as HTMLButtonElement).click());
+    expect(onRequestAttachment).toHaveBeenCalledTimes(1);
+    expect(editor.textContent).toBe('');
+    expect(onChange).toHaveBeenLastCalledWith('', '');
+  });
+
+  it('keeps the slash when the writer continues normal text or dismisses the menu', async () => {
+    const onChange = vi.fn(() => true);
+    const onRequestAttachment = vi.fn();
+    await act(async () => root.render(<RichTextEditor noteId="n" initialHtml=""
+      disabled={false} drawingEnabled={false} describedBy="status" onChange={onChange}
+      onBlur={() => undefined} onPasteFiles={() => undefined} onRequestAttachment={onRequestAttachment} />));
+    const editor = container.querySelector('[role="textbox"]') as HTMLDivElement;
+    const caret = document.createRange(); caret.selectNodeContents(editor); caret.collapse(true);
+    window.getSelection()!.removeAllRanges(); window.getSelection()!.addRange(caret);
+    await act(async () => editor.dispatchEvent(new KeyboardEvent('keydown', { key: '/', bubbles: true, cancelable: true })));
+    await act(async () => {
+      editor.textContent = '/';
+      const afterSlash = document.createRange(); afterSlash.setStart(editor.firstChild!, 1); afterSlash.collapse(true);
+      window.getSelection()!.removeAllRanges(); window.getSelection()!.addRange(afterSlash);
+      editor.dispatchEvent(new InputEvent('input', { data: '/', inputType: 'insertText', bubbles: true }));
+    });
+    const letterKey = new KeyboardEvent('keydown', { key: 'a', bubbles: true, cancelable: true });
+    await act(async () => editor.dispatchEvent(letterKey));
+    expect(letterKey.defaultPrevented).toBe(false);
+    expect(container.querySelector('[aria-label="Insert in note"]')).toBeNull();
+    await act(async () => {
+      editor.textContent = '/a';
+      editor.dispatchEvent(new InputEvent('input', { data: 'a', inputType: 'insertText', bubbles: true }));
+    });
+    expect(onChange).toHaveBeenLastCalledWith('/a', '/a');
+    expect(onRequestAttachment).not.toHaveBeenCalled();
   });
 
   it('removes checklist controls at the current item without deleting its text', async () => {
