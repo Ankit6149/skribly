@@ -130,6 +130,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
   const [textSize, setTextSize] = useState<SkribTextSize>('medium');
   const [placeDetailOpen, setPlaceDetailOpen] = useState(false);
   const [cancelConfirmationOpen, setCancelConfirmationOpen] = useState(false);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
   const sessionSnapshot = useRef<{ text: string; color: SkribNote['color']; rich: StoredRichContent; reminders: SkribReminder[] } | null>(null);
   const [inlineDeleteRequest, setInlineDeleteRequest] = useState<{ id: string; nonce: number } | null>(null);
   const [attachmentPickerRequest, setAttachmentPickerRequest] = useState(0);
@@ -777,8 +778,10 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
       if (event.key === 'Escape' && cancelConfirmationOpen) {
         event.preventDefault();
         setCancelConfirmationOpen(false);
+        closeButtonRef.current?.focus();
         return;
       }
+      if (cancelConfirmationOpen) return;
       if (event.key === 'Escape' && (noteMenuOpen || toolGatewayOpen || colorPickerOpen)) {
         event.preventDefault();
         if (colorPickerOpen) {
@@ -1090,7 +1093,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
             onPointerEnter={() => setPlaceDetailOpen(true)} onPointerLeave={() => setPlaceDetailOpen(false)}
             onFocus={() => setPlaceDetailOpen(true)} onBlur={() => setPlaceDetailOpen(false)}>
             {appIconUrl
-              ? <img className={`composer-context-app-icon${appProcessName?.trim().toLowerCase() === 'chrome.exe' ? ' is-chrome' : ''}`} src={appIconUrl} alt="" aria-hidden="true" data-tauri-drag-region />
+              ? <img className="composer-context-app-icon" src={appIconUrl} alt="" aria-hidden="true" data-tauri-drag-region />
               : <AppWindow size={20} strokeWidth={1.8} aria-hidden="true" data-tauri-drag-region />}
           </div>
           <span id="composer-open-state" className="sr-only">
@@ -1127,8 +1130,13 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
             }}>
             <Bell size={18} aria-hidden="true" />
           </button>
-          <button type="button" className="composer-cancel-session" aria-label="Cancel and discard edits since opening"
-            title="Cancel · discard edits since opening" onClick={() => setCancelConfirmationOpen(true)}
+          <button type="button" className="composer-cancel-session" ref={closeButtonRef} aria-label="Close note options"
+            title="Close note" onClick={() => {
+              setNoteMenuOpen(false);
+              setToolGatewayOpen(false);
+              setColorPickerOpen(false);
+              setCancelConfirmationOpen(true);
+            }}
             disabled={!canWrite || isFinishing || isInkLoading || !sessionSnapshot.current || hasPendingRichOperation || hasUnsavedInk || deleteConfirmation === 'confirming'}>
             <X size={18} aria-hidden="true" />
           </button>
@@ -1436,13 +1444,40 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
         )}
 
         {cancelConfirmationOpen && (
-          <div className="composer-discard-confirmation" role="alertdialog" aria-label="Discard this editing session">
-            <strong>{openAction === 'created' ? 'Discard this new note?' : 'Discard changes since opening?'}</strong>
-            <span>{openAction === 'created' ? 'The new note and its files will be removed.' : 'The previously saved note will stay.'}</span>
-            <div>
-              <button type="button" onClick={() => setCancelConfirmationOpen(false)}>Keep editing</button>
-              <button type="button" className="danger" onClick={() => void discardSessionAndClose()}
-                disabled={isFinishing || hasPendingRichOperation || hasUnsavedInk}>Discard</button>
+          <div className="composer-discard-overlay">
+            <div className="composer-discard-confirmation" role="alertdialog" aria-modal="true"
+              aria-labelledby="composer-close-title" aria-describedby="composer-close-detail"
+              onKeyDown={(event) => {
+                if (event.key !== 'Tab') return;
+                const buttons = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('button:not(:disabled)'));
+                if (event.shiftKey && document.activeElement === buttons[0]) {
+                  event.preventDefault();
+                  buttons.at(-1)?.focus();
+                } else if (!event.shiftKey && document.activeElement === buttons.at(-1)) {
+                  event.preventDefault();
+                  buttons[0]?.focus();
+                }
+              }}>
+              <strong id="composer-close-title">Close this note?</strong>
+              <span id="composer-close-detail">{openAction === 'created'
+                ? 'Discard and close removes this new note and its files.'
+                : 'Discard and close restores the previously saved note.'}</span>
+              <div className="composer-discard-actions">
+                <button type="button" autoFocus onClick={() => {
+                  setCancelConfirmationOpen(false);
+                  closeButtonRef.current?.focus();
+                }}>Keep editing</button>
+                <button type="button" className="primary" onClick={() => {
+                  setCancelConfirmationOpen(false);
+                  void finishAndHide();
+                }} disabled={isFinishing || isRepositioning || hasPendingRichOperation || hasUnsavedInk || !storageWritable}>
+                  Save and close
+                </button>
+                <button type="button" className="danger" onClick={() => {
+                  setCancelConfirmationOpen(false);
+                  void discardSessionAndClose();
+                }} disabled={isFinishing || hasPendingRichOperation || hasUnsavedInk}>Discard and close</button>
+              </div>
             </div>
           </div>
         )}

@@ -510,21 +510,28 @@
   box-shadow: none; opacity: 1;
 }
 .composer-intent-trigger:is(:hover,:focus-visible) { background: var(--paper); }
+.composer-discard-overlay {
+  position: absolute; inset: 0; z-index: 100;
+  display: grid; place-items: center; padding: 14px;
+  border-radius: inherit; background: rgb(38 41 35 / 12%);
+  backdrop-filter: blur(3px);
+}
 .composer-discard-confirmation {
-  position: absolute; right: 14px; bottom: 57px; z-index: 61;
-  display: grid; gap: 6px; width: min(260px, calc(100% - 28px)); padding: 12px;
+  display: grid; gap: 9px; width: min(320px, 100%); padding: 18px;
   border: 1px solid rgb(38 41 35 / 15%); border-radius: 12px;
   background: var(--paper); color: var(--skribli-ink);
-  box-shadow: 0 10px 24px rgb(38 41 35 / 16%);
+  box-shadow: 0 14px 34px rgb(38 41 35 / 20%);
   font: 500 12px/1.4 var(--skribli-ui-font);
 }
-.composer-discard-confirmation strong { font-weight: 700; }
-.composer-discard-confirmation > div { display: flex; justify-content: flex-end; gap: 7px; margin-top: 4px; }
+.composer-discard-confirmation strong { font-size: 15px; font-weight: 700; }
+.composer-discard-actions { display: grid; gap: 7px; margin-top: 5px; }
 .composer-discard-confirmation button {
-  min-height: 30px; padding: 0 9px; border: 1px solid rgb(38 41 35 / 15%);
+  min-height: 34px; padding: 0 12px; border: 1px solid rgb(38 41 35 / 15%);
   border-radius: 8px; background: transparent; color: inherit; font: inherit; cursor: pointer;
 }
-.composer-discard-confirmation button.danger { background: #82443f; color: #fff; border-color: #82443f; }
+.composer-discard-confirmation button.primary { background: var(--skribli-ink); color: var(--paper); border-color: var(--skribli-ink); }
+.composer-discard-confirmation button.danger { color: #82443f; border-color: #82443f; }
+.composer-discard-confirmation button:disabled { opacity: .45; cursor: not-allowed; }
 .composer-discard-confirmation button:focus-visible { outline: 2px solid var(--olive); }
 .note-attachment-strip:not([data-empty='true']) {
   box-sizing: border-box; width: min(174px, calc(100% - 44px)); max-width: none;
@@ -612,14 +619,20 @@
   box-shadow: none;
 }
 .composer-context-app-icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
   display: block;
   width: 22px;
   height: 22px;
   object-fit: contain;
   opacity: .7;
+  transform: translate(-50%, -50%);
 }
-.composer-context-app-icon.is-chrome { translate: 1px 0; }
-.composer-context-tab > svg { display: block; width: 20px; height: 20px; }
+.composer-context-tab > svg {
+  position: absolute; top: 50%; left: 50%; display: block;
+  width: 20px; height: 20px; transform: translate(-50%, -50%);
+}
 .composer-place-detail { top: 60px; }
 
 /* Equal writing margins, including when the note is narrow. */

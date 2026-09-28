@@ -7,6 +7,10 @@ import type { SkribNote } from '../../lib/geometry';
 
 vi.mock('../../stores/licenseStore', () => ({ useLicenseStore: (select: (state: unknown) => unknown) => select({ status: { enforcementEnabled: false, canWrite: true } }) }));
 vi.mock('@tauri-apps/api/event', () => ({ emit: vi.fn(async () => undefined), listen: vi.fn(async () => () => undefined) }));
+vi.mock('../../lib/reminderStore', async (original) => ({
+  ...await original<typeof import('../../lib/reminderStore')>(),
+  listReminders: vi.fn(async () => []),
+}));
 // These tests exercise ribbon/focus ownership, not a simulated drawing surface.
 vi.mock('./InkCanvas', () => ({ InkCanvas: () => null }));
 vi.mock('../../lib/richContentStore', async (original) => ({
@@ -28,6 +32,21 @@ async function click(label: string) {
 }
 
 describe('note icon ribbons', () => {
+  it('opens close choices in a modal and returns focus when editing continues', async () => {
+    const close = container.querySelector('[aria-label="Close note options"]') as HTMLButtonElement;
+    expect(close.disabled).toBe(false);
+    await act(async () => close.click());
+    const dialog = container.querySelector('[role="alertdialog"]') as HTMLDivElement;
+    expect(dialog.getAttribute('aria-modal')).toBe('true');
+    expect(dialog.closest('.composer-discard-overlay')).not.toBeNull();
+    expect(Array.from(dialog.querySelectorAll('button')).map((button) => button.textContent?.trim()))
+      .toEqual(['Keep editing', 'Save and close', 'Discard and close']);
+    expect(document.activeElement?.textContent).toBe('Keep editing');
+    await act(async () => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })));
+    expect(container.querySelector('[role="alertdialog"]')).toBeNull();
+    expect(document.activeElement).toBe(close);
+  });
+
   it('opens labelled icon actions from Add and closes them on a second click', async () => {
     await click('Add or mark this Skrib');
     for (const label of ['Draw on this note', 'Attach a photo, video or file', 'Add a checklist']) {
