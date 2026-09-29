@@ -159,10 +159,14 @@ export const NoteReminderPanel: React.FC<NoteReminderPanelProps> = ({
   };
 
   const schedule = async () => {
-    if (disabled || operationInProgressRef.current) return;
+    if (disabled || isLoading || operationInProgressRef.current) return;
     const dueAt = localDateTimeFromValues(dueSelection.date, dueSelection.time);
     if (!Number.isFinite(dueAt)) {
       reportError(new Error('Choose a valid reminder date and time.'));
+      return;
+    }
+    if (dueAt <= Date.now()) {
+      reportError(new Error('Choose a reminder time in the future.'));
       return;
     }
     operationInProgressRef.current = true;
@@ -242,7 +246,7 @@ export const NoteReminderPanel: React.FC<NoteReminderPanelProps> = ({
             <div className="note-reminder-weekdays" aria-hidden="true">
               {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map((day) => <span key={day}>{day}</span>)}
             </div>
-            <div className="note-reminder-days" role="grid" aria-label={calendarTitle}>
+            <div className="note-reminder-days" role="group" aria-label={`Choose a date in ${calendarTitle}`}>
               {calendarDays.map((day) => (
                 <button
                   key={day.key}
@@ -304,7 +308,7 @@ export const NoteReminderPanel: React.FC<NoteReminderPanelProps> = ({
                 <ChevronDown size={14} aria-hidden="true" />
               </span>
             </label>
-            <button type="button" className="primary" disabled={disabled || panelBusy} onClick={() => void schedule()}>
+            <button type="button" className="primary" disabled={disabled || isLoading || panelBusy} onClick={() => void schedule()}>
               {isScheduling ? 'Saving…' : activeReminder ? 'Save new time' : 'Set reminder'}
             </button>
             <small>Saved on this device · available in Calendar</small>

@@ -581,6 +581,16 @@ export function createRichContentRepository(
     return nextView;
   });
 
+  const restoreContent = (noteId: string, snapshot: StoredRichContent): Promise<void> => mutate(noteId, async () => {
+    if (snapshot.noteId !== noteId) throw new Error('Cannot restore content belonging to another note.');
+    if (snapshot.attachments.length === 0 && !snapshot.inkDocument?.strokes.length &&
+      !snapshot.richText && normalizeViewPreferences(snapshot.view).textSize === 'medium') {
+      await persistence.delete(noteId);
+      return;
+    }
+    await persistence.put({ ...snapshot, attachments: [...snapshot.attachments], updatedAt: now() });
+  });
+
   const deleteIfOrphaned = (noteId: string): Promise<boolean> => mutate(noteId, async () => {
     if (!options.noteExists) return false;
     if (await options.noteExists(noteId)) return false;
@@ -611,6 +621,7 @@ export function createRichContentRepository(
     replaceRichText,
     getInk,
     updateView,
+    restoreContent,
     removeAttachment,
     delete: deleteContent,
     deleteIfOrphaned,
@@ -629,6 +640,7 @@ export const replaceInkForNote = defaultRepository.replaceInk;
 export const replaceRichTextForNote = defaultRepository.replaceRichText;
 export const getInkForNote = defaultRepository.getInk;
 export const updateNoteViewPreferences = defaultRepository.updateView;
+export const restoreRichContentForNote = defaultRepository.restoreContent;
 export const removeAttachmentFromNote = defaultRepository.removeAttachment;
 export const deleteOrphanedRichContent = defaultRepository.deleteOrphans;
 

@@ -5,10 +5,25 @@ import {
   findTopInkStroke,
   MAX_INK_POINTS,
   normalizeInkPoint,
+  translateInkPoints,
   validateInkStrokes,
 } from './inkModel';
 
 describe('inkModel', () => {
+  it('moves a stroke as a whole at paper boundaries without flattening its shape', () => {
+    const points = [{ x: 0.2, y: 0.3, pressure: 0.5 }, { x: 0.8, y: 0.7, pressure: 0.7 }];
+    const moved = translateInkPoints(points, 0.5, -0.8);
+    expect(moved[0]!.x).toBeCloseTo(0.4);
+    expect(moved[1]!.x).toBe(1);
+    expect(moved[0]!.y).toBe(0);
+    expect(moved[1]!.y).toBeCloseTo(0.4);
+    expect(moved[1]!.pressure).toBe(0.7);
+    expect(points[0]!.x).toBe(0.2);
+  });
+
+  it('handles an empty stroke translation', () => {
+    expect(translateInkPoints([], 0.2, 0.2)).toEqual([]);
+  });
   it('normalizes pointer coordinates and pressure', () => {
     expect(
       normalizeInkPoint(60, 45, { left: 10, top: 5, width: 100, height: 80 }, 0.7)

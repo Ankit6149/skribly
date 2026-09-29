@@ -73,7 +73,17 @@ export const LibraryHost: React.FC<{
   onOpenReminderNote?: (noteId: string) => void;
 }> = ({ active = true, mode = 'find', request, onBack, onViewChange, onOpenReminderNote }) => {
   const [notes, setNotes] = useState<SkribNote[]>([]);
-  const [lifecycleView, setLifecycleView] = useState<LibraryView>('notes');
+  const [localLifecycleView, setLocalLifecycleView] = useState<LibraryView>(request?.view ?? 'notes');
+  // Main-app navigation owns this view. Keep it current during a destination
+  // change instead of echoing an older local view back to the sidebar.
+  const lifecycleView = mode === 'reminders'
+    ? 'calendar'
+    : onViewChange && request ? request.view : localLifecycleView;
+  const setLifecycleView = useCallback((view: LibraryView) => {
+    if (mode === 'reminders') return;
+    setLocalLifecycleView(view);
+    onViewChange?.(view);
+  }, [mode, onViewChange]);
   const [query, setQuery] = useState('');
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -156,17 +166,9 @@ export const LibraryHost: React.FC<{
 
   useEffect(() => {
     if (!request) return;
-    setLifecycleView(mode === 'reminders' ? 'calendar' : request.view);
+    setLocalLifecycleView(request.view);
     if (request.noteId) setSelectedNoteId(request.noteId);
-  }, [mode, request]);
-
-  useEffect(() => {
-    if (mode === 'reminders' && lifecycleView !== 'calendar') setLifecycleView('calendar');
-  }, [lifecycleView, mode]);
-
-  useEffect(() => {
-    if (active) onViewChange?.(lifecycleView);
-  }, [active, lifecycleView, onViewChange]);
+  }, [request]);
 
   useEffect(() => {
     let disposed = false;

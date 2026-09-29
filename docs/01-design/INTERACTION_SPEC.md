@@ -5,8 +5,8 @@
 ## Application lifecycle
 
 - Skribli runs as one background process, one tray icon, one global shortcut registration, and one Windows event-hook set per user session.
-- Launching Skribli again signals the existing process through the same note-opening path.
-- Done, Escape, `Ctrl + Enter`, or closing the active editor saves its latest typed draft and collapses it to one movable dot. Closing All Skribs hides that window. **Quit Skribli** in the tray exits the process.
+- Launching Skribli again restores the shared Home workspace; it does not create another note.
+- Done, Escape, `Ctrl + Enter`, or closing the active editor flushes its latest typed draft and hides the editor. One quiet contextual indicator represents that app's notes, not a dot per note. Closing All Skribs hides the shared workspace. **Quit Skribli** in the tray exits the process.
 - The first successful launch shows a three-step guide. **Quick guide** in the tray reopens it without creating a sample note.
 
 ## Open or create a contextual note
@@ -14,7 +14,7 @@
 1. Focus a supported Windows application.
 2. Press **Ctrl + Shift + Space**.
 3. Skribli captures the foreground window once, clears any previous runtime target, and revalidates the HWND and process identity before note access.
-4. Zero active matches creates one note; one match reopens it; legacy duplicate matches select the most recently updated note deterministically.
+4. Zero active matches creates one note. By default, existing matches reopen the oldest active note deterministically without removing duplicates. Settings can enable a fresh note on every shortcut. Native apps match by process; browser contexts currently use exact captured page titles, not verified origins.
 5. The compact editor opens inside the target monitor's usable work area and identifies the flow as **NEW SKRIB FOR** or **REOPENED SKRIB FOR**.
 
 If capture, identity, placement, native validation, or persistence fails, Skribli opens no note and presents one privacy-safe recovery message. It never falls back to a stale target.
@@ -27,10 +27,10 @@ If capture, identity, placement, native validation, or persistence fails, Skribl
 - A failed save keeps the exact draft visible and provides **Retry saving**.
 - The current typed-note limit is 20,000 Unicode characters.
 - The editor exposes **Type**, **Draw**, **Files**, and **Reminder** tools. Draw, Files, and Reminder request a bounded larger workspace; returning to Type restores the compact editor size.
-- Every new note rotates through yellow, peach, mint, sky, and lavender. The colour control can change the active note to any of those exact website pastels.
-- **Done**, **Escape**, **Ctrl + Enter**, and Close flush the latest draft before the active editor collapses to a movable dot.
-- Clicking the dot or using the shortcut restores the same note at its saved target-relative position.
-- Moving either the editor or dot persists its target-relative position and clamps restoration to the target monitor's work area.
+- Every new note rotates through yellow, peach, mint, sky, lavender, rose, aqua and sand. The colour control selects these theme pastels.
+- **Done**, **Escape**, **Ctrl + Enter**, and Close flush the latest draft before hiding the active editor.
+- The contextual indicator unfolds a horizontal note shelf. Hover or keyboard focus reveals a preview; an explicit click opens the actual note here, while a separate action returns to its app.
+- Moving the contextual editor persists its target-relative position and clamps restoration to the target monitor's work area. Detached reading does not rewrite that saved anchor.
 - The editor remains visible when the final save is not durable.
 
 An empty typed draft is discarded only when the Skrib also has no saved drawing, attachment, or reminder content.
@@ -78,12 +78,30 @@ An empty typed draft is discarded only when the Skrib also has no saved drawing,
 
 ## All Skribs
 
-- **All Skribs** in the tray opens one normal, non-floating library window.
+- **All Skribs** in the tray selects the library inside the same normal, non-floating Home workspace. Sidebar navigation owns Notes, Calendar, Archive and Trash; account and note preferences live in Settings.
 - Search is Unicode-normalized and case-insensitive across note text and stored context fields.
 - Results use deterministic updated/created/ID ordering.
 - Notes and Trash remain readable and exportable in read-only storage or licence states.
 - Export supports one selected native note record or one complete versioned native JSON backup without overwriting an existing file.
 - Closing the window hides the same instance instead of quitting Skribli.
+
+## Note ribbons and inline files — v0.1.30 candidate
+
+- A small pastel place label sits at the upper right. Its colour varies by note ID, remains stable when reopened, and never matches the note paper. More and Done remain separate at the left of the paper margin; Done saves and hides, rather than completing the task.
+- Add and More reveal bounded horizontal icon ribbons. Hover and keyboard focus reveal action labels. Only one primary ribbon is open. Paper colour reveals a second horizontal swatch ribbon on hover, click or Arrow Down. Escape dismisses the colour ribbon, then the primary ribbon, before affecting the note.
+- New files and pasted images are inserted at the saved writing cursor. A file reference moves within the document via its drag handle or earlier/later paragraph buttons. Inserting a reference never replaces a text selection or copies the binary attachment.
+- The bottom attachment tray stays collapsed until requested and collects every attachment. Older attachments remain there until explicitly placed in the note. Removing a reference from text does not delete the file; deleting the file in the tray still requires confirmation.
+- Inline placement is represented by local attachment IDs in the existing formatted HTML document. Blob/object URLs and preview controls are not persisted into that HTML. External pasted HTML cannot introduce attachment IDs or remote preview URLs.
+- This adds no IndexedDB store/version and performs no bulk migration of existing records. Downgrade to a build without reference support may discard inline placement on editing; files remain in the tray. Portable native JSON still excludes rich content.
+- DOM tests cover placement, serialization/reopening, read-only guards, focus and dismissal. Real WebView drag/drop, rendered spacing and Windows acceptance remain owner testing.
+
+## Floating entry behaviour
+
+- The global edge widget uses three horizontal pastel bands, inward-rounded corners on either dock edge and no exterior shadow.
+- Its expanded collection and the contextual shelf have separate native state identities and ordered revisions. Expanding either collapses the other list, not its launcher.
+- Native drag release and resizing are serialized. A stale docking callback must not overwrite a newer size or foreground-context transition.
+- The contextual shelf is bounded to 460 by 250 logical pixels. It scrolls horizontally instead of squeezing each note into a truncated vertical row. Preview never launches an app; read-here and return-to-app remain explicit actions.
+- Physical mixed-DPI, edge-dragging and compositor acceptance remains pending. These are implemented candidate behaviors, not signed-release verification.
 
 ## Portable import
 

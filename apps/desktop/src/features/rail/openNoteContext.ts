@@ -31,9 +31,12 @@ function report(
   onProgress?.({ phase, title, detail });
 }
 
-export async function openNoteHere(note: SkribNote): Promise<void> {
+export async function openNoteHere(note: SkribNote, arrivalRevision?: number): Promise<void> {
   await prepareNoteSwitch();
-  await invoke('open_skrib_note_here', { id: note.id });
+  await invoke('open_skrib_note_here', {
+    id: note.id,
+    ...(arrivalRevision === undefined ? {} : { arrivalRevision }),
+  });
 }
 
 // The main window is reused. Never replace its editor before its latest draft is safe.

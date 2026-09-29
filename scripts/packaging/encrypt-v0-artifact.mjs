@@ -2,12 +2,14 @@ import { createCipheriv, pbkdf2Sync, randomBytes } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-const [inputPath, outputPath, downloadKey] = process.argv.slice(2);
-if (!inputPath || !outputPath || !downloadKey || downloadKey.length < 24) {
+const [inputPath, outputPath, keyOption, keyPath] = process.argv.slice(2);
+if (!inputPath || !outputPath || keyOption !== '--key-file' || !keyPath) {
   throw new Error(
-    'Usage: node encrypt-v0-artifact.mjs <input-artifact> <output.enc> <key-at-least-24-characters>',
+    'Usage: node encrypt-v0-artifact.mjs <input-artifact> <output.enc> --key-file <private-key-path>',
   );
 }
+const downloadKey = (await readFile(keyPath, 'utf8')).trimEnd();
+if (downloadKey.length < 24) throw new Error('The owner download key must be at least 24 characters.');
 
 const magic = Buffer.from('SKRV0E01', 'ascii');
 const salt = randomBytes(16);

@@ -29,6 +29,7 @@ import {
 import { OnboardingSurface } from '../onboarding/OnboardingSurface';
 import { ReminderNotificationMonitor } from '../skribs/ReminderNotificationMonitor';
 import { LibraryHost } from '../library/LibraryHost';
+import { NotePreferences } from '../settings/NotePreferences';
 import { LibraryImportPanel } from '../library/LibraryImportPanel';
 import {
   createLibraryExportRequest,
@@ -248,7 +249,7 @@ const AccountSetupSurface: React.FC = () => {
   );
 };
 
-const WorkspaceSidebar: React.FC<{
+export const WorkspaceSidebar: React.FC<{
   active: WorkspaceDestination;
   onNavigate: (destination: WorkspaceDestination) => void;
   onShowGuide: () => void;
@@ -310,7 +311,7 @@ const WorkspaceSidebar: React.FC<{
   );
 };
 
-const ReadySurface: React.FC<{ onNavigate: (destination: WorkspaceDestination) => void }> = ({ onNavigate }) => {
+export const ReadySurface: React.FC<{ onNavigate: (destination: WorkspaceDestination) => void }> = ({ onNavigate }) => {
   const { entitlement, announcements } = useAccountStore();
   const [activeCount, setActiveCount] = useState<number | null>(null);
   const [storageHealth, setStorageHealth] = useState<StorageHealthPayload | null>(null);
@@ -385,7 +386,7 @@ const ReadySurface: React.FC<{ onNavigate: (destination: WorkspaceDestination) =
   );
 };
 
-const SettingsSurface: React.FC<{
+export const SettingsSurface: React.FC<{
   onOpenFindView: (view: Exclude<LibraryView, 'calendar'>) => void;
   onShowGuide: () => void;
 }> = ({ onOpenFindView, onShowGuide }) => {
@@ -513,6 +514,7 @@ const SettingsSurface: React.FC<{
                 <div><strong>Global shortcut</strong><span>Creates a contextual Skrib from the app you are using.</span></div>
                 <kbd>Ctrl + Shift + Space</kbd>
               </div>
+              <NotePreferences />
               <div className="desktop-setting-row">
                 <div><strong>Main window</strong><span>Closing or hiding the window does not quit the background process.</span></div>
                 <button className="account-secondary" type="button" onClick={() => void getCurrentWindow().hide()}>Hide now</button>

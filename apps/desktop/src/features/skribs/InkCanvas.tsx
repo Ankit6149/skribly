@@ -8,6 +8,7 @@ import {
   MAX_INK_STROKE_POINTS,
   MAX_INK_STROKES,
   normalizeInkPoint,
+  translateInkPoints,
   validateInkStrokes,
   type InkStroke,
   type InkTool,
@@ -26,6 +27,7 @@ export interface InkCanvasProps {
   onSavePreview?: (blob: Blob, strokes: InkStroke[]) => Promise<void> | void;
   onBusyChange?: (busy: boolean) => void;
   onPersistenceStateChange?: (state: InkPersistenceState) => void;
+  onFinishDrawing?: () => void;
   variant?: 'panel' | 'overlay';
 }
 
@@ -95,10 +97,12 @@ export const InkCanvas: React.FC<InkCanvasProps> = ({
   onSavePreview,
   onBusyChange,
   onPersistenceStateChange,
+  onFinishDrawing,
   variant = 'panel',
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const activeStrokeRef = useRef<InkStroke | null>(null);
+  const activePointerRef = useRef<number | null>(null);
   const selectionDragRef = useRef<{
     strokeId: string;
     startX: number;
@@ -231,7 +235,7 @@ export const InkCanvas: React.FC<InkCanvasProps> = ({
   }, [persist, persistenceCoordinator]);
 
   const handlePointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => {
-    if (disabled || (event.pointerType === 'mouse' && event.button !== 0)) return;
+    if (disabled || activePointerRef.current !== null || (event.pointerType === 'mouse' && event.button !== 0)) return;
     event.preventDefault();
     event.currentTarget.focus({ preventScroll: true });
     const currentStrokes = persistenceCoordinator.getSnapshot().strokes;
@@ -243,6 +247,7 @@ export const InkCanvas: React.FC<InkCanvasProps> = ({
       const selected = findTopInkStroke(currentStrokes, x, y, threshold);
       setSelectedStrokeId(selected?.id ?? null);
       if (selected) {
+        activePointerRef.current = event.pointerId;
         selectionDragRef.current = {
           strokeId: selected.id,
           startX: x,
@@ -275,12 +280,14 @@ export const InkCanvas: React.FC<InkCanvasProps> = ({
       tool === 'eraser' ? Math.max(14, width * 3) : width,
       point
     );
+    activePointerRef.current = event.pointerId;
     event.currentTarget.setPointerCapture(event.pointerId);
     setClearPending(false);
     setError(null);
   };
 
   const handlePointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    if (activePointerRef.current !== event.pointerId) return;
     const selection = selectionDragRef.current;
     if (selection && interactionMode === 'select' && !disabled) {
       const rect = event.currentTarget.getBoundingClientRect();
@@ -292,11 +299,7 @@ export const InkCanvas: React.FC<InkCanvasProps> = ({
         stroke.id === selection.strokeId
           ? {
               ...stroke,
-              points: selection.originalPoints.map((point) => ({
-                ...point,
-                x: Math.min(1, Math.max(0, point.x + deltaX)),
-                y: Math.min(1, Math.max(0, point.y + deltaY)),
-              })),
+              points: translateInkPoints(selection.originalPoints, deltaX, deltaY),
             }
           : stroke
       );
@@ -314,9 +317,11 @@ export const InkCanvas: React.FC<InkCanvasProps> = ({
       return;
     }
     const rect = event.currentTarget.getBoundingClientRect();
-    const samples = event.nativeEvent.getCoalescedEvents?.() ?? [event.nativeEvent];
+    const coalesced = event.nativeEvent.getCoalescedEvents?.();
+    const samples = coalesced?.length ? coalesced : [event.nativeEvent];
+    const remainingPoints = MAX_INK_POINTS - countInkPoints(currentStrokes);
     for (const sample of samples) {
-      if (activeStroke.points.length >= MAX_INK_STROKE_POINTS) break;
+      if (activeStroke.points.length >= Math.min(MAX_INK_STROKE_POINTS, remainingPoints)) break;
       const point = normalizeInkPoint(sample.clientX, sample.clientY, rect, sample.pressure);
       const previous = activeStroke.points.at(-1);
       if (!previous || Math.hypot(point.x - previous.x, point.y - previous.y) >= 0.001) {
@@ -327,6 +332,8 @@ export const InkCanvas: React.FC<InkCanvasProps> = ({
   };
 
   const finishStroke = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    if (activePointerRef.current !== event.pointerId) return;
+    activePointerRef.current = null;
     const selection = selectionDragRef.current;
     selectionDragRef.current = null;
     const activeStroke = activeStrokeRef.current;
@@ -344,7 +351,7 @@ export const InkCanvas: React.FC<InkCanvasProps> = ({
 
   const undo = () => {
     const currentStrokes = persistenceCoordinator.getSnapshot().strokes;
-    if (currentStrokes.length === 0 || disabled) return;
+    if (disabled || (currentStrokes.length === 0 && undoHistoryRef.current.length === 0)) return;
     setClearPending(false);
     const previous = undoHistoryRef.current.pop() ?? currentStrokes.slice(0, -1);
     redoHistoryRef.current.push(currentStrokes);
@@ -409,6 +416,13 @@ export const InkCanvas: React.FC<InkCanvasProps> = ({
   return (
     <section className={`ink-editor ink-editor-${variant}`} aria-label="Skribli drawing editor">
       <div className="ink-editor-toolbar">
+        {onFinishDrawing && (
+          <button type="button" className="ink-icon-tool" onClick={onFinishDrawing}
+            disabled={disabled} aria-label="Finish drawing and return to text" title="Back to writing">
+            <X size={14} aria-hidden="true" />
+            <span className="ink-tool-label">Finish drawing</span>
+          </button>
+        )}
         <button
           type="button"
           className={`ink-icon-tool ${interactionMode === 'select' ? 'active' : ''}`}
@@ -426,8 +440,8 @@ export const InkCanvas: React.FC<InkCanvasProps> = ({
             <button
               key={value}
               type="button"
-              className={`ink-icon-tool ${tool === value ? 'active' : ''}`}
-              aria-pressed={tool === value}
+              className={`ink-icon-tool ${interactionMode === 'draw' && tool === value ? 'active' : ''}`}
+              aria-pressed={interactionMode === 'draw' && tool === value}
               aria-label={value === 'pen' ? 'Pen' : value === 'highlighter' ? 'Highlighter' : 'Eraser'}
               title={value === 'pen' ? 'Pen' : value === 'highlighter' ? 'Highlighter' : 'Eraser'}
               disabled={disabled}
@@ -479,7 +493,7 @@ export const InkCanvas: React.FC<InkCanvasProps> = ({
             aria-label="Undo last stroke"
             title="Undo"
             onClick={undo}
-            disabled={disabled || strokes.length === 0}
+            disabled={disabled || (strokes.length === 0 && undoHistoryRef.current.length === 0)}
           >
             <Undo2 size={14} aria-hidden="true" />
             <span className="ink-tool-label">Undo</span>

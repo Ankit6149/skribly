@@ -5,4 +5,5 @@ pub mod account;
 pub mod coordinator;
 pub mod license;
 pub mod models;
+pub mod preferences;
 pub mod storage;

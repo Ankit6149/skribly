@@ -22,11 +22,9 @@ jobs:
     timeout-minutes: 45
     env:
       SKRIBLY_TRIAL_ENFORCED: "1"
-      SKRIBLY_LICENSE_PUBLIC_KEY: "mAiFdpM1Bo1Xt6-QBsORXVMRu1eGI-IWTxJZ_mj5_UY"
       VITE_SKRIBLY_ACCOUNT_URL: "https://bccgutpkjxtogqbywsxr.supabase.co"
       VITE_SKRIBLY_ACCOUNT_PUBLISHABLE_KEY: "sb_publishable_bjfNO80Oxx-gjuOAl8uXEA_YtdvCSHL"
       VITE_SKRIBLY_ACCOUNT_FUNCTION: "account-session"
-      VITE_SKRIBLY_APP_VERSION: "0.1.26"
       CARGO_INCREMENTAL: "0"
     steps:
       - name: Confirm private-only build intent
@@ -60,6 +58,15 @@ jobs:
             throw "Checked-out candidate did not resolve to a full commit SHA: $resolvedSha"
           }
           "sha=$resolvedSha" >> $env:GITHUB_OUTPUT
+
+      - name: Configure owner entitlement and app version
+        shell: pwsh
+        run: |
+          $key = (Get-Content 'scripts/license/owner-alpha-public-key.txt' -Raw).Trim()
+          if ($key -notmatch '^[A-Za-z0-9_-]{43}$') { throw 'Owner public key is missing or malformed.' }
+          $version = (Get-Content 'apps/desktop/src-tauri/tauri.conf.json' -Raw | ConvertFrom-Json).version
+          "SKRIBLY_LICENSE_PUBLIC_KEY=$key" >> $env:GITHUB_ENV
+          "VITE_SKRIBLY_APP_VERSION=$version" >> $env:GITHUB_ENV
 
       - name: Set up Node.js
         uses: actions/setup-node@v7

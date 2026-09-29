@@ -29,7 +29,10 @@ const requiredNativeContract = [
   'mod note_lifecycle;',
   'shortcut_open_request',
   'reopened_open_request',
-  'letopen_request=shortcut_open_request(note_id,matching_note_count);',
+  'letopen_request=ifreopening{',
+  'action:note_lifecycle::OpenNoteAction::Reopened,',
+  '}else{shortcut_open_request(note_id,matching_note_count)};',
+  'core::preferences::primary_shortcut_note',
   'runtime.record_open_request(open_request.clone());',
   'get_pending_open_note_request',
   'acknowledge_open_note_request',
@@ -123,8 +126,8 @@ for (const claim of requiredFrontendTests) {
 
 const requiredUserClarity = [
   "openAction === 'created'",
-  'NEW SKRIB FOR',
-  'REOPENED SKRIB FOR',
+  'Skribli created a new empty Skrib for this application context.',
+  'Skribli reopened the existing Skrib for this application context.',
   'created a new empty Skrib for this application context',
   'reopened the existing Skrib for this application context',
 ];
