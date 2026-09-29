@@ -320,7 +320,7 @@ html[data-skribly-window="home"] #root,
   border-radius: 999px;
   font-family: var(--font-ui);
   font-weight: 700;
-  transition: transform 150ms ease, box-shadow 150ms ease, background 150ms ease;
+  transition: background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
 }
 
 .account-primary,
@@ -344,8 +344,7 @@ html[data-skribly-window="home"] #root,
 .license-primary:hover:not(:disabled),
 .library-button.primary:hover:not(:disabled) {
   background: #f5d85d;
-  box-shadow: 0 18px 42px rgb(163 130 12 / 20%);
-  transform: translateY(-2px);
+  box-shadow: 0 14px 36px rgb(163 130 12 / 19%);
 }
 
 .account-secondary,
@@ -1404,7 +1403,7 @@ html[data-skribly-window="library"] #root,
 
 .desktop-sidebar-brand span {
   color: var(--muted);
-  font-size: 8.5px;
+  font-size: 11px;
 }
 
 .desktop-app-v2 .desktop-primary-navigation {
@@ -1422,13 +1421,24 @@ html[data-skribly-window="library"] #root,
 
 .desktop-app-v2 .desktop-primary-navigation button:hover {
   border: 0;
-  background: rgb(255 253 247 / 72%);
+  background: var(--control-hover-neutral);
 }
 
 .desktop-app-v2 .desktop-primary-navigation button.current {
   border: 0;
   background: #fffdf7;
   box-shadow: 0 3px 12px rgb(38 41 35 / 6%);
+}
+
+.desktop-app-v2 svg.lucide {
+  stroke-width: var(--icon-stroke);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.desktop-app-v2 .desktop-primary-navigation button:hover .home-navigation-icon,
+.desktop-app-v2 .desktop-primary-navigation button.current .home-navigation-icon {
+  transform: none;
 }
 
 .desktop-app-v2 .desktop-primary-navigation .home-navigation-icon {
@@ -1441,14 +1451,14 @@ html[data-skribly-window="library"] #root,
 }
 
 .desktop-app-v2 .desktop-primary-navigation strong {
-  font-size: 10.5px;
+  font-size: 12px;
   font-weight: 750;
   letter-spacing: -0.01em;
 }
 
 .desktop-app-v2 .desktop-primary-navigation small {
-  font-size: 8px;
-  line-height: 1.2;
+  font-size: 10px;
+  line-height: 1.3;
 }
 
 .desktop-sidebar-spacer {
@@ -1466,12 +1476,12 @@ html[data-skribly-window="library"] #root,
   background: transparent;
   color: var(--muted);
   cursor: pointer;
-  font: 650 9px/1 var(--font-ui);
+  font: 650 11px/1.2 var(--font-ui);
 }
 
 .desktop-guide-button:hover,
 .desktop-guide-button:focus-visible {
-  background: rgb(255 253 247 / 78%);
+  background: var(--control-hover-neutral);
   color: var(--ink);
 }
 
@@ -1517,13 +1527,13 @@ html[data-skribly-window="library"] #root,
 }
 
 .desktop-account-compact strong {
-  font-size: 8.5px;
+  font-size: 11px;
 }
 
 .desktop-account-compact small {
   margin-top: 2px;
   color: var(--muted);
-  font-size: 7px;
+  font-size: 10px;
 }
 
 .desktop-ready-surface {
@@ -1546,7 +1556,7 @@ html[data-skribly-window="library"] #root,
 .desktop-ready-copy h1 {
   max-width: 620px;
   margin: 10px 0 14px;
-  font: 700 clamp(34px, 4.8vw, 52px)/0.99 var(--font-display);
+  font: 700 clamp(31px, 3.8vw, 46px)/1.04 var(--font-display);
   letter-spacing: -0.058em;
 }
 
@@ -1554,7 +1564,7 @@ html[data-skribly-window="library"] #root,
   max-width: 560px;
   margin: 0;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.65;
 }
 
@@ -1568,7 +1578,7 @@ html[data-skribly-window="library"] #root,
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
   color: var(--muted);
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .desktop-shortcut-line kbd {
@@ -1579,7 +1589,7 @@ html[data-skribly-window="library"] #root,
   border-radius: 8px;
   background: rgb(255 255 255 / 68%);
   color: var(--ink);
-  font: 800 9px/1 var(--font-ui);
+  font: 800 11px/1 var(--font-ui);
   text-align: center;
   box-shadow: 0 3px 8px rgb(38 41 35 / 5%);
 }
@@ -1624,13 +1634,13 @@ html[data-skribly-window="library"] #root,
 }
 
 .desktop-status-row strong {
-  font-size: 9.5px;
+  font-size: 12px;
 }
 
 .desktop-status-row span {
   margin-top: 3px;
   color: var(--muted);
-  font-size: 8px;
+  font-size: 11px;
   line-height: 1.45;
 }
 
@@ -1649,20 +1659,20 @@ html[data-skribly-window="library"] #root,
 }
 
 .desktop-ready-announcement small {
-  font-size: 7px;
+  font-size: 10px;
   font-weight: 800;
   letter-spacing: .11em;
 }
 
 .desktop-ready-announcement strong {
   margin-top: 5px;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .desktop-ready-announcement span {
   margin-top: 3px;
   color: rgb(38 41 35 / 65%);
-  font-size: 8px;
+  font-size: 11px;
   line-height: 1.4;
 }
 
@@ -1700,7 +1710,7 @@ html[data-skribly-window="library"] #root,
   max-width: 610px;
   margin: 0;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.5;
 }
 
@@ -1735,12 +1745,12 @@ html[data-skribly-window="library"] #root,
   background: transparent;
   color: var(--muted);
   cursor: pointer;
-  font: 650 9px/1 var(--font-ui);
+  font: 650 11px/1.3 var(--font-ui);
   text-align: left;
 }
 
 .desktop-settings-nav button:hover {
-  background: rgb(245 241 231 / 72%);
+  background: var(--control-hover-neutral);
   color: var(--ink);
 }
 
@@ -1775,7 +1785,7 @@ html[data-skribly-window="library"] #root,
   max-width: 570px;
   margin: 0;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.5;
 }
 
@@ -1799,14 +1809,14 @@ html[data-skribly-window="library"] #root,
 }
 
 .desktop-setting-row strong {
-  font-size: 9.5px;
+  font-size: 12px;
 }
 
 .desktop-setting-row > div > span {
   max-width: 520px;
   margin-top: 3px;
   color: var(--muted);
-  font-size: 8px;
+  font-size: 11px;
   line-height: 1.45;
 }
 
@@ -1821,8 +1831,8 @@ html[data-skribly-window="library"] #root,
 }
 
 .desktop-app-v2 .desktop-note-preferences .account-kicker { display: none; }
-.desktop-app-v2 .desktop-note-preferences h2 { margin: 0 0 4px; font: 750 10px/1.3 var(--font-ui); }
-.desktop-app-v2 .desktop-note-preferences p { margin: 3px 0 9px; color: var(--muted); font: 450 8px/1.45 var(--font-ui); }
+.desktop-app-v2 .desktop-note-preferences h2 { margin: 0 0 4px; font: 750 12px/1.3 var(--font-ui); }
+.desktop-app-v2 .desktop-note-preferences p { margin: 3px 0 9px; color: var(--muted); font: 450 11px/1.45 var(--font-ui); }
 .desktop-app-v2 .desktop-note-preferences .account-consent { margin: 0; }
 
 .desktop-setting-row kbd,
@@ -1831,7 +1841,7 @@ html[data-skribly-window="library"] #root,
   border: 1px solid var(--line);
   border-radius: 8px;
   background: rgb(255 255 255 / 70%);
-  font: 750 8px/1 var(--font-ui);
+  font: 750 11px/1.2 var(--font-ui);
 }
 
 .desktop-storage-card {
@@ -1861,13 +1871,13 @@ html[data-skribly-window="library"] #root,
 }
 
 .desktop-storage-card strong {
-  font-size: 9.5px;
+  font-size: 12px;
 }
 
 .desktop-storage-card span {
   margin-top: 3px;
   color: var(--muted);
-  font-size: 8px;
+  font-size: 11px;
   line-height: 1.4;
 }
 
@@ -1895,14 +1905,14 @@ html[data-skribly-window="library"] #root,
 }
 
 .desktop-trust-list strong {
-  font-size: 9.5px;
+  font-size: 12px;
 }
 
 .desktop-trust-list span {
   max-width: 550px;
   margin-top: 3px;
   color: var(--muted);
-  font-size: 8px;
+  font-size: 11px;
   line-height: 1.5;
 }
 
@@ -1923,19 +1933,19 @@ html[data-skribly-window="library"] #root,
 }
 
 .desktop-account-panel strong {
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .desktop-account-panel span {
   margin-top: 3px;
   color: var(--muted);
-  font-size: 8.5px;
+  font-size: 11px;
 }
 
 .desktop-account-panel small {
   margin-top: 4px;
   color: rgb(38 41 35 / 45%);
-  font-size: 7.5px;
+  font-size: 10px;
 }
 
 .desktop-settings-message {
@@ -1944,7 +1954,7 @@ html[data-skribly-window="library"] #root,
   border-left: 2px solid var(--olive);
   background: rgb(245 241 231 / 62%);
   color: var(--muted);
-  font-size: 8.5px;
+  font-size: 11px;
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
@@ -1991,6 +2001,88 @@ html[data-skribly-window="library"] #root,
   .desktop-settings-layout {
     grid-template-columns: 165px minmax(0, 1fr);
   }
+}
+
+@media (max-width: 900px) {
+  .desktop-ready-surface {
+    display: block;
+    overflow: auto;
+  }
+
+  .desktop-ready-copy {
+    display: block;
+    padding: 30px;
+  }
+
+  .desktop-ready-copy h1 {
+    max-width: 580px;
+  }
+
+  .desktop-ready-status {
+    overflow: visible;
+    padding: 24px 30px 30px;
+    border-top: 1px solid var(--line);
+    border-left: 0;
+  }
+}
+
+@media (max-width: 620px) {
+  .desktop-app-v2.desktop-workspace-shell {
+    grid-template-columns: 60px minmax(0, 1fr);
+  }
+
+  .desktop-app-v2 .desktop-app-sidebar {
+    padding-inline: 6px;
+    align-items: center;
+  }
+
+  .desktop-sidebar-brand {
+    width: 100%;
+    justify-content: center;
+    padding-inline: 0;
+  }
+
+  .desktop-sidebar-brand > div,
+  .desktop-app-v2 .desktop-primary-navigation .home-navigation-copy,
+  .desktop-guide-button span,
+  .desktop-account-compact > div { display: none; }
+
+  .desktop-app-v2 .desktop-primary-navigation { width: 100%; }
+  .desktop-app-v2 .desktop-primary-navigation button {
+    min-height: 44px;
+    padding: 6px;
+    display: grid;
+    grid-template-columns: 1fr;
+    place-items: center;
+  }
+
+  .desktop-guide-button { justify-content: center; width: 44px; padding: 0; }
+  .desktop-account-compact { display: grid; grid-template-columns: 1fr; justify-items: center; width: 100%; padding-inline: 0; }
+
+  .desktop-ready-copy,
+  .desktop-ready-status { padding-inline: 22px; }
+
+  .desktop-settings {
+    display: block;
+    padding: 18px;
+    overflow: auto;
+  }
+
+  .desktop-section-header { min-height: 0; padding-bottom: 14px; }
+  .desktop-settings-layout { display: block; overflow: visible; }
+  .desktop-settings-nav {
+    width: 100%;
+    padding: 10px 0;
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .desktop-settings-nav button { width: auto; min-width: max-content; padding-inline: 10px; }
+  .desktop-settings-document { padding: 16px 0 28px; overflow: visible; }
+  .desktop-setting-row { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .desktop-setting-row > :last-child { justify-self: start; }
 }
 
 @media (prefers-reduced-motion: reduce) {

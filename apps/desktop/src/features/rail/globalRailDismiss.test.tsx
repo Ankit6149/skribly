@@ -67,8 +67,40 @@ describe('global widget light dismissal', () => {
     expect(container.querySelector('.global-shelf')).not.toBeNull();
 
     await act(async () => { native.listeners.get('skribly://global-rail-dismiss')?.(); });
+    const surface = container.querySelector('.global-shelf.is-closing');
+    expect(surface).not.toBeNull();
+    expect(native.invoke).not.toHaveBeenCalledWith('set_context_rail_expanded', expect.anything());
+    await act(async () => {
+      const end = new Event('animationend', { bubbles: true });
+      Object.defineProperty(end, 'animationName', { value: 'global-shelf-out-right' });
+      surface?.dispatchEvent(end);
+    });
+
+    expect(native.invoke).toHaveBeenCalledWith('set_context_rail_expanded', { contextual: false, expanded: false, noteCount: 0 });
+    expect(container.querySelector('[aria-label="Open My Skribs, 0 saved Skribs"]')).not.toBeNull();
+  });
+
+  it('does not send a delayed close after native state already collapsed the panel', async () => {
+    const { ContextRail } = await import('./ContextRail');
+    await act(async () => { root.render(<ContextRail contextual={false} />); });
+
+    await act(async () => { native.listeners.get('skribly://global-rail-dismiss')?.(); });
     expect(container.querySelector('.global-shelf.is-closing')).not.toBeNull();
-    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 190)); });
+    await act(async () => {
+      native.stateListener?.({ contextual: false, expanded: false, revision: 2, dockSide: 'right' });
+    });
+
+    expect(container.querySelector('[aria-label="Open My Skribs, 0 saved Skribs"]')).not.toBeNull();
+    expect(native.invoke).not.toHaveBeenCalledWith('set_context_rail_expanded', expect.anything());
+  });
+
+  it('still collapses when WebView does not deliver animationend', async () => {
+    const { ContextRail } = await import('./ContextRail');
+    await act(async () => { root.render(<ContextRail contextual={false} />); });
+
+    await act(async () => { native.listeners.get('skribly://global-rail-dismiss')?.(); });
+    expect(container.querySelector('.global-shelf.is-closing')).not.toBeNull();
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 390)); });
 
     expect(native.invoke).toHaveBeenCalledWith('set_context_rail_expanded', { contextual: false, expanded: false, noteCount: 0 });
     expect(container.querySelector('[aria-label="Open My Skribs, 0 saved Skribs"]')).not.toBeNull();

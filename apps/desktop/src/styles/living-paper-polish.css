@@ -58,7 +58,7 @@
   animation: none; box-shadow: none; border-radius: 12px;
 }
 .composer-format-bar button { border-radius: 50%; }
-.composer-intent-gateway { bottom: 10px; left: 14px; }
+.composer-intent-gateway { bottom: 10px; left: 10px; }
 .composer-intent-trigger { width: 36px; height: 36px; opacity: .85; }
 .composer-intent-tray {
   width: max-content; max-width: calc(100vw - 36px); box-sizing: border-box;
@@ -189,7 +189,7 @@
 .inline-attachment-actions :is(button,a):focus-visible { outline: 2px solid var(--olive); }
 .inline-attachment-actions button[draggable='true'] { cursor: grab; }
 .inline-attachment-actions button[draggable='true']:active { cursor: grabbing; }
-.inline-attachment-actions button:disabled { opacity: .35; cursor: default; }
+.inline-attachment-actions button:disabled { opacity: var(--control-disabled-opacity); cursor: default; }
 .inline-attachment-missing { font: 500 12px var(--skribli-ui-font); }
 .attachment-media-grid:has(.attachment-tray-item) { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); align-items: start; gap: 12px; }
 .attachment-tray-item { min-width: 0; font: 500 11px/1.4 var(--skribli-ui-font); }
@@ -216,7 +216,7 @@
   overflow: visible;
   border-radius: 18px 18px 34px 18px;
   background: var(--skribli-paper);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 32%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 32%), inset 0 0 2px rgb(38 41 35 / 9%);
 }
 .composer-paper-top { border-radius: 18px 18px 0 0; }
 .composer-unified-workspace { overflow: hidden; border-radius: 0 0 33px 17px; }
@@ -247,7 +247,7 @@
 }
 /* A quiet header keeps frequent controls visible; secondary actions use labelled rows. */
 .composer-side-tools {
-  position: absolute; top: 14px; right: 13px; bottom: auto; z-index: 42;
+  position: absolute; top: 10px; right: 10px; bottom: auto; z-index: 42;
   width: auto; height: 34px; display: flex; align-items: center; gap: 5px;
 }
 .composer-side-tools > button {
@@ -264,14 +264,19 @@
   background: rgb(255 255 255 / 48%); opacity: 1;
 }
 .composer-side-tools > button:focus-visible { outline: 2px solid var(--olive); outline-offset: 1px; }
-.composer-side-tools > button:disabled { opacity: .35; cursor: default; }
+.composer-side-tools > button:disabled { opacity: var(--control-disabled-opacity); cursor: default; }
 .composer-side-tools svg, .composer-intent-trigger svg,
 .composer-intent-tray svg, .composer-note-menu svg {
-  stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round;
+  stroke-width: var(--icon-stroke); stroke-linecap: round; stroke-linejoin: round;
+}
+.composer-side-tools > button > svg,
+.composer-intent-trigger > svg {
+  width: 19px;
+  height: 19px;
 }
 .composer-paper-swatch {
-  display: block; width: 16px; height: 16px; border-radius: 50%;
-  background: var(--skribli-paper); border: 1.75px solid rgb(38 41 35 / 42%);
+  display: block; width: 17px; height: 17px; border-radius: 50%;
+  background: var(--skribli-paper); border: 2px solid rgb(38 41 35 / 55%);
   box-shadow: 0 0 0 2px rgb(255 255 255 / 55%);
 }
 .composer-quick-reminder[data-scheduled='true']::after {
@@ -326,7 +331,7 @@
 }
 .composer-size-options button[aria-pressed='true'] { background: var(--paper); box-shadow: 0 1px 3px rgb(38 41 35 / 12%); }
 .composer-size-options button:focus-visible { outline: 2px solid var(--olive); }
-.composer-size-options button:disabled { opacity: .4; cursor: default; }
+.composer-size-options button:disabled { opacity: var(--control-disabled-opacity); cursor: default; }
 .composer-note-menu .composer-note-menu-divider { width: auto; height: 1px; margin: 4px 7px; flex: none; }
 .composer-color-popover {
   top: 55px; right: 14px; bottom: auto; left: auto;
@@ -355,7 +360,7 @@
   color: var(--skribli-ink); cursor: pointer;
 }
 .composer-caret-tools button:is(:hover,:focus-visible) { background: var(--paper); outline: 1px solid rgb(38 41 35 / 16%); }
-.composer-caret-tools button:disabled { opacity: .35; cursor: not-allowed; }
+.composer-caret-tools button:disabled { opacity: var(--control-disabled-opacity); cursor: not-allowed; }
 .composer-format-bar {
   position: absolute; inset: auto; z-index: 26; margin: 0;
   width: max-content; max-width: calc(100% - 24px); display: flex; flex-wrap: wrap;
@@ -377,7 +382,7 @@
   font: 600 11px/1.2 var(--skribli-ui-font); cursor: pointer;
 }
 .composer-slash-menu button:is(:hover,[aria-selected='true']) { background: color-mix(in srgb, var(--mint) 45%, var(--paper)); }
-.composer-slash-menu button:disabled { opacity: .4; cursor: not-allowed; }
+.composer-slash-menu button:disabled { opacity: var(--control-disabled-opacity); cursor: not-allowed; }
 .composer-textarea h2 {
   margin: 0 0 .25em; font: 750 1.15em/1.3 var(--font-display);
   letter-spacing: -.025em; color: var(--skribli-ink);
@@ -465,7 +470,7 @@
   box-shadow: 0 2px 6px rgb(38 41 35 / 13%); cursor: pointer;
 }
 .inline-attachment-remove:is(:hover,:focus-visible) { background: color-mix(in srgb, var(--rose) 55%, var(--paper)); outline: 1px solid var(--olive); }
-.inline-attachment-remove:disabled { opacity: .4; cursor: default; }
+.inline-attachment-remove:disabled { opacity: var(--control-disabled-opacity); cursor: default; }
 .inline-attachment-popover {
   position: absolute; top: 36px; right: 2px; z-index: 34;
   display: grid; gap: 5px; width: max-content; max-width: 210px; padding: 7px;
@@ -501,7 +506,7 @@
   background: color-mix(in srgb, var(--paper) 82%, transparent);
   color: var(--skribli-ink); cursor: pointer;
 }
-.composer-cancel-session:disabled { opacity: .4; cursor: default; }
+.composer-cancel-session:disabled { opacity: var(--control-disabled-opacity); cursor: default; }
 .composer-intent-trigger {
   width: 32px; height: 32px;
   border: 1px solid rgb(38 41 35 / 13%);
@@ -531,7 +536,7 @@
 }
 .composer-discard-confirmation button.primary { background: var(--skribli-ink); color: var(--paper); border-color: var(--skribli-ink); }
 .composer-discard-confirmation button.danger { color: #82443f; border-color: #82443f; }
-.composer-discard-confirmation button:disabled { opacity: .45; cursor: not-allowed; }
+.composer-discard-confirmation button:disabled { opacity: var(--control-disabled-opacity); cursor: not-allowed; }
 .composer-discard-confirmation button:focus-visible { outline: 2px solid var(--olive); }
 .note-attachment-strip:not([data-empty='true']) {
   box-sizing: border-box; width: min(174px, calc(100% - 44px)); max-width: none;
@@ -579,7 +584,7 @@
   box-shadow: 0 2px 6px rgb(38 41 35 / 14%); cursor: pointer;
 }
 .attachment-tray-remove:is(:hover,:focus-visible) { background: color-mix(in srgb, var(--rose) 55%, var(--paper)); outline: 1px solid var(--olive); }
-.attachment-tray-remove:disabled { opacity: .4; cursor: default; }
+.attachment-tray-remove:disabled { opacity: var(--control-disabled-opacity); cursor: default; }
 .attachment-drawer-handle {
   width: 100%; min-height: 28px; padding: 3px 9px;
   grid-template-columns: 18px minmax(0,1fr) 14px; gap: 5px;
@@ -668,7 +673,7 @@
 .composer-side-tools > button,
 .composer-intent-trigger {
   color: color-mix(in srgb, var(--skribli-ink) 82%, transparent);
-  transition: background-color 140ms ease, color 140ms ease, transform 140ms ease;
+  transition: background-color 140ms ease, color 140ms ease, border-color 140ms ease;
 }
 .composer-side-tools > button,
 .skrib-composer:hover .composer-side-tools > .composer-more { opacity: 1; }
@@ -680,7 +685,7 @@
 }
 .composer-side-tools > button:disabled:hover { background: transparent; }
 .composer-side-tools > button:active:not(:disabled),
-.composer-intent-trigger:active { transform: scale(.94); }
+.composer-intent-trigger:active { background: color-mix(in srgb, var(--paper) 94%, transparent); }
 .composer-note-menu > button:is(:hover:not(:disabled),:focus-visible),
 .composer-note-menu > button.active,
 .composer-intent-tray > button:is(:hover:not(:disabled),:focus-visible),
