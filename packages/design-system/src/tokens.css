@@ -28,4 +28,8 @@
   --shadow-m: 0 22px 52px rgb(28 31 26 / 12%);
   --shadow-l: 0 34px 100px rgb(28 31 26 / 17%);
   --focus-ring: 0 0 0 4px rgb(95 121 91 / 20%);
+  --icon-stroke: 1.9;
+  --control-hover-neutral: rgb(255 253 247 / 82%);
+  --control-hover-accent: color-mix(in srgb, var(--mint) 38%, var(--paper));
+  --control-disabled-opacity: .42;
 }

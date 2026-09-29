@@ -283,6 +283,8 @@ export const WorkspaceSidebar: React.FC<{
             type="button"
             className={active === id ? 'current' : ''}
             aria-current={active === id ? 'page' : undefined}
+            aria-label={label}
+            title={detail}
             onClick={() => onNavigate(id)}
           >
             <span className="home-navigation-icon" aria-hidden="true"><Icon size={16} /></span>
@@ -293,7 +295,7 @@ export const WorkspaceSidebar: React.FC<{
 
       <div className="desktop-sidebar-spacer" />
 
-      <button type="button" className="desktop-guide-button" onClick={onShowGuide}>
+      <button type="button" className="desktop-guide-button" aria-label="Quick guide" title="Quick guide" onClick={onShowGuide}>
         <CircleHelp size={15} aria-hidden="true" />
         <span>Quick guide</span>
       </button>

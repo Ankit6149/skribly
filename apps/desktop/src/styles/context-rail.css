@@ -260,7 +260,7 @@ html[data-skribly-window='context-rail'] #root,
 }
 .ribbon-rail-actions button { width: 32px; height: 32px; padding: 0; display: grid; place-items: center; }
 .ribbon-rail-actions button:hover,
-.ribbon-context-strip button:hover { background: var(--paper); box-shadow: 0 5px 12px rgb(38 41 35 / 10%); transform: translateY(-1px); }
+.ribbon-context-strip button:hover { background: var(--control-hover-neutral); box-shadow: none; transform: none; }
 .ribbon-rail-actions button:focus-visible,
 .ribbon-context-strip button:focus-visible,
 .skrib-ribbon button:focus-visible,
@@ -296,7 +296,8 @@ html[data-skribly-window='context-rail'] #root,
   font: 720 11px/1 var(--font-ui);
   text-align: left;
 }
-.ribbon-scope-menu button:hover, .ribbon-scope-menu button.active { background: rgb(248 223 120 / 38%); }
+.ribbon-scope-menu button:hover { background: var(--control-hover-accent); }
+.ribbon-scope-menu button.active { background: rgb(248 223 120 / 38%); }
 .ribbon-scope-menu button span { color: var(--muted); font-size: 9px; }
 
 .ribbon-context-strip {
@@ -660,6 +661,20 @@ html[data-skribly-window='context-rail'] #root,
 .context-rail.expanded:not(.context-list) .skrib-ribbon:focus-within {
   background: rgb(255 253 248 / 94%);
 }
+
+/* One icon weight and stable feedback across the desktop launcher and shelf. */
+.context-rail svg.lucide {
+  stroke-width: var(--icon-stroke);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.ribbon-rail-actions button svg,
+.ribbon-context-strip button svg {
+  width: 17px;
+  height: 17px;
+}
+.ribbon-rail-actions button:active,
+.ribbon-context-strip button:active { background: color-mix(in srgb, var(--mint) 52%, var(--paper)); }
 
 /* The outside handle lives in its own widget-sized native window. */
 .context-rail.expanded.global-shelf.dock-right {
