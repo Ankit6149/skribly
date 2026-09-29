@@ -38,3 +38,9 @@ Recommended next experiment: instrument `animationstart`/`animationend`, native 
 ## Acceptance boundary
 
 The desktop source build and unit tests passing demonstrate that the refactor compiles and preserves exercised logic. They do **not** establish native Windows appearance or a release. Before accepting this design, install a newly built candidate over the current owner version without resetting notes; check the note logo and three dots, all rail states, slash input, close confirmation, Find/Reminders/Settings at minimum window size, closing motion, keyboard focus, DPI and monitor edges, and persisted notes/attachments/reminders after restart. Record the exact installer hash and any screenshots/video. Keep ARC-66 and public release gates open until that result is known.
+
+## 30 September source stability follow-up
+
+The global rail now waits for its own `animationend` before requesting native collapse. A 350 ms fallback covers a lost WebView animation event, and a newer native rail revision cancels the delayed request. Reduced-motion users continue to collapse immediately. The earlier fixed 170 ms timer could race React paint and native resize; this change removes that known timing race in source. It does not prove the DWM backdrop and WebView handoff looks smooth on Windows.
+
+The relevant rail interaction tests cover animation completion, lost-event fallback, and native collapse overtaking a pending close. TypeScript, the production frontend build, all 237 current frontend tests, and Rust unit tests passed locally; the focused rail suite has four passing tests. Windows Application Hang event 1002 confirms one v0.1.43 `AppHangB1` on 27 September, but its WER report contains no dump or call stack. No cause can be attributed from that event. A current installed candidate still needs owner-observed open/close repetitions on both dock sides, focus switching, scaling, and a hang capture if it recurs.

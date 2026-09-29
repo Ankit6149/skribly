@@ -22,6 +22,45 @@ import { createContextPresence } from './contextPresence';
 type RailScope = 'context' | 'all' | 'archive';
 const nativeRuntimeAvailable = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 const APP_ICON_CACHE_KEY = 'skribli-app-icons-v1';
+const GLOBAL_RAIL_EXIT_FALLBACK_MS = 350;
+
+function waitForGlobalRailExit(surface: HTMLElement, signal: AbortSignal): Promise<boolean> {
+  return new Promise((resolve) => {
+    let timer: number | undefined;
+    let settled = false;
+    const finish = (completed: boolean) => {
+      if (settled) return;
+      settled = true;
+      surface.removeEventListener('animationstart', onAnimationStart);
+      surface.removeEventListener('animationend', onAnimationEnd);
+      surface.removeEventListener('animationcancel', onAnimationCancel);
+      signal.removeEventListener('abort', onAbort);
+      if (timer !== undefined) window.clearTimeout(timer);
+      resolve(completed);
+    };
+    const isExitAnimation = (event: AnimationEvent) =>
+      event.target === surface && /^global-shelf-out-(left|right)$/.test(event.animationName);
+    const onAnimationStart = (event: AnimationEvent) => {
+      if (!isExitAnimation(event)) return;
+      if (timer !== undefined) window.clearTimeout(timer);
+      timer = window.setTimeout(() => finish(true), GLOBAL_RAIL_EXIT_FALLBACK_MS);
+    };
+    const onAnimationEnd = (event: AnimationEvent) => {
+      if (isExitAnimation(event)) finish(true);
+    };
+    const onAnimationCancel = (event: AnimationEvent) => {
+      if (isExitAnimation(event)) finish(true);
+    };
+    const onAbort = () => finish(false);
+    if (signal.aborted) { resolve(false); return; }
+    surface.addEventListener('animationstart', onAnimationStart);
+    surface.addEventListener('animationend', onAnimationEnd);
+    surface.addEventListener('animationcancel', onAnimationCancel);
+    signal.addEventListener('abort', onAbort, { once: true });
+    // WebView can lose animationend during focus or display transitions. Never strand collapse.
+    timer = window.setTimeout(() => finish(true), GLOBAL_RAIL_EXIT_FALLBACK_MS);
+  });
+}
 
 function readCachedAppIcons(): Record<string, string> {
   try {
@@ -82,7 +121,11 @@ export const ContextRail: React.FC<{ contextual: boolean }> = ({ contextual }) =
   const [openingProgress, setOpeningProgress] = useState<OpenNoteProgress | null>(null);
   const refreshGeneration = useRef(0);
   const arrivalRevision = useRef<number | undefined>(undefined);
+  const nativeRailRevision = useRef<number | undefined>(undefined);
   const expandedSurface = useRef<HTMLElement | null>(null);
+  const exitAbort = useRef<AbortController | null>(null);
+
+  useEffect(() => () => exitAbort.current?.abort(), []);
 
   const activeNotes = useMemo(() => allNotes.filter(isActiveRailNote), [allNotes]);
   const archivedNotes = useMemo(() => allNotes.filter(isArchivedRailNote), [allNotes]);
@@ -182,8 +225,9 @@ export const ContextRail: React.FC<{ contextual: boolean }> = ({ contextual }) =
       read: () => invoke<RailWindowState>('get_rail_window_state', { contextual: contextualDock }),
       onState: (state) => {
         arrivalRevision.current = state.arrivalRevision;
+        nativeRailRevision.current = state.revision;
         setCollapsed(!state.expanded);
-        if (!state.expanded) setClosing(false);
+        if (!state.expanded) { exitAbort.current?.abort(); setClosing(false); }
         setRevealed(Boolean(state.revealed));
         setDockSide(state.dockSide ?? 'right');
         controller?.sync(state);
@@ -223,12 +267,25 @@ export const ContextRail: React.FC<{ contextual: boolean }> = ({ contextual }) =
     resizing.current = true;
     const next = !collapsed;
     const requestArrivalRevision = arrivalRevision.current;
+    const requestRailRevision = nativeRailRevision.current;
     setMenuOpen(false);
     setMessage(null);
     try {
       if (next && !contextualDock && !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
-        setClosing(true);
-        await new Promise<void>((resolve) => window.setTimeout(resolve, 170));
+        const surface = expandedSurface.current;
+        if (surface) {
+          const controller = new AbortController();
+          exitAbort.current = controller;
+          const exit = waitForGlobalRailExit(surface, controller.signal);
+          setClosing(true);
+          const completed = await exit;
+          exitAbort.current = null;
+          // A newer native state wins over this delayed close request.
+          if (!completed || nativeRailRevision.current !== requestRailRevision) {
+            setClosing(false);
+            return;
+          }
+        }
       }
       if (!nativeRuntimeAvailable) {
         setCollapsed(next);
@@ -247,6 +304,7 @@ export const ContextRail: React.FC<{ contextual: boolean }> = ({ contextual }) =
       setMessage(String(reason));
       setClosing(false);
     } finally {
+      exitAbort.current = null;
       resizing.current = false;
       if (!next || contextualDock || !nativeRuntimeAvailable) setClosing(false);
     }
