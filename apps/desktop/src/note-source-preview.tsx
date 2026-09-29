@@ -24,9 +24,11 @@ import './styles/startup-recovery.css';
 import './styles/website-theme.css';
 import './styles/living-paper-polish.css';
 
+const previewChrome = new URLSearchParams(window.location.search).get('app') === 'chrome';
+
 const note: SkribNote = {
   id: 'source-preview-2026-09-27',
-  target_process_name: 'Code.exe',
+  target_process_name: previewChrome ? 'chrome.exe' : 'Code.exe',
   target_title: 'Skribli — Visual Studio Code',
   rel_x: 0,
   rel_y: 0,
@@ -38,6 +40,8 @@ const note: SkribNote = {
   created_at: 0,
   updated_at: 0,
 };
+
+if (previewChrome) note.target_title = 'Google Chrome';
 
 useLicenseStore.getState().init();
 useSkribStore.setState({ skribs: [note], allSkribs: [note] });

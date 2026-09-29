@@ -58,7 +58,7 @@
   animation: none; box-shadow: none; border-radius: 12px;
 }
 .composer-format-bar button { border-radius: 50%; }
-.composer-intent-gateway { bottom: 10px; left: 14px; }
+.composer-intent-gateway { bottom: 10px; left: 10px; }
 .composer-intent-trigger { width: 36px; height: 36px; opacity: .85; }
 .composer-intent-tray {
   width: max-content; max-width: calc(100vw - 36px); box-sizing: border-box;
@@ -247,7 +247,7 @@
 }
 /* A quiet header keeps frequent controls visible; secondary actions use labelled rows. */
 .composer-side-tools {
-  position: absolute; top: 14px; right: 13px; bottom: auto; z-index: 42;
+  position: absolute; top: 10px; right: 10px; bottom: auto; z-index: 42;
   width: auto; height: 34px; display: flex; align-items: center; gap: 5px;
 }
 .composer-side-tools > button {
