@@ -13,7 +13,7 @@ use tauri::{LogicalSize, PhysicalPosition, PhysicalSize};
 use windows::Win32::Foundation::HWND;
 use windows::Win32::Graphics::Gdi::{
     CombineRgn, CreateEllipticRgn, CreateRectRgn, CreateRoundRectRgn, DeleteObject,
-    GetMonitorInfoW, MonitorFromWindow, SetWindowRgn, MONITORINFO, MONITOR_DEFAULTTONEAREST,
+    GetMonitorInfoW, MonitorFromWindow, SetWindowRgn, HRGN, MONITORINFO, MONITOR_DEFAULTTONEAREST,
     RGN_AND, RGN_OR,
 };
 
@@ -36,10 +36,11 @@ const NOTE_SURFACE_LOGICAL_RADIUS: i32 = 20;
 const NOTE_SURFACE_BOTTOM_RIGHT_LOGICAL_RADIUS: i32 = 38;
 const NOTE_SURFACE_PAPER_LEFT_LOGICAL: i32 = 17;
 const NOTE_SURFACE_PAPER_INSET_LOGICAL: i32 = 3;
-const NOTE_SURFACE_TAB_LEFT_LOGICAL: i32 = 3;
-const NOTE_SURFACE_TAB_RIGHT_LOGICAL: i32 = 33;
-const NOTE_SURFACE_TAB_TOP_LOGICAL: i32 = 23;
-const NOTE_SURFACE_TAB_BOTTOM_LOGICAL: i32 = 133;
+// Initial mask before the DOM reports bounds: paper inset + border + attached 40x52px pill.
+const NOTE_SURFACE_TAB_LEFT_LOGICAL: i32 = 2;
+const NOTE_SURFACE_TAB_RIGHT_LOGICAL: i32 = 42;
+const NOTE_SURFACE_TAB_TOP_LOGICAL: i32 = 20;
+const NOTE_SURFACE_TAB_BOTTOM_LOGICAL: i32 = 72;
 // Keep a one-pixel allowance only on curves; straight transparent fringe must be outside the HWND region.
 const NOTE_SURFACE_NATIVE_CURVE_ALLOWANCE_LOGICAL: i32 = 1;
 const COLLAPSED_NOTE_MAIN_REGION_LOGICAL_DIAMETER: i32 = 40;
@@ -177,6 +178,12 @@ fn calculate_native_surface_region(
                 scale_factor,
             );
             let inset = logical_to_physical(NOTE_SURFACE_PAPER_INSET_LOGICAL, scale_factor);
+            // The compact CSS layout moves the pill up 4px at a 360px viewport width.
+            let tab_offset = if physical_width <= logical_to_physical(360, scale_factor) {
+                4
+            } else {
+                0
+            };
             Ok(NativeSurfaceRegion {
                 primary: NativeEllipseRegion {
                     left: logical_to_physical(NOTE_SURFACE_PAPER_LEFT_LOGICAL, scale_factor),
@@ -187,10 +194,16 @@ fn calculate_native_surface_region(
                 badge: None,
                 tab: Some(NativeEllipseRegion {
                     left: logical_to_physical(NOTE_SURFACE_TAB_LEFT_LOGICAL, scale_factor),
-                    top: logical_to_physical(NOTE_SURFACE_TAB_TOP_LOGICAL, scale_factor),
+                    top: logical_to_physical(
+                        NOTE_SURFACE_TAB_TOP_LOGICAL - tab_offset,
+                        scale_factor,
+                    ),
                     right: logical_to_physical(NOTE_SURFACE_TAB_RIGHT_LOGICAL, scale_factor),
-                    bottom: logical_to_physical(NOTE_SURFACE_TAB_BOTTOM_LOGICAL, scale_factor)
-                        .min(physical_height),
+                    bottom: logical_to_physical(
+                        NOTE_SURFACE_TAB_BOTTOM_LOGICAL - tab_offset,
+                        scale_factor,
+                    )
+                    .min(physical_height),
                 }),
                 ellipse_width: ellipse,
                 ellipse_height: ellipse,
@@ -283,6 +296,23 @@ pub fn set_note_tab_bounds(
     refresh_note_window_surface(window)
 }
 
+fn create_note_tab_region(bounds: &NativeEllipseRegion) -> HRGN {
+    // CSS border-radius:999px makes a capsule. The old fixed 22px corner diameter
+    // included transparent wedges outside the 40px-wide pill, exposing stale WebView pixels.
+    // Derive the diameter from the physical bounds so the mask follows measured layout and DPI.
+    let diameter = (bounds.right - bounds.left).min(bounds.bottom - bounds.top);
+    unsafe {
+        CreateRoundRectRgn(
+            bounds.left,
+            bounds.top,
+            bounds.right,
+            bounds.bottom,
+            diameter,
+            diameter,
+        )
+    }
+}
+
 fn apply_native_surface(
     window: &tauri::WebviewWindow,
     placement: &CompactWindowPlacement,
@@ -364,7 +394,7 @@ fn apply_native_surface(
         if primary.0.is_null() {
             return Err("Windows could not create the native paper region.".into());
         }
-        // CSS uses a 38px lower-right corner and 20px elsewhere. The native edge is 2 logical
+        // CSS uses a 38px lower-right corner and 20px elsewhere. The native edge is 1 logical
         // pixels wider than the visible CSS silhouette so GDI's hard region boundary cannot
         // clip the browser's antialiased border. Intersect the base with the larger-corner mask.
         let right = bounds.primary.right;
@@ -414,16 +444,7 @@ fn apply_native_surface(
             return Err("Windows could not shape the lower-right paper corner.".into());
         }
         if let Some(tab_bounds) = bounds.tab.as_ref() {
-            let tab = unsafe {
-                CreateRoundRectRgn(
-                    tab_bounds.left,
-                    tab_bounds.top,
-                    tab_bounds.right,
-                    tab_bounds.bottom,
-                    logical_to_physical(22, placement.scale_factor),
-                    logical_to_physical(22, placement.scale_factor),
-                )
-            };
+            let tab = create_note_tab_region(tab_bounds);
             if tab.0.is_null() {
                 let _ = unsafe { DeleteObject(primary.into()) };
                 return Err("Windows could not create the native place tab region.".into());
@@ -1441,7 +1462,7 @@ mod tests {
         assert!(!note.circular);
         assert!(note.badge.is_none());
         let tab = note.tab.as_ref().expect("note place tab region");
-        assert_eq!((tab.left, tab.top, tab.right, tab.bottom), (3, 23, 33, 133));
+        assert_eq!((tab.left, tab.top, tab.right, tab.bottom), (2, 20, 42, 72));
 
         let dot = calculate_native_surface_region(44, 44, 1.0, NativeNoteSurface::Dot)
             .expect("dot region");
@@ -1522,13 +1543,14 @@ mod tests {
                 assert!(!region.circular);
                 assert!(region.badge.is_none());
                 let tab = region.tab.as_ref().expect("place tab region");
+                let tab_offset = if width <= 360 { 4 } else { 0 };
                 assert_eq!(
                     tab.left,
                     logical_to_physical(NOTE_SURFACE_TAB_LEFT_LOGICAL, scale)
                 );
                 assert_eq!(
                     tab.top,
-                    logical_to_physical(NOTE_SURFACE_TAB_TOP_LOGICAL, scale)
+                    logical_to_physical(NOTE_SURFACE_TAB_TOP_LOGICAL - tab_offset, scale)
                 );
                 assert_eq!(
                     tab.right,
@@ -1536,7 +1558,7 @@ mod tests {
                 );
                 assert_eq!(
                     tab.bottom,
-                    logical_to_physical(NOTE_SURFACE_TAB_BOTTOM_LOGICAL, scale)
+                    logical_to_physical(NOTE_SURFACE_TAB_BOTTOM_LOGICAL - tab_offset, scale)
                         .min(physical_height)
                 );
             }
@@ -1570,6 +1592,46 @@ mod tests {
             450,
         )
         .is_none());
+    }
+
+    #[test]
+    fn native_place_tab_excludes_transparent_corner_wedges_at_supported_scales() {
+        use windows::Win32::Graphics::Gdi::PtInRegion;
+
+        for scale in [1.0, 1.25, 1.5, 1.75, 2.0] {
+            // Both normal and compact layouts use the same capsule at different vertical offsets.
+            for top in [20.0, 16.0] {
+                let bounds = measured_tab_region(
+                    NoteTabBounds {
+                        left: 2.0,
+                        top,
+                        width: 40.0,
+                        height: 52.0,
+                    },
+                    scale,
+                    logical_to_physical(420, scale),
+                    logical_to_physical(360, scale),
+                )
+                .expect("measured capsule");
+                let region = create_note_tab_region(&bounds);
+                assert!(!region.0.is_null());
+                let contains = |x: f64, y: f64| unsafe {
+                    PtInRegion(
+                        region,
+                        ((2.0 + x) * scale).round() as i32,
+                        ((top + y) * scale).round() as i32,
+                    )
+                    .as_bool()
+                };
+                // These wedges were inside the old 22px-corner native mask but outside CSS.
+                assert!(!contains(2.0, 6.0), "upper fringe at scale {scale}");
+                assert!(!contains(2.0, 46.0), "lower fringe at scale {scale}");
+                assert!(contains(20.0, 2.0), "capsule top at scale {scale}");
+                assert!(contains(2.0, 26.0), "capsule left at scale {scale}");
+                assert!(contains(20.0, 50.0), "capsule bottom at scale {scale}");
+                let _ = unsafe { DeleteObject(region.into()) };
+            }
+        }
     }
 
     #[test]
