@@ -265,12 +265,14 @@ export const ContextRail: React.FC<{ contextual: boolean; previewNotes?: SkribNo
   }, [surfaceRevision, collapsed, contextualDock]);
 
   useEffect(() => {
-    if (!collapsed && !nativeRuntimeAvailable) expandedSurface.current?.focus();
+    // Native focus arrives after reveal. Move DOM focus only when its paint token is cleared,
+    // so Escape works immediately without activating an incompletely revealed surface.
+    if (!collapsed && (!nativeRuntimeAvailable || surfaceRevision === undefined)) expandedSurface.current?.focus();
     if (collapsed && focusLauncherAfterCollapse.current) {
       focusLauncherAfterCollapse.current = false;
       launcherButton.current?.focus();
     }
-  }, [collapsed]);
+  }, [collapsed, surfaceRevision]);
 
   useEffect(() => {
     const release = () => presence.current?.hold(false);
