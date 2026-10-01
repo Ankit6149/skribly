@@ -4,17 +4,17 @@
 
 ## Exact source and artifact
 
-- Desktop source `6c579a7f0520131b212fa1660060e1f363a1d246`, [PR #227](https://github.com/Ankit6149/skribly/pull/227), including the owner's card-height/width and icon-size clarification.
+- Desktop source `ee33a3b2aa5262406efcb3ae3b37fc46fe27d330`, [PR #227](https://github.com/Ankit6149/skribly/pull/227), including the owner's final clarification: all cards must share one consistent height and width.
 - Built from that clean source using `scripts/windows/build-owner-installer.ps1`, with enforced trial/account configuration, app version and entitlement public key. No private signing/licence/download key committed.
-- Installer `Skribli_0.1.51_x64-setup.exe`: 3,644,577 bytes; SHA-256 `91F71A7316793F443E239BEDEBEFB0F89E8A6EA6992BF707C7BD9A2507FF8F37`.
-- Website encrypted asset: 3,644,629 bytes; SHA-256 `A542186C016998F70E7E5B0DEB77C93B1A8116FA5B300F4F8C109A99E7DC0F67`.
+- Installer `Skribli_0.1.51_x64-setup.exe`: 3,650,343 bytes; SHA-256 `584DD3425147DFC377437B205041D41A8894CAB5393CD4142D011FB5C576DA4E`.
+- Website encrypted asset: 3,650,395 bytes; SHA-256 `BBD1FD5463D3BFF98BCE282FC686B0C9990AB235C3C6C9257F5631F120A33C18`.
 - Reuses the existing v0.1.49/v0.1.50 private owner key, kept outside the repository and website. Existing browser PBKDF2/AES-GCM flow; key never sent to a server. Local decryption verifies the exact installer SHA-256.
 
-An initial v0.1.51 build without the dimension correction is superseded and was not published. Only the hash above is the delivery candidate.
+Intermediate v0.1.51 builds without uniform card dimensions are superseded and were not published to production. Only the hash above is the delivery candidate.
 
 ## Changes and evidence
 
-Cleaner scope tabs, unframed app logos, quieter paper cards/colour dots, consistent interface-font list previews and refined spacing. Previous card height/width and app-icon sizes are retained. All five sample card rectangles and six app-logo rectangles match the preceding stylesheet at 388 × 800 after fonts load. Card width 334 px; first height 89.078125 px, remaining heights 108.671875 px. Filter logos 20 px, card logos 18 px. Heights remain content-driven, as before.
+Cleaner scope tabs, unframed app logos, quieter paper cards/colour dots, consistent interface-font list previews and refined spacing. Every card shares one fixed 110 px height and the same column width: all five measure 334 × 110 px at 388 × 800 and 266 × 110 px at 320 × 480. Titles clamp to one line with full-title label/tooltip; previews clamp to two. App-logo dimensions stay unchanged: filters 20 px, cards 18 px. This supersedes the intermediate interpretation of preserving the previous different content-driven heights.
 
 See [visual report](WIDGET_VISUAL_POLISH_2026-10-02.md), [preview](../01-design/evidence/arc-66/widget-polish-after.png) and [bounds evidence](../01-design/evidence/arc-66/widget-polish-bounds.json). A 320 × 480 panel has no horizontal overflow, a visible footer and scrolling notes. Dark hover icons and accessible app-filter selection were checked. TypeScript, six dismissal/focus tests, production build and React/runtime/theme/compact validators pass. NSIS build and site validation pass; existing compiler/chunk warnings remain. Current-head GitHub CI and Windows release-mode storage acceptance are required before merge.
 
