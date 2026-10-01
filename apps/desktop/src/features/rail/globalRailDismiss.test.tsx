@@ -42,9 +42,6 @@ beforeEach(() => {
     };
     if (command === 'get_all_skribs' || command === 'get_context_rail_notes') return [];
     if (command === 'get_open_skrib_note_id') return null;
-    if (command === 'set_context_rail_expanded') {
-      native.stateListener?.({ contextual: false, expanded: args?.expanded, revision: 2, dockSide: 'right' });
-    }
     return undefined;
   });
   container = document.createElement('div');
@@ -56,10 +53,37 @@ afterEach(async () => {
   await act(async () => root.unmount());
   container.remove();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
   native.invoke.mockReset();
 });
 
 describe('global widget light dismissal', () => {
+  it('acknowledges only the current rendered surface after two frames', async () => {
+    const callbacks = new Map<number, FrameRequestCallback>();
+    let frame = 0;
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation(callback => {
+      callbacks.set(++frame, callback); return frame;
+    });
+    vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(id => { callbacks.delete(id); });
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({ width: 388 } as DOMRect);
+    const tick = () => {
+      const pending = [...callbacks.values()]; callbacks.clear(); pending.forEach(callback => callback(0));
+    };
+    const { ContextRail } = await import('./ContextRail');
+    await act(async () => { root.render(<ContextRail contextual={false} />); });
+    await act(async () => {
+      native.stateListener?.({ contextual: false, expanded: true, revision: 2, surfaceRevision: 10 });
+    });
+    await act(async () => { tick(); });
+    expect(native.invoke).not.toHaveBeenCalledWith('acknowledge_global_rail_surface', expect.anything());
+    await act(async () => {
+      native.stateListener?.({ contextual: false, expanded: false, revision: 3, surfaceRevision: 11 });
+    });
+    await act(async () => { tick(); tick(); });
+    expect(native.invoke).toHaveBeenCalledWith('acknowledge_global_rail_surface', { surfaceRevision: 11 });
+    expect(native.invoke).not.toHaveBeenCalledWith('acknowledge_global_rail_surface', { surfaceRevision: 10 });
+  });
+
   it('returns to the compact widget after native focus loss', async () => {
     const { ContextRail } = await import('./ContextRail');
     await act(async () => { root.render(<ContextRail contextual={false} />); });
@@ -69,14 +93,17 @@ describe('global widget light dismissal', () => {
     await act(async () => { native.listeners.get('skribly://global-rail-dismiss')?.(); });
     const surface = container.querySelector('.global-shelf.is-closing');
     expect(surface).not.toBeNull();
-    expect(native.invoke).not.toHaveBeenCalledWith('set_context_rail_expanded', expect.anything());
+    expect(native.invoke).toHaveBeenCalledWith('set_context_rail_expanded', { contextual: false, expanded: false, noteCount: 0, reducedMotion: false });
     await act(async () => {
       const end = new Event('animationend', { bubbles: true });
       Object.defineProperty(end, 'animationName', { value: 'global-shelf-out-right' });
       surface?.dispatchEvent(end);
     });
 
-    expect(native.invoke).toHaveBeenCalledWith('set_context_rail_expanded', { contextual: false, expanded: false, noteCount: 0 });
+    expect(container.querySelector('.global-shelf.is-closing')).not.toBeNull();
+    await act(async () => {
+      native.stateListener?.({ contextual: false, expanded: false, revision: 2, dockSide: 'right' });
+    });
     expect(container.querySelector('[aria-label="Open My Skribs, 0 saved Skribs"]')).not.toBeNull();
   });
 
@@ -91,18 +118,20 @@ describe('global widget light dismissal', () => {
     });
 
     expect(container.querySelector('[aria-label="Open My Skribs, 0 saved Skribs"]')).not.toBeNull();
-    expect(native.invoke).not.toHaveBeenCalledWith('set_context_rail_expanded', expect.anything());
+    expect(native.invoke.mock.calls.filter(([command]) => command === 'set_context_rail_expanded')).toHaveLength(1);
   });
 
-  it('still collapses when WebView does not deliver animationend', async () => {
+  it('lets native dismissal complete without a WebView animationend', async () => {
     const { ContextRail } = await import('./ContextRail');
     await act(async () => { root.render(<ContextRail contextual={false} />); });
 
     await act(async () => { native.listeners.get('skribly://global-rail-dismiss')?.(); });
     expect(container.querySelector('.global-shelf.is-closing')).not.toBeNull();
-    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 390)); });
+    await act(async () => {
+      native.stateListener?.({ contextual: false, expanded: false, revision: 2, dockSide: 'right' });
+    });
 
-    expect(native.invoke).toHaveBeenCalledWith('set_context_rail_expanded', { contextual: false, expanded: false, noteCount: 0 });
+    expect(native.invoke).toHaveBeenCalledWith('set_context_rail_expanded', { contextual: false, expanded: false, noteCount: 0, reducedMotion: false });
     expect(container.querySelector('[aria-label="Open My Skribs, 0 saved Skribs"]')).not.toBeNull();
   });
 

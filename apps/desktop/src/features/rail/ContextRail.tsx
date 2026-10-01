@@ -18,6 +18,8 @@ import { OpeningJourney } from './OpeningJourney';
 import { useNativeDrag } from '../../lib/useNativeDrag';
 import { observeRailWindowState, type RailWindowState } from './railWindowState';
 import { createContextPresence } from './contextPresence';
+import { afterRailPaint } from './railPaintReady';
+import { bundledAppIcon } from '../skribs/bundledAppIcon';
 
 type RailScope = 'context' | 'all' | 'archive';
 const nativeRuntimeAvailable = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
@@ -78,7 +80,8 @@ function noteTitle(note: SkribNote): string {
 }
 
 function ContextIcon({ processName, iconUrl }: { processName: string; iconUrl: string | undefined }) {
-  if (iconUrl) return <img className="ribbon-app-icon" src={iconUrl} alt="" aria-hidden="true" />;
+  const logo = iconUrl || bundledAppIcon(processName);
+  if (logo) return <img className="ribbon-app-icon" src={logo} alt="" aria-hidden="true" />;
   const process = processName.toLowerCase();
   if (process === 'explorer.exe') return <Folder size={14} aria-hidden="true" />;
   if (process.includes('chrome') || process.includes('edge') || process.includes('firefox')) {
@@ -94,17 +97,20 @@ function scopeLabel(scope: RailScope): string {
   return 'Everything';
 }
 
-export const ContextRail: React.FC<{ contextual: boolean }> = ({ contextual }) => {
+const EMPTY_PREVIEW_NOTES: SkribNote[] = [];
+export const ContextRail: React.FC<{ contextual: boolean; previewNotes?: SkribNote[]; previewDockSide?: 'left' | 'right' }> = ({ contextual, previewNotes = EMPTY_PREVIEW_NOTES, previewDockSide = 'right' }) => {
   const previewContextual = !nativeRuntimeAvailable && typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).get('railMode') === 'context';
   const contextualDock = contextual || previewContextual;
-  const [allNotes, setAllNotes] = useState<SkribNote[]>([]);
-  const [contextNotes, setContextNotes] = useState<SkribNote[]>([]);
+  const [allNotes, setAllNotes] = useState<SkribNote[]>(nativeRuntimeAvailable ? [] : previewNotes);
+  const [contextNotes, setContextNotes] = useState<SkribNote[]>(nativeRuntimeAvailable ? [] : previewNotes);
   const [scope, setScope] = useState<RailScope>(contextualDock ? 'context' : 'all');
   const [collapsed, setCollapsed] = useState(true);
   const [closing, setClosing] = useState(false);
+  const [surfaceRevision, setSurfaceRevision] = useState<number | undefined>();
+  const [query, setQuery] = useState('');
   const [revealed, setRevealed] = useState(false);
-  const [dockSide, setDockSide] = useState<'left' | 'right'>('right');
+  const [dockSide, setDockSide] = useState<'left' | 'right'>(nativeRuntimeAvailable ? 'right' : previewDockSide);
   const presence = useRef<ReturnType<typeof createContextPresence> | null>(null);
   const launcherButton = useRef<HTMLButtonElement>(null);
   const focusLauncherAfterCollapse = useRef(false);
@@ -137,7 +143,10 @@ export const ContextRail: React.FC<{ contextual: boolean }> = ({ contextual }) =
     [allGroups, selectedGroupKey]
   );
   const ribbonSource = useMemo(() => groups.flatMap((group) => group.notes), [groups]);
-  const ribbonNotes = ribbonSource;
+  const ribbonNotes = useMemo(() => ribbonSource.filter(note => {
+    const term = query.trim().toLocaleLowerCase();
+    return contextualDock || !term || `${note.text} ${note.target_title ?? ''} ${applicationLabel(note.target_process_name)}`.toLocaleLowerCase().includes(term);
+  }), [ribbonSource, query, contextualDock]);
   const pillCount = railPillCount(activeNotes.length, contextNotes.length, contextualDock);
   const iconProcessNames = useMemo(() => [...new Set(visibleNotes.map((note) => note.target_process_name)
     .filter((name): name is string => Boolean(name)))].sort().join('\n'), [visibleNotes]);
@@ -199,6 +208,7 @@ export const ContextRail: React.FC<{ contextual: boolean }> = ({ contextual }) =
       listen('skribly://rich-content-updated', () => void refresh()),
       listen('skribly://context-rail-refresh', () => void refresh()),
       listen('skribly://global-rail-refresh', () => void refresh()),
+      listen<string>('skribly://global-rail-presentation-error', ({ payload }) => { setMessage(payload); setClosing(false); }),
     ];
     return () => {
       refreshGeneration.current += 1;
@@ -227,7 +237,9 @@ export const ContextRail: React.FC<{ contextual: boolean }> = ({ contextual }) =
         arrivalRevision.current = state.arrivalRevision;
         nativeRailRevision.current = state.revision;
         setCollapsed(!state.expanded);
+        setSurfaceRevision(state.surfaceRevision);
         if (!state.expanded) { exitAbort.current?.abort(); setClosing(false); }
+        else if (state.surfaceRevision !== undefined) setClosing(false);
         setRevealed(Boolean(state.revealed));
         setDockSide(state.dockSide ?? 'right');
         controller?.sync(state);
@@ -239,7 +251,21 @@ export const ContextRail: React.FC<{ contextual: boolean }> = ({ contextual }) =
   }, [contextualDock]);
 
   useEffect(() => {
-    if (!collapsed) expandedSurface.current?.focus();
+    if (contextualDock || !nativeRuntimeAvailable || surfaceRevision === undefined) return;
+    return afterRailPaint(() => {
+      const surface = collapsed ? launcherButton.current : expandedSurface.current;
+      if (!surface || surface.getBoundingClientRect().width <= 0) return;
+      void invoke('acknowledge_global_rail_surface', { surfaceRevision }).catch(reason => setMessage(String(reason)));
+    }, {
+      requestFrame: callback => window.requestAnimationFrame(callback),
+      cancelFrame: id => window.cancelAnimationFrame(id),
+      setTimer: (callback, delay) => window.setTimeout(callback, delay),
+      clearTimer: id => window.clearTimeout(id),
+    });
+  }, [surfaceRevision, collapsed, contextualDock]);
+
+  useEffect(() => {
+    if (!collapsed && !nativeRuntimeAvailable) expandedSurface.current?.focus();
     if (collapsed && focusLauncherAfterCollapse.current) {
       focusLauncherAfterCollapse.current = false;
       launcherButton.current?.focus();
@@ -271,7 +297,7 @@ export const ContextRail: React.FC<{ contextual: boolean }> = ({ contextual }) =
     setMenuOpen(false);
     setMessage(null);
     try {
-      if (next && !contextualDock && !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      if (next && !contextualDock && !nativeRuntimeAvailable && !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
         const surface = expandedSurface.current;
         if (surface) {
           const controller = new AbortController();
@@ -294,9 +320,11 @@ export const ContextRail: React.FC<{ contextual: boolean }> = ({ contextual }) =
         return;
       }
       if (next && contextualDock) await invoke('set_context_rail_peek', { revealed: false, arrivalRevision: requestArrivalRevision });
+      if (next && !contextualDock) setClosing(true);
       await invoke('set_context_rail_expanded', {
         expanded: !next, contextual: contextualDock, noteCount: visibleNotes.length,
         ...(contextualDock ? { arrivalRevision: requestArrivalRevision } : {}),
+        ...(!contextualDock ? { reducedMotion: Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) } : {}),
       });
       // The native state event drives rendering; a late command response must not
       // undo a newer collapse caused by switching the foreground application.
@@ -328,6 +356,7 @@ export const ContextRail: React.FC<{ contextual: boolean }> = ({ contextual }) =
   const handleEscape = (event: React.KeyboardEvent<HTMLElement>) => {
     if (event.key !== 'Escape') return;
     event.preventDefault(); event.stopPropagation();
+    if (!contextualDock && query) { setQuery(''); return; }
     if (menuOpen) { setMenuOpen(false); return; }
     if (!collapsed) {
       focusLauncherAfterCollapse.current = true;
@@ -434,23 +463,34 @@ export const ContextRail: React.FC<{ contextual: boolean }> = ({ contextual }) =
 
   return (
     <main ref={expandedSurface} tabIndex={-1}
-      className={`context-rail expanded dock-${dockSide} ${contextualDock ? 'context-list' : `global-shelf ${closing ? 'is-closing' : ''}`}`}
+      className={`context-rail expanded dock-${dockSide} ${contextualDock ? 'context-list' : `global-shelf ${nativeRuntimeAvailable ? 'has-native-reveal' : ''} ${closing ? 'is-closing' : ''}`}`}
       onKeyDown={handleEscape}>
       {openingProgress && <OpeningJourney progress={openingProgress} compact />}
       <header className="ribbon-rail-head" data-tauri-drag-region>
         <span className="ribbon-rail-brand" data-tauri-drag-region>
           <GripHorizontal size={15} aria-hidden="true" data-tauri-drag-region />
           <img src={skribliLogo} alt="" aria-hidden="true" data-tauri-drag-region />
-          <span data-tauri-drag-region><strong data-tauri-drag-region>{contextualDock && scope === 'context' ? `${visibleNotes.length} ${visibleNotes.length === 1 ? 'Skrib' : 'Skribs'} here` : scopeLabel(scope)}</strong>
-            <small data-tauri-drag-region>{visibleNotes.length} {visibleNotes.length === 1 ? 'Skrib' : 'Skribs'}</small></span>
+          <span data-tauri-drag-region><strong data-tauri-drag-region>{!contextualDock ? 'My Skribs' : scope === 'context' ? `${visibleNotes.length} ${visibleNotes.length === 1 ? 'Skrib' : 'Skribs'} here` : scopeLabel(scope)}</strong>
+            <small data-tauri-drag-region>{visibleNotes.length} {visibleNotes.length === 1 ? 'saved thought' : 'saved thoughts'}</small></span>
         </span>
         <span className="ribbon-rail-actions">
-          <button type="button" onClick={() => setMenuOpen((open) => !open)} aria-label="Choose which Skribs to show"
-            aria-expanded={menuOpen} title="Here, everything, or archived Skribs"><MoreHorizontal size={16} aria-hidden="true" /></button>
-          <button type="button" onClick={() => void toggleCollapsed()} aria-label="Collapse Skrib ribbons"
+          {contextualDock && <button type="button" onClick={() => setMenuOpen((open) => !open)} aria-label="Choose which Skribs to show"
+            aria-expanded={menuOpen} title="Here, everything, or archived Skribs"><MoreHorizontal size={16} aria-hidden="true" /></button>}
+          <button type="button" disabled={closing} onClick={() => void toggleCollapsed()} aria-label="Collapse Skrib ribbons"
             title="Keep your thoughts tucked away">{dockSide === 'left' ? <ChevronLeft size={16} aria-hidden="true" /> : <ChevronRight size={16} aria-hidden="true" />}</button>
         </span>
       </header>
+
+      {!contextualDock && <>
+        <nav className="global-shelf-scopes" aria-label="Which Skribs to show">
+          <button type="button" aria-pressed={scope === 'all'} onClick={() => selectScope('all')}><StickyNote size={15} aria-hidden="true" />All notes</button>
+          <button type="button" aria-pressed={scope === 'context'} onClick={() => selectScope('context')}><MapPin size={15} aria-hidden="true" />Here</button>
+          <button type="button" aria-pressed={scope === 'archive'} onClick={() => selectScope('archive')}><ArchiveRestore size={15} aria-hidden="true" />Archived</button>
+        </nav>
+        <label className="global-shelf-search"><Search size={17} aria-hidden="true" />
+          <input aria-label="Search saved Skribs" placeholder="Find a thought…" value={query} onChange={event => setQuery(event.target.value)} />
+        </label>
+      </>}
 
       {menuOpen && <nav className="ribbon-scope-menu" aria-label="Which Skribs to show">
         <button className={scope === 'context' ? 'active' : ''} type="button" onClick={() => selectScope('context')}>
@@ -463,7 +503,7 @@ export const ContextRail: React.FC<{ contextual: boolean }> = ({ contextual }) =
 
       {!contextualDock && allGroups.length > 1 && <nav className="ribbon-context-strip" aria-label="Apps with Skribs">
         <button type="button" className={selectedGroupKey === null ? 'active' : ''} onClick={() => setSelectedGroupKey(null)}
-          aria-label="Show all apps" title="Every app in this view"><StickyNote size={14} aria-hidden="true" /><span>{visibleNotes.length}</span></button>
+          aria-label="Show all apps" title="Every app in this view"><StickyNote size={14} aria-hidden="true" /><span className="rail-app-label">All apps</span><span>{visibleNotes.length}</span></button>
         {allGroups.map((group) => <button type="button" key={group.key} className={selectedGroupKey === group.key ? 'active' : ''}
           onClick={() => setSelectedGroupKey(group.key)} aria-label={`${group.label}, ${group.notes.length} Skribs`} title={`${group.label} · ${group.notes.length}`}>
           <ContextIcon processName={group.notes[0]?.target_process_name ?? group.key}
@@ -473,7 +513,7 @@ export const ContextRail: React.FC<{ contextual: boolean }> = ({ contextual }) =
       <div className="ribbon-fan" aria-live="polite">
         {loading ? <div className="ribbon-empty" role="status">Gathering your Skribs…</div>
           : ribbonNotes.length === 0 ? <div className="ribbon-empty">
-            {scope === 'archive' ? 'Completed thoughts will rest here.' : scope === 'context'
+            {query.trim() ? 'No thoughts match your search.' : scope === 'archive' ? 'Completed thoughts will rest here.' : scope === 'context'
               ? 'No Skribs here yet. Ctrl + Shift + Space starts one.' : 'Your first thought is one shortcut away.'}
           </div> : ribbonNotes.map((note, index) => <article
             className={`skrib-ribbon skrib-color-${note.color} ${activeNoteId === note.id ? 'active' : ''}`} key={note.id}
@@ -484,6 +524,7 @@ export const ContextRail: React.FC<{ contextual: boolean }> = ({ contextual }) =
                 iconUrl={appIcons[(note.target_process_name ?? '').toLowerCase()]} /></span>
               <span className="skrib-ribbon-copy"><strong>{noteTitle(note)}</strong>
                 <small>{note.target_title || applicationLabel(note.target_process_name)}</small>
+                {!contextualDock && note.text.trim().includes('\n') && <span className="global-note-preview">{note.text.trim().split(/\r?\n/).slice(1).join(' ')}</span>}
                 {contextualDock && <span className="skrib-card-preview">{note.text.trim() || 'A little room for your next thought.'}</span>}
                 {contextualDock && <span className="skrib-card-open">{scope === 'archive' ? 'Restore Skrib' : 'Open Skrib'}</span>}</span>
               {openingId === note.id && <LoaderCircle className="rail-opening-spinner" size={16} aria-hidden="true" />}
@@ -494,6 +535,7 @@ export const ContextRail: React.FC<{ contextual: boolean }> = ({ contextual }) =
           </article>)}
         {message && <div className="ribbon-message" role="status">{message}</div>}
       </div>
+      {!contextualDock && <footer className="global-shelf-footer"><span>Capture a thought</span><span className="global-shelf-shortcut"><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>Space</kbd></span></footer>}
     </main>
   );
 };
