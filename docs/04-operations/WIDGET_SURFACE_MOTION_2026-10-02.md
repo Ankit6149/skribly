@@ -25,7 +25,7 @@ Microsoft documents that a window region restricts drawing/hits, sends window-po
 
 - [Before](../01-design/evidence/arc-66/widget-before-open.png) and [after](../01-design/evidence/arc-66/widget-after-open.png): actual React component in an isolated 388 × 800 browser fixture with five non-persistent sample notes. These are not installed Windows screenshots.
 - Browser search for `timeline` returns the matching Friday thought; app filtering, empty/archive and short left-docked layouts are checked separately.
-- Desktop frontend: 241 tests across 40 files pass, including dismissal without CSS animation events, cancellation of stale paint acknowledgement, and paint fallback cleanup. TypeScript and production build pass; React/runtime/theme/compact validators pass. Existing large-chunk warning remains.
+- Desktop frontend: 242 tests across 40 files pass, including dismissal without CSS animation events, cancellation of stale paint acknowledgement, paint fallback cleanup, and keyboard focus/Escape after native reveal completes. TypeScript and production build pass; React/runtime/theme/compact validators pass. Existing large-chunk warning remains.
 - Windows Rust library: 177 tests pass, including native GDI region inclusion/exclusion at 100%, 125%, 150% and 200% scaling, both dock sides, bounded reveal interpolation, compact paint handoff, stale acknowledgement and interrupted transition guards. These checks establish logic and region geometry, not DWM visual smoothness.
 - No note schema, account, entitlement or local storage migration. No idle animation loop: motion workers end at completion/cancellation; watchdog workers sleep once and return. Installed idle CPU/RSS and compositor frame measurements have not been collected.
 

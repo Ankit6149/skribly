@@ -71,6 +71,7 @@ describe('global widget light dismissal', () => {
     };
     const { ContextRail } = await import('./ContextRail');
     await act(async () => { root.render(<ContextRail contextual={false} />); });
+    expect(document.activeElement).toBe(container.querySelector('.global-shelf'));
     await act(async () => {
       native.stateListener?.({ contextual: false, expanded: true, revision: 2, surfaceRevision: 10 });
     });
@@ -82,6 +83,27 @@ describe('global widget light dismissal', () => {
     await act(async () => { tick(); tick(); });
     expect(native.invoke).toHaveBeenCalledWith('acknowledge_global_rail_surface', { surfaceRevision: 11 });
     expect(native.invoke).not.toHaveBeenCalledWith('acknowledge_global_rail_surface', { surfaceRevision: 10 });
+  });
+
+  it('restores keyboard focus when native opening finishes, so Escape closes immediately', async () => {
+    const { ContextRail } = await import('./ContextRail');
+    await act(async () => { root.render(<ContextRail contextual={false} />); });
+    await act(async () => {
+      native.stateListener?.({ contextual: false, expanded: false, revision: 2 });
+    });
+    await act(async () => {
+      native.stateListener?.({ contextual: false, expanded: true, revision: 3, surfaceRevision: 21 });
+    });
+    const surface = container.querySelector('.global-shelf');
+    expect(document.activeElement).not.toBe(surface);
+    await act(async () => {
+      native.stateListener?.({ contextual: false, expanded: true, revision: 4 });
+    });
+    expect(document.activeElement).toBe(surface);
+    await act(async () => {
+      surface?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    });
+    expect(native.invoke).toHaveBeenCalledWith('set_context_rail_expanded', { contextual: false, expanded: false, noteCount: 0, reducedMotion: false });
   });
 
   it('returns to the compact widget after native focus loss', async () => {
