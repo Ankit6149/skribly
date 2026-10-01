@@ -4,17 +4,17 @@
 
 ## Exact source and package
 
-- Desktop source: `ea65a94967aef795b888fdbf8593d89a39aaf85d`, PR #225, based on the previously merged v0.1.49 desktop/UI source.
+- Desktop source: `10f95d41c1c400827862dc52777f2ffe35c9ea39`, PR #225, based on the previously merged v0.1.49 desktop/UI source. Includes the final keyboard focus correction and its launcher-focus fixture.
 - Built from that clean source using `scripts/windows/build-owner-installer.ps1`: correct account configuration, app version, trial enforcement and entitlement public key. No signing/licence private key was committed.
-- NSIS installer: `Skribli_0.1.50_x64-setup.exe`, 3,644,502 bytes; SHA-256 `C19928E96BA3B54CE51B8E1F77B0F2EC86BD8FA0C28F5A678D0195311681F442`.
-- Encrypted website asset: `site/assets/skribli-v0-windows.enc`, 3,644,554 bytes; SHA-256 `500EFDD181B8C149BE536DDF1499219128BB69342FAEE0FEC311D1B052550296`.
+- NSIS installer: `Skribli_0.1.50_x64-setup.exe`, 3,643,123 bytes; SHA-256 `A1F1D5D942C99CFF266A2EE9B09C46825373A17207BD7674053398A095C90C81`.
+- Encrypted website asset: `site/assets/skribli-v0-windows.enc`, 3,643,175 bytes; SHA-256 `905A290AFB78D38B9EA5579588AE2838833850CD47925EBC2E39E132FB52EAC8`.
 - Reuses the v0.1.49 owner's private download key. It stays outside the repository and website. Delivery uses the existing local PBKDF2/AES-GCM browser flow; the key is not sent to a server.
 
 ## Changes and evidence
 
 The expanded panel now visibly carries the widget's yellow/peach/lavender palette, readable paper cards, app-logo filters, local search and visible scopes. Known-app fallbacks reuse bundled Supericons Chrome/Firefox and the VS Code mark; actual Windows app icons are preferred. Stable hover bounds and atomic native placement address the observed jump path. A native region reveal treats Acrylic/content/hits together, with current-generation paint handoff and compact restoration after closing. UI-thread frame operations use a nonblocking gate; no gate is held while the timing worker waits for UI completion.
 
-See the [surface/motion report](WIDGET_SURFACE_MOTION_2026-10-02.md) and [updated source preview](../01-design/evidence/arc-66/widget-after-open.png). 241 frontend tests/40 files and 177 Windows Rust library tests pass, along with TypeScript, production build and runtime/theme/compact validators. Region tests include real GDI membership checks at four DPI scales and both sides. Browser search, app filtering and a 320 × 480 left-docked empty panel were checked. NSIS packaging passed. Existing compiler/chunk warnings remain.
+See the [surface/motion report](WIDGET_SURFACE_MOTION_2026-10-02.md) and [updated source preview](../01-design/evidence/arc-66/widget-after-open.png). 242 frontend tests/40 files and 177 Windows Rust library tests pass, along with TypeScript, production build and runtime/theme/compact validators. Region tests include real GDI membership checks at four DPI scales and both sides. Browser search, app filtering and a 320 × 480 left-docked empty panel were checked. NSIS packaging passed. Existing compiler/chunk warnings remain.
 
 These establish implementation, geometry and package evidence. Windows Computer Use failed to initialize with kernel-assets path error (os error 3); the installer was not locally installed or executed. Exact installed DWM smoothness, black-flash elimination, idle CPU/RSS, upgrade/account persistence and historical AppHangB1 remain unverified.
 
