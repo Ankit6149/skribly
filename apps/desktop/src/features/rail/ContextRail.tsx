@@ -526,7 +526,7 @@ export const ContextRail: React.FC<{ contextual: boolean; previewNotes?: SkribNo
               disabled={openingId !== null} title={scope === 'archive' ? 'Return this Skrib to your active notes' : 'Open this Skrib beside the ribbon'}>
               <span className="skrib-ribbon-mark" aria-hidden="true"><ContextIcon processName={note.target_process_name ?? ''}
                 iconUrl={appIcons[(note.target_process_name ?? '').toLowerCase()]} /></span>
-              <span className="skrib-ribbon-copy"><strong>{noteTitle(note)}</strong>
+              <span className="skrib-ribbon-copy"><strong title={!contextualDock ? noteTitle(note) : undefined}>{noteTitle(note)}</strong>
                 <small title={note.target_title || undefined}>{!contextualDock && <span className="global-note-tone" aria-hidden="true" />}<span className={!contextualDock ? 'global-note-context' : undefined}>{note.target_title || applicationLabel(note.target_process_name)}</span></small>
                 {!contextualDock && note.text.trim().includes('\n') && <span className="global-note-preview">{note.text.trim().split(/\r?\n/).slice(1).join(' ')}</span>}
                 {contextualDock && <span className="skrib-card-preview">{note.text.trim() || 'A little room for your next thought.'}</span>}

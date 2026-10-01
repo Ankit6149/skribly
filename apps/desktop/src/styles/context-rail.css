@@ -805,7 +805,9 @@ html[data-skribly-window='context-rail'] #root,
 .context-rail.expanded.global-shelf .ribbon-fan::-webkit-scrollbar-track { background: transparent; }
 .context-rail.expanded.global-shelf .ribbon-fan::-webkit-scrollbar-thumb { background-color: rgb(38 41 35 / 18%); }
 .context-rail.expanded.global-shelf .skrib-ribbon {
-  min-height: 86px;
+  height: 110px;
+  min-height: 110px;
+  max-height: 110px;
   border: 1px solid rgb(255 253 247 / 56%);
   border-radius: 14px;
   background: rgb(255 253 247 / 62%);
@@ -820,6 +822,7 @@ html[data-skribly-window='context-rail'] #root,
   background: rgb(255 253 247 / 78%);
 }
 .context-rail.expanded.global-shelf .skrib-ribbon-read {
+  min-height: 0;
   padding: 12px 11px;
   gap: 10px;
   align-items: start;
@@ -832,12 +835,12 @@ html[data-skribly-window='context-rail'] #root,
   background: transparent;
 }
 .context-rail.expanded.global-shelf .skrib-ribbon-mark .ribbon-app-icon { width: 18px; height: 18px; }
-.context-rail.expanded.global-shelf .skrib-ribbon-copy { min-width: 0; gap: 4px; }
+.context-rail.expanded.global-shelf .skrib-ribbon-copy { min-width: 0; min-height: 0; gap: 4px; }
 .context-rail.expanded.global-shelf .skrib-ribbon-copy strong {
   font: 600 13px/1.4 var(--font-ui);
   letter-spacing: -.012em;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
   white-space: normal;
   overflow: hidden;
