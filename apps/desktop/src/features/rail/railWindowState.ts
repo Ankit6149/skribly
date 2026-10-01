@@ -1,4 +1,5 @@
 export interface RailWindowState {
+  surfaceRevision?: number;
   expanded: boolean;
   contextual?: boolean;
   revision?: number;

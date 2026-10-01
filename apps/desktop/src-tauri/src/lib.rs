@@ -4,7 +4,7 @@ mod note_lifecycle;
 mod platform;
 
 use std::collections::VecDeque;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::sync::mpsc::{channel, Receiver};
 use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
 use std::time::Duration;
@@ -20,6 +20,7 @@ use core::models::{
 };
 use core::storage;
 use core::{account, license};
+use desktop::rail_presentation::{reveal_width, RailPresentation};
 use note_lifecycle::{
     detached_open_request, reopened_open_request, shortcut_open_request, OpenNoteRequest,
 };
@@ -100,6 +101,15 @@ impl NativeWindowOperationGate {
             .lock()
             .map_err(|_| "The native window operation lock is unavailable.".to_string())
     }
+    fn try_lock(&self) -> Result<Option<MutexGuard<'_, ()>>, String> {
+        match self.0.try_lock() {
+            Ok(guard) => Ok(Some(guard)),
+            Err(std::sync::TryLockError::WouldBlock) => Ok(None),
+            Err(std::sync::TryLockError::Poisoned(_)) => {
+                Err("The native window operation lock is unavailable.".into())
+            }
+        }
+    }
 }
 
 const GLOBAL_RAIL_COLLAPSED_WIDTH: f64 = 28.0;
@@ -124,6 +134,9 @@ struct ContextRailPlacement {
 
 #[derive(Debug, Default)]
 struct RailWindowRuntime {
+    presentation: Mutex<RailPresentation>,
+    reveal_width: AtomicU32,
+    reduced_motion: AtomicBool,
     movement_generation: AtomicU64,
     pending_programmatic_positions: Mutex<VecDeque<(i32, i32)>>,
     has_docked_position: AtomicBool,
@@ -141,6 +154,8 @@ struct RailWindowRuntime {
 #[derive(Debug, Default, Clone, Copy, serde::Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 struct RailWindowState {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    surface_revision: Option<u64>,
     contextual: bool,
     expanded: bool,
     revealed: bool,
@@ -177,6 +192,15 @@ fn get_rail_window_state(contextual: bool) -> RailWindowState {
         rail_window_runtime()
     };
     RailWindowState {
+        surface_revision: if contextual {
+            None
+        } else {
+            runtime
+                .presentation
+                .lock()
+                .ok()
+                .and_then(|surface| surface.pending_paint())
+        },
         contextual,
         expanded: runtime.expanded.load(Ordering::Acquire),
         revealed: runtime.revealed.load(Ordering::Acquire),
@@ -707,8 +731,6 @@ fn size_and_dock_rail(
             }
         }
     }
-    rail.set_size(next_size)
-        .map_err(|error| format!("Skribli could not resize the note rail: {error}"))?;
     let preferred_y = if expanded {
         work_area.position.y
     } else if previous_size.is_some_and(|size| size.height > next_size.height) {
@@ -744,9 +766,19 @@ fn size_and_dock_rail(
         rail_dock_side(position, next_size, bounds, margin) == RailDockSide::Left,
         Ordering::Release,
     );
-    set_rail_position(app_handle, rail, position, rail_window_runtime())
-        .map_err(|error| format!("Skribli could not dock the note rail: {error}"))?;
-    sync_global_panel_handle(app_handle, position, next_size, bounds, scale, expanded)?;
+    // Record BEFORE WM_SIZE/WM_MOVE, and change both bounds in one native transaction.
+    rail_window_runtime().record_programmatic_position(position);
+    #[cfg(target_os = "windows")]
+    let placed = platform::windows_rail::set_geometry(rail, position, next_size);
+    #[cfg(not(target_os = "windows"))]
+    let placed = rail
+        .set_size(next_size)
+        .and_then(|_| rail.set_position(position))
+        .map_err(|e| e.to_string());
+    placed.map_err(|error| format!("Skribli could not dock the note rail: {error}"))?;
+    if !expanded {
+        sync_global_panel_handle(app_handle, position, next_size, bounds, scale, false)?;
+    }
     #[cfg(target_os = "windows")]
     if expanded {
         set_global_rail_backdrop(rail, true);
@@ -791,6 +823,300 @@ fn global_rail_physical_size(
         (logical_height * scale).round().max(0.0) as u32
     };
     PhysicalSize::new(width.min(bounds.width.max(0) as u32), height)
+}
+
+fn set_global_reveal(rail: &WebviewWindow, width: Option<u32>) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    return platform::windows_rail::set_reveal(
+        rail,
+        width,
+        rail_window_runtime().docked_left.load(Ordering::Acquire),
+    );
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = (rail, width);
+        Ok(())
+    }
+}
+
+fn sync_ready_global_handle(app: &AppHandle, rail: &WebviewWindow) -> Result<(), String> {
+    let Some(monitor) = rail.current_monitor().ok().flatten() else {
+        return Ok(());
+    };
+    let area = monitor.work_area();
+    let bounds = RailDockBounds {
+        x: area.position.x,
+        y: area.position.y,
+        width: area.size.width as i32,
+        height: area.size.height as i32,
+    };
+    sync_global_panel_handle(
+        app,
+        rail.outer_position().map_err(|e| e.to_string())?,
+        rail.outer_size().map_err(|e| e.to_string())?,
+        bounds,
+        monitor.scale_factor(),
+        true,
+    )
+}
+
+fn prepare_global_rail_surface(
+    app: &AppHandle,
+    rail: &WebviewWindow,
+    expanded: bool,
+) -> Result<u64, String> {
+    let runtime = rail_window_runtime();
+    let previous_position = rail.outer_position().map_err(|e| e.to_string())?;
+    let previous_size = rail.outer_size().map_err(|e| e.to_string())?;
+    let previous_expanded = runtime.expanded.load(Ordering::Acquire);
+    let generation = runtime
+        .presentation
+        .lock()
+        .map_err(|_| "The panel presentation is unavailable.")?
+        .prepare(expanded);
+    let prepared = (|| -> Result<(), String> {
+        // The HWND stays alive for WebView painting, but its native region admits no backdrop or hits.
+        set_global_reveal(rail, Some(0))?;
+        runtime.reveal_width.store(0, Ordering::Release);
+        if let Some(handle) = app.get_webview_window("global-rail-handle") {
+            let _ = handle.hide();
+        }
+        let (width, height) = rail_surface_dimensions(expanded, false);
+        size_and_dock_rail(app, rail, width, height, expanded)?;
+        rail.show().map_err(|e| e.to_string())
+    })();
+    if let Err(error) = prepared {
+        // No new state was emitted: restore the bounds of the still-rendered previous surface.
+        runtime
+            .presentation
+            .lock()
+            .map_err(|_| "The panel presentation is unavailable.")?
+            .cancel();
+        runtime.record_programmatic_position(previous_position);
+        #[cfg(target_os = "windows")]
+        {
+            let _ = platform::windows_rail::set_geometry(rail, previous_position, previous_size);
+            set_global_rail_backdrop(rail, previous_expanded);
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            let _ = rail.set_size(previous_size);
+            let _ = rail.set_position(previous_position);
+        }
+        let _ = set_global_reveal(rail, None);
+        runtime.reveal_width.store(
+            if previous_expanded {
+                previous_size.width
+            } else {
+                0
+            },
+            Ordering::Release,
+        );
+        if previous_expanded {
+            let _ = sync_ready_global_handle(app, rail);
+        }
+        return Err(error);
+    }
+    runtime.expanded.store(expanded, Ordering::Release);
+    emit_rail_window_state(app, false);
+    watch_global_surface_paint(app.clone(), rail.clone(), generation);
+    Ok(generation)
+}
+
+fn watch_global_surface_paint(app: AppHandle, rail: WebviewWindow, generation: u64) {
+    std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_millis(900));
+        let dispatcher = app.clone();
+        let _ = dispatcher.run_on_main_thread(move || {
+            let state = app.state::<AppState>();
+            let Ok(guard) = state.native_window_operation_gate.try_lock() else {
+                return;
+            };
+            let Some(_guard) = guard else {
+                watch_global_surface_paint(app.clone(), rail.clone(), generation);
+                return;
+            };
+            let runtime = rail_window_runtime();
+            if runtime
+                .presentation
+                .lock()
+                .ok()
+                .and_then(|p| p.pending_paint())
+                != Some(generation)
+            {
+                return;
+            }
+            // Lost IPC must not strand an invisible launcher. Revert to compact rather than expose
+            // an unpainted expanded backdrop. The next acknowledgement belongs to a new generation.
+            if runtime.expanded.load(Ordering::Acquire) {
+                let _ = prepare_global_rail_surface(&app, &rail, false);
+                let _ = app.emit_to(
+                    "rail",
+                    "skribly://global-rail-presentation-error",
+                    "The panel did not finish drawing. Try opening it again.",
+                );
+            } else {
+                if let Ok(mut p) = runtime.presentation.lock() {
+                    let _ = p.acknowledge(generation);
+                }
+                let _ = set_global_reveal(&rail, None);
+                let _ = rail.show();
+                emit_rail_window_state(&app, false);
+            }
+        });
+    });
+}
+
+fn animate_global_rail_surface(
+    app: AppHandle,
+    rail: WebviewWindow,
+    generation: u64,
+    opening: bool,
+) {
+    std::thread::spawn(move || {
+        let runtime = rail_window_runtime();
+        let start_width = runtime.reveal_width.load(Ordering::Acquire);
+        let duration = if runtime.reduced_motion.load(Ordering::Acquire) {
+            0
+        } else if opening {
+            220
+        } else {
+            180
+        };
+        let started = std::time::Instant::now();
+        loop {
+            // One queued frame at a time. Never hold the operation gate while waiting for UI.
+            let (sent, received) = channel();
+            let frame_app = app.clone();
+            let frame_rail = rail.clone();
+            if app
+                .run_on_main_thread(move || {
+                    let done = global_rail_reveal_frame(
+                        &frame_app,
+                        &frame_rail,
+                        generation,
+                        opening,
+                        start_width,
+                        started,
+                        duration,
+                    );
+                    let _ = sent.send(done);
+                })
+                .is_err()
+            {
+                return;
+            }
+            if received.recv().unwrap_or(true) {
+                return;
+            }
+            std::thread::sleep(Duration::from_millis(16));
+        }
+    });
+}
+
+/// Executes on the UI thread. A busy gate skips a frame instead of blocking the event loop.
+fn global_rail_reveal_frame(
+    app: &AppHandle,
+    rail: &WebviewWindow,
+    generation: u64,
+    opening: bool,
+    start_width: u32,
+    started: std::time::Instant,
+    duration: u64,
+) -> bool {
+    let state = app.state::<AppState>();
+    let Ok(guard) = state.native_window_operation_gate.try_lock() else {
+        return true;
+    };
+    let Some(_guard) = guard else {
+        return false;
+    };
+    let runtime = rail_window_runtime();
+    if !runtime
+        .presentation
+        .lock()
+        .is_ok_and(|p| p.is_current(generation))
+    {
+        return true;
+    }
+    let full_width = rail.outer_size().map_or(start_width, |size| size.width);
+    let progress = if duration == 0 {
+        1.0
+    } else {
+        started.elapsed().as_secs_f64() * 1000.0 / duration as f64
+    };
+    let width = reveal_width(full_width, start_width, opening, progress);
+    if let Err(error) = set_global_reveal(rail, Some(width)) {
+        let _ = prepare_global_rail_surface(app, rail, false);
+        let _ = app.emit_to("rail", "skribly://global-rail-presentation-error", error);
+        return true;
+    }
+    runtime.reveal_width.store(width, Ordering::Release);
+    if progress < 1.0 {
+        return false;
+    }
+    let finished = runtime.presentation.lock().is_ok_and(|mut p| {
+        if opening {
+            p.finish_open(generation)
+        } else {
+            p.finish_close(generation)
+        }
+    });
+    if !finished {
+        return true;
+    }
+    if opening {
+        if let Err(error) = set_global_reveal(rail, None) {
+            let _ = prepare_global_rail_surface(app, rail, false);
+            let _ = app.emit_to("rail", "skribly://global-rail-presentation-error", error);
+            return true;
+        }
+        let _ = sync_ready_global_handle(app, rail);
+        let _ = rail.set_focus();
+        emit_rail_window_state(app, false);
+    } else {
+        // Resize/backdrop restoration happens only after the native surface is fully clipped.
+        let (width, height) = rail_surface_dimensions(false, false);
+        if let Err(error) = size_and_dock_rail(app, rail, width, height, false) {
+            let _ = prepare_global_rail_surface(app, rail, false);
+            let _ = app.emit_to("rail", "skribly://global-rail-presentation-error", error);
+            return true;
+        }
+        runtime.expanded.store(false, Ordering::Release);
+        emit_rail_window_state(app, false);
+        watch_global_surface_paint(app.clone(), rail.clone(), generation);
+    }
+    true
+}
+
+#[tauri::command]
+fn acknowledge_global_rail_surface(
+    window: WebviewWindow,
+    app_handle: AppHandle,
+    state: State<'_, AppState>,
+    surface_revision: u64,
+) -> Result<bool, String> {
+    if window.label() != "rail" {
+        return Err("Only the desktop panel can acknowledge its surface.".into());
+    }
+    let _guard = state.native_window_operation_gate.lock()?;
+    let runtime = rail_window_runtime();
+    let expanded = runtime
+        .presentation
+        .lock()
+        .map_err(|_| "The panel presentation is unavailable.")?
+        .acknowledge(surface_revision);
+    let Some(expanded) = expanded else {
+        return Ok(false);
+    };
+    if expanded {
+        animate_global_rail_surface(app_handle, window, surface_revision, true);
+    } else {
+        set_global_reveal(&window, None)?;
+        window.show().map_err(|e| e.to_string())?;
+        emit_rail_window_state(&app_handle, false);
+    }
+    Ok(true)
 }
 
 fn sync_global_panel_handle(
@@ -955,6 +1281,10 @@ fn schedule_rail_edge_dock(
         rail_window_runtime()
     };
     if runtime.consume_programmatic_movement(position) {
+        return;
+    }
+    if !contextual && runtime.presentation.lock().is_ok_and(|p| p.is_busy()) {
+        // Native reveal region updates also send position messages; they are not user drags.
         return;
     }
     let generation = runtime.begin_user_movement();
@@ -1238,6 +1568,15 @@ fn show_global_note_rail(app_handle: AppHandle) -> Result<(), String> {
     let rail = app_handle
         .get_webview_window("rail")
         .ok_or_else(|| "My Skribs rail is unavailable.".to_string())?;
+    // A note refresh must not reposition or focus the HWND in the middle of its reveal.
+    if rail_window_runtime()
+        .presentation
+        .lock()
+        .is_ok_and(|p| p.is_busy())
+    {
+        let _ = app_handle.emit("skribly://global-rail-refresh", ());
+        return Ok(());
+    }
     let (width, height) = rail_surface_dimensions(
         rail_window_runtime().expanded.load(Ordering::Acquire),
         false,
@@ -2555,6 +2894,7 @@ fn set_context_rail_expanded(
     contextual: bool,
     note_count: usize,
     arrival_revision: Option<u64>,
+    reduced_motion: Option<bool>,
 ) -> Result<RailWindowState, String> {
     let _operation_guard = state.native_window_operation_gate.lock()?;
     let current = get_rail_window_state(contextual);
@@ -2568,6 +2908,32 @@ fn set_context_rail_expanded(
     let rail = app_handle
         .get_webview_window(rail_label)
         .ok_or_else(|| "My Skribs rail is unavailable.".to_string())?;
+    if !contextual {
+        let runtime = rail_window_runtime();
+        runtime
+            .reduced_motion
+            .store(reduced_motion.unwrap_or(false), Ordering::Release);
+        if expanded {
+            if current.expanded && !runtime.presentation.lock().is_ok_and(|p| p.is_closing()) {
+                return Ok(current);
+            }
+            collapse_other_rail_locked(&app_handle, false)?;
+            prepare_global_rail_surface(&app_handle, &rail, true)?;
+        } else if current.expanded {
+            let generation = runtime
+                .presentation
+                .lock()
+                .map_err(|_| "The panel presentation is unavailable.")?
+                .begin_close();
+            if let Some(generation) = generation {
+                if let Some(handle) = app_handle.get_webview_window("global-rail-handle") {
+                    let _ = handle.hide();
+                }
+                animate_global_rail_surface(app_handle.clone(), rail, generation, false);
+            }
+        }
+        return Ok(get_rail_window_state(false));
+    }
     if expanded {
         collapse_other_rail_locked(&app_handle, contextual)?;
     }
@@ -2575,31 +2941,18 @@ fn set_context_rail_expanded(
     let (width, height) = rail_surface_dimensions(expanded, contextual);
     rail.set_always_on_top(true)
         .map_err(|error| format!("Skribli could not update the note rail layer: {error}"))?;
-    if contextual {
-        let target = context_rail_window_runtime()
-            .foreground_target()
-            .ok_or_else(|| "Skribli does not have an active application context.".to_string())?;
-        size_and_place_context_rail(&app_handle, &rail, &target, width, height)?;
-        context_rail_window_runtime()
-            .expanded
-            .store(expanded, Ordering::Release);
-        context_rail_window_runtime()
-            .revealed
-            .store(false, Ordering::Release);
-    } else {
-        rail_window_runtime().clear_context_placement();
-        size_and_dock_rail(&app_handle, &rail, width, height, expanded)?;
-        rail_window_runtime()
-            .expanded
-            .store(expanded, Ordering::Release);
-    }
+    let target = context_rail_window_runtime()
+        .foreground_target()
+        .ok_or_else(|| "Skribli does not have an active application context.".to_string())?;
+    size_and_place_context_rail(&app_handle, &rail, &target, width, height)?;
+    context_rail_window_runtime()
+        .expanded
+        .store(expanded, Ordering::Release);
+    context_rail_window_runtime()
+        .revealed
+        .store(false, Ordering::Release);
     rail.show()
         .map_err(|error| format!("Skribli could not show the note rail: {error}"))?;
-    if expanded && !contextual {
-        // Light dismissal needs an actual focused rail HWND before Windows can report
-        // the next click outside it as Focused(false).
-        let _ = rail.set_focus();
-    }
     emit_rail_window_state(&app_handle, contextual);
     Ok(get_rail_window_state(contextual))
 }
@@ -2631,7 +2984,7 @@ fn collapse_other_rail_locked(
         };
         size_and_place_context_rail(app_handle, &rail, &target, width, height)?;
     } else {
-        size_and_dock_rail(app_handle, &rail, width, height, false)?;
+        prepare_global_rail_surface(app_handle, &rail, false)?;
     }
     runtime.expanded.store(false, Ordering::Release);
     runtime.revealed.store(false, Ordering::Release);
@@ -3718,6 +4071,7 @@ pub fn run() {
             set_note_preferences,
             launch_supported_target_application,
             set_context_rail_expanded,
+            acknowledge_global_rail_surface,
             get_rail_window_state,
             set_context_rail_peek,
             open_skrib_note_here,
@@ -4507,7 +4861,13 @@ pub fn run() {
             label,
             event: tauri::WindowEvent::Focused(false),
             ..
-        } if label == "rail" && rail_window_runtime().expanded.load(Ordering::Acquire) => {
+        } if label == "rail"
+            && rail_window_runtime().expanded.load(Ordering::Acquire)
+            && rail_window_runtime()
+                .presentation
+                .lock()
+                .is_ok_and(|p| !p.is_busy()) =>
+        {
             let _ = app_handle.emit_to("rail", "skribly://global-rail-dismiss", ());
         }
         RunEvent::WindowEvent {

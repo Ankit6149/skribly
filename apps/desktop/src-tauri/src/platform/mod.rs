@@ -15,6 +15,9 @@ pub mod windows_focus;
 pub mod windows_placement;
 
 #[cfg(target_os = "windows")]
+pub mod windows_rail;
+
+#[cfg(target_os = "windows")]
 pub mod windows_target_capture;
 
 #[cfg(target_os = "macos")]
