@@ -505,8 +505,10 @@ export const ContextRail: React.FC<{ contextual: boolean; previewNotes?: SkribNo
 
       {!contextualDock && allGroups.length > 1 && <nav className="ribbon-context-strip" aria-label="Apps with Skribs">
         <button type="button" className={selectedGroupKey === null ? 'active' : ''} onClick={() => setSelectedGroupKey(null)}
+          aria-pressed={selectedGroupKey === null}
           aria-label="Show all apps" title="Every app in this view"><StickyNote size={14} aria-hidden="true" /><span className="rail-app-label">All apps</span><span>{visibleNotes.length}</span></button>
         {allGroups.map((group) => <button type="button" key={group.key} className={selectedGroupKey === group.key ? 'active' : ''}
+          aria-pressed={selectedGroupKey === group.key}
           onClick={() => setSelectedGroupKey(group.key)} aria-label={`${group.label}, ${group.notes.length} Skribs`} title={`${group.label} · ${group.notes.length}`}>
           <ContextIcon processName={group.notes[0]?.target_process_name ?? group.key}
             iconUrl={appIcons[(group.notes[0]?.target_process_name ?? group.key).toLowerCase()]} /><span>{group.notes.length}</span></button>)}
@@ -524,8 +526,8 @@ export const ContextRail: React.FC<{ contextual: boolean; previewNotes?: SkribNo
               disabled={openingId !== null} title={scope === 'archive' ? 'Return this Skrib to your active notes' : 'Open this Skrib beside the ribbon'}>
               <span className="skrib-ribbon-mark" aria-hidden="true"><ContextIcon processName={note.target_process_name ?? ''}
                 iconUrl={appIcons[(note.target_process_name ?? '').toLowerCase()]} /></span>
-              <span className="skrib-ribbon-copy"><strong>{noteTitle(note)}</strong>
-                <small>{note.target_title || applicationLabel(note.target_process_name)}</small>
+              <span className="skrib-ribbon-copy"><strong title={!contextualDock ? noteTitle(note) : undefined}>{noteTitle(note)}</strong>
+                <small title={note.target_title || undefined}>{!contextualDock && <span className="global-note-tone" aria-hidden="true" />}<span className={!contextualDock ? 'global-note-context' : undefined}>{note.target_title || applicationLabel(note.target_process_name)}</span></small>
                 {!contextualDock && note.text.trim().includes('\n') && <span className="global-note-preview">{note.text.trim().split(/\r?\n/).slice(1).join(' ')}</span>}
                 {contextualDock && <span className="skrib-card-preview">{note.text.trim() || 'A little room for your next thought.'}</span>}
                 {contextualDock && <span className="skrib-card-open">{scope === 'archive' ? 'Restore Skrib' : 'Open Skrib'}</span>}</span>
