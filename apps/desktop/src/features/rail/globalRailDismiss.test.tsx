@@ -91,6 +91,8 @@ describe('global widget light dismissal', () => {
     await act(async () => {
       native.stateListener?.({ contextual: false, expanded: false, revision: 2 });
     });
+    // A real pointer/keyboard open starts with focus on the compact launcher.
+    container.querySelector<HTMLButtonElement>('.context-rail-global-widget')?.focus();
     await act(async () => {
       native.stateListener?.({ contextual: false, expanded: true, revision: 3, surfaceRevision: 21 });
     });
