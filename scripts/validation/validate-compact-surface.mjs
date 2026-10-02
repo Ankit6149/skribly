@@ -11,8 +11,8 @@ async function read(relativePath) {
   return readFile(path.join(repositoryRoot, relativePath), 'utf8');
 }
 
-const styles = await read('apps/desktop/src/styles/note-experience.css');
-const paperStyles = await read('apps/desktop/src/styles/living-paper-polish.css');
+const styles = await read('apps/desktop/src/features/notes/styles/note-experience.css');
+const paperStyles = await read('apps/desktop/src/features/notes/styles/living-paper-polish.css');
 const globalStyles = await read('apps/desktop/src/styles/global.css');
 const websiteTheme = await read('apps/desktop/src/styles/website-theme.css');
 const composer = [
