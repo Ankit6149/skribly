@@ -6,7 +6,7 @@ use crate::core::models::{
     OverlayInitializationStatus, OverlayMetrics, SkribNote, TargetWindowInfo,
 };
 use crate::core::storage;
-use crate::note_lifecycle::OpenNoteRequest;
+use crate::core::notes::lifecycle::OpenNoteRequest;
 
 #[cfg(target_os = "windows")]
 use crate::platform::windows_events::WinEventPipeline;
