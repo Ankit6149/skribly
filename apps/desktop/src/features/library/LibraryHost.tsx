@@ -7,7 +7,7 @@ import { deleteOrphanedRichContent } from '../../lib/richContentStore';
 import { deleteRemindersForNote } from '../../lib/reminderStore';
 import { useLicenseStore } from '../../stores/licenseStore';
 import type { StorageHealthPayload } from '../../stores/skribStore';
-import '../../styles/library.css';
+import './styles/library.css';
 import {
   createLibraryExportRequest,
   isLibraryExportResult,
