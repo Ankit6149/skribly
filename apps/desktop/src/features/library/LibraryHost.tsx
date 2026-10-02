@@ -2,11 +2,11 @@ import { invoke } from '@tauri-apps/api/core';
 import { emit, listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { SkribNote } from '../../lib/geometry';
-import { deleteOrphanedRichContent } from '../../lib/richContentStore';
-import { deleteRemindersForNote } from '../../lib/reminderStore';
-import { useLicenseStore } from '../../stores/licenseStore';
-import type { StorageHealthPayload } from '../../stores/skribStore';
+import type { SkribNote } from '../notes/model/noteTypes';
+import { deleteOrphanedRichContent } from '../notes/persistence/richContentStore';
+import { deleteRemindersForNote } from '../reminders/persistence/reminderStore';
+import { useLicenseStore } from '../licensing/state/licenseStore';
+import type { StorageHealthPayload } from '../notes/state/skribStore';
 import './styles/library.css';
 import {
   createLibraryExportRequest,
