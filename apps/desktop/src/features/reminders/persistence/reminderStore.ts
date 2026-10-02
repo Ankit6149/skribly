@@ -1,3 +1,7 @@
+import { invoke } from '@tauri-apps/api/core';
+import { emit, listen } from '@tauri-apps/api/event';
+import type { LicenseStatus } from '../../licensing/state/licenseStore';
+
 export type ReminderStatus = 'upcoming' | 'overdue' | 'completed' | 'dismissed';
 export type ReminderRepeat = 'none' | 'daily' | 'weekdays' | 'weekly' | 'monthly';
 
@@ -47,11 +51,66 @@ export interface ReminderPersistence {
   deleteForNote(noteId: string): Promise<number>;
   getLastCheckedAt(): Promise<number | null>;
   setLastCheckedAt(value: number): Promise<void>;
+  update(id: string, updater: (current: SkribReminder | undefined) => SkribReminder | undefined): Promise<SkribReminder | undefined>;
+  claimDue(at: number): Promise<{ reminders: SkribReminder[]; lastCheckedAt: number | null }>;
+  finishForNote(noteId: string, at: number, state: 'completed' | 'dismissed'): Promise<number>;
 }
 
 export interface ReminderStoreOptions {
   now?: () => number;
   createId?: () => string;
+  assertCanWrite?: () => Promise<void>;
+}
+
+async function assertRuntimeCanWrite(): Promise<void> {
+  if (typeof window === 'undefined' || !('__TAURI_INTERNALS__' in window)) return;
+  const license = await readCurrentNativeLicense();
+  if (license.enforcementEnabled && !license.canWrite) {
+    throw new Error('This device is read-only. Reminder changes are unavailable until write access is verified.');
+  }
+  try {
+    const storage = await invoke<{ writable: boolean }>('get_storage_health');
+    if (!storage.writable) throw new Error('Local storage is read-only. Reminder changes are unavailable.');
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Local storage is read-only')) throw error;
+    throw new Error('Skribli could not verify local storage. Reminder changes are temporarily unavailable.');
+  }
+}
+
+async function readCurrentNativeLicense(): Promise<LicenseStatus> {
+  return new Promise<LicenseStatus>((resolve, reject) => {
+    let unlistenStatus: (() => void) | null = null;
+    let unlistenError: (() => void) | null = null;
+    let settled = false;
+    const finish = (status?: LicenseStatus, error?: Error) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeout);
+      unlistenStatus?.();
+      unlistenError?.();
+      if (error) reject(error);
+      else resolve(status!);
+    };
+    const timeout = window.setTimeout(
+      () => finish(undefined, new Error('Skribli could not verify write access.')),
+      3000
+    );
+    void Promise.all([
+      listen<LicenseStatus>('skribly://license-status', (event) => finish(event.payload)),
+      listen<string>('skribly://license-error', (event) => finish(undefined, new Error(event.payload))),
+    ]).then(([statusStop, errorStop]) => {
+      unlistenStatus = statusStop;
+      unlistenError = errorStop;
+      if (settled) {
+        statusStop();
+        errorStop();
+        return;
+      }
+      void emit('skribly://license-status-request').catch((error) =>
+        finish(undefined, error instanceof Error ? error : new Error(String(error)))
+      );
+    }).catch((error) => finish(undefined, error instanceof Error ? error : new Error(String(error))));
+  });
 }
 
 export const MAX_REMINDER_TITLE_LENGTH = 180;
@@ -367,6 +426,88 @@ export function createIndexedDbReminderPersistence(): ReminderPersistence {
         request.onerror = () => reject(request.error);
         request.onsuccess = () => setResult(undefined);
       }),
+    update: (id, updater) =>
+      runTransaction<SkribReminder | undefined>(REMINDERS_STORE, 'readwrite', (transaction, setResult, reject) => {
+        const store = transaction.objectStore(REMINDERS_STORE);
+        const request = store.get(id);
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => {
+          try {
+            const next = updater(request.result as SkribReminder | undefined);
+            if (!next) {
+              setResult(undefined);
+              return;
+            }
+            const put = store.put(next);
+            put.onerror = () => reject(put.error);
+            put.onsuccess = () => setResult(next);
+          } catch (error) {
+            reject(error);
+          }
+        };
+      }),
+    claimDue: (at) =>
+      runTransaction<{ reminders: SkribReminder[]; lastCheckedAt: number | null }>(
+        [REMINDERS_STORE, META_STORE],
+        'readwrite',
+        (transaction, setResult, reject) => {
+          const remindersStore = transaction.objectStore(REMINDERS_STORE);
+          const remindersRequest = remindersStore.getAll();
+          const metadataRequest = transaction.objectStore(META_STORE).get(LAST_CHECKED_KEY);
+          let reminders: SkribReminder[] | null = null;
+          let lastCheckedAt: number | null = null;
+          let metadataLoaded = false;
+          const finish = () => {
+            if (!reminders || !metadataLoaded) return;
+            const due = reminders
+              .map(normalizeStoredReminder)
+              .filter((reminder) => reminder.completedAt === null && reminder.dismissedAt === null && reminder.notifiedAt === null && reminder.dueAt <= at)
+              .sort(compareReminders);
+            const claimed = due.map((reminder) => ({ ...reminder, notifiedAt: at, updatedAt: at }));
+            for (const reminder of claimed) remindersStore.put(reminder);
+            transaction.objectStore(META_STORE).put({ key: LAST_CHECKED_KEY, value: at });
+            setResult({ reminders: claimed, lastCheckedAt });
+          };
+          remindersRequest.onerror = () => reject(remindersRequest.error);
+          remindersRequest.onsuccess = () => {
+            reminders = remindersRequest.result as SkribReminder[];
+            finish();
+          };
+          metadataRequest.onerror = () => reject(metadataRequest.error);
+          metadataRequest.onsuccess = () => {
+            const value = metadataRequest.result as { key: string; value: number } | undefined;
+            lastCheckedAt = value?.value ?? null;
+            metadataLoaded = true;
+            finish();
+          };
+        }
+      ),
+    finishForNote: (noteId, at, state) =>
+      runTransaction<number>(REMINDERS_STORE, 'readwrite', (transaction, setResult, reject) => {
+        const index = transaction.objectStore(REMINDERS_STORE).index('by-note');
+        const request = index.openCursor(IDBKeyRange.only(noteId));
+        let changed = 0;
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => {
+          const cursor = request.result;
+          if (!cursor) {
+            setResult(changed);
+            return;
+          }
+          const reminder = normalizeStoredReminder(cursor.value as SkribReminder);
+          if (reminder.completedAt === null && reminder.dismissedAt === null) {
+            cursor.update({
+              ...reminder,
+              completedAt: state === 'completed' ? at : null,
+              dismissedAt: state === 'dismissed' ? at : null,
+              notifiedAt: null,
+              updatedAt: at,
+            });
+            changed += 1;
+          }
+          cursor.continue();
+        };
+      }),
   };
 }
 
@@ -391,12 +532,44 @@ export function createMemoryReminderPersistence(initial: SkribReminder[] = []): 
     setLastCheckedAt: async (value) => {
       lastCheckedAt = value;
     },
+    update: async (id, updater) => {
+      const next = updater(reminders.get(id));
+      if (!next) return undefined;
+      reminders.set(id, normalizeStoredReminder(next));
+      return next;
+    },
+    claimDue: async (at) => {
+      const checkedAt = lastCheckedAt;
+      const due = [...reminders.values()].map(normalizeStoredReminder)
+        .filter((reminder) => reminder.completedAt === null && reminder.dismissedAt === null && reminder.notifiedAt === null && reminder.dueAt <= at)
+        .sort(compareReminders);
+      const claimed = due.map((reminder) => ({ ...reminder, notifiedAt: at, updatedAt: at }));
+      for (const reminder of claimed) reminders.set(reminder.id, reminder);
+      lastCheckedAt = at;
+      return { reminders: claimed, lastCheckedAt: checkedAt };
+    },
+    finishForNote: async (noteId, at, state) => {
+      let changed = 0;
+      for (const [id, reminder] of reminders) {
+        if (reminder.noteId !== noteId || reminder.completedAt !== null || reminder.dismissedAt !== null) continue;
+        reminders.set(id, {
+          ...reminder,
+          completedAt: state === 'completed' ? at : null,
+          dismissedAt: state === 'dismissed' ? at : null,
+          notifiedAt: null,
+          updatedAt: at,
+        });
+        changed += 1;
+      }
+      return changed;
+    },
   };
 }
 
 export function createReminderStore(persistence: ReminderPersistence, options: ReminderStoreOptions = {}) {
   const now = options.now ?? Date.now;
   const createId = options.createId ?? defaultCreateId;
+  const assertCanWrite = options.assertCanWrite ?? assertRuntimeCanWrite;
   const read = async (id: string): Promise<SkribReminder | undefined> => {
     const reminder = await persistence.get(id);
     return reminder ? normalizeStoredReminder(reminder) : undefined;
@@ -404,6 +577,7 @@ export function createReminderStore(persistence: ReminderPersistence, options: R
   const readAll = async (): Promise<SkribReminder[]> => (await persistence.list()).map(normalizeStoredReminder);
 
   const schedule = async (input: ScheduleReminderInput): Promise<SkribReminder> => {
+    await assertCanWrite();
     const currentTime = now();
     const dueAt = validateTimestamp(input.dueAt, 'Reminder time');
     if (dueAt <= currentTime) throw new Error('Choose a reminder time in the future.');
@@ -434,34 +608,36 @@ export function createReminderStore(persistence: ReminderPersistence, options: R
     (await readAll()).sort(compareReminders).map((reminder) => withStatus(reminder, at));
 
   const reschedule = async (id: string, dueAt: number, repeatOverride?: ReminderRepeat): Promise<SkribReminder> => {
-    const reminder = await read(id);
-    if (!reminder) throw new Error('This reminder no longer exists.');
+    await assertCanWrite();
     const currentTime = now();
     validateTimestamp(dueAt, 'Reminder time');
     if (dueAt <= currentTime) throw new Error('Choose a reminder time in the future.');
-    const repeat = repeatOverride === undefined ? normalizedRepeat(reminder) : validateRepeat(repeatOverride);
-    const { repeatAnchorDay: _storedAnchorDay, ...base } = reminder;
-    const updated: SkribReminder = {
-      ...base,
-      dueAt,
-      updatedAt: currentTime,
-      completedAt: null,
-      dismissedAt: null,
-      notifiedAt: null,
-      repeat,
-      ...(repeat === 'monthly' ? { repeatAnchorDay: new Date(dueAt).getDate() } : {}),
-    };
-    await persistence.put(updated);
+    const updated = await persistence.update(id, (reminder) => {
+      if (!reminder) return undefined;
+      const repeat = repeatOverride === undefined ? normalizedRepeat(reminder) : validateRepeat(repeatOverride);
+      const { repeatAnchorDay: _storedAnchorDay, ...base } = reminder;
+      return {
+        ...base,
+        dueAt,
+        updatedAt: currentTime,
+        completedAt: null,
+        dismissedAt: null,
+        notifiedAt: null,
+        repeat,
+        ...(repeat === 'monthly' ? { repeatAnchorDay: new Date(dueAt).getDate() } : {}),
+      };
+    });
+    if (!updated) throw new Error('This reminder no longer exists.');
     return updated;
   };
 
   const complete = async (id: string): Promise<SkribReminder> => {
-    const reminder = await read(id);
-    if (!reminder) throw new Error('This reminder no longer exists.');
+    await assertCanWrite();
     const completedAt = now();
-    const repeat = normalizedRepeat(reminder);
-    const updated: SkribReminder =
-      repeat === 'none'
+    const updated = await persistence.update(id, (reminder) => {
+      if (!reminder) return undefined;
+      const repeat = normalizedRepeat(reminder);
+      return repeat === 'none'
         ? { ...reminder, completedAt, dismissedAt: null, updatedAt: completedAt }
         : {
             ...reminder,
@@ -476,17 +652,18 @@ export function createReminderStore(persistence: ReminderPersistence, options: R
             notifiedAt: null,
             updatedAt: completedAt,
           };
-    await persistence.put(updated);
+    });
+    if (!updated) throw new Error('This reminder no longer exists.');
     return updated;
   };
 
   const dismiss = async (id: string): Promise<SkribReminder> => {
-    const reminder = await read(id);
-    if (!reminder) throw new Error('This reminder no longer exists.');
+    await assertCanWrite();
     const dismissedAt = now();
-    const repeat = normalizedRepeat(reminder);
-    const updated: SkribReminder =
-      repeat === 'none'
+    const updated = await persistence.update(id, (reminder) => {
+      if (!reminder) return undefined;
+      const repeat = normalizedRepeat(reminder);
+      return repeat === 'none'
         ? { ...reminder, completedAt: null, dismissedAt, updatedAt: dismissedAt }
         : {
             ...reminder,
@@ -501,38 +678,27 @@ export function createReminderStore(persistence: ReminderPersistence, options: R
             notifiedAt: null,
             updatedAt: dismissedAt,
           };
-    await persistence.put(updated);
+    });
+    if (!updated) throw new Error('This reminder no longer exists.');
     return updated;
   };
 
   const claimDue = async (at = now()): Promise<ClaimedReminder[]> => {
     validateTimestamp(at, 'Reminder check time');
-    const lastCheckedAt = await persistence.getLastCheckedAt();
-    const due = (await readAll())
-      .filter(
-        (reminder) =>
-          reminder.completedAt === null &&
-          reminder.dismissedAt === null &&
-          reminder.notifiedAt === null &&
-          reminder.dueAt <= at
-      )
-      .sort(compareReminders);
-
-    const claimed: ClaimedReminder[] = [];
-    for (const reminder of due) {
-      const updated = { ...reminder, notifiedAt: at, updatedAt: at };
-      await persistence.put(updated);
-      claimed.push({
+    const { reminders: due, lastCheckedAt } = await persistence.claimDue(at);
+    return due.map((updated) => ({
         ...withStatus(updated, at),
-        missed: reminder.dueAt < at && (lastCheckedAt === null || reminder.dueAt > lastCheckedAt),
-      });
-    }
-    await persistence.setLastCheckedAt(at);
-    return claimed;
+        missed: updated.dueAt < at && (lastCheckedAt === null || updated.dueAt > lastCheckedAt),
+      }));
   };
 
   const calendar = async (at = now(), timeZone = getLocalTimeZone()): Promise<CalendarReminderGroup[]> =>
     groupRemindersByCalendarDay(await readAll(), at, timeZone);
+
+  const finishForNote = async (noteId: string, state: 'completed' | 'dismissed'): Promise<number> => {
+    validateNoteId(noteId);
+    return persistence.finishForNote(noteId, now(), state);
+  };
 
   const restoreForNote = async (noteId: string, snapshot: ReadonlyArray<SkribReminder>): Promise<void> => {
     validateNoteId(noteId);
@@ -550,6 +716,7 @@ export function createReminderStore(persistence: ReminderPersistence, options: R
     reschedule,
     complete,
     dismiss,
+    finishForNote,
     claimDue,
     calendar,
     restoreForNote,
@@ -558,7 +725,14 @@ export function createReminderStore(persistence: ReminderPersistence, options: R
   };
 }
 
-const defaultStore = createReminderStore(createIndexedDbReminderPersistence());
+export function isNoteSourcePreview(): boolean {
+  return import.meta.env.DEV && typeof window !== 'undefined' && window.location.pathname === '/note-source-preview.html';
+}
+
+const defaultPersistence = isNoteSourcePreview()
+  ? createMemoryReminderPersistence()
+  : createIndexedDbReminderPersistence();
+const defaultStore = createReminderStore(defaultPersistence);
 
 export const scheduleReminder = defaultStore.schedule;
 export const getReminder = defaultStore.get;
@@ -566,6 +740,8 @@ export const listReminders = defaultStore.list;
 export const rescheduleReminder = defaultStore.reschedule;
 export const completeReminder = defaultStore.complete;
 export const dismissReminder = defaultStore.dismiss;
+export const cancelRemindersForTrashedNote = (noteId: string) => defaultStore.finishForNote(noteId, 'dismissed');
+export const completeRemindersForArchivedNote = (noteId: string) => defaultStore.finishForNote(noteId, 'completed');
 export const claimDueReminders = defaultStore.claimDue;
 export const getReminderCalendar = defaultStore.calendar;
 export const deleteReminder = defaultStore.delete;
@@ -577,3 +753,4 @@ export function createReminderDeletionHook(
 ): (noteId: string) => Promise<number> {
   return (noteId) => store.deleteForNote(noteId);
 }
+
