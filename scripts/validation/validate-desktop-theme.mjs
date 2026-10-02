@@ -8,7 +8,7 @@ const website = read('site/styles.css');
 const tokens = read('packages/design-system/src/tokens.css');
 const theme = read('apps/desktop/src/styles/website-theme.css');
 const globalStyles = read('apps/desktop/src/styles/global.css');
-const main = read('apps/desktop/src/main.tsx');
+const main = read('apps/desktop/src/app/main.tsx');
 
 const requiredDependencies = {
   '@fontsource/dm-sans': '5.3.0',
@@ -94,7 +94,7 @@ for (const fontImport of [
   if (!main.includes(fontImport)) throw new Error(`Desktop entrypoint is missing ${fontImport}.`);
 }
 
-if (main.lastIndexOf('./styles/website-theme.css') < main.lastIndexOf('./styles/startup-recovery.css')) {
+if (main.lastIndexOf('../styles/website-theme.css') < main.lastIndexOf('../styles/startup-recovery.css')) {
   throw new Error('The website-aligned desktop theme must load after feature styles.');
 }
 
