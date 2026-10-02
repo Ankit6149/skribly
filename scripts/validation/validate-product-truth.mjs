@@ -21,7 +21,7 @@ const windowsPlacement = await read('apps/desktop/src-tauri/src/platform/windows
 const windowsTargetCapture = await read(
   'apps/desktop/src-tauri/src/platform/windows_target_capture.rs'
 );
-const windowsSingleInstance = await read('apps/desktop/src-tauri/src/windows_single_instance.rs');
+const windowsSingleInstance = await read('apps/desktop/src-tauri/src/platform/windows/single_instance.rs');
 const tray = await read('apps/desktop/src-tauri/src/desktop/tray.rs');
 const overlayHost = await read('apps/desktop/src/features/overlay/OverlayHost.tsx');
 const homeHost = await read('apps/desktop/src/features/account/HomeHost.tsx');
