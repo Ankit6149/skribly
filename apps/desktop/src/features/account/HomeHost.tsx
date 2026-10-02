@@ -17,10 +17,10 @@ import {
   UserRound,
 } from 'lucide-react';
 import skriblyMarkUrl from '../../../../../assets/branding/skribly-app-icon.svg?url';
-import type { SkribNote } from '../../lib/geometry';
-import type { StorageHealthPayload } from '../../stores/skribStore';
-import { useAccountStore } from '../../stores/accountStore';
-import { useLicenseStore } from '../../stores/licenseStore';
+import type { SkribNote } from '../notes/model/noteTypes';
+import type { StorageHealthPayload } from '../notes/state/skribStore';
+import { useAccountStore } from './state/accountStore';
+import { useLicenseStore } from '../licensing/state/licenseStore';
 import {
   completeOnboarding,
   markOnboardingShown,
