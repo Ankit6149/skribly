@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { OverlayInitializationStatus, OverlayMetrics, SkribNote, TargetWindowInfo } from '../../../lib/geometry';
+import type { SkribNote } from '../model/noteTypes';
+import type { OverlayInitializationStatus, OverlayMetrics, TargetWindowInfo } from '../../../shared/native/windowTypes';
 import { useLicenseStore } from '../../licensing/state/licenseStore';
 
 type UnlistenFn = () => void;
