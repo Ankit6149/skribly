@@ -17,7 +17,6 @@ import {
   Plus,
   Paperclip,
   ListChecks,
-  AppWindow,
 } from 'lucide-react';
 import { OverlayMetrics, SkribNote, TargetWindowInfo } from '../../lib/geometry';
 import {
@@ -40,7 +39,6 @@ import { useSkribUiStore } from '../../stores/skribUiStore';
 import {
   DraftSaveController,
   DraftSaveSnapshot,
-  MAX_NOTE_CHARACTERS,
 } from './draftSaveController';
 import {
   INITIAL_DELETE_CONFIRMATION_STATE,
@@ -60,6 +58,12 @@ import {
   type RichTextEditorHandle,
 } from './RichTextEditor';
 import { discardSkribDraft, persistSkribText, stageSkribDraft } from './textPersistence';
+import { NoteCloseConfirmation } from '../notes/components/NoteCloseConfirmation';
+import { NoteDeleteConfirmation } from '../notes/components/NoteDeleteConfirmation';
+import { NotePlaceHeader } from '../notes/components/NotePlaceHeader';
+import { NoteSaveIndicator } from '../notes/components/NoteSaveIndicator';
+import { NoteWindowControls } from '../notes/components/NoteWindowControls';
+import type { NoteSurfaceSize, ResizeDirection } from '../notes/model/noteSurfaceTypes';
 import {
   borrowedSurfaceAfterResize,
   roomForNoteTool,
@@ -71,8 +75,6 @@ import {
 } from './toolSurfaceGeometry';
 
 type ComposerPanel = 'reminder' | null;
-type NoteSurfaceSize = 'compact' | 'medium' | 'large';
-type ResizeDirection = 'NorthEast' | 'NorthWest' | 'SouthEast' | 'SouthWest';
 
 const NOTE_COLORS = ['yellow', 'peach', 'mint', 'sky', 'lavender', 'rose', 'aqua', 'sand'] as const;
 const NOTE_TEXT_SIZES: SkribTextSize[] = ['small', 'medium', 'large'];
@@ -1086,25 +1088,15 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
             : 'View contextual note'
         }
       >
-        <header className="composer-paper-top" data-tauri-drag-region>
-          <div ref={contextTabRef} className="composer-context-tab" data-tauri-drag-region tabIndex={0}
-            aria-label={`Place: ${contextLabel}`}
-            aria-describedby="composer-place-detail"
-            onPointerEnter={() => setPlaceDetailOpen(true)} onPointerLeave={() => setPlaceDetailOpen(false)}
-            onFocus={() => setPlaceDetailOpen(true)} onBlur={() => setPlaceDetailOpen(false)}>
-            {appIconUrl
-              ? <img className="composer-context-app-icon" src={appIconUrl} alt="" aria-hidden="true" data-tauri-drag-region />
-              : <AppWindow size={20} strokeWidth={1.8} aria-hidden="true" data-tauri-drag-region />}
-          </div>
-          <span id="composer-open-state" className="sr-only">
-            {isNewNote
-              ? 'Skribli created a new empty Skrib for this application context.'
-              : 'Skribli reopened the existing Skrib for this application context.'}
-          </span>
-        </header>
-        <div id="composer-place-detail" className="composer-place-detail" role="note" data-open={placeDetailOpen}>
-          <small>Saved place</small><strong>{contextFullAppLabel}</strong><span>{contextLabel}</span>
-        </div>
+        <NotePlaceHeader
+          contextTabRef={contextTabRef}
+          contextLabel={contextLabel}
+          contextFullAppLabel={contextFullAppLabel}
+          appIconUrl={appIconUrl}
+          isNewNote={isNewNote}
+          placeDetailOpen={placeDetailOpen}
+          onPlaceDetailOpen={setPlaceDetailOpen}
+        />
         <div className="composer-side-tools" data-pinned={noteMenuOpen || colorPickerOpen || undefined}>
           <button type="button" className="composer-quick-color" ref={paletteButtonRef}
             aria-label="Paper colour" aria-expanded={colorPickerOpen} aria-controls="composer-paper-palette"
@@ -1396,120 +1388,55 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
           </div>
         )}
 
-        <div
-          id="composer-save-status"
-          className="composer-save-indicator"
-          data-state={saveSnapshot.status}
-          data-visible={saveSnapshot.status !== 'saved' || showSavedPulse || undefined}
-          role="status"
-          aria-live="polite"
-        >
-          <span aria-hidden={saveSnapshot.status === 'saved' && !showSavedPulse}>
-            {saveSnapshot.status === 'saving'
-              ? 'Saving…'
-              : saveSnapshot.status === 'failed'
-                ? 'Save failed'
-                : saveSnapshot.status === 'dirty'
-                  ? 'Unsaved'
-                  : 'Saved locally'}
-          </span>
-          <span className="sr-only">{saveLabel}. {saveDetail}</span>
-          <small id="composer-character-count" className={saveSnapshot.characterCount > MAX_NOTE_CHARACTERS * 0.9 ? 'composer-character-count' : 'sr-only'}>
-            {saveSnapshot.characterCount.toLocaleString()} / {MAX_NOTE_CHARACTERS.toLocaleString()}
-          </small>
-        </div>
+        <NoteSaveIndicator
+          snapshot={saveSnapshot}
+          showSavedPulse={showSavedPulse}
+          saveLabel={saveLabel}
+          saveDetail={saveDetail}
+        />
 
-        {deleteConfirmation === 'confirming' && (
-          <div className="composer-delete-confirmation composer-attached-confirmation" role="alert" aria-live="assertive">
-            <div className="composer-delete-copy">
-              <strong>Move this note to Trash?</strong>
-              <small id="composer-delete-warning">
-                You can restore it from All Skribs for 30 days.
-              </small>
-            </div>
-            <div className="composer-footer-actions">
-              <button type="button" className="secondary" autoFocus disabled={isFinishing} onClick={cancelDeleteConfirmation}>
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="danger-confirm"
-                disabled={isFinishing || hasPendingRichOperation || hasUnsavedInk}
-                onClick={() => void handleDelete()}
-              >
-                {isFinishing ? 'Moving…' : 'Move to Trash'}
-              </button>
-            </div>
-          </div>
-        )}
+        <NoteDeleteConfirmation
+          visible={deleteConfirmation === 'confirming'}
+          isFinishing={isFinishing}
+          hasPendingRichOperation={hasPendingRichOperation}
+          hasUnsavedInk={hasUnsavedInk}
+          onCancel={cancelDeleteConfirmation}
+          onConfirm={() => void handleDelete()}
+        />
 
-        {cancelConfirmationOpen && (
-          <div className="composer-discard-overlay">
-            <div className="composer-discard-confirmation" role="alertdialog" aria-modal="true"
-              aria-labelledby="composer-close-title" aria-describedby="composer-close-detail"
-              onKeyDown={(event) => {
-                if (event.key !== 'Tab') return;
-                const buttons = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('button:not(:disabled)'));
-                if (event.shiftKey && document.activeElement === buttons[0]) {
-                  event.preventDefault();
-                  buttons.at(-1)?.focus();
-                } else if (!event.shiftKey && document.activeElement === buttons.at(-1)) {
-                  event.preventDefault();
-                  buttons[0]?.focus();
-                }
-              }}>
-              <strong id="composer-close-title">Close this note?</strong>
-              <span id="composer-close-detail">{openAction === 'created'
-                ? 'Discard and close removes this new note and its files.'
-                : 'Discard and close restores the previously saved note.'}</span>
-              <div className="composer-discard-actions">
-                <button type="button" autoFocus onClick={() => {
-                  setCancelConfirmationOpen(false);
-                  closeButtonRef.current?.focus();
-                }}>Keep editing</button>
-                <button type="button" className="primary" onClick={() => {
-                  setCancelConfirmationOpen(false);
-                  void finishAndHide();
-                }} disabled={isFinishing || isRepositioning || hasPendingRichOperation || hasUnsavedInk || !storageWritable}>
-                  Save and close
-                </button>
-                <button type="button" className="danger" onClick={() => {
-                  setCancelConfirmationOpen(false);
-                  void discardSessionAndClose();
-                }} disabled={isFinishing || hasPendingRichOperation || hasUnsavedInk}>Discard and close</button>
-              </div>
-            </div>
-          </div>
-        )}
-        <button
-          type="button"
-          className="composer-put-away-fold"
-          onClick={() => void finishAndHide()}
-          disabled={isFinishing || isRepositioning || hasPendingRichOperation || hasUnsavedInk || deleteConfirmation === 'confirming' || cancelConfirmationOpen}
-          aria-label={
-            storageWritable
-              ? openAction === 'detached'
-                ? 'Done — save and close this Skrib'
-                : 'Done — save and put this Skrib away'
-              : 'Storage recovery required'
-          }
-          title={storageWritable ? 'Done — save and put away' : 'Storage recovery required'}
-        >
-          {isFinishing ? <span className="composer-button-spinner" aria-hidden="true" /> : 'Done'}
-        </button>
-        {(['NorthWest', 'NorthEast', 'SouthWest', 'SouthEast'] as ResizeDirection[]).map((direction) => (
-          <button
-            key={direction}
-            type="button"
-            className={`composer-resize-handle ${direction.toLowerCase()}`}
-            aria-label={`Resize this Skrib from the ${direction.replace(/([A-Z])/g, ' $1').trim().toLowerCase()} corner`}
-            title="Drag this corner until the Skrib feels right"
-            onPointerDown={(event) => {
-              event.preventDefault();
-              void startManualResize(direction);
-            }}
-          />
-        ))}
+        <NoteCloseConfirmation
+          visible={cancelConfirmationOpen}
+          created={openAction === 'created'}
+          isFinishing={isFinishing}
+          isRepositioning={isRepositioning}
+          hasPendingRichOperation={hasPendingRichOperation}
+          hasUnsavedInk={hasUnsavedInk}
+          storageWritable={storageWritable}
+          onKeepEditing={() => {
+            setCancelConfirmationOpen(false);
+            closeButtonRef.current?.focus();
+          }}
+          onSaveAndClose={() => {
+            setCancelConfirmationOpen(false);
+            void finishAndHide();
+          }}
+          onDiscardAndClose={() => {
+            setCancelConfirmationOpen(false);
+            void discardSessionAndClose();
+          }}
+        />
+        <NoteWindowControls
+          storageWritable={storageWritable}
+          detached={openAction === 'detached'}
+          isFinishing={isFinishing}
+          isRepositioning={isRepositioning}
+          hasPendingRichOperation={hasPendingRichOperation}
+          hasUnsavedInk={hasUnsavedInk}
+          deleteConfirming={deleteConfirmation === 'confirming'}
+          cancelConfirmationOpen={cancelConfirmationOpen}
+          onFinish={() => void finishAndHide()}
+          onResize={(direction) => void startManualResize(direction)}
+        />
       </section>
     </div>
   );
