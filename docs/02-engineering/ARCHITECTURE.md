@@ -1,6 +1,6 @@
 # Current Skribli architecture
 
-> **Status:** Windows v0 source of truth. This document describes the current code: one active contextual note with text, drawing, local attachments, one-time reminders, and a linked calendar. Further annotations, browser precision, macOS, sync, and payments are listed separately and are not production capabilities.
+> **Status:** Windows v0 source of truth. This document describes the current code: one active contextual note with text, drawing, local attachments, local one-time or recurring reminders, and a linked calendar. Further annotations, browser precision, macOS, sync, and payments are listed separately and are not production capabilities.
 
 ## Product boundary
 
@@ -77,7 +77,7 @@ The durable source of truth is a versioned, integrity-checked local JSON envelop
 Rich per-note data is a separate local subsystem in the WebView profile:
 
 - `skribly-rich-content` IndexedDB stores attachment blobs and versioned editable ink strokes;
-- `skribly-reminders` IndexedDB stores one-time reminder records plus last-check metadata used to claim missed reminders once;
+- `skribly-reminders` IndexedDB stores local reminder records, including repeat rules, plus last-check metadata used to claim due/missed reminders;
 - attachment and drawing writes are bounded and validated before persistence;
 - the reminder calendar groups timestamps in the user's local time zone, while Windows toast delivery is permission-gated and best effort.
 
@@ -106,10 +106,10 @@ Skrib content remains local. Account and entitlement calls do not upload note te
 
 ## Current capability limits
 
-The current Windows v0 supports editable pen/highlighter/eraser strokes, approved local image/video/document attachments, one-time local reminders, a calendar/agenda, and permission-gated Windows notifications. The following capabilities remain deferred and must not be inferred from prototypes, types, or planning documents:
+The current Windows v0 supports editable pen/highlighter/eraser strokes, approved local image/video/document attachments, local one-time and recurring reminders, a calendar/agenda, and permission-gated Windows notifications. The following capabilities remain deferred and must not be inferred from prototypes, types, or planning documents:
 
 - shapes, arrows, pins, labels, and checklists;
-- recurring or cloud-delivered reminders;
+- cloud-delivered reminders;
 - native portable export/import of IndexedDB ink, attachments, and reminders;
 - multiple simultaneous native note/dot windows;
 - browser URL/DOM anchoring or a production browser bridge;
