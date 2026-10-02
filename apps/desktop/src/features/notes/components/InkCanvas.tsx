@@ -18,7 +18,7 @@ import {
   type InkPersistenceState,
 } from '../persistence/inkPersistenceCoordinator';
 
-export type { InkPersistenceState } from './inkPersistenceCoordinator';
+export type { InkPersistenceState } from '../persistence/inkPersistenceCoordinator';
 
 export interface InkCanvasProps {
   initialStrokes?: InkStroke[];
