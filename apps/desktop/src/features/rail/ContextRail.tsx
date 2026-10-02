@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { ArchiveRestore, MapPin, Search, StickyNote } from 'lucide-react';
 import type { SkribNote } from '../../lib/geometry';
 import '../../styles/context-rail.css';
 import {
@@ -15,10 +14,11 @@ import { useNativeDrag } from '../../lib/useNativeDrag';
 import { observeRailWindowState, type RailWindowState } from './railWindowState';
 import { createContextPresence } from './contextPresence';
 import { afterRailPaint } from './railPaintReady';
-import { WidgetContextIcon } from '../widget/components/WidgetContextIcon';
+import { WidgetAppStrip } from '../widget/components/WidgetAppStrip';
 import { WidgetHeader } from '../widget/components/WidgetHeader';
 import { ContextWidgetLauncher, GlobalWidgetLauncher } from '../widget/components/WidgetLaunchers';
 import { WidgetNoteCard } from '../widget/components/WidgetNoteCard';
+import { ContextWidgetScopeMenu, GlobalWidgetControls } from '../widget/components/WidgetScopeControls';
 import type { RailScope } from '../widget/model/railTypes';
 
 const nativeRuntimeAvailable = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
@@ -461,36 +461,33 @@ export const ContextRail: React.FC<{ contextual: boolean; previewNotes?: SkribNo
         onCollapse={() => void toggleCollapsed()}
       />
 
-      {!contextualDock && <>
-        <nav className="global-shelf-scopes" aria-label="Which Skribs to show">
-          <button type="button" aria-pressed={scope === 'all'} onClick={() => selectScope('all')}><StickyNote size={15} aria-hidden="true" />All notes</button>
-          <button type="button" aria-pressed={scope === 'context'} onClick={() => selectScope('context')}><MapPin size={15} aria-hidden="true" />Here</button>
-          <button type="button" aria-pressed={scope === 'archive'} onClick={() => selectScope('archive')}><ArchiveRestore size={15} aria-hidden="true" />Archived</button>
-        </nav>
-        <label className="global-shelf-search"><Search size={17} aria-hidden="true" />
-          <input aria-label="Search saved Skribs" placeholder="Find a thought…" value={query} onChange={event => setQuery(event.target.value)} />
-        </label>
-      </>}
+      {!contextualDock && (
+        <GlobalWidgetControls
+          scope={scope}
+          query={query}
+          onScope={selectScope}
+          onQuery={setQuery}
+        />
+      )}
 
-      {menuOpen && <nav className="ribbon-scope-menu" aria-label="Which Skribs to show">
-        <button className={scope === 'context' ? 'active' : ''} type="button" onClick={() => selectScope('context')}>
-          <MapPin size={14} aria-hidden="true" /> Here <span>{activeContextNotes.length}</span></button>
-        <button className={scope === 'all' ? 'active' : ''} type="button" onClick={() => selectScope('all')}>
-          <Search size={14} aria-hidden="true" /> Everything <span>{activeNotes.length}</span></button>
-        <button className={scope === 'archive' ? 'active' : ''} type="button" onClick={() => selectScope('archive')}>
-          <ArchiveRestore size={14} aria-hidden="true" /> Archived <span>{archivedNotes.length}</span></button>
-      </nav>}
+      <ContextWidgetScopeMenu
+        open={menuOpen}
+        scope={scope}
+        contextCount={activeContextNotes.length}
+        activeCount={activeNotes.length}
+        archivedCount={archivedNotes.length}
+        onScope={selectScope}
+      />
 
-      {!contextualDock && allGroups.length > 1 && <nav className="ribbon-context-strip" aria-label="Apps with Skribs">
-        <button type="button" className={selectedGroupKey === null ? 'active' : ''} onClick={() => setSelectedGroupKey(null)}
-          aria-pressed={selectedGroupKey === null}
-          aria-label="Show all apps" title="Every app in this view"><StickyNote size={14} aria-hidden="true" /><span className="rail-app-label">All apps</span><span>{visibleNotes.length}</span></button>
-        {allGroups.map((group) => <button type="button" key={group.key} className={selectedGroupKey === group.key ? 'active' : ''}
-          aria-pressed={selectedGroupKey === group.key}
-          onClick={() => setSelectedGroupKey(group.key)} aria-label={`${group.label}, ${group.notes.length} Skribs`} title={`${group.label} · ${group.notes.length}`}>
-          <WidgetContextIcon processName={group.notes[0]?.target_process_name ?? group.key}
-            iconUrl={appIcons[(group.notes[0]?.target_process_name ?? group.key).toLowerCase()]} /><span>{group.notes.length}</span></button>)}
-      </nav>}
+      {!contextualDock && (
+        <WidgetAppStrip
+          groups={allGroups}
+          selectedGroupKey={selectedGroupKey}
+          visibleNoteCount={visibleNotes.length}
+          appIcons={appIcons}
+          onSelect={setSelectedGroupKey}
+        />
+      )}
 
       <div className="ribbon-fan" aria-live="polite">
         {loading ? <div className="ribbon-empty" role="status">Gathering your Skribs…</div>
