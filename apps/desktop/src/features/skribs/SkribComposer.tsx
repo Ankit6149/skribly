@@ -47,7 +47,7 @@ import {
 } from './deleteConfirmation';
 import type { OpenNoteAction } from './noteLifecycle';
 import { bundledAppIcon } from './bundledAppIcon';
-import { applicationLabel } from '../rail/contextRailModel';
+import { applicationLabel } from '../widget/model/contextRailModel';
 import { InkCanvas } from './InkCanvas';
 import type { InkPersistenceState } from './inkPersistenceCoordinator';
 import { NoteAttachmentPanel } from './NoteAttachmentPanel';
