@@ -41,7 +41,7 @@ const libraryExportTests = await read(
   'apps/desktop/src/features/library/libraryExport.test.ts'
 );
 const uiStore = await read('apps/desktop/src/features/notes/state/skribUiStore.ts');
-const styles = await read('apps/desktop/src/styles/library.css');
+const styles = await read('apps/desktop/src/features/library/styles/library.css');
 const acceptance = await read('docs/04-operations/ALL_SKRIBS_ACCEPTANCE.md');
 
 const windows = tauriConfig?.app?.windows ?? [];
