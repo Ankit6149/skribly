@@ -1,29 +1,42 @@
+mod app;
 mod core;
 mod desktop;
 mod platform;
 
-use std::collections::VecDeque;
-use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::{channel, Receiver};
-use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tauri::{
     AppHandle, Emitter, LogicalSize, Manager, PhysicalPosition, PhysicalSize, RunEvent, State,
     WebviewWindow,
 };
 
+use app::state::{
+    AppState, DismissedCollapsedWindow, NativeWindowOperationGate, NoteWindowRuntime,
+};
 use core::coordinator::{Coordinator, MatchResult};
 use core::models::{
     HitTestRect, OverlayInitializationStatus, OverlayMetrics, OverlayStatePayload, SkribNote,
     TargetWindowInfo,
 };
+use core::storage;
+use core::{account, license};
+use desktop::rail_presentation::reveal_width;
+use desktop::rail_state::{
+    clamp_rail_position_to_bounds, context_arrival_matches, context_rail_window_runtime,
+    detached_note_rail_label, nearest_rail_edge_position, rail_dock_side,
+    rail_position_after_size_change, rail_position_for_side_and_y, rail_window_runtime,
+    RailDockBounds, RailDockSide, RailWindowRuntime, RailWindowState,
+    CONTEXT_RAIL_COLLAPSED_HEIGHT, CONTEXT_RAIL_COLLAPSED_WIDTH, CONTEXT_RAIL_EDGE_MARGIN_LOGICAL,
+    CONTEXT_RAIL_PEEK_HEIGHT, CONTEXT_RAIL_PEEK_WIDTH, GLOBAL_RAIL_COLLAPSED_HEIGHT,
+    GLOBAL_RAIL_COLLAPSED_WIDTH, GLOBAL_RAIL_EDGE_MARGIN_LOGICAL, RAIL_DOCK_DEBOUNCE,
+    RAIL_EXPANDED_FALLBACK_HEIGHT, RAIL_EXPANDED_WIDTH,
+};
 use core::notes::lifecycle::{
     detached_open_request, reopened_open_request, shortcut_open_request, OpenNoteAction,
     OpenNoteRequest,
 };
-use core::storage;
-use core::{account, license};
-use desktop::rail_presentation::{reveal_width, RailPresentation};
 
 #[cfg(target_os = "windows")]
 use platform::windows::{
@@ -63,125 +76,6 @@ struct StorageHealthPayload {
     writable: bool,
     revision: u64,
     backup_directory: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct ProgrammaticNotePlacement {
-    note_id: String,
-    physical_x: i32,
-    physical_y: i32,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct DismissedCollapsedWindow {
-    note_id: String,
-    target_hwnd: isize,
-    target_process_name: String,
-    target_title: String,
-    armed: bool,
-}
-
-#[derive(Debug, Default)]
-pub(crate) struct NoteWindowRuntime {
-    active_note_id: Option<String>,
-    detached: bool,
-    borrowed_dimensions: Option<(f64, f64)>,
-    workspace_expanded: bool,
-    pending_programmatic_placement: Option<ProgrammaticNotePlacement>,
-    dismissed_collapsed_window: Option<DismissedCollapsedWindow>,
-    pending_open_request: Option<OpenNoteRequest>,
-}
-
-#[derive(Debug, Default)]
-struct NativeWindowOperationGate(Mutex<()>);
-
-impl NativeWindowOperationGate {
-    fn lock(&self) -> Result<MutexGuard<'_, ()>, String> {
-        self.0
-            .lock()
-            .map_err(|_| "The native window operation lock is unavailable.".to_string())
-    }
-    fn try_lock(&self) -> Result<Option<MutexGuard<'_, ()>>, String> {
-        match self.0.try_lock() {
-            Ok(guard) => Ok(Some(guard)),
-            Err(std::sync::TryLockError::WouldBlock) => Ok(None),
-            Err(std::sync::TryLockError::Poisoned(_)) => {
-                Err("The native window operation lock is unavailable.".into())
-            }
-        }
-    }
-}
-
-const GLOBAL_RAIL_COLLAPSED_WIDTH: f64 = 28.0;
-const GLOBAL_RAIL_COLLAPSED_HEIGHT: f64 = 80.0;
-const CONTEXT_RAIL_COLLAPSED_WIDTH: f64 = 28.0;
-const CONTEXT_RAIL_COLLAPSED_HEIGHT: f64 = 28.0;
-const CONTEXT_RAIL_PEEK_WIDTH: f64 = 164.0;
-const CONTEXT_RAIL_PEEK_HEIGHT: f64 = 36.0;
-const RAIL_EXPANDED_WIDTH: f64 = 388.0;
-const RAIL_EXPANDED_FALLBACK_HEIGHT: f64 = 430.0;
-const GLOBAL_RAIL_EDGE_MARGIN_LOGICAL: f64 = 0.0;
-const CONTEXT_RAIL_EDGE_MARGIN_LOGICAL: f64 = 8.0;
-const RAIL_DOCK_DEBOUNCE: Duration = Duration::from_millis(180);
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct ContextRailPlacement {
-    target_hwnd: isize,
-    bounds: RailDockBounds,
-    relative_x: i32,
-    relative_y: i32,
-}
-
-#[derive(Debug, Default)]
-struct RailWindowRuntime {
-    presentation: Mutex<RailPresentation>,
-    reveal_width: AtomicU32,
-    reduced_motion: AtomicBool,
-    movement_generation: AtomicU64,
-    pending_programmatic_positions: Mutex<VecDeque<(i32, i32)>>,
-    has_docked_position: AtomicBool,
-    global_widget_return_y: Mutex<Option<i32>>,
-    expanded: AtomicBool,
-    revealed: AtomicBool,
-    arrival_revision: AtomicU64,
-    state_revision: AtomicU64,
-    docked_left: AtomicBool,
-    foreground_target: Mutex<Option<TargetWindowInfo>>,
-    suppressed_context: Mutex<Option<String>>,
-    context_placement: Mutex<Option<ContextRailPlacement>>,
-}
-
-#[derive(Debug, Default, Clone, Copy, serde::Serialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-struct RailWindowState {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    surface_revision: Option<u64>,
-    contextual: bool,
-    expanded: bool,
-    revealed: bool,
-    arrival_revision: u64,
-    #[serde(rename = "revision")]
-    state_revision: u64,
-    dock_side: RailDockSide,
-}
-
-fn context_arrival_matches(expected: Option<u64>, current: RailWindowState) -> bool {
-    expected.is_none_or(|revision| revision == current.arrival_revision)
-}
-
-fn detached_note_rail_label(
-    caller: &str,
-    context_available: bool,
-    expected_arrival: Option<u64>,
-    current: RailWindowState,
-) -> Result<&'static str, String> {
-    if caller != "context-rail" {
-        return Ok("rail");
-    }
-    if !context_available || !context_arrival_matches(expected_arrival, current) {
-        return Err("The active app changed. Open its Skrib list and try again.".into());
-    }
-    Ok("context-rail")
 }
 
 #[tauri::command]
@@ -227,436 +121,6 @@ fn emit_rail_window_state(app_handle: &AppHandle, contextual: bool) {
         "skribly://rail-state-changed",
         get_rail_window_state(contextual),
     );
-}
-
-impl RailWindowRuntime {
-    fn remember_global_widget_y(&self, y: i32) {
-        if let Ok(mut saved) = self.global_widget_return_y.lock() {
-            *saved = Some(y);
-        }
-    }
-
-    fn global_widget_return_y(&self) -> Option<i32> {
-        self.global_widget_return_y
-            .lock()
-            .ok()
-            .and_then(|saved| *saved)
-    }
-
-    fn foreground_target(&self) -> Option<TargetWindowInfo> {
-        self.foreground_target
-            .lock()
-            .ok()
-            .and_then(|value| value.clone())
-    }
-
-    fn arrive(&self, target: &TargetWindowInfo) {
-        if let Ok(mut current) = self.foreground_target.lock() {
-            let changed = current.as_ref().is_none_or(|previous| {
-                previous.hwnd_val != target.hwnd_val
-                    || previous.context_fingerprint() != target.context_fingerprint()
-            });
-            if changed {
-                self.expanded.store(false, Ordering::Release);
-                self.revealed.store(true, Ordering::Release);
-                self.arrival_revision.fetch_add(1, Ordering::AcqRel);
-            }
-            *current = Some(target.clone());
-        }
-    }
-
-    fn is_suppressed(&self, target: &TargetWindowInfo) -> bool {
-        self.suppressed_context
-            .lock()
-            .ok()
-            .is_some_and(|value| value.as_deref() == Some(target.context_fingerprint().as_str()))
-    }
-
-    fn cancel_pending_user_dock(&self) {
-        self.movement_generation.fetch_add(1, Ordering::AcqRel);
-    }
-
-    fn record_programmatic_position(&self, position: PhysicalPosition<i32>) {
-        // App-controlled placement supersedes any delayed edge snap that was
-        // scheduled while the user was dragging the rail.
-        self.cancel_pending_user_dock();
-        if let Ok(mut pending) = self.pending_programmatic_positions.lock() {
-            pending.push_back((position.x, position.y));
-            while pending.len() > 8 {
-                pending.pop_front();
-            }
-        }
-        self.has_docked_position.store(true, Ordering::Release);
-    }
-
-    fn consume_programmatic_movement(&self, position: PhysicalPosition<i32>) -> bool {
-        let Ok(mut pending) = self.pending_programmatic_positions.lock() else {
-            return false;
-        };
-        let matching_index = pending
-            .iter()
-            .position(|(x, y)| x.abs_diff(position.x) <= 2 && y.abs_diff(position.y) <= 2);
-        if let Some(index) = matching_index {
-            pending.remove(index);
-            true
-        } else {
-            // A non-matching move is user-originated. Drop stale expected
-            // positions so a later drag cannot be mistaken for an old command.
-            pending.clear();
-            false
-        }
-    }
-
-    fn begin_user_movement(&self) -> u64 {
-        self.movement_generation
-            .fetch_add(1, Ordering::AcqRel)
-            .wrapping_add(1)
-    }
-
-    fn movement_is_current(&self, generation: u64) -> bool {
-        self.movement_generation.load(Ordering::Acquire) == generation
-    }
-
-    fn has_docked_position(&self) -> bool {
-        self.has_docked_position.load(Ordering::Acquire)
-    }
-
-    fn context_placement(&self) -> Option<ContextRailPlacement> {
-        self.context_placement.lock().ok().and_then(|value| *value)
-    }
-
-    fn record_context_placement(
-        &self,
-        target_hwnd: isize,
-        bounds: RailDockBounds,
-        position: PhysicalPosition<i32>,
-    ) {
-        if let Ok(mut placement) = self.context_placement.lock() {
-            *placement = Some(ContextRailPlacement {
-                target_hwnd,
-                bounds,
-                relative_x: position.x.saturating_sub(bounds.x),
-                relative_y: position.y.saturating_sub(bounds.y),
-            });
-        }
-    }
-
-    fn clear_context_placement(&self) {
-        if let Ok(mut placement) = self.context_placement.lock() {
-            *placement = None;
-        }
-    }
-}
-
-static RAIL_WINDOW_RUNTIME: OnceLock<RailWindowRuntime> = OnceLock::new();
-static CONTEXT_RAIL_WINDOW_RUNTIME: OnceLock<RailWindowRuntime> = OnceLock::new();
-
-fn rail_window_runtime() -> &'static RailWindowRuntime {
-    RAIL_WINDOW_RUNTIME.get_or_init(RailWindowRuntime::default)
-}
-
-fn context_rail_window_runtime() -> &'static RailWindowRuntime {
-    CONTEXT_RAIL_WINDOW_RUNTIME.get_or_init(RailWindowRuntime::default)
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct RailDockBounds {
-    x: i32,
-    y: i32,
-    width: i32,
-    height: i32,
-}
-
-#[derive(Debug, Default, Clone, Copy, serde::Serialize, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")]
-enum RailDockSide {
-    Left,
-    #[default]
-    Right,
-}
-
-fn rail_dock_limits(
-    window_size: PhysicalSize<u32>,
-    work_area: RailDockBounds,
-    margin: i32,
-) -> (i64, i64, i64, i64) {
-    let work_left = i64::from(work_area.x);
-    let work_top = i64::from(work_area.y);
-    let work_width = i64::from(work_area.width.max(0));
-    let work_height = i64::from(work_area.height.max(0));
-    let window_width = i64::from(window_size.width);
-    let window_height = i64::from(window_size.height);
-    let margin = i64::from(margin.max(0));
-
-    let horizontal_margin = margin.min((work_width - window_width).max(0) / 2);
-    let vertical_margin = margin.min((work_height - window_height).max(0) / 2);
-    let left = work_left.saturating_add(horizontal_margin);
-    let right = work_left
-        .saturating_add(work_width)
-        .saturating_sub(window_width)
-        .saturating_sub(horizontal_margin)
-        .max(left);
-    let top = work_top.saturating_add(vertical_margin);
-    let bottom = work_top
-        .saturating_add(work_height)
-        .saturating_sub(window_height)
-        .saturating_sub(vertical_margin)
-        .max(top);
-    (left, right, top, bottom)
-}
-
-fn rail_dock_side(
-    position: PhysicalPosition<i32>,
-    window_size: PhysicalSize<u32>,
-    work_area: RailDockBounds,
-    margin: i32,
-) -> RailDockSide {
-    let (left, right, _, _) = rail_dock_limits(window_size, work_area, margin);
-    let current_x = i64::from(position.x);
-    if current_x.abs_diff(left) <= current_x.abs_diff(right) {
-        RailDockSide::Left
-    } else {
-        RailDockSide::Right
-    }
-}
-
-fn rail_position_for_side_and_y(
-    side: RailDockSide,
-    y: i32,
-    window_size: PhysicalSize<u32>,
-    work_area: RailDockBounds,
-    margin: i32,
-) -> PhysicalPosition<i32> {
-    let (left, right, top, bottom) = rail_dock_limits(window_size, work_area, margin);
-    let x = match side {
-        RailDockSide::Left => left,
-        RailDockSide::Right => right,
-    };
-    PhysicalPosition::new(
-        x.clamp(i64::from(i32::MIN), i64::from(i32::MAX)) as i32,
-        i64::from(y)
-            .clamp(top, bottom)
-            .clamp(i64::from(i32::MIN), i64::from(i32::MAX)) as i32,
-    )
-}
-
-fn rail_position_after_size_change(
-    previous_position: PhysicalPosition<i32>,
-    previous_size: PhysicalSize<u32>,
-    next_size: PhysicalSize<u32>,
-    work_area: RailDockBounds,
-    margin: i32,
-) -> PhysicalPosition<i32> {
-    let side = rail_dock_side(previous_position, previous_size, work_area, margin);
-    rail_position_for_side_and_y(side, previous_position.y, next_size, work_area, margin)
-}
-
-fn nearest_rail_edge_position(
-    position: PhysicalPosition<i32>,
-    window_size: PhysicalSize<u32>,
-    work_area: RailDockBounds,
-    margin: i32,
-) -> PhysicalPosition<i32> {
-    let side = rail_dock_side(position, window_size, work_area, margin);
-    rail_position_for_side_and_y(side, position.y, window_size, work_area, margin)
-}
-
-fn clamp_rail_position_to_bounds(
-    position: PhysicalPosition<i32>,
-    window_size: PhysicalSize<u32>,
-    bounds: RailDockBounds,
-    margin: i32,
-) -> PhysicalPosition<i32> {
-    let (left, right, top, bottom) = rail_dock_limits(window_size, bounds, margin);
-    PhysicalPosition::new(
-        i64::from(position.x).clamp(left, right) as i32,
-        i64::from(position.y).clamp(top, bottom) as i32,
-    )
-}
-
-impl NoteWindowRuntime {
-    fn active_note_id(&self) -> Option<&str> {
-        self.active_note_id.as_deref()
-    }
-
-    fn detached_note_id(&self) -> Option<&str> {
-        self.active_note_id.as_deref().filter(|_| self.detached)
-    }
-
-    fn workspace_expanded_for(&self, note_id: &str) -> bool {
-        self.active_note_id.as_deref() == Some(note_id) && self.workspace_expanded
-    }
-
-    fn workspace_is_expanded(&self) -> bool {
-        self.active_note_id.is_some() && self.workspace_expanded
-    }
-
-    fn clear(&mut self) {
-        self.active_note_id = None;
-        self.detached = false;
-        self.borrowed_dimensions = None;
-        self.workspace_expanded = false;
-        self.pending_programmatic_placement = None;
-        self.dismissed_collapsed_window = None;
-        self.pending_open_request = None;
-    }
-
-    fn dismiss_collapsed_window(&mut self, note: &SkribNote, target: &TargetWindowInfo) {
-        self.hide_collapsed_window(note, target, false);
-    }
-
-    fn hide_active_note_until_context_returns(
-        &mut self,
-        note: &SkribNote,
-        target: &TargetWindowInfo,
-    ) {
-        self.active_note_id = Some(note.id.clone());
-        self.workspace_expanded =
-            !note.collapsed && note.width > COMPACT_WINDOW_LOGICAL_WIDTH as f64;
-        self.pending_programmatic_placement = None;
-        self.dismissed_collapsed_window = Some(DismissedCollapsedWindow {
-            note_id: note.id.clone(),
-            target_hwnd: target.hwnd_val,
-            target_process_name: target.process_name.clone(),
-            target_title: target.title.clone(),
-            armed: true,
-        });
-    }
-
-    fn hide_collapsed_window(&mut self, note: &SkribNote, target: &TargetWindowInfo, armed: bool) {
-        self.active_note_id = Some(note.id.clone());
-        self.workspace_expanded = false;
-        self.pending_programmatic_placement = None;
-        self.dismissed_collapsed_window = Some(DismissedCollapsedWindow {
-            note_id: note.id.clone(),
-            target_hwnd: target.hwnd_val,
-            target_process_name: target.process_name.clone(),
-            target_title: target.title.clone(),
-            armed,
-        });
-    }
-
-    fn dismissed_collapsed_window(&self) -> Option<&DismissedCollapsedWindow> {
-        self.dismissed_collapsed_window.as_ref()
-    }
-
-    fn arm_dismissed_collapsed_window(&mut self, expected: &DismissedCollapsedWindow) -> bool {
-        let Some(current) = self.dismissed_collapsed_window.as_mut() else {
-            return false;
-        };
-        if current != expected || current.armed {
-            return false;
-        }
-        current.armed = true;
-        true
-    }
-
-    fn record_programmatic_placement(
-        &mut self,
-        note_id: &str,
-        workspace_expanded: bool,
-        metrics: &OverlayMetrics,
-    ) {
-        if self.active_note_id() != Some(note_id) {
-            self.borrowed_dimensions = None;
-        }
-        self.active_note_id = Some(note_id.to_string());
-        self.detached = false;
-        self.workspace_expanded = workspace_expanded;
-        self.dismissed_collapsed_window = None;
-        self.pending_programmatic_placement = Some(ProgrammaticNotePlacement {
-            note_id: note_id.to_string(),
-            physical_x: metrics.overlay_physical_x,
-            physical_y: metrics.overlay_physical_y,
-        });
-    }
-
-    fn record_detached_placement(&mut self, note_id: &str, metrics: &OverlayMetrics) {
-        self.record_programmatic_placement(note_id, true, metrics);
-        self.detached = true;
-    }
-
-    fn borrowed_dimensions_for(&self, note_id: &str) -> Option<(f64, f64)> {
-        (self.active_note_id() == Some(note_id))
-            .then_some(self.borrowed_dimensions)
-            .flatten()
-    }
-
-    fn dimensions_to_save(&self, note: &SkribNote, observed: (f64, f64)) -> (f64, f64) {
-        if self.borrowed_dimensions_for(&note.id).is_some() {
-            (note.width, note.height)
-        } else {
-            observed
-        }
-    }
-
-    fn record_size_mode(&mut self, note: &SkribNote, width: f64, height: f64, temporary: bool) {
-        self.borrowed_dimensions = if temporary && (width != note.width || height != note.height) {
-            Some((width, height))
-        } else {
-            None
-        };
-    }
-
-    fn record_open_request(&mut self, request: OpenNoteRequest) {
-        self.pending_open_request = Some(request);
-    }
-
-    fn pending_open_request(&self) -> Option<OpenNoteRequest> {
-        self.pending_open_request.clone()
-    }
-
-    fn acknowledge_open_request(&mut self, note_id: &str) -> bool {
-        if self
-            .pending_open_request
-            .as_ref()
-            .is_some_and(|request| request.note_id == note_id)
-        {
-            self.pending_open_request = None;
-            true
-        } else {
-            false
-        }
-    }
-
-    fn should_ignore_position_save(
-        &mut self,
-        note_id: &str,
-        physical_x: i32,
-        physical_y: i32,
-    ) -> bool {
-        if self.detached_note_id() == Some(note_id) {
-            return true;
-        }
-        if self.active_note_id.is_some() && self.active_note_id.as_deref() != Some(note_id) {
-            return true;
-        }
-        let Some(pending) = self.pending_programmatic_placement.as_ref() else {
-            return false;
-        };
-        if pending.note_id != note_id {
-            return false;
-        }
-        let should_ignore = pending.physical_x == physical_x && pending.physical_y == physical_y;
-        self.pending_programmatic_placement = None;
-        should_ignore
-    }
-}
-
-pub struct AppState {
-    pub coordinator: Coordinator,
-    pub running: Arc<AtomicBool>,
-    pub init_status: Mutex<OverlayInitializationStatus>,
-    pub mutation_lock: Mutex<()>,
-    pub storage: Mutex<storage::StorageService>,
-    pub storage_notice: Mutex<Option<storage::StorageNotice>>,
-    pub storage_error: Mutex<Option<String>>,
-    pub(crate) note_window_runtime: Mutex<NoteWindowRuntime>,
-    native_lifecycle_generation: AtomicU64,
-    native_lifecycle_commit_lock: Mutex<()>,
-    native_window_operation_gate: NativeWindowOperationGate,
-    #[cfg(target_os = "windows")]
-    pub win_event_pipeline: WinEventPipeline,
 }
 
 fn set_rail_position(
@@ -3646,8 +3110,7 @@ fn resize_skrib_window(
         .note_window_runtime
         .lock()
         .map_err(|_| "The native note window state is unavailable.".to_string())?
-        .active_note_id
-        .as_deref()
+        .active_note_id()
         != Some(id.as_str())
     {
         return Err("This Skrib is no longer the open note.".into());
