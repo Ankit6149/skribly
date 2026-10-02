@@ -1,6 +1,5 @@
 mod core;
 mod desktop;
-mod note_lifecycle;
 mod platform;
 
 use std::collections::VecDeque;
@@ -21,8 +20,9 @@ use core::models::{
 use core::storage;
 use core::{account, license};
 use desktop::rail_presentation::{reveal_width, RailPresentation};
-use note_lifecycle::{
-    detached_open_request, reopened_open_request, shortcut_open_request, OpenNoteRequest,
+use core::notes::lifecycle::{
+    detached_open_request, reopened_open_request, shortcut_open_request, OpenNoteAction,
+    OpenNoteRequest,
 };
 
 #[cfg(target_os = "windows")]
@@ -4335,7 +4335,7 @@ pub fn run() {
                             .filter(SkribNote::is_active)
                             .count();
                         let open_request = if reopening {
-                            OpenNoteRequest { action: note_lifecycle::OpenNoteAction::Reopened,
+                            OpenNoteRequest { action: OpenNoteAction::Reopened,
                                 note_id, matching_note_count }
                         } else { shortcut_open_request(note_id, matching_note_count) };
 
