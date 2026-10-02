@@ -3,7 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import type { SkribNote } from '../../lib/geometry';
-import '../../styles/context-rail.css';
+import '../widget/styles/widget.css';
 import {
   applicationLabel, groupNotesForRail, isActiveRailNote, isArchivedRailNote, railPillCount,
 } from './contextRailModel';
