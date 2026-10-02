@@ -1,10 +1,11 @@
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { useEffect } from 'react';
-import { HomeHost } from '../features/account/HomeHost';
-import { OverlayHost } from '../features/overlay/OverlayHost';
-import { ContextRail } from '../features/rail/ContextRail';
-import { GlobalPanelHandle } from '../features/rail/GlobalPanelHandle';
 import { useLicenseStore } from '../stores/licenseStore';
+import { ContextWidgetWindow } from '../windows/context-widget/ContextWidgetWindow';
+import { HomeWindow } from '../windows/home/HomeWindow';
+import { NoteWindow } from '../windows/note/NoteWindow';
+import { GlobalWidgetHandleWindow } from '../windows/widget/GlobalWidgetHandleWindow';
+import { GlobalWidgetWindow } from '../windows/widget/GlobalWidgetWindow';
 import { classifyWindow, resolveWindowLabel } from './windowRouter';
 
 export function App() {
@@ -42,14 +43,16 @@ export function App() {
             : 'app-overlay-root'
       }
     >
-      {windowKind === 'home' ? (
-        <HomeHost />
+      {windowLabel === 'home' ? (
+        <HomeWindow />
       ) : windowLabel === 'global-rail-handle' ? (
-        <GlobalPanelHandle />
-      ) : windowKind === 'rail' ? (
-        <ContextRail contextual={windowLabel === 'context-rail'} />
+        <GlobalWidgetHandleWindow />
+      ) : windowLabel === 'context-rail' ? (
+        <ContextWidgetWindow />
+      ) : windowLabel === 'rail' ? (
+        <GlobalWidgetWindow />
       ) : (
-        <OverlayHost />
+        <NoteWindow />
       )}
     </main>
   );
