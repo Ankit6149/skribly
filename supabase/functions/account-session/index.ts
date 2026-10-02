@@ -20,7 +20,7 @@ const OFFLINE_GRACE_SECONDS = 72 * 60 * 60;
 interface RequestBody {
   deviceClaim: string;
   appVersion: string;
-  productUpdatesOptIn: boolean;
+  productUpdatesOptIn?: boolean | null;
 }
 
 interface TrialRow {
@@ -53,18 +53,39 @@ function base64Url(bytes: Uint8Array): string {
 async function readBody(request: Request): Promise<RequestBody> {
   const statedLength = Number(request.headers.get("content-length") || 0);
   if (statedLength > MAX_REQUEST_BYTES) throw new Error("request_too_large");
-  const text = await request.text();
-  if (new TextEncoder().encode(text).byteLength > MAX_REQUEST_BYTES) {
-    throw new Error("request_too_large");
+  // Apply the cap while reading, before allocating or parsing an untrusted full body.
+  const reader = request.body?.getReader();
+  const chunks: Uint8Array[] = [];
+  let bytes = 0;
+  if (reader) {
+    try {
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        bytes += value.byteLength;
+        if (bytes > MAX_REQUEST_BYTES) {
+          await reader.cancel().catch(() => undefined);
+          throw new Error("request_too_large");
+        }
+        chunks.push(value);
+      }
+    } finally { reader.releaseLock(); }
   }
-  const value = JSON.parse(text) as Partial<RequestBody>;
+  const body = new Uint8Array(bytes);
+  let offset = 0;
+  for (const chunk of chunks) { body.set(chunk, offset); offset += chunk.byteLength; }
+  let parsed: unknown;
+  try { parsed = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(body)); }
+  catch { throw new Error("invalid_request"); }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("invalid_request");
+  const value = parsed as Partial<RequestBody>;
   if (
     typeof value.deviceClaim !== "string" ||
     !DEVICE_CLAIM.test(value.deviceClaim) ||
     typeof value.appVersion !== "string" ||
     value.appVersion.length > 64 ||
     !APP_VERSION.test(value.appVersion) ||
-    typeof value.productUpdatesOptIn !== "boolean"
+    (value.productUpdatesOptIn != null && typeof value.productUpdatesOptIn !== "boolean")
   ) {
     throw new Error("invalid_request");
   }
@@ -133,7 +154,7 @@ Deno.serve(async (request: Request) => {
       p_user_id: user.id,
       p_device_claim: body.deviceClaim,
       p_app_version: body.appVersion,
-      p_product_updates_opt_in: body.productUpdatesOptIn,
+      p_product_updates_opt_in: body.productUpdatesOptIn ?? null,
     });
     if (error || !Array.isArray(data) || data.length !== 1) {
       console.error("trial_claim_failed", error?.code ?? "invalid_result");
