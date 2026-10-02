@@ -540,10 +540,6 @@ html[data-skribly-window="home"] #root,
 }
 
 /* All Skribs, search, import/export, Trash */
-html[data-skribly-window="library"],
-html[data-skribly-window="library"] body,
-html[data-skribly-window="library"] #root,
-.app-library-root,
 .library-shell {
   background: var(--paper) !important;
   color: var(--ink);

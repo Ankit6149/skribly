@@ -1,3 +1,0 @@
-# stores
-
-Ephemeral Zustand stores.

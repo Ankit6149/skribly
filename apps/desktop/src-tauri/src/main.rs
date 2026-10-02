@@ -1,6 +1,7 @@
 #![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
 
 #[cfg(target_os = "windows")]
+#[path = "platform/windows/single_instance.rs"]
 mod windows_single_instance;
 
 fn main() {

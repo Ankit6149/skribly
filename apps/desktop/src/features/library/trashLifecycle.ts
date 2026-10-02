@@ -1,4 +1,4 @@
-import type { SkribNote } from '../../lib/geometry';
+import type { SkribNote } from '../notes/model/noteTypes';
 
 export const TRASH_RETENTION_DAYS = 30;
 export const TRASH_RETENTION_SECONDS = TRASH_RETENTION_DAYS * 24 * 60 * 60;

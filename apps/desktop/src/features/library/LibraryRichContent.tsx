@@ -6,8 +6,8 @@ import {
   getRichContent,
   revokeAttachmentObjectUrl,
   type SkribAttachment,
-} from '../../lib/richContentStore';
-import { listReminders, type ReminderWithStatus } from '../../lib/reminderStore';
+} from '../notes/persistence/richContentStore';
+import { listReminders, type ReminderWithStatus } from '../reminders/persistence/reminderStore';
 
 interface LibraryRichContentProps {
   noteId: string;

@@ -1,3 +1,0 @@
-# lib
-
-Shared frontend utilities.

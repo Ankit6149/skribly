@@ -17,17 +17,17 @@ import {
   UserRound,
 } from 'lucide-react';
 import skriblyMarkUrl from '../../../../../assets/branding/skribly-app-icon.svg?url';
-import type { SkribNote } from '../../lib/geometry';
-import type { StorageHealthPayload } from '../../stores/skribStore';
-import { useAccountStore } from '../../stores/accountStore';
-import { useLicenseStore } from '../../stores/licenseStore';
+import type { SkribNote } from '../notes/model/noteTypes';
+import type { StorageHealthPayload } from '../notes/state/skribStore';
+import { useAccountStore } from './state/accountStore';
+import { useLicenseStore } from '../licensing/state/licenseStore';
 import {
   completeOnboarding,
   markOnboardingShown,
   readOnboardingStatus,
 } from '../onboarding/onboardingState';
 import { OnboardingSurface } from '../onboarding/OnboardingSurface';
-import { ReminderNotificationMonitor } from '../skribs/ReminderNotificationMonitor';
+import { ReminderNotificationMonitor } from '../reminders/notifications/ReminderNotificationMonitor';
 import { LibraryHost } from '../library/LibraryHost';
 import { NotePreferences } from '../settings/NotePreferences';
 import { LibraryImportPanel } from '../library/LibraryImportPanel';

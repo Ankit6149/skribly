@@ -24,7 +24,9 @@ const tauriConfig = JSON.parse(await read('apps/desktop/src-tauri/tauri.conf.jso
 const capabilities = JSON.parse(
   await read('apps/desktop/src-tauri/capabilities/default.json')
 );
-const app = await read('apps/desktop/src/App.tsx');
+const app = await read('apps/desktop/src/app/App.tsx');
+const homeWindow = await read('apps/desktop/src/windows/home/HomeWindow.tsx');
+const noteWindow = await read('apps/desktop/src/windows/note/NoteWindow.tsx');
 const homeHost = await read('apps/desktop/src/features/account/HomeHost.tsx');
 const nativeRuntime = await read('apps/desktop/src-tauri/src/lib.rs');
 const tray = await read('apps/desktop/src-tauri/src/desktop/tray.rs');
@@ -38,8 +40,8 @@ const libraryExport = await read('apps/desktop/src/features/library/libraryExpor
 const libraryExportTests = await read(
   'apps/desktop/src/features/library/libraryExport.test.ts'
 );
-const uiStore = await read('apps/desktop/src/stores/skribUiStore.ts');
-const styles = await read('apps/desktop/src/styles/library.css');
+const uiStore = await read('apps/desktop/src/features/notes/state/skribUiStore.ts');
+const styles = await read('apps/desktop/src/features/library/styles/library.css');
 const acceptance = await read('docs/04-operations/ALL_SKRIBS_ACCEPTANCE.md');
 
 const windows = tauriConfig?.app?.windows ?? [];
@@ -79,13 +81,18 @@ for (const label of ['main', 'home']) {
 
 const requiredAppRouting = [
   "windowLabel === 'home'",
-  '<HomeHost />',
-  '<OverlayHost />',
+  '<HomeWindow />',
+  '<NoteWindow />',
+  '<GlobalWidgetWindow />',
+  '<ContextWidgetWindow />',
+  '<GlobalWidgetHandleWindow />',
   "document.documentElement.dataset.skriblyWindow = windowLabel",
 ];
 for (const marker of requiredAppRouting) {
   if (!app.includes(marker)) failures.push(`App window routing is missing: ${marker}`);
 }
+if (!homeWindow.includes('<HomeHost />')) failures.push('Home window must compose HomeHost.');
+if (!noteWindow.includes('<OverlayHost />')) failures.push('Note window must compose OverlayHost.');
 for (const marker of ['<LibraryHost', 'active', 'request={libraryRequest}', 'desktop-workspace-shell', "listen<{ view?: string }>('skribly://library-view'"]) {
   if (!homeHost.includes(marker)) failures.push(`Single workspace navigation is missing: ${marker}`);
 }
@@ -220,7 +227,7 @@ for (const testName of [
   }
 }
 
-if (await exists('apps/desktop/src/features/skribs/NotesWidget.tsx')) {
+if (await exists('apps/desktop/src/features/notes/NotesWidget.tsx')) {
   failures.push('Retired floating NotesWidget.tsx must not exist.');
 }
 for (const retiredState of [
@@ -236,7 +243,6 @@ for (const retiredState of [
 }
 
 for (const marker of [
-  "html[data-skribly-window='library']",
   '.library-workspace',
   '.library-note-row.selected',
   '@media (prefers-reduced-motion: reduce)',

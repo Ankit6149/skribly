@@ -25,14 +25,17 @@ const storage = await read('apps/desktop/src-tauri/src/core/storage.rs');
 const coordinator = await read('apps/desktop/src-tauri/src/core/coordinator.rs');
 const nativeEntry = await read('apps/desktop/src-tauri/src/lib.rs');
 const nativeLibrary = await read('apps/desktop/src-tauri/src/desktop/library.rs');
-const geometry = await read('apps/desktop/src/lib/geometry.ts');
-const store = await read('apps/desktop/src/stores/skribStore.ts');
-const storeTests = await read('apps/desktop/src/stores/skribStore.test.ts');
-const composer = await read('apps/desktop/src/features/skribs/SkribComposer.tsx');
+const geometry = await read('apps/desktop/src/features/notes/model/noteTypes.ts');
+const store = await read('apps/desktop/src/features/notes/state/skribStore.ts');
+const storeTests = await read('apps/desktop/src/features/notes/state/skribStore.test.ts');
+const composer = [
+  await read('apps/desktop/src/features/notes/SkribComposer.tsx'),
+  await read('apps/desktop/src/features/notes/components/NoteDeleteConfirmation.tsx'),
+].join('\n');
 const library = await read('apps/desktop/src/features/library/LibraryHost.tsx');
 const lifecycle = await read('apps/desktop/src/features/library/trashLifecycle.ts');
 const lifecycleTests = await read('apps/desktop/src/features/library/trashLifecycle.test.ts');
-const styles = await read('apps/desktop/src/styles/trash.css');
+const styles = await read('apps/desktop/src/features/library/styles/trash.css');
 const adr = await read('docs/02-engineering/ADR-0003-reversible-trash-lifecycle.md');
 const acceptance = await read('docs/04-operations/TRASH_ACCEPTANCE.md');
 const privacy = await read('site/privacy.html');

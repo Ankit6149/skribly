@@ -1,6 +1,6 @@
 # Current Skribli architecture
 
-> **Status:** Windows v0 source of truth. This document describes the current code: one active contextual note with text, drawing, local attachments, one-time reminders, and a linked calendar. Further annotations, browser precision, macOS, sync, and payments are listed separately and are not production capabilities.
+> **Status:** Windows v0 source of truth. This document describes the current code: one active contextual note with text, drawing, local attachments, local one-time or recurring reminders, and a linked calendar. Further annotations, browser precision, macOS, sync, and payments are listed separately and are not production capabilities.
 
 ## Product boundary
 
@@ -77,7 +77,7 @@ The durable source of truth is a versioned, integrity-checked local JSON envelop
 Rich per-note data is a separate local subsystem in the WebView profile:
 
 - `skribly-rich-content` IndexedDB stores attachment blobs and versioned editable ink strokes;
-- `skribly-reminders` IndexedDB stores one-time reminder records plus last-check metadata used to claim missed reminders once;
+- `skribly-reminders` IndexedDB stores local reminder records, including repeat rules, plus last-check metadata used to claim due/missed reminders;
 - attachment and drawing writes are bounded and validated before persistence;
 - the reminder calendar groups timestamps in the user's local time zone, while Windows toast delivery is permission-gated and best effort.
 
@@ -89,27 +89,41 @@ Skrib content remains local. Account and entitlement calls do not upload note te
 
 | Concern | Authoritative area |
 | --- | --- |
-| React entry/startup recovery | `apps/desktop/src/bootstrap.ts`, `src/main.tsx` |
+| React shell, startup recovery, and window routing | `apps/desktop/src/app` (root `bootstrap.ts`, `main.tsx`, and `App.tsx` are compatibility entrypoints) |
+| Tauri WebView composition | `apps/desktop/src/windows` |
 | Home, account, and quick guide | `apps/desktop/src/features/account`, `src/features/onboarding` |
-| Compact/expanded editor, ink, files, reminders | `apps/desktop/src/features/skribs` |
-| Rich-content/reminder IndexedDB repositories | `apps/desktop/src/lib/richContentStore.ts`, `src/lib/reminderStore.ts` |
-| My Skribs rail, library, Archive, calendar, Trash, export/import UI | `apps/desktop/src/features/rail`, `apps/desktop/src/features/library` |
-| Frontend native boundary/state | `apps/desktop/src/stores` |
+| Note domain/lifecycle/model/persistence | `apps/desktop/src/features/notes` |
+| Note presentation components | `apps/desktop/src/features/notes/components` |
+| Note lifecycle/state coordinator and editor surface | `apps/desktop/src/features/notes/SkribComposer.tsx`, `apps/desktop/src/features/notes` |
+| Reminder domain/model | `apps/desktop/src/features/reminders` |
+| Note rich-content IndexedDB repository | `apps/desktop/src/features/notes/persistence/richContentStore.ts` |
+| Reminder IndexedDB repository and notification delivery | `apps/desktop/src/features/reminders/persistence`, `apps/desktop/src/features/reminders/notifications` |
+| Widget domain/lifecycle/model | `apps/desktop/src/features/widget` |
+| Widget presentation components | `apps/desktop/src/features/widget/components` |
+| Widget lifecycle/state coordinator | `apps/desktop/src/features/widget/ContextRail.tsx` |
+| Library, Archive, calendar, Trash, export/import UI | `apps/desktop/src/features/library` |
+| Feature-owned Zustand state | `apps/desktop/src/features/account/state`, `src/features/licensing/state`, `src/features/notes/state` |
+| Native application state/runtime gates | `apps/desktop/src-tauri/src/app/state.rs` |
+| Native rail state, docking geometry, and runtime bookkeeping | `apps/desktop/src-tauri/src/desktop/rail_state.rs` |
 | Note coordination and persistence | `apps/desktop/src-tauri/src/core` |
-| Explicit note-open lifecycle | `apps/desktop/src-tauri/src/note_lifecycle.rs` |
+| Explicit note-open lifecycle | `apps/desktop/src-tauri/src/core/notes/lifecycle.rs` |
 | Library/import native operations | `apps/desktop/src-tauri/src/desktop` |
 | Windows capture/events/placement | `apps/desktop/src-tauri/src/platform` |
-| Tray and single-instance shell | `apps/desktop/src-tauri/src/desktop/tray.rs`, `src/windows_single_instance.rs` |
+| Tray and single-instance shell | `apps/desktop/src-tauri/src/desktop/tray.rs`, `src/platform/windows/single_instance.rs` |
+| Shared frontend hooks/native helpers | `apps/desktop/src/shared` |
+| Native window types and frontend placement math | `apps/desktop/src/shared/native` |
+| Canonical frontend Skrib note model | `apps/desktop/src/features/notes/model/noteTypes.ts` |
+| Feature-owned desktop styles | `apps/desktop/src/features/*/styles` |
 | Shared visual tokens | `packages/design-system/src/tokens.css` |
 | Website and owner download | `site/` |
 | Repository/product/release contracts | `scripts/validation`, `scripts/governance`, `.github/workflows` |
 
 ## Current capability limits
 
-The current Windows v0 supports editable pen/highlighter/eraser strokes, approved local image/video/document attachments, one-time local reminders, a calendar/agenda, and permission-gated Windows notifications. The following capabilities remain deferred and must not be inferred from prototypes, types, or planning documents:
+The current Windows v0 supports editable pen/highlighter/eraser strokes, approved local image/video/document attachments, local one-time and recurring reminders, a calendar/agenda, and permission-gated Windows notifications. The following capabilities remain deferred and must not be inferred from prototypes, types, or planning documents:
 
 - shapes, arrows, pins, labels, and checklists;
-- recurring or cloud-delivered reminders;
+- cloud-delivered reminders;
 - native portable export/import of IndexedDB ink, attachments, and reminders;
 - multiple simultaneous native note/dot windows;
 - browser URL/DOM anchoring or a production browser bridge;

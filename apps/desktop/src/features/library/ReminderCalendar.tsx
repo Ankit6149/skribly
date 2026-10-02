@@ -1,13 +1,13 @@
 import { emit, listen } from '@tauri-apps/api/event';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import type { SkribNote } from '../../lib/geometry';
+import type { SkribNote } from '../notes/model/noteTypes';
 import {
   completeReminder,
   dismissReminder,
   getReminderCalendar,
   type CalendarReminderGroup,
   type ReminderWithStatus,
-} from '../../lib/reminderStore';
+} from '../reminders/persistence/reminderStore';
 import { noteDisplayTitle } from './libraryModel';
 
 interface ReminderCalendarProps {

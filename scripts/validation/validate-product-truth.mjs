@@ -21,12 +21,12 @@ const windowsPlacement = await read('apps/desktop/src-tauri/src/platform/windows
 const windowsTargetCapture = await read(
   'apps/desktop/src-tauri/src/platform/windows_target_capture.rs'
 );
-const windowsSingleInstance = await read('apps/desktop/src-tauri/src/windows_single_instance.rs');
+const windowsSingleInstance = await read('apps/desktop/src-tauri/src/platform/windows/single_instance.rs');
 const tray = await read('apps/desktop/src-tauri/src/desktop/tray.rs');
 const overlayHost = await read('apps/desktop/src/features/overlay/OverlayHost.tsx');
 const homeHost = await read('apps/desktop/src/features/account/HomeHost.tsx');
 const accountClient = await read('apps/desktop/src/features/account/accountClient.ts');
-const accountStore = await read('apps/desktop/src/stores/accountStore.ts');
+const accountStore = await read('apps/desktop/src/features/account/state/accountStore.ts');
 const accountNative = await read('apps/desktop/src-tauri/src/core/account.rs');
 const licenseNative = await read('apps/desktop/src-tauri/src/core/license.rs');
 const tauriConfig = JSON.parse(await read('apps/desktop/src-tauri/tauri.conf.json'));
@@ -53,6 +53,8 @@ const singleInstanceAcceptance = await read('docs/04-operations/SINGLE_INSTANCE_
 const winEventAcceptance = await read('docs/04-operations/WIN_EVENT_ACCEPTANCE.md');
 const targetCaptureAcceptance = await read('docs/04-operations/TARGET_CAPTURE_ACCEPTANCE.md');
 const firstRunAcceptance = await read('docs/04-operations/FIRST_RUN_ACCEPTANCE.md');
+const documentationIndex = await read('docs/current/README.md');
+const repositoryStructure = await read('docs/current/REPOSITORY_STRUCTURE.md');
 const architecture = await read('docs/02-engineering/ARCHITECTURE.md');
 const provisionalStackAdr = await read('docs/02-engineering/adr/ADR-001-provisional-stack.md');
 const interactionSpec = await read('docs/01-design/INTERACTION_SPEC.md');
@@ -67,25 +69,14 @@ const historicalOverlayGate = await read(
 );
 
 const requiredReadmeClaims = [
-  'A normal launch always opens the visible **Skribli Home** window.',
-  'The guide creates no sample Skrib and can be reopened later from **Quick guide** in the tray.',
-  'A verified account is mandatory for write access',
-  'Changing accounts or reinstalling on the same Windows device does not restart that device’s trial.',
-  'Skribli hides the saved editor only after the latest draft is durable and returns it to the appropriate **My Skribs** surface.',
-  'A compact note editor opens inside that target monitor’s usable work area.',
-  'Skribli captures the foreground target once, clears any previous runtime target, and revalidates the exact HWND and process identity before using it.',
-  'Skribli shows one actionable compact message, clears the previous target, and does not create, reopen, move, or focus a note.',
-  'Launching Skribli again in the same Windows user session restores the existing Home window',
-  'Windows accessibility events use bounded, non-blocking delivery with callback-side filtering and duplicate coalescing.',
-  'The current build uses two deliberately separate entry surfaces instead of creating a floating dot for every note.',
-  'Their overflow offers **Here**, **Everything**, and **Archived**',
-  'ordinary deletion is reversible through Trash',
-  'A normal non-floating **All Skribs** window',
-  'Reversible Trash with 30-day recovery guidance',
-  'Portable JSON import with strict validation',
-  'macOS support;',
-  'Skribli is **not currently available as a public download**.',
-];
+  '**Status — private Windows product development.**',
+  'current private owner candidate is **v0.1.51**',
+  '[docs/README.md](docs/README.md)',
+  '[docs/current/README.md](docs/current/README.md)',
+  'Structural cleanup must not hide product-behavior changes inside file moves.',
+  'Current portable JSON does **not** include IndexedDB ink, attachment blobs or reminders.',
+  'Skribli is **not a public download**.',
+]
 
 for (const claim of requiredReadmeClaims) {
   if (!readme.includes(claim)) {
@@ -112,7 +103,10 @@ for (const claim of retiredReadmeClaims) {
 const requiredCurrentDocumentation = [
   [architecture, 'Windows v0 source of truth', 'architecture'],
   [architecture, 'The durable source of truth is a versioned, integrity-checked local JSON envelope', 'architecture'],
-  [architecture, 'one active contextual note with text, drawing, local attachments, one-time reminders, and a linked calendar', 'architecture'],
+  [documentationIndex, 'Current Skribli source-of-truth index', 'current documentation index'],
+  [repositoryStructure, 'Target repository structure', 'repository structure'],
+  [repositoryStructure, 'One subsystem per PR.', 'repository structure'],
+  [architecture, 'one active contextual note with text, drawing, local attachments, local one-time or recurring reminders, and a linked calendar', 'architecture'],
   [architecture, 'Ink strokes, attachment blobs, and reminder records are not yet included in native portable JSON export/import.', 'architecture'],
   [architecture, 'SQLite is a possible future migration, not the current store.', 'architecture'],
   [provisionalStackAdr, 'Superseded historical spike', 'provisional stack ADR'],

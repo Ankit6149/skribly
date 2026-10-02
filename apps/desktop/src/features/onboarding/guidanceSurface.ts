@@ -1,4 +1,4 @@
-import type { OverlayInitializationStatus } from '../../lib/geometry';
+import type { OverlayInitializationStatus } from '../../shared/native/windowTypes';
 import type { StorageSurface } from '../overlay/storageSurface';
 
 export type PrimaryWindowSurface =

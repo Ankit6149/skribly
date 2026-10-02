@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { SkribNote } from '../../lib/geometry';
+import type { SkribNote } from '../notes/model/noteTypes';
 import {
   filterLibraryNotes,
   noteContextLabel,

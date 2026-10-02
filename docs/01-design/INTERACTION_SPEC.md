@@ -51,11 +51,11 @@ An empty typed draft is discarded only when the Skrib also has no saved drawing,
 
 ## Reminder and calendar
 
-- Each Skrib can schedule or reschedule a one-time local reminder with an optional bounded title.
+- Each Skrib can schedule or reschedule a local reminder with an optional bounded title and a repeat rule of none, daily, weekdays, weekly, or monthly.
 - Reminder state is upcoming, overdue, completed, or dismissed. The editor can complete, dismiss, or remove the reminder.
 - All Skribs includes a local-time-zone month calendar and agenda. Selecting **Open Skrib** returns to the linked library note.
 - While Skribli is running, its reminder monitor claims due and missed reminders once and sends a privacy-safe Windows notification when operating-system notification permission is available. A denied or unavailable notification permission does not prevent the reminder from being saved or shown in the calendar.
-- Recurrence and cloud-delivered reminders are not current behavior.
+- Reminder recurrence is device-local. Cloud-delivered reminders are not current behavior.
 
 ## Reposition
 

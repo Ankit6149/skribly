@@ -1,7 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { emit } from '@tauri-apps/api/event';
 import { createClient, type Session, type SupabaseClient, type SupportedStorage } from '@supabase/supabase-js';
-import type { LicenseStatus } from '../../stores/licenseStore';
+import type { LicenseStatus } from '../licensing/state/licenseStore';
 
 export interface AccountConfiguration {
   supabaseUrl: string;

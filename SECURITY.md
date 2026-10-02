@@ -10,8 +10,8 @@ Skribli is in active production development and no public installer is currently
 
 - No screen recording in v1.
 - No capture of typed content outside Skribli.
-- No cloud account or sync in v1.
-- No network access during normal note use except an explicitly approved update, activation, or support flow.
+- Verified cloud account/trial/entitlement metadata is used for access control; Skrib content is not cloud-synced or uploaded as part of that account flow.
+- Network access is limited to approved account/entitlement, update, activation, or support flows; normal note content remains device-local.
 - Application data remains in the user's local application-data directory by default.
 - Browser-extension communication, if implemented later, must be local, authenticated, origin-limited, and permission-minimal.
 - Logs must not contain note content, raw document paths, page text, secret-bearing URLs, accessibility-tree text, credentials, private keys, customer records, or production licence tokens by default.

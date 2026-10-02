@@ -1,0 +1,41 @@
+import React from "react";
+import ReactDOM from "react-dom/client";
+import "@fontsource/dm-sans/400.css";
+import "@fontsource/dm-sans/500.css";
+import "@fontsource/dm-sans/600.css";
+import "@fontsource/dm-sans/700.css";
+import "@fontsource/dm-sans/800.css";
+import "@fontsource/manrope/600.css";
+import "@fontsource/manrope/700.css";
+import "@fontsource/manrope/800.css";
+import "@fontsource/kalam/400.css";
+import "@fontsource/kalam/700.css";
+import { StartupErrorBoundary } from "../features/onboarding/StartupErrorBoundary";
+import "../styles/global.css";
+import "../styles/accessibility.css";
+import "../features/notes/styles/note-experience.css";
+import "../styles/opening-journey.css";
+import "../features/account/styles/account.css";
+import "../features/library/styles/trash.css";
+import "../styles/startup-recovery.css";
+import "../styles/website-theme.css";
+import "../features/notes/styles/living-paper-polish.css";
+import { App } from "./App";
+
+const rootElement = document.getElementById("root");
+
+if (!rootElement) {
+  throw new Error("Skribli could not find its application surface.");
+}
+
+ReactDOM.createRoot(rootElement, {
+  onRecoverableError(error) {
+    console.error("Skribli recovered from a rendering error.", error);
+  },
+}).render(
+  <React.StrictMode>
+    <StartupErrorBoundary>
+      <App />
+    </StartupErrorBoundary>
+  </React.StrictMode>,
+);

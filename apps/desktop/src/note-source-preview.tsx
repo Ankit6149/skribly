@@ -10,19 +10,19 @@ import '@fontsource/manrope/700.css';
 import '@fontsource/manrope/800.css';
 import '@fontsource/kalam/400.css';
 import '@fontsource/kalam/700.css';
-import { SkribComposer } from './features/skribs/SkribComposer';
-import { useLicenseStore } from './stores/licenseStore';
-import { useSkribStore } from './stores/skribStore';
-import type { SkribNote } from './lib/geometry';
+import { SkribComposer } from './features/notes/SkribComposer';
+import { useLicenseStore } from './features/licensing/state/licenseStore';
+import { useSkribStore } from './features/notes/state/skribStore';
+import type { SkribNote } from './features/notes/model/noteTypes';
 import './styles/global.css';
 import './styles/accessibility.css';
-import './styles/note-experience.css';
+import './features/notes/styles/note-experience.css';
 import './styles/opening-journey.css';
-import './styles/account.css';
-import './styles/trash.css';
+import './features/account/styles/account.css';
+import './features/library/styles/trash.css';
 import './styles/startup-recovery.css';
 import './styles/website-theme.css';
-import './styles/living-paper-polish.css';
+import './features/notes/styles/living-paper-polish.css';
 
 const previewChrome = new URLSearchParams(window.location.search).get('app') === 'chrome';
 
