@@ -103,6 +103,8 @@ Skrib content remains local. Account and entitlement calls do not upload note te
 | Widget lifecycle/state coordinator | `apps/desktop/src/features/widget/ContextRail.tsx` |
 | Library, Archive, calendar, Trash, export/import UI | `apps/desktop/src/features/library` |
 | Feature-owned Zustand state | `apps/desktop/src/features/account/state`, `src/features/licensing/state`, `src/features/notes/state` |
+| Native application state/runtime gates | `apps/desktop/src-tauri/src/app/state.rs` |
+| Native rail state, docking geometry, and runtime bookkeeping | `apps/desktop/src-tauri/src/desktop/rail_state.rs` |
 | Note coordination and persistence | `apps/desktop/src-tauri/src/core` |
 | Explicit note-open lifecycle | `apps/desktop/src-tauri/src/core/notes/lifecycle.rs` |
 | Library/import native operations | `apps/desktop/src-tauri/src/desktop` |
