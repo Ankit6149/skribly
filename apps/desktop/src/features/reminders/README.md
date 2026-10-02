@@ -1,5 +1,12 @@
 # Reminders feature
 
-This directory is the canonical home for reminder-specific frontend domain logic.
+This directory is the canonical home for reminder-specific frontend behavior.
 
-The reminder calendar/date model, IndexedDB repository and notification delivery now live here. Reminder React surfaces remain in their current locations until a later bounded hygiene PR moves them with their tests and callers.
+Current ownership:
+
+- `components/` — reminder editing UI used by the note composer;
+- `model/` — calendar/date and repeat models;
+- `persistence/` — reminder IndexedDB repository;
+- `notifications/` — permission, delivery, and due-reminder monitoring.
+
+Reminder code should not be added back to the Notes compatibility surface.
