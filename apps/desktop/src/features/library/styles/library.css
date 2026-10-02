@@ -1,18 +1,3 @@
-html[data-skribly-window='library'],
-html[data-skribly-window='library'] body,
-html[data-skribly-window='library'] #root {
-  background: var(--paper) !important;
-}
-
-.app-library-root {
-  width: 100vw;
-  height: 100vh;
-  overflow: hidden;
-  background: var(--paper);
-  color: var(--ink);
-  pointer-events: auto;
-}
-
 .desktop-workspace-page {
   width: 100%;
   height: 100%;
