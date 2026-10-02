@@ -111,6 +111,7 @@ Skrib content remains local. Account and entitlement calls do not upload note te
 | Shared frontend hooks/native helpers | `apps/desktop/src/shared` |
 | Native window types and frontend placement math | `apps/desktop/src/shared/native` |
 | Canonical frontend Skrib note model | `apps/desktop/src/features/notes/model/noteTypes.ts` |
+| Feature-owned desktop styles | `apps/desktop/src/features/*/styles` (legacy `src/styles` feature files are compatibility imports during migration) |
 | Shared visual tokens | `packages/design-system/src/tokens.css` |
 | Website and owner download | `site/` |
 | Repository/product/release contracts | `scripts/validation`, `scripts/governance`, `.github/workflows` |
