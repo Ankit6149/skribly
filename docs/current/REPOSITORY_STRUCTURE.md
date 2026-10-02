@@ -121,6 +121,19 @@ apps/desktop/src-tauri/src/
 
 ## Target CSS ownership
 
+Approved visual rules migrate into their owning feature rather than accumulate in the global `src/styles/` bucket. The runtime import order must remain explicit whenever selector precedence is part of current behavior.
+
+Current migration target:
+
+```text
+features/notes/styles/
+features/widget/styles/
+features/library/styles/
+features/account/styles/
+```
+
+Global `src/styles/` is reserved for truly application-wide reset/accessibility/theme/recovery concerns. Legacy feature stylesheet paths remain compatibility imports only until the dead-code cleanup phase removes them.
+
 Approved visual rules should migrate into their owning surface/component rather than accumulate in global patch layers.
 
 Examples:
