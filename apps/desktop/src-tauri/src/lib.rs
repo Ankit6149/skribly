@@ -4,7 +4,7 @@ mod desktop;
 mod note_lifecycle;
 mod platform;
 
-use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::{channel, Receiver};
 use std::sync::Mutex;
 use std::time::Duration;
