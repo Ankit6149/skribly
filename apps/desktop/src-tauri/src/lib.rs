@@ -28,11 +28,11 @@ use desktop::rail_state::{
     clamp_rail_position_to_bounds, context_arrival_matches, context_rail_window_runtime,
     detached_note_rail_label, nearest_rail_edge_position, rail_dock_side,
     rail_position_after_size_change, rail_position_for_side_and_y, rail_window_runtime,
-    RailDockBounds, RailDockSide, RailWindowRuntime, RailWindowState, CONTEXT_RAIL_COLLAPSED_HEIGHT,
-    CONTEXT_RAIL_COLLAPSED_WIDTH,
-    CONTEXT_RAIL_EDGE_MARGIN_LOGICAL, CONTEXT_RAIL_PEEK_HEIGHT, CONTEXT_RAIL_PEEK_WIDTH,
-    GLOBAL_RAIL_COLLAPSED_HEIGHT, GLOBAL_RAIL_COLLAPSED_WIDTH, GLOBAL_RAIL_EDGE_MARGIN_LOGICAL,
-    RAIL_DOCK_DEBOUNCE, RAIL_EXPANDED_FALLBACK_HEIGHT, RAIL_EXPANDED_WIDTH,
+    RailDockBounds, RailDockSide, RailWindowRuntime, RailWindowState,
+    CONTEXT_RAIL_COLLAPSED_HEIGHT, CONTEXT_RAIL_COLLAPSED_WIDTH, CONTEXT_RAIL_EDGE_MARGIN_LOGICAL,
+    CONTEXT_RAIL_PEEK_HEIGHT, CONTEXT_RAIL_PEEK_WIDTH, GLOBAL_RAIL_COLLAPSED_HEIGHT,
+    GLOBAL_RAIL_COLLAPSED_WIDTH, GLOBAL_RAIL_EDGE_MARGIN_LOGICAL, RAIL_DOCK_DEBOUNCE,
+    RAIL_EXPANDED_FALLBACK_HEIGHT, RAIL_EXPANDED_WIDTH,
 };
 use note_lifecycle::{
     detached_open_request, reopened_open_request, shortcut_open_request, OpenNoteRequest,
