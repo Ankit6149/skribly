@@ -3,8 +3,8 @@ import { listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import React, { useEffect, useState } from 'react';
 import '../../styles/storage-recovery.css';
-import { useSkribStore } from '../../stores/skribStore';
-import { useSkribUiStore } from '../../stores/skribUiStore';
+import { useSkribStore } from '../notes/state/skribStore';
+import { useSkribUiStore } from '../notes/state/skribUiStore';
 import { selectPrimaryWindowSurface } from '../onboarding/guidanceSurface';
 import { StartupFailureSurface } from '../onboarding/StartupFailureSurface';
 import {
