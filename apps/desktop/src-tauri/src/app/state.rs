@@ -22,7 +22,7 @@ pub(crate) struct ProgrammaticNotePlacement {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct DismissedCollapsedWindow {
-    note_id: String,
+    pub(crate) note_id: String,
     pub(crate) target_hwnd: isize,
     pub(crate) target_process_name: String,
     pub(crate) target_title: String,
@@ -32,8 +32,8 @@ pub(crate) struct DismissedCollapsedWindow {
 #[derive(Debug, Default)]
 pub(crate) struct NoteWindowRuntime {
     pub(crate) active_note_id: Option<String>,
-    detached: bool,
-    borrowed_dimensions: Option<(f64, f64)>,
+    pub(crate) detached: bool,
+    pub(crate) borrowed_dimensions: Option<(f64, f64)>,
     workspace_expanded: bool,
     pending_programmatic_placement: Option<ProgrammaticNotePlacement>,
     dismissed_collapsed_window: Option<DismissedCollapsedWindow>,
@@ -59,7 +59,6 @@ impl NativeWindowOperationGate {
         }
     }
 }
-
 
 impl NoteWindowRuntime {
     pub(crate) fn active_note_id(&self) -> Option<&str> {
@@ -110,7 +109,12 @@ impl NoteWindowRuntime {
         });
     }
 
-    pub(crate) fn hide_collapsed_window(&mut self, note: &SkribNote, target: &TargetWindowInfo, armed: bool) {
+    pub(crate) fn hide_collapsed_window(
+        &mut self,
+        note: &SkribNote,
+        target: &TargetWindowInfo,
+        armed: bool,
+    ) {
         self.active_note_id = Some(note.id.clone());
         self.workspace_expanded = false;
         self.pending_programmatic_placement = None;
@@ -127,7 +131,10 @@ impl NoteWindowRuntime {
         self.dismissed_collapsed_window.as_ref()
     }
 
-    pub(crate) fn arm_dismissed_collapsed_window(&mut self, expected: &DismissedCollapsedWindow) -> bool {
+    pub(crate) fn arm_dismissed_collapsed_window(
+        &mut self,
+        expected: &DismissedCollapsedWindow,
+    ) -> bool {
         let Some(current) = self.dismissed_collapsed_window.as_mut() else {
             return false;
         };
@@ -177,7 +184,13 @@ impl NoteWindowRuntime {
         }
     }
 
-    pub(crate) fn record_size_mode(&mut self, note: &SkribNote, width: f64, height: f64, temporary: bool) {
+    pub(crate) fn record_size_mode(
+        &mut self,
+        note: &SkribNote,
+        width: f64,
+        height: f64,
+        temporary: bool,
+    ) {
         self.borrowed_dimensions = if temporary && (width != note.width || height != note.height) {
             Some((width, height))
         } else {
@@ -245,4 +258,3 @@ pub struct AppState {
     #[cfg(target_os = "windows")]
     pub win_event_pipeline: WinEventPipeline,
 }
-
