@@ -26,7 +26,7 @@ const attachments = await read(
 );
 const collapsedDot = await read('apps/desktop/src/features/skribs/CollapsedSkribDot.tsx');
 const contextRail = [
-  await read('apps/desktop/src/features/rail/ContextRail.tsx'),
+  await read('apps/desktop/src/features/widget/ContextRail.tsx'),
   await read('apps/desktop/src/features/widget/components/WidgetLaunchers.tsx'),
 ].join('\n');
 const overlayHost = await read('apps/desktop/src/features/overlay/OverlayHost.tsx');
