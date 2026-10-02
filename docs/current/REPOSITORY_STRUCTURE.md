@@ -132,7 +132,7 @@ features/library/styles/
 features/account/styles/
 ```
 
-Global `src/styles/` is reserved for truly application-wide reset/accessibility/theme/recovery concerns. Legacy feature stylesheet paths remain compatibility imports only until the dead-code cleanup phase removes them.
+Global `src/styles/` is reserved for truly application-wide reset/accessibility/theme/recovery concerns. Feature stylesheet compatibility paths have been removed; new feature CSS belongs with its owning feature.
 
 Approved visual rules should migrate into their owning surface/component rather than accumulate in global patch layers.
 
