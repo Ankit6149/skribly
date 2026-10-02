@@ -324,4 +324,3 @@ pub(crate) fn clamp_rail_position_to_bounds(
         i64::from(position.y).clamp(top, bottom) as i32,
     )
 }
-
