@@ -27,7 +27,7 @@ import {
   readOnboardingStatus,
 } from '../onboarding/onboardingState';
 import { OnboardingSurface } from '../onboarding/OnboardingSurface';
-import { ReminderNotificationMonitor } from '../skribs/ReminderNotificationMonitor';
+import { ReminderNotificationMonitor } from '../reminders/notifications/ReminderNotificationMonitor';
 import { LibraryHost } from '../library/LibraryHost';
 import { NotePreferences } from '../settings/NotePreferences';
 import { LibraryImportPanel } from '../library/LibraryImportPanel';
