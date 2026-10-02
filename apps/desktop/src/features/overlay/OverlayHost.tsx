@@ -12,8 +12,8 @@ import {
   selectRequestedNote,
   type OpenNoteAction,
   type OpenNoteRequest,
-} from '../skribs/noteLifecycle';
-import { SkribComposer } from '../skribs/SkribComposer';
+} from '../notes/lifecycle/noteLifecycle';
+import { SkribComposer } from '../notes/SkribComposer';
 import { hideOverlayThen } from './overlayWindowLifecycle';
 import { selectStorageSurface } from './storageSurface';
 import type { TargetCaptureErrorPayload } from './targetCaptureError';
