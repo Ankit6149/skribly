@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { useLicenseStore } from '../../stores/licenseStore';
-import { useSkribStore } from '../../stores/skribStore';
+import { useLicenseStore } from './state/licenseStore';
+import { useSkribStore } from '../notes/state/skribStore';
 
 interface LicenseGateProps {
   children: React.ReactNode;
