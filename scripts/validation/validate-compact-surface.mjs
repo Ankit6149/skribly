@@ -21,7 +21,10 @@ const attachments = await read(
   'apps/desktop/src/features/skribs/NoteAttachmentPanel.tsx'
 );
 const collapsedDot = await read('apps/desktop/src/features/skribs/CollapsedSkribDot.tsx');
-const contextRail = await read('apps/desktop/src/features/rail/ContextRail.tsx');
+const contextRail = [
+  await read('apps/desktop/src/features/rail/ContextRail.tsx'),
+  await read('apps/desktop/src/features/widget/components/WidgetLaunchers.tsx'),
+].join('\n');
 const overlayHost = await read('apps/desktop/src/features/overlay/OverlayHost.tsx');
 const surfaceSelector = await read(
   'apps/desktop/src/features/onboarding/guidanceSurface.ts'
