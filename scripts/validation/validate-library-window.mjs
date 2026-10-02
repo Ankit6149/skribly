@@ -227,7 +227,7 @@ for (const testName of [
   }
 }
 
-if (await exists('apps/desktop/src/features/skribs/NotesWidget.tsx')) {
+if (await exists('apps/desktop/src/features/notes/NotesWidget.tsx')) {
   failures.push('Retired floating NotesWidget.tsx must not exist.');
 }
 for (const retiredState of [
