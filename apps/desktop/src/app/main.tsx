@@ -10,6 +10,8 @@ import "@fontsource/manrope/700.css";
 import "@fontsource/manrope/800.css";
 import "@fontsource/kalam/400.css";
 import "@fontsource/kalam/700.css";
+// Feature styles load through App first; theme and polish rules must follow them.
+import { App } from "./App";
 import { StartupErrorBoundary } from "../features/onboarding/StartupErrorBoundary";
 import "../styles/global.css";
 import "../styles/accessibility.css";
@@ -20,7 +22,6 @@ import "../features/library/styles/trash.css";
 import "../styles/startup-recovery.css";
 import "../styles/website-theme.css";
 import "../features/notes/styles/living-paper-polish.css";
-import { App } from "./App";
 
 const rootElement = document.getElementById("root");
 
