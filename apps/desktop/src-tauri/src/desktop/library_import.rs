@@ -264,12 +264,7 @@ fn perform_preview<R: Runtime>(
     validate_request_id(&request.request_id)?;
     let parsed = parse_import(&request.raw_json)?;
     let state = app_handle.state::<crate::AppState>();
-    let current_notes = state.coordinator.get_all_skribs();
-    let current_revision = state
-        .storage
-        .lock()
-        .map_err(|_| "Local storage service is unavailable".to_string())?
-        .current_revision();
+    let (current_notes, current_revision) = capture_import_snapshot(&state)?;
     let plan = build_import_plan(&current_notes, &parsed.notes);
     Ok(build_preview(
         request.request_id,
@@ -277,6 +272,20 @@ fn perform_preview<R: Runtime>(
         plan,
         current_revision,
     ))
+}
+
+fn capture_import_snapshot(state: &crate::AppState) -> Result<(Vec<SkribNote>, u64), String> {
+    let _mutation_guard = state
+        .mutation_lock
+        .lock()
+        .map_err(|_| "Local note mutation lock is unavailable".to_string())?;
+    let current_notes = state.coordinator.get_all_skribs();
+    let revision = state
+        .storage
+        .lock()
+        .map_err(|_| "Local storage service is unavailable".to_string())?
+        .current_revision();
+    Ok((current_notes, revision))
 }
 
 fn perform_apply<R: Runtime>(
@@ -1000,9 +1009,29 @@ mod tests {
         ];
         sort_notes_for_library(&mut merged);
 
+        // Force preview to wait while a mutation owns the authoritative snapshot boundary.
+        std::thread::scope(|scope| {
+            let guard = state.mutation_lock.lock().unwrap();
+            let (started_tx, started_rx) = std::sync::mpsc::channel();
+            let (result_tx, result_rx) = std::sync::mpsc::channel();
+            let state_ref = &state;
+            scope.spawn(move || {
+                started_tx.send(()).unwrap();
+                result_tx.send(capture_import_snapshot(state_ref)).unwrap();
+            });
+            started_rx.recv().unwrap();
+            assert!(result_rx
+                .recv_timeout(std::time::Duration::from_millis(30))
+                .is_err());
+            persist_import_collection(&state, previous.clone(), merged.clone()).unwrap();
+            drop(guard);
+            let (notes, revision) = result_rx.recv().unwrap().unwrap();
+            assert_eq!(notes.len(), 2);
+            assert_eq!(revision, 1);
+        });
         let revision = persist_import_collection(&state, previous, merged.clone())
             .expect("import persistence should succeed");
-        assert_eq!(revision, 1);
+        assert_eq!(revision, 2);
         assert_eq!(coordinator.get_all_skribs().len(), 2);
         let mut reopened = StorageService::new(primary);
         assert_eq!(

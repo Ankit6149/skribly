@@ -2,9 +2,8 @@ use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::sync::OnceLock;
+use std::sync::{Mutex, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const LICENSE_STORAGE_VERSION: u32 = 2;
@@ -12,6 +11,8 @@ const TRIAL_DAYS: u64 = 7;
 const SECONDS_PER_DAY: u64 = 24 * 60 * 60;
 const CLOCK_ROLLBACK_TOLERANCE_SECONDS: u64 = 5 * 60;
 const PRODUCT_ID: &str = "skribly-personal-windows";
+
+static LICENSE_IO: Mutex<()> = Mutex::new(());
 
 static LICENSE_PATH: OnceLock<PathBuf> = OnceLock::new();
 
@@ -139,65 +140,54 @@ fn stable_device_id() -> Result<String, String> {
     crate::core::account::device_claim()
 }
 
-fn load_record(path: &Path, now: u64) -> Result<LicenseRecord, String> {
-    if !path.exists() {
-        return Ok(LicenseRecord {
-            version: LICENSE_STORAGE_VERSION,
-            device_id: stable_device_id()?,
-            trial_started_at: 0,
-            trial_expires_at: 0,
-            last_seen_at: now,
-            activation_token: None,
-        });
+fn decode_record(bytes: &[u8]) -> Result<Option<LicenseRecord>, String> {
+    let Ok(record) = serde_json::from_slice::<LicenseRecord>(bytes) else {
+        return Ok(None);
+    };
+    if !matches!(record.version, 1 | LICENSE_STORAGE_VERSION) {
+        return Err(
+            "Unsupported local licence state version; existing generations were preserved.".into(),
+        );
     }
+    if record.device_id.is_empty()
+        || record.device_id.len() > 256
+        || record
+            .activation_token
+            .as_ref()
+            .is_some_and(|token| token.len() > 16 * 1024)
+    {
+        return Ok(None);
+    }
+    Ok(Some(record))
+}
 
-    let bytes = fs::read(path).map_err(|error| format!("Failed to read licence state: {error}"))?;
-    let record: LicenseRecord = serde_json::from_slice(&bytes)
-        .map_err(|error| format!("Local licence state is damaged: {error}"))?;
-    if record.version == 1 {
-        return Ok(LicenseRecord {
+fn load_record(path: &Path, now: u64) -> Result<LicenseRecord, String> {
+    let record = crate::core::durable_state::load(path, decode_record)?;
+    match record {
+        Some(record) if record.version == LICENSE_STORAGE_VERSION => Ok(record),
+        Some(record) => Ok(LicenseRecord {
             version: LICENSE_STORAGE_VERSION,
             device_id: stable_device_id()?,
             trial_started_at: 0,
             trial_expires_at: 0,
             last_seen_at: record.last_seen_at.min(now),
             activation_token: None,
-        });
+        }),
+        None => Ok(LicenseRecord {
+            version: LICENSE_STORAGE_VERSION,
+            device_id: stable_device_id()?,
+            trial_started_at: 0,
+            trial_expires_at: 0,
+            last_seen_at: now,
+            activation_token: None,
+        }),
     }
-    if record.version != LICENSE_STORAGE_VERSION {
-        return Err(format!(
-            "Unsupported local licence state version {}",
-            record.version
-        ));
-    }
-    Ok(record)
 }
 
 fn save_record(path: &Path, record: &LicenseRecord) -> Result<(), String> {
-    let parent = path
-        .parent()
-        .ok_or_else(|| "Licence state path has no parent directory.".to_string())?;
-    fs::create_dir_all(parent)
-        .map_err(|error| format!("Failed to create the licence data directory: {error}"))?;
-
     let payload = serde_json::to_vec_pretty(record)
-        .map_err(|error| format!("Failed to encode licence state: {error}"))?;
-    let temporary = path.with_extension("json.tmp");
-    let mut file = fs::File::create(&temporary)
-        .map_err(|error| format!("Failed to open temporary licence state: {error}"))?;
-    file.write_all(&payload)
-        .and_then(|_| file.sync_all())
-        .map_err(|error| format!("Failed to safely write licence state: {error}"))?;
-
-    if path.exists() {
-        let backup = path.with_extension("json.bak");
-        let _ = fs::copy(path, backup);
-        fs::remove_file(path)
-            .map_err(|error| format!("Failed to replace licence state: {error}"))?;
-    }
-    fs::rename(&temporary, path)
-        .map_err(|error| format!("Failed to commit licence state: {error}"))?;
-    Ok(())
+        .map_err(|_| "Licence state could not be encoded.".to_string())?;
+    crate::core::durable_state::save(path, &payload, |bytes| Ok(decode_record(bytes)?.is_some()))
 }
 
 fn public_key() -> Result<VerifyingKey, String> {
@@ -414,9 +404,18 @@ fn status_for_record(record: &LicenseRecord, enforced: bool, now: u64) -> Licens
 }
 
 pub fn current_status(path: &Path) -> Result<LicenseStatus, String> {
+    let _guard = LICENSE_IO
+        .lock()
+        .map_err(|_| "Licence persistence is unavailable.".to_string())?;
+    current_status_locked(path)
+}
+
+fn current_status_locked(path: &Path) -> Result<LicenseStatus, String> {
     let now = now_epoch_seconds()?;
     let enforced = enforcement_enabled();
+    let existed = path.exists();
     let mut record = load_record(path, now)?;
+    let previous_seen = record.last_seen_at;
 
     if !enforced {
         record.last_seen_at = now;
@@ -425,7 +424,14 @@ pub fn current_status(path: &Path) -> Result<LicenseStatus, String> {
     }
 
     let status = status_for_record(&record, enforced, now);
-    save_record(path, &record)?;
+    // A one-minute watermark bounds clock rollback exposure below the existing five-minute tolerance.
+    // Identical status reads do not rewrite the same licence/backup generation.
+    if !existed
+        || record.version != LICENSE_STORAGE_VERSION
+        || record.last_seen_at.abs_diff(previous_seen) >= 60
+    {
+        save_record(path, &record)?;
+    }
     Ok(status)
 }
 
@@ -439,22 +445,31 @@ pub fn require_write_access(path: &Path) -> Result<LicenseStatus, String> {
 }
 
 pub fn activate(path: &Path, token: &str) -> Result<LicenseStatus, String> {
+    let _guard = LICENSE_IO
+        .lock()
+        .map_err(|_| "Licence persistence is unavailable.".to_string())?;
     let now = now_epoch_seconds()?;
     let mut record = load_record(path, now)?;
     verify_activation_token(token, &record.device_id, now)?;
     record.activation_token = Some(token.trim().to_string());
     record.last_seen_at = now;
     save_record(path, &record)?;
-    current_status(path)
+    current_status_locked(path)
 }
 
 pub fn deactivate(path: &Path) -> Result<LicenseStatus, String> {
+    let _guard = LICENSE_IO
+        .lock()
+        .map_err(|_| "Licence persistence is unavailable.".to_string())?;
     let now = now_epoch_seconds()?;
     let mut record = load_record(path, now)?;
     record.activation_token = None;
     record.last_seen_at = now;
     save_record(path, &record)?;
-    current_status(path)
+    let committed =
+        fs::read(path).map_err(|_| "Cleared licence state could not be verified.".to_string())?;
+    crate::core::durable_state::replace_backup(path, &committed)?;
+    current_status_locked(path)
 }
 
 pub fn initialize_from_skrib_path(skrib_path: &Path) -> Result<LicenseStatus, String> {
@@ -617,5 +632,32 @@ mod tests {
         let error = bind_license_path(&slot, temporary)
             .expect_err("a second storage location must fail closed");
         assert!(error.contains("already initialized at a different path"));
+    }
+    #[test]
+    fn parallel_status_reads_preserve_a_valid_record_and_do_not_rewrite_identical_generations() {
+        let directory =
+            std::env::temp_dir().join(format!("skribli-license-race-{}", std::process::id()));
+        let path = directory.join("license.json");
+        save_record(&path, &record(now_epoch_seconds().unwrap())).unwrap();
+        std::thread::scope(|scope| {
+            for _ in 0..16 {
+                let path = &path;
+                scope.spawn(move || {
+                    for _ in 0..8 {
+                        current_status(path).unwrap();
+                    }
+                });
+            }
+        });
+        assert!(decode_record(&fs::read(&path).unwrap()).unwrap().is_some());
+        assert!(!crate::core::durable_state::companion(&path, ".tmp").exists());
+        assert!(!crate::core::durable_state::companion(&path, ".bak").exists());
+        deactivate(&path).unwrap();
+        fs::remove_file(&path).unwrap();
+        assert!(load_record(&path, now_epoch_seconds().unwrap())
+            .unwrap()
+            .activation_token
+            .is_none());
+        fs::remove_dir_all(directory).unwrap();
     }
 }
