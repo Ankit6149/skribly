@@ -18,7 +18,7 @@ import { LibraryImportPanel } from './LibraryImportPanel';
 import { LibraryRichContent } from './LibraryRichContent';
 import { ReminderCalendar } from './ReminderCalendar';
 import { openNoteInSavedContext } from '../widget/lifecycle/openNoteContext';
-import type { OpenNoteProgress } from '../rail/openNoteContext';
+import type { OpenNoteProgress } from '../widget/lifecycle/openNoteContext';
 import { OpeningJourney } from '../widget/components/OpeningJourney';
 import {
   filterLibraryNotes,
