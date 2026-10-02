@@ -25,6 +25,8 @@ const capabilities = JSON.parse(
   await read('apps/desktop/src-tauri/capabilities/default.json')
 );
 const app = await read('apps/desktop/src/app/App.tsx');
+const homeWindow = await read('apps/desktop/src/windows/home/HomeWindow.tsx');
+const noteWindow = await read('apps/desktop/src/windows/note/NoteWindow.tsx');
 const homeHost = await read('apps/desktop/src/features/account/HomeHost.tsx');
 const nativeRuntime = await read('apps/desktop/src-tauri/src/lib.rs');
 const tray = await read('apps/desktop/src-tauri/src/desktop/tray.rs');
@@ -79,13 +81,18 @@ for (const label of ['main', 'home']) {
 
 const requiredAppRouting = [
   "windowLabel === 'home'",
-  '<HomeHost />',
-  '<OverlayHost />',
+  '<HomeWindow />',
+  '<NoteWindow />',
+  '<GlobalWidgetWindow />',
+  '<ContextWidgetWindow />',
+  '<GlobalWidgetHandleWindow />',
   "document.documentElement.dataset.skriblyWindow = windowLabel",
 ];
 for (const marker of requiredAppRouting) {
   if (!app.includes(marker)) failures.push(`App window routing is missing: ${marker}`);
 }
+if (!homeWindow.includes('<HomeHost />')) failures.push('Home window must compose HomeHost.');
+if (!noteWindow.includes('<OverlayHost />')) failures.push('Note window must compose OverlayHost.');
 for (const marker of ['<LibraryHost', 'active', 'request={libraryRequest}', 'desktop-workspace-shell', "listen<{ view?: string }>('skribly://library-view'"]) {
   if (!homeHost.includes(marker)) failures.push(`Single workspace navigation is missing: ${marker}`);
 }
