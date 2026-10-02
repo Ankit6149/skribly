@@ -6,15 +6,17 @@ mod platform;
 
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::{channel, Receiver};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tauri::{
     AppHandle, Emitter, LogicalSize, Manager, PhysicalPosition, PhysicalSize, RunEvent, State,
     WebviewWindow,
 };
 
-use app::state::{AppState, DismissedCollapsedWindow, NativeWindowOperationGate, NoteWindowRuntime};
-use core::coordinator::MatchResult;
+use app::state::{
+    AppState, DismissedCollapsedWindow, NativeWindowOperationGate, NoteWindowRuntime,
+};
+use core::coordinator::{Coordinator, MatchResult};
 use core::models::{
     HitTestRect, OverlayInitializationStatus, OverlayMetrics, OverlayStatePayload, SkribNote,
     TargetWindowInfo,
@@ -24,9 +26,10 @@ use core::{account, license};
 use desktop::rail_presentation::reveal_width;
 use desktop::rail_state::{
     clamp_rail_position_to_bounds, context_arrival_matches, context_rail_window_runtime,
-    detached_note_rail_label, nearest_rail_edge_position, rail_dock_side, rail_position_after_size_change,
-    rail_position_for_side_and_y, rail_window_runtime, RailDockBounds, RailDockSide, RailWindowRuntime,
-    RailWindowState, CONTEXT_RAIL_COLLAPSED_HEIGHT, CONTEXT_RAIL_COLLAPSED_WIDTH,
+    detached_note_rail_label, nearest_rail_edge_position, rail_dock_side,
+    rail_position_after_size_change, rail_position_for_side_and_y, rail_window_runtime,
+    RailDockBounds, RailDockSide, RailWindowRuntime, RailWindowState, CONTEXT_RAIL_COLLAPSED_HEIGHT,
+    CONTEXT_RAIL_COLLAPSED_WIDTH,
     CONTEXT_RAIL_EDGE_MARGIN_LOGICAL, CONTEXT_RAIL_PEEK_HEIGHT, CONTEXT_RAIL_PEEK_WIDTH,
     GLOBAL_RAIL_COLLAPSED_HEIGHT, GLOBAL_RAIL_COLLAPSED_WIDTH, GLOBAL_RAIL_EDGE_MARGIN_LOGICAL,
     RAIL_DOCK_DEBOUNCE, RAIL_EXPANDED_FALLBACK_HEIGHT, RAIL_EXPANDED_WIDTH,
