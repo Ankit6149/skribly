@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { ReadySurface, SettingsSurface, WorkspaceSidebar } from './HomeHost';
 import { LibraryHost } from '../library/LibraryHost';
 
-vi.mock('../../stores/accountStore', () => ({
+vi.mock('./state/accountStore', () => ({
   useAccountStore: () => ({
     email: 'owner@example.test', accountRole: 'owner', productUpdatesOptIn: false,
     entitlement: { canWrite: true, mode: 'licensed' }, announcements: [], signOut: vi.fn(),
