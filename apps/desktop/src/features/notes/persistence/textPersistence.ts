@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import { SkribNote } from '../../../lib/geometry';
+import type { SkribNote } from '../model/noteTypes';
 import { useSkribStore, OverlayStatePayload } from '../../../stores/skribStore';
 import { MAX_NOTE_CHARACTERS, countNoteCharacters } from '../lifecycle/draftSaveController';
 
