@@ -16,11 +16,11 @@ const nativeLifecycle = await read('apps/desktop/src-tauri/src/core/notes/lifecy
 const notePreferences = await read('apps/desktop/src-tauri/src/core/preferences.rs');
 const overlayHost = await read('apps/desktop/src/features/overlay/OverlayHost.tsx');
 const composer = [
-  await read('apps/desktop/src/features/skribs/SkribComposer.tsx'),
+  await read('apps/desktop/src/features/notes/SkribComposer.tsx'),
   await read('apps/desktop/src/features/notes/components/NotePlaceHeader.tsx'),
 ].join('\n');
 const frontendLifecycle = await read('apps/desktop/src/features/notes/lifecycle/noteLifecycle.ts');
-const lifecycleTests = await read('apps/desktop/src/features/skribs/noteLifecycle.test.ts');
+const lifecycleTests = await read('apps/desktop/src/features/notes/lifecycle/noteLifecycle.test.ts');
 const adr = await read('docs/02-engineering/ADR-0002-canonical-note-open-lifecycle.md');
 
 // Rustfmt may wrap method chains across lines. These structural checks should
