@@ -16,15 +16,15 @@ const paperStyles = await read('apps/desktop/src/features/notes/styles/living-pa
 const globalStyles = await read('apps/desktop/src/styles/global.css');
 const websiteTheme = await read('apps/desktop/src/styles/website-theme.css');
 const composer = [
-  await read('apps/desktop/src/features/skribs/SkribComposer.tsx'),
+  await read('apps/desktop/src/features/notes/SkribComposer.tsx'),
   await read('apps/desktop/src/features/notes/components/NotePlaceHeader.tsx'),
   await read('apps/desktop/src/features/notes/components/NoteWindowControls.tsx'),
 ].join('\n');
 const toolGeometry = await read('apps/desktop/src/features/notes/model/toolSurfaceGeometry.ts');
 const attachments = await read(
-  'apps/desktop/src/features/skribs/NoteAttachmentPanel.tsx'
+  'apps/desktop/src/features/notes/components/NoteAttachmentPanel.tsx'
 );
-const collapsedDot = await read('apps/desktop/src/features/skribs/CollapsedSkribDot.tsx');
+const collapsedDot = await read('apps/desktop/src/features/notes/components/CollapsedSkribDot.tsx');
 const contextRail = [
   await read('apps/desktop/src/features/widget/ContextRail.tsx'),
   await read('apps/desktop/src/features/widget/components/WidgetLaunchers.tsx'),
