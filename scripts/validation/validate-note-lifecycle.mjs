@@ -15,7 +15,7 @@ const nativeEntry = await read('apps/desktop/src-tauri/src/lib.rs');
 const nativeLifecycle = await read('apps/desktop/src-tauri/src/note_lifecycle.rs');
 const overlayHost = await read('apps/desktop/src/features/overlay/OverlayHost.tsx');
 const composer = await read('apps/desktop/src/features/skribs/SkribComposer.tsx');
-const frontendLifecycle = await read('apps/desktop/src/features/skribs/noteLifecycle.ts');
+const frontendLifecycle = await read('apps/desktop/src/features/notes/lifecycle/noteLifecycle.ts');
 const lifecycleTests = await read('apps/desktop/src/features/skribs/noteLifecycle.test.ts');
 const adr = await read('docs/02-engineering/ADR-0002-canonical-note-open-lifecycle.md');
 
