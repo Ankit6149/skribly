@@ -431,8 +431,6 @@ fn clamp_rail_position_to_bounds(
     )
 }
 
-
-
 fn set_rail_position(
     _app_handle: &AppHandle,
     rail: &WebviewWindow,
