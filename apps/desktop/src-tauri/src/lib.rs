@@ -7,15 +7,17 @@ mod platform;
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::sync::mpsc::{channel, Receiver};
-use std::sync::{Mutex, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 use tauri::{
     AppHandle, Emitter, LogicalSize, Manager, PhysicalPosition, PhysicalSize, RunEvent, State,
     WebviewWindow,
 };
 
-use app::state::{AppState, DismissedCollapsedWindow, NativeWindowOperationGate, NoteWindowRuntime};
-use core::coordinator::MatchResult;
+use app::state::{
+    AppState, DismissedCollapsedWindow, NativeWindowOperationGate, NoteWindowRuntime,
+};
+use core::coordinator::{Coordinator, MatchResult};
 use core::models::{
     HitTestRect, OverlayInitializationStatus, OverlayMetrics, OverlayStatePayload, SkribNote,
     TargetWindowInfo,
