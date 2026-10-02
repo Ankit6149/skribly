@@ -100,7 +100,7 @@ Skrib content remains local. Account and entitlement calls do not upload note te
 | Widget domain/lifecycle/model | `apps/desktop/src/features/widget` |
 | Widget rendering compatibility layer | `apps/desktop/src/features/rail` (being migrated under #229) |
 | Library, Archive, calendar, Trash, export/import UI | `apps/desktop/src/features/library` |
-| Frontend native boundary/state | `apps/desktop/src/stores` |
+| Feature-owned Zustand state | `apps/desktop/src/features/account/state`, `src/features/licensing/state`, `src/features/notes/state` (`src/stores` remains a compatibility layer during migration) |
 | Note coordination and persistence | `apps/desktop/src-tauri/src/core` |
 | Explicit note-open lifecycle | `apps/desktop/src-tauri/src/note_lifecycle.rs` |
 | Library/import native operations | `apps/desktop/src-tauri/src/desktop` |
