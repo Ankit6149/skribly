@@ -17,13 +17,13 @@ use core::models::{
     HitTestRect, OverlayInitializationStatus, OverlayMetrics, OverlayStatePayload, SkribNote,
     TargetWindowInfo,
 };
-use core::storage;
-use core::{account, license};
-use desktop::rail_presentation::{reveal_width, RailPresentation};
 use core::notes::lifecycle::{
     detached_open_request, reopened_open_request, shortcut_open_request, OpenNoteAction,
     OpenNoteRequest,
 };
+use core::storage;
+use core::{account, license};
+use desktop::rail_presentation::{reveal_width, RailPresentation};
 
 #[cfg(target_os = "windows")]
 use platform::windows::{
