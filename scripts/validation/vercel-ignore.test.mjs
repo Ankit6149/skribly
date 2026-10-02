@@ -53,7 +53,7 @@ test('configures the ignored build command at both supported Vercel project root
 test('skips Rust, desktop, native acceptance, and unrelated documentation changes', () => {
   const ignored = [
     'apps/desktop/src-tauri/src/lib.rs',
-    'apps/desktop/src/features/skribs/SkribComposer.tsx',
+    'apps/desktop/src/features/notes/SkribComposer.tsx',
     'docs/04-operations/WIN_EVENT_ACCEPTANCE.md',
     'scripts/validation/storage-acceptance.ps1',
     'README.md',
