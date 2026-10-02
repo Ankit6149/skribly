@@ -2,13 +2,9 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import {
-  AppWindow, ArchiveRestore, ChevronLeft, ChevronRight, Code2, Folder, Globe2, GripHorizontal,
-  LoaderCircle, MapPin, MapPinned, MoreHorizontal, Search, StickyNote,
-} from 'lucide-react';
+import { ArchiveRestore, MapPin, Search, StickyNote } from 'lucide-react';
 import type { SkribNote } from '../../lib/geometry';
 import '../../styles/context-rail.css';
-import skribliLogo from '../../../src-tauri/icons/128x128.png';
 import {
   applicationLabel, groupNotesForRail, isActiveRailNote, isArchivedRailNote, railPillCount,
 } from './contextRailModel';
@@ -19,9 +15,12 @@ import { useNativeDrag } from '../../lib/useNativeDrag';
 import { observeRailWindowState, type RailWindowState } from './railWindowState';
 import { createContextPresence } from './contextPresence';
 import { afterRailPaint } from './railPaintReady';
-import { bundledAppIcon } from '../skribs/bundledAppIcon';
+import { WidgetContextIcon } from '../widget/components/WidgetContextIcon';
+import { WidgetHeader } from '../widget/components/WidgetHeader';
+import { ContextWidgetLauncher, GlobalWidgetLauncher } from '../widget/components/WidgetLaunchers';
+import { WidgetNoteCard } from '../widget/components/WidgetNoteCard';
+import type { RailScope } from '../widget/model/railTypes';
 
-type RailScope = 'context' | 'all' | 'archive';
 const nativeRuntimeAvailable = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 const APP_ICON_CACHE_KEY = 'skribli-app-icons-v1';
 const GLOBAL_RAIL_EXIT_FALLBACK_MS = 350;
@@ -72,23 +71,6 @@ function readCachedAppIcons(): Record<string, string> {
       name.length <= 128 && typeof value === 'string' && value.length <= 32_000
       && value.startsWith('data:image/png;base64,')));
   } catch { return {}; }
-}
-
-function noteTitle(note: SkribNote): string {
-  const firstLine = note.text.trim().split(/\r?\n/, 1)[0]?.trim();
-  return firstLine || note.target_title || applicationLabel(note.target_process_name);
-}
-
-function ContextIcon({ processName, iconUrl }: { processName: string; iconUrl: string | undefined }) {
-  const logo = iconUrl || bundledAppIcon(processName);
-  if (logo) return <img className="ribbon-app-icon" src={logo} alt="" aria-hidden="true" />;
-  const process = processName.toLowerCase();
-  if (process === 'explorer.exe') return <Folder size={14} aria-hidden="true" />;
-  if (process.includes('chrome') || process.includes('edge') || process.includes('firefox')) {
-    return <Globe2 size={14} aria-hidden="true" />;
-  }
-  if (process.includes('code')) return <Code2 size={14} aria-hidden="true" />;
-  return <AppWindow size={14} aria-hidden="true" />;
 }
 
 function scopeLabel(scope: RailScope): string {
@@ -434,32 +416,28 @@ export const ContextRail: React.FC<{ contextual: boolean; previewNotes?: SkribNo
   if (collapsed) {
     if (!contextualDock) {
       return (
-        <main className={`context-rail collapsed global-widget dock-${dockSide}`}>
-          <button ref={launcherButton} type="button" className="context-rail-global-widget" {...launcherDrag}
-            aria-label={`Open My Skribs, ${pillCount} saved ${pillCount === 1 ? 'Skrib' : 'Skribs'}`}
-            title={message || 'Your Skribs are right here. Click to open; double-click and drag to move.'}>
-            <span className="global-widget-strip strip-yellow" aria-hidden="true" />
-            <span className="global-widget-strip strip-peach" aria-hidden="true" />
-            <span className="global-widget-strip strip-lavender" aria-hidden="true" />
-          </button>
-        </main>
+        <GlobalWidgetLauncher
+          buttonRef={launcherButton}
+          dockSide={dockSide}
+          pillCount={pillCount}
+          message={message}
+          dragProps={launcherDrag}
+        />
       );
     }
     return (
-      <main className={`context-rail collapsed context-widget dock-${dockSide} ${revealed ? 'is-revealed' : ''}`} onKeyDown={handleEscape}>
-        <button ref={launcherButton} type="button" className="context-presence" {...launcherDrag}
-          onPointerEnter={() => presence.current?.pointer(true)}
-          onPointerLeave={() => presence.current?.pointer(false)}
-          onPointerDown={(event) => { presence.current?.hold(true); launcherDrag.onPointerDown(event); }}
-          onPointerUp={() => { launcherDrag.onPointerUp(); presence.current?.hold(false); }}
-          onPointerCancel={() => { launcherDrag.onPointerCancel(); presence.current?.hold(false); }}
-          onFocus={() => presence.current?.focus(true)} onBlur={() => { presence.current?.focus(false); presence.current?.hold(false); }}
-          aria-expanded={false} aria-label={`Open ${pillCount} ${pillCount === 1 ? 'Skrib' : 'Skribs'} here`}
-          title={message || 'A thought lives here. Click to unfold it; double-click and drag to move.'}>
-          <span className="context-presence-label" aria-hidden="true">{pillCount} {pillCount === 1 ? 'Skrib' : 'Skribs'} here</span>
-          <span className="context-presence-dot" aria-hidden="true" />
-        </button>
-      </main>
+      <ContextWidgetLauncher
+        buttonRef={launcherButton}
+        dockSide={dockSide}
+        pillCount={pillCount}
+        revealed={revealed}
+        message={message}
+        dragProps={launcherDrag}
+        onEscape={handleEscape}
+        onPresencePointer={(active) => presence.current?.pointer(active)}
+        onPresenceFocus={(active) => presence.current?.focus(active)}
+        onPresenceHold={(active) => presence.current?.hold(active)}
+      />
     );
   }
 
@@ -468,20 +446,20 @@ export const ContextRail: React.FC<{ contextual: boolean; previewNotes?: SkribNo
       className={`context-rail expanded dock-${dockSide} ${contextualDock ? 'context-list' : `global-shelf ${nativeRuntimeAvailable ? 'has-native-reveal' : ''} ${closing ? 'is-closing' : ''}`}`}
       onKeyDown={handleEscape}>
       {openingProgress && <OpeningJourney progress={openingProgress} compact />}
-      <header className="ribbon-rail-head" data-tauri-drag-region>
-        <span className="ribbon-rail-brand" data-tauri-drag-region>
-          <GripHorizontal size={15} aria-hidden="true" data-tauri-drag-region />
-          <img src={skribliLogo} alt="" aria-hidden="true" data-tauri-drag-region />
-          <span data-tauri-drag-region><strong data-tauri-drag-region>{!contextualDock ? 'My Skribs' : scope === 'context' ? `${visibleNotes.length} ${visibleNotes.length === 1 ? 'Skrib' : 'Skribs'} here` : scopeLabel(scope)}</strong>
-            <small data-tauri-drag-region>{visibleNotes.length} {visibleNotes.length === 1 ? 'saved thought' : 'saved thoughts'}</small></span>
-        </span>
-        <span className="ribbon-rail-actions">
-          {contextualDock && <button type="button" onClick={() => setMenuOpen((open) => !open)} aria-label="Choose which Skribs to show"
-            aria-expanded={menuOpen} title="Here, everything, or archived Skribs"><MoreHorizontal size={16} aria-hidden="true" /></button>}
-          <button type="button" disabled={closing} onClick={() => void toggleCollapsed()} aria-label="Collapse Skrib ribbons"
-            title="Keep your thoughts tucked away">{dockSide === 'left' ? <ChevronLeft size={16} aria-hidden="true" /> : <ChevronRight size={16} aria-hidden="true" />}</button>
-        </span>
-      </header>
+      <WidgetHeader
+        contextual={contextualDock}
+        title={!contextualDock
+          ? 'My Skribs'
+          : scope === 'context'
+            ? `${visibleNotes.length} ${visibleNotes.length === 1 ? 'Skrib' : 'Skribs'} here`
+            : scopeLabel(scope)}
+        noteCount={visibleNotes.length}
+        dockSide={dockSide}
+        menuOpen={menuOpen}
+        closing={closing}
+        onToggleMenu={() => setMenuOpen((open) => !open)}
+        onCollapse={() => void toggleCollapsed()}
+      />
 
       {!contextualDock && <>
         <nav className="global-shelf-scopes" aria-label="Which Skribs to show">
@@ -510,7 +488,7 @@ export const ContextRail: React.FC<{ contextual: boolean; previewNotes?: SkribNo
         {allGroups.map((group) => <button type="button" key={group.key} className={selectedGroupKey === group.key ? 'active' : ''}
           aria-pressed={selectedGroupKey === group.key}
           onClick={() => setSelectedGroupKey(group.key)} aria-label={`${group.label}, ${group.notes.length} Skribs`} title={`${group.label} · ${group.notes.length}`}>
-          <ContextIcon processName={group.notes[0]?.target_process_name ?? group.key}
+          <WidgetContextIcon processName={group.notes[0]?.target_process_name ?? group.key}
             iconUrl={appIcons[(group.notes[0]?.target_process_name ?? group.key).toLowerCase()]} /><span>{group.notes.length}</span></button>)}
       </nav>}
 
@@ -519,24 +497,21 @@ export const ContextRail: React.FC<{ contextual: boolean; previewNotes?: SkribNo
           : ribbonNotes.length === 0 ? <div className="ribbon-empty">
             {query.trim() ? 'No thoughts match your search.' : scope === 'archive' ? 'Completed thoughts will rest here.' : scope === 'context'
               ? 'No Skribs here yet. Ctrl + Shift + Space starts one.' : 'Your first thought is one shortcut away.'}
-          </div> : ribbonNotes.map((note, index) => <article
-            className={`skrib-ribbon skrib-color-${note.color} ${activeNoteId === note.id ? 'active' : ''}`} key={note.id}
-            style={{ '--ribbon-index': index } as React.CSSProperties} aria-busy={openingId === note.id}>
-            <button type="button" className="skrib-ribbon-read" onClick={() => void (scope === 'archive' ? restoreArchived(note) : openHere(note))}
-              disabled={openingId !== null} title={scope === 'archive' ? 'Return this Skrib to your active notes' : 'Open this Skrib beside the ribbon'}>
-              <span className="skrib-ribbon-mark" aria-hidden="true"><ContextIcon processName={note.target_process_name ?? ''}
-                iconUrl={appIcons[(note.target_process_name ?? '').toLowerCase()]} /></span>
-              <span className="skrib-ribbon-copy"><strong title={!contextualDock ? noteTitle(note) : undefined}>{noteTitle(note)}</strong>
-                <small title={note.target_title || undefined}>{!contextualDock && <span className="global-note-tone" aria-hidden="true" />}<span className={!contextualDock ? 'global-note-context' : undefined}>{note.target_title || applicationLabel(note.target_process_name)}</span></small>
-                {!contextualDock && note.text.trim().includes('\n') && <span className="global-note-preview">{note.text.trim().split(/\r?\n/).slice(1).join(' ')}</span>}
-                {contextualDock && <span className="skrib-card-preview">{note.text.trim() || 'A little room for your next thought.'}</span>}
-                {contextualDock && <span className="skrib-card-open">{scope === 'archive' ? 'Restore Skrib' : 'Open Skrib'}</span>}</span>
-              {openingId === note.id && <LoaderCircle className="rail-opening-spinner" size={16} aria-hidden="true" />}
-            </button>
-            {scope !== 'archive' && <button type="button" className="skrib-ribbon-return" onClick={() => void openContext(note)}
-              disabled={openingId !== null} aria-label={`Return to where ${noteTitle(note)} was placed`}
-              title="Return to the app where this Skrib was placed"><MapPinned size={16} strokeWidth={1.9} aria-hidden="true" /></button>}
-          </article>)}
+          </div> : ribbonNotes.map((note, index) => (
+            <WidgetNoteCard
+              key={note.id}
+              note={note}
+              index={index}
+              active={activeNoteId === note.id}
+              opening={openingId === note.id}
+              anyOpening={openingId !== null}
+              contextual={contextualDock}
+              archived={scope === 'archive'}
+              iconUrl={appIcons[(note.target_process_name ?? '').toLowerCase()]}
+              onRead={() => void (scope === 'archive' ? restoreArchived(note) : openHere(note))}
+              onReturn={() => void openContext(note)}
+            />
+          ))}
         {message && <div className="ribbon-message" role="status">{message}</div>}
       </div>
       {!contextualDock && <footer className="global-shelf-footer"><span>Capture a thought</span><span className="global-shelf-shortcut"><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>Space</kbd></span></footer>}
