@@ -70,7 +70,7 @@ impl NoteWindowRuntime {
         self.active_note_id.as_deref().filter(|_| self.detached)
     }
 
-    fn workspace_expanded_for(&self, note_id: &str) -> bool {
+    pub(crate) fn workspace_expanded_for(&self, note_id: &str) -> bool {
         self.active_note_id.as_deref() == Some(note_id) && self.workspace_expanded
     }
 
@@ -103,10 +103,10 @@ impl NoteWindowRuntime {
         self.pending_programmatic_placement = None;
         self.dismissed_collapsed_window = Some(DismissedCollapsedWindow {
             note_id: note.id.clone(),
-            pub(crate) target_hwnd: target.hwnd_val,
-            pub(crate) target_process_name: target.process_name.clone(),
-            pub(crate) target_title: target.title.clone(),
-            pub(crate) armed: true,
+            target_hwnd: target.hwnd_val,
+            target_process_name: target.process_name.clone(),
+            target_title: target.title.clone(),
+            armed: true,
         });
     }
 
@@ -116,9 +116,9 @@ impl NoteWindowRuntime {
         self.pending_programmatic_placement = None;
         self.dismissed_collapsed_window = Some(DismissedCollapsedWindow {
             note_id: note.id.clone(),
-            pub(crate) target_hwnd: target.hwnd_val,
-            pub(crate) target_process_name: target.process_name.clone(),
-            pub(crate) target_title: target.title.clone(),
+            target_hwnd: target.hwnd_val,
+            target_process_name: target.process_name.clone(),
+            target_title: target.title.clone(),
             armed,
         });
     }
