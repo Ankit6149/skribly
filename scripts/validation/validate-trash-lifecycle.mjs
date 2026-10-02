@@ -28,7 +28,10 @@ const nativeLibrary = await read('apps/desktop/src-tauri/src/desktop/library.rs'
 const geometry = await read('apps/desktop/src/features/notes/model/noteTypes.ts');
 const store = await read('apps/desktop/src/features/notes/state/skribStore.ts');
 const storeTests = await read('apps/desktop/src/stores/skribStore.test.ts');
-const composer = await read('apps/desktop/src/features/skribs/SkribComposer.tsx');
+const composer = [
+  await read('apps/desktop/src/features/skribs/SkribComposer.tsx'),
+  await read('apps/desktop/src/features/notes/components/NoteDeleteConfirmation.tsx'),
+].join('\n');
 const library = await read('apps/desktop/src/features/library/LibraryHost.tsx');
 const lifecycle = await read('apps/desktop/src/features/library/trashLifecycle.ts');
 const lifecycleTests = await read('apps/desktop/src/features/library/trashLifecycle.test.ts');
