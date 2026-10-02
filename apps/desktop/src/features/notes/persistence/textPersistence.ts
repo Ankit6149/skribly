@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { SkribNote } from '../model/noteTypes';
-import { useSkribStore, OverlayStatePayload } from '../../../stores/skribStore';
+import { useSkribStore, OverlayStatePayload } from '../state/skribStore';
 import { MAX_NOTE_CHARACTERS, countNoteCharacters } from '../lifecycle/draftSaveController';
 
 const pendingDrafts = new Map<string, string>();
