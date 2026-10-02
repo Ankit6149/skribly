@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { emitTo, listen } from '@tauri-apps/api/event';
-import type { SkribNote, TargetWindowInfo } from '../../../lib/geometry';
+import type { SkribNote } from '../../notes/model/noteTypes';
+import type { TargetWindowInfo } from '../../../shared/native/windowTypes';
 import { applicationLabel, contextMatchScore, selectBestContextTarget } from '../model/contextRailModel';
 
 const TARGET_LAUNCH_POLL_ATTEMPTS = 12;
