@@ -92,7 +92,9 @@ Skrib content remains local. Account and entitlement calls do not upload note te
 | React shell, startup recovery, and window routing | `apps/desktop/src/app` (root `bootstrap.ts`, `main.tsx`, and `App.tsx` are compatibility entrypoints) |
 | Tauri WebView composition | `apps/desktop/src/windows` |
 | Home, account, and quick guide | `apps/desktop/src/features/account`, `src/features/onboarding` |
-| Compact/expanded editor, ink, files, reminders | `apps/desktop/src/features/skribs` |
+| Note domain/lifecycle/model/persistence | `apps/desktop/src/features/notes` |
+| Note rendering/editor compatibility layer | `apps/desktop/src/features/skribs` (being migrated under #229) |
+| Reminder domain/model | `apps/desktop/src/features/reminders` |
 | Rich-content/reminder IndexedDB repositories | `apps/desktop/src/lib/richContentStore.ts`, `src/lib/reminderStore.ts` |
 | My Skribs rail, library, Archive, calendar, Trash, export/import UI | `apps/desktop/src/features/rail`, `apps/desktop/src/features/library` |
 | Frontend native boundary/state | `apps/desktop/src/stores` |
