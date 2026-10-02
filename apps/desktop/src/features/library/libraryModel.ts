@@ -1,4 +1,4 @@
-import type { SkribNote } from '../../lib/geometry';
+import type { SkribNote } from '../notes/model/noteTypes';
 
 const MAX_DISPLAY_TITLE_CHARACTERS = 80;
 
