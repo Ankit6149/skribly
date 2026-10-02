@@ -106,6 +106,7 @@ Skrib content remains local. Account and entitlement calls do not upload note te
 | Library/import native operations | `apps/desktop/src-tauri/src/desktop` |
 | Windows capture/events/placement | `apps/desktop/src-tauri/src/platform` |
 | Tray and single-instance shell | `apps/desktop/src-tauri/src/desktop/tray.rs`, `src/windows_single_instance.rs` |
+| Shared frontend hooks/native helpers | `apps/desktop/src/shared` |
 | Shared visual tokens | `packages/design-system/src/tokens.css` |
 | Website and owner download | `site/` |
 | Repository/product/release contracts | `scripts/validation`, `scripts/governance`, `.github/workflows` |
