@@ -5,7 +5,7 @@ This directory is the canonical home for note **domain and feature logic** as th
 Current ownership:
 
 - `lifecycle/` — save/delete/open lifecycle state and rules;
-- `model/` — pure note, ink, inline-attachment and temporary-surface models;
+- `model/` — canonical Skrib note types plus context, ink, inline-attachment and temporary-surface models;
 - `persistence/` — note-specific frontend persistence coordination and rich-content IndexedDB storage;
 - `state/` — note/runtime Zustand state and note-window UI state.
 
