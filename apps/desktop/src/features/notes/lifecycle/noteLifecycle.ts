@@ -1,4 +1,4 @@
-import type { SkribNote } from '../../../lib/geometry';
+import type { SkribNote } from '../model/noteTypes';
 
 export type OpenNoteAction = 'created' | 'reopened' | 'detached';
 
