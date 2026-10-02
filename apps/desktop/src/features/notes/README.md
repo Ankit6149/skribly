@@ -6,6 +6,6 @@ Current ownership:
 
 - `lifecycle/` — save/delete/open lifecycle state and rules;
 - `model/` — pure note, ink, inline-attachment and temporary-surface models;
-- `persistence/` — note-specific frontend persistence coordination.
+- `persistence/` — note-specific frontend persistence coordination and rich-content IndexedDB storage.
 
 React note rendering still lives in `features/skribs/` during the migration. Compatibility exports remain there temporarily so structural PRs do not change runtime behavior.
