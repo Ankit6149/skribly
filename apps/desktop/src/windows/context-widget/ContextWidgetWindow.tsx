@@ -1,4 +1,4 @@
-import { ContextRail } from '../../features/rail/ContextRail';
+import { ContextRail } from '../../features/widget/ContextRail';
 
 export function ContextWidgetWindow() {
   return <ContextRail contextual />;
