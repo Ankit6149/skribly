@@ -1,53 +1,60 @@
 # ADR-0002: Canonical shortcut-open lifecycle
 
-- **Status:** Accepted for the Windows MVP
-- **Date:** 2026-08-04
-- **Parent:** #20
-- **Implementation slice:** #123
+- **Status:** Accepted, amended for current Windows v0 behavior
+- **Original date:** 2026-08-04
+- **Amended:** 2026-10-02
 
 ## Context
 
-The native shortcut path can create or return contextual notes, but the React host previously inferred which note to open by comparing note arrays and selecting either a newly observed ID or the latest updated item. That coupled user-visible behavior to collection timing and unordered native storage. With legacy duplicate notes, two equivalent payloads could open different notes.
+Skribli previously inferred which note to open by comparing frontend note arrays. That made user-visible behavior depend on event timing and unordered collection state.
 
-The Windows MVP needs one predictable answer when the user presses `Ctrl+Shift+Space`, while keeping older notes discoverable without making the shortcut reopen them unexpectedly.
+The native runtime now owns the decision and emits an explicit privacy-safe `OpenNoteRequest`.
+
+The product also has a device preference, `multipleNotesPerContext`, that changes whether the shortcut reuses one stable contextual note or creates another note in the same context.
 
 ## Decision
 
-Every valid `Ctrl+Shift+Space` press creates a fresh note for the captured application context. Older notes remain available through My Skribs and All Skribs, where an explicit open action may select and reopen a saved note.
+For a supported captured target, `Ctrl+Shift+Space` follows this rule:
 
-The native shortcut path owns the opening decision and emits a privacy-safe `OpenNoteRequest` only after capture, placement, and any required note creation have succeeded.
+1. capture and revalidate the exact target;
+2. load the note preference;
+3. when `multipleNotesPerContext = false` (the default), find a stable active primary note for that context;
+4. reopen that note when one exists;
+5. otherwise create a fresh contextual note;
+6. when `multipleNotesPerContext = true`, skip primary-note reuse and create a fresh note;
+7. emit an explicit `OpenNoteRequest` for the exact note that was selected or created.
+
+The stable primary is the oldest active contextual note by `created_at`, then ID. Toggling the preference does not merge or delete existing notes.
+
+Native applications currently group by process. Browser contexts additionally require the exact captured title until stronger URL/tab identity exists.
 
 ```text
 focus supported application
         |
 Ctrl+Shift+Space
         |
-clear old runtime target
-        |
 capture + revalidate exact HWND/process
         |
-position compact editor safely
+load note preference
         |
-create a fresh contextual note
-        |
-   emit OverlayStatePayload
-              |
-   emit OpenNoteRequest
-              |
-frontend waits until requested ID exists
-              |
-open exact requested note
-              |
-type/edit -> durable save -> Done/Esc/Ctrl+Enter/close -> hide
-              |
-untouched empty note -> durable delete -> hide
+multiple notes enabled?
+   | yes                  | no
+   v                      v
+create fresh       stable active primary?
+                         | yes       | no
+                         v           v
+                      reopen      create fresh
+                         \         /
+                          OpenNoteRequest
+                                |
+                     frontend opens exact ID
 ```
 
 ### Request contract
 
 ```text
 OpenNoteRequest {
-  action: created | reopened,
+  action: created | reopened | detached,
   noteId: string,
   matchingNoteCount: non-negative integer
 }
@@ -55,51 +62,50 @@ OpenNoteRequest {
 
 The request intentionally excludes application titles, process names, paths, note text, geometry, and other user content.
 
-### Shortcut creation and explicit reopen
+### Explicit saved-note actions
 
-- **Global shortcut:** create one empty note, persist it, then emit `created` with the new ID and `matchingNoteCount = 0`, regardless of existing notes in that context.
-- **Explicit saved-note open:** reopen the selected note from My Skribs or All Skribs.
-- **Compatibility selection:** when a contextual action needs one note from several legacy matches, choose by `updated_at` descending, then `created_at` descending, then ID ascending.
+Opening a saved note from My Skribs or All Skribs uses an explicit saved-note path. When compatibility code must choose among several legacy matches, it uses a deterministic ordering of `updated_at` descending, then `created_at` descending, then ID ascending.
 
-The deterministic many-match selector is compatibility behavior for explicit contextual actions. It does not control shortcut creation.
+That compatibility selector is distinct from the shortcut primary-note rule.
 
 ## User-visible behavior
 
-- The editor says **NEW SKRIB FOR** when native code created the current typed Skrib record.
-- The editor says **REOPENED SKRIB FOR** when an existing typed Skrib record was selected.
-- No floating dot, attached tab, or permanent overlay remains after the editor hides.
-- Failed capture, placement, validation, or persistence emits no open request.
-- The frontend never opens a note merely because an array changed.
+- The editor identifies whether the native request was **created** or **reopened**.
+- A default shortcut press reuses the stable active contextual note when one exists.
+- With **multiple notes per context** enabled, shortcut presses create additional notes instead.
+- No matching active note creates a new note.
+- Archived or trashed notes are never shortcut primaries.
+- Failed capture, placement, validation, or persistence emits no usable open request.
+- The frontend never chooses a note merely because an array changed.
 
 ## Consequences
 
 ### Positive
 
 - Native behavior is deterministic and independently testable.
-- Frontend event ordering is safe: the request may arrive before or after the state payload because it remains pending until the exact ID exists.
-- Legacy duplicate data no longer produces random openings.
-- User-facing copy states whether the shortcut created or reopened a note.
+- Frontend event ordering is safe because the request identifies the exact note.
+- Existing contextual notes do not multiply by default.
+- Users can deliberately opt into multiple notes per context.
+- Legacy duplicate data remains discoverable without nondeterministic opening.
 
 ### Trade-offs
 
-- Contexts can contain several intentional notes, so retrieval and grouping remain first-class UI concerns.
-- Duplicate cleanup, titles, archive/trash, and the All Skribs recovery surface remain separate work.
-- Application/document identity is still constrained by the context work tracked in #18.
+- Browser title identity remains weaker than URL/tab identity.
+- Existing duplicate notes are preserved rather than silently merged.
+- Product copy and tests must distinguish shortcut-primary selection from legacy many-match compatibility selection.
 
 ## Rejected alternatives
 
 - **React array-difference detection:** timing-dependent and unable to distinguish unrelated context changes.
 - **Use the first native collection item:** map iteration order is not a product contract.
-- **Reopen the most recent note from the shortcut:** makes a creation gesture overwrite or surface an older thought unexpectedly.
-- **Send titles or text in the request:** unnecessary and expands the privacy surface.
+- **Always create from the shortcut:** conflicts with the current default one-primary-note-per-context preference.
+- **Always reopen regardless of preference:** removes the explicit multiple-notes option.
+- **Send titles or note text in the request:** unnecessary and expands the privacy surface.
 
 ## Verification
 
-- Native fresh-shortcut plus explicit zero/one/many/tie selection tests.
-- Frontend shape-validation and exact-ID selection tests.
-- Product-truth validation rejecting the old `knownNoteIds`/latest-array heuristic.
-- Complete CI matrix before merge.
-
-## Remaining parent scope
-
-Issue #20 remains open for full lifecycle consistency across the library, reversible trash/undo, site and FAQ alignment, broader context identity, representative usability evidence, and exact release-binary validation.
+- preference tests for stable primary selection, archive/trash exclusion, and multiple-note opt-in;
+- native lifecycle tests for created/reopened request shapes and deterministic compatibility selection;
+- frontend shape-validation and exact-ID selection tests;
+- product-truth and lifecycle validators rejecting the retired array-change heuristic;
+- installed Windows acceptance for the exact release candidate.
