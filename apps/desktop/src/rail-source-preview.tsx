@@ -7,8 +7,8 @@ import '@fontsource/kalam/400.css';
 import './styles/global.css';
 import './styles/accessibility.css';
 import './styles/website-theme.css';
-import { ContextRail } from './features/rail/ContextRail';
-import type { SkribNote } from './lib/geometry';
+import { ContextRail } from './features/widget/ContextRail';
+import type { SkribNote } from './features/notes/model/noteTypes';
 
 // Isolated, device-local design fixture. These are not saved or loaded into the real app.
 const samples = [
