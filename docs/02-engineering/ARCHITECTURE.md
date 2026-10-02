@@ -90,6 +90,7 @@ Skrib content remains local. Account and entitlement calls do not upload note te
 | Concern | Authoritative area |
 | --- | --- |
 | React shell, startup recovery, and window routing | `apps/desktop/src/app` (root `bootstrap.ts`, `main.tsx`, and `App.tsx` are compatibility entrypoints) |
+| Tauri WebView composition | `apps/desktop/src/windows` |
 | Home, account, and quick guide | `apps/desktop/src/features/account`, `src/features/onboarding` |
 | Compact/expanded editor, ink, files, reminders | `apps/desktop/src/features/skribs` |
 | Rich-content/reminder IndexedDB repositories | `apps/desktop/src/lib/richContentStore.ts`, `src/lib/reminderStore.ts` |
