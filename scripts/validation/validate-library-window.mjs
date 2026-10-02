@@ -243,7 +243,6 @@ for (const retiredState of [
 }
 
 for (const marker of [
-  "html[data-skribly-window='library']",
   '.library-workspace',
   '.library-note-row.selected',
   '@media (prefers-reduced-motion: reduce)',
