@@ -1,11 +1,14 @@
 # Widget feature
 
-This directory is the canonical home for the global/context widget domain and lifecycle logic.
+This directory is the canonical home for the global and contextual Skribli widgets.
 
 Current ownership:
 
-- `components/` — presentational launcher, header, filter, and Skrib ribbon pieces;
-- `lifecycle/` — native-window observation, context presence timing, paint acknowledgement helpers, and note-opening coordination;
-- `model/` — pure grouping/context matching/count logic.
+- `ContextRail.tsx` — widget lifecycle/state coordinator;
+- `GlobalPanelHandle.tsx` — separate global edge-handle surface;
+- `components/` — launchers, header, filters, Skrib ribbons, and opening journey;
+- `lifecycle/` — native-window observation, context presence, paint acknowledgement, and saved-note opening coordination;
+- `model/` — grouping, context matching, counts, and scope types;
+- `styles/` — widget-owned CSS.
 
-The legacy `features/rail/ContextRail.tsx` remains the widget lifecycle/state coordinator during migration. Presentational pieces now live under `features/widget/components/`; legacy model/lifecycle files in `features/rail/` remain compatibility re-exports.
+The former `features/rail/` compatibility namespace has been removed. New widget code belongs here.
