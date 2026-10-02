@@ -93,7 +93,8 @@ Skrib content remains local. Account and entitlement calls do not upload note te
 | Tauri WebView composition | `apps/desktop/src/windows` |
 | Home, account, and quick guide | `apps/desktop/src/features/account`, `src/features/onboarding` |
 | Note domain/lifecycle/model/persistence | `apps/desktop/src/features/notes` |
-| Note rendering/editor compatibility layer | `apps/desktop/src/features/skribs` (being migrated under #229) |
+| Note presentation components | `apps/desktop/src/features/notes/components` |
+| Note lifecycle/state coordinator and legacy editor surfaces | `apps/desktop/src/features/skribs/SkribComposer.tsx`, `apps/desktop/src/features/skribs` (being decomposed under #229) |
 | Reminder domain/model | `apps/desktop/src/features/reminders` |
 | Note rich-content IndexedDB repository | `apps/desktop/src/features/notes/persistence/richContentStore.ts` |
 | Reminder IndexedDB repository and notification delivery | `apps/desktop/src/features/reminders/persistence`, `apps/desktop/src/features/reminders/notifications` |
