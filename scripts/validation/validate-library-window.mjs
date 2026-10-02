@@ -24,7 +24,7 @@ const tauriConfig = JSON.parse(await read('apps/desktop/src-tauri/tauri.conf.jso
 const capabilities = JSON.parse(
   await read('apps/desktop/src-tauri/capabilities/default.json')
 );
-const app = await read('apps/desktop/src/App.tsx');
+const app = await read('apps/desktop/src/app/App.tsx');
 const homeHost = await read('apps/desktop/src/features/account/HomeHost.tsx');
 const nativeRuntime = await read('apps/desktop/src-tauri/src/lib.rs');
 const tray = await read('apps/desktop/src-tauri/src/desktop/tray.rs');
