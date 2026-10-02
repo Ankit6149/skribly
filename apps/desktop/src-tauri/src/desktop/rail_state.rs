@@ -80,7 +80,6 @@ pub(crate) fn detached_note_rail_label(
     Ok("context-rail")
 }
 
-
 impl RailWindowRuntime {
     pub(crate) fn remember_global_widget_y(&self, y: i32) {
         if let Ok(mut saved) = self.global_widget_return_y.lock() {
@@ -274,7 +273,7 @@ pub(crate) fn rail_dock_side(
 
 pub(crate) fn rail_position_for_side_and_y(
     side: RailDockSide,
-    pub(crate) y: i32,
+    y: i32,
     window_size: PhysicalSize<u32>,
     work_area: RailDockBounds,
     margin: i32,
@@ -316,7 +315,7 @@ pub(crate) fn nearest_rail_edge_position(
 pub(crate) fn clamp_rail_position_to_bounds(
     position: PhysicalPosition<i32>,
     window_size: PhysicalSize<u32>,
-    pub(crate) bounds: RailDockBounds,
+    bounds: RailDockBounds,
     margin: i32,
 ) -> PhysicalPosition<i32> {
     let (left, right, top, bottom) = rail_dock_limits(window_size, bounds, margin);
@@ -325,6 +324,5 @@ pub(crate) fn clamp_rail_position_to_bounds(
         i64::from(position.y).clamp(top, bottom) as i32,
     )
 }
-
 
 
