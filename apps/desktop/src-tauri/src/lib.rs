@@ -20,6 +20,10 @@ use core::models::{
     HitTestRect, OverlayInitializationStatus, OverlayMetrics, OverlayStatePayload, SkribNote,
     TargetWindowInfo,
 };
+use core::notes::lifecycle::{
+    detached_open_request, reopened_open_request, shortcut_open_request, OpenNoteAction,
+    OpenNoteRequest,
+};
 use core::storage;
 use core::{account, license};
 use desktop::rail_presentation::reveal_width;
@@ -32,10 +36,6 @@ use desktop::rail_state::{
     CONTEXT_RAIL_PEEK_HEIGHT, CONTEXT_RAIL_PEEK_WIDTH, GLOBAL_RAIL_COLLAPSED_HEIGHT,
     GLOBAL_RAIL_COLLAPSED_WIDTH, GLOBAL_RAIL_EDGE_MARGIN_LOGICAL, RAIL_DOCK_DEBOUNCE,
     RAIL_EXPANDED_FALLBACK_HEIGHT, RAIL_EXPANDED_WIDTH,
-};
-use core::notes::lifecycle::{
-    detached_open_request, reopened_open_request, shortcut_open_request, OpenNoteAction,
-    OpenNoteRequest,
 };
 
 #[cfg(target_os = "windows")]
