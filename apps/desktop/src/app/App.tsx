@@ -1,6 +1,6 @@
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { useEffect } from 'react';
-import { useLicenseStore } from '../stores/licenseStore';
+import { useLicenseStore } from '../features/licensing/state/licenseStore';
 import { ContextWidgetWindow } from '../windows/context-widget/ContextWidgetWindow';
 import { HomeWindow } from '../windows/home/HomeWindow';
 import { NoteWindow } from '../windows/note/NoteWindow';
