@@ -12,7 +12,7 @@ async function read(relativePath) {
 
 const failures = [];
 const nativeEntry = await read('apps/desktop/src-tauri/src/lib.rs');
-const nativeLifecycle = await read('apps/desktop/src-tauri/src/note_lifecycle.rs');
+const nativeLifecycle = await read('apps/desktop/src-tauri/src/core/notes/lifecycle.rs');
 const overlayHost = await read('apps/desktop/src/features/overlay/OverlayHost.tsx');
 const composer = await read('apps/desktop/src/features/skribs/SkribComposer.tsx');
 const frontendLifecycle = await read('apps/desktop/src/features/notes/lifecycle/noteLifecycle.ts');
