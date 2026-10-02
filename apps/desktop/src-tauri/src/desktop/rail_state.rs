@@ -325,4 +325,3 @@ pub(crate) fn clamp_rail_position_to_bounds(
     )
 }
 
-
