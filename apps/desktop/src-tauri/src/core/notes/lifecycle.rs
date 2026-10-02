@@ -24,8 +24,8 @@ pub fn created_open_request(note_id: String, matching_note_count: usize) -> Open
     }
 }
 
-/// The global shortcut is a creation gesture. Existing contextual notes remain available through
-/// the note library, but they must never change what Ctrl+Shift+Space opens.
+/// Build the request for the shortcut's creation path after preference/context selection has
+/// already determined that no existing primary note should be reopened.
 pub fn shortcut_open_request(note_id: String, matching_note_count: usize) -> OpenNoteRequest {
     created_open_request(note_id, matching_note_count)
 }
@@ -145,7 +145,7 @@ mod tests {
     }
 
     #[test]
-    fn global_shortcut_always_describes_a_fresh_note() {
+    fn shortcut_creation_path_describes_a_fresh_note() {
         assert_eq!(
             shortcut_open_request("shortcut-note".into(), 4),
             OpenNoteRequest {
