@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { emitTo, listen } from '@tauri-apps/api/event';
 import type { RailWindowState } from './railWindowState';
-import '../../styles/context-rail.css';
+import '../widget/styles/widget.css';
 
 /** A separate, widget-sized window keeps the edge handle outside the panel. */
 export function GlobalPanelHandle() {
