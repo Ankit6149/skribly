@@ -1,5 +1,5 @@
 import { AppWindow, Code2, Folder, Globe2 } from 'lucide-react';
-import { bundledAppIcon } from '../../skribs/bundledAppIcon';
+import { bundledAppIcon } from '../../notes/bundledAppIcon';
 
 export function WidgetContextIcon({
   processName,
