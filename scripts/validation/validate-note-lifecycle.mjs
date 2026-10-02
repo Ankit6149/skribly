@@ -13,6 +13,7 @@ async function read(relativePath) {
 const failures = [];
 const nativeEntry = await read('apps/desktop/src-tauri/src/lib.rs');
 const nativeLifecycle = await read('apps/desktop/src-tauri/src/core/notes/lifecycle.rs');
+const notePreferences = await read('apps/desktop/src-tauri/src/core/preferences.rs');
 const overlayHost = await read('apps/desktop/src/features/overlay/OverlayHost.tsx');
 const composer = [
   await read('apps/desktop/src/features/skribs/SkribComposer.tsx'),
@@ -29,11 +30,10 @@ const compactNativeEntry = nativeEntry.replace(/\s+/g, '');
 const compactOverlayHost = overlayHost.replace(/\s+/g, '');
 
 const requiredNativeContract = [
-  'mod note_lifecycle;',
   'shortcut_open_request',
   'reopened_open_request',
   'letopen_request=ifreopening{',
-  'action:note_lifecycle::OpenNoteAction::Reopened,',
+  'action:OpenNoteAction::Reopened,',
   '}else{shortcut_open_request(note_id,matching_note_count)};',
   'core::preferences::primary_shortcut_note',
   'runtime.record_open_request(open_request.clone());',
@@ -59,7 +59,7 @@ const requiredSelectionRules = [
   'zero_matches_require_creation',
   'many_matches_reopen_the_most_recent_note',
   'ties_are_stable_across_hash_map_iteration_order',
-  'global_shortcut_always_describes_a_fresh_note',
+  'shortcut_creation_path_describes_a_fresh_note',
 ];
 for (const claim of requiredSelectionRules) {
   if (!compactNativeLifecycle.includes(claim.replace(/\s+/g, ''))) {
@@ -140,11 +140,27 @@ for (const claim of requiredUserClarity) {
   }
 }
 
+const requiredPreferenceRules = [
+  'multiple_notes_per_context: false',
+  'pub fn primary_shortcut_note',
+  'if preferences.multiple_notes_per_context',
+  '.min_by(|left, right|',
+  'left.created_at',
+  'stable_primary_preserves_existing_multiple_notes',
+  'archive_trash_and_other_apps_are_never_primary',
+];
+for (const claim of requiredPreferenceRules) {
+  if (!notePreferences.includes(claim)) {
+    failures.push(`Shortcut preference contract is missing: ${claim}`);
+  }
+}
+
 const requiredAdrClaims = [
-  'Every valid `Ctrl+Shift+Space` press creates a fresh note',
-  'updated_at` descending',
+  'multipleNotesPerContext',
+  'stable active primary',
+  'oldest active contextual note',
   'The request intentionally excludes application titles',
-  'Issue #20 remains open',
+  'Archived or trashed notes are never shortcut primaries',
 ];
 for (const claim of requiredAdrClaims) {
   if (!adr.includes(claim)) {
