@@ -95,7 +95,8 @@ Skrib content remains local. Account and entitlement calls do not upload note te
 | Note domain/lifecycle/model/persistence | `apps/desktop/src/features/notes` |
 | Note rendering/editor compatibility layer | `apps/desktop/src/features/skribs` (being migrated under #229) |
 | Reminder domain/model | `apps/desktop/src/features/reminders` |
-| Rich-content/reminder IndexedDB repositories | `apps/desktop/src/lib/richContentStore.ts`, `src/lib/reminderStore.ts` |
+| Note rich-content IndexedDB repository | `apps/desktop/src/features/notes/persistence/richContentStore.ts` |
+| Reminder IndexedDB repository and notification delivery | `apps/desktop/src/features/reminders/persistence`, `apps/desktop/src/features/reminders/notifications` |
 | Widget domain/lifecycle/model | `apps/desktop/src/features/widget` |
 | Widget rendering compatibility layer | `apps/desktop/src/features/rail` (being migrated under #229) |
 | Library, Archive, calendar, Trash, export/import UI | `apps/desktop/src/features/library` |
