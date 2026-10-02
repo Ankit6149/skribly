@@ -1205,18 +1205,6 @@ fn sync_context_presence_event(app: &AppHandle, state: &AppState, event: u32, hw
     }
 }
 
-fn hide_main_note_window_as_lifecycle_action(app_handle: &AppHandle, state: &AppState) {
-    let Ok(_operation_guard) = state.native_window_operation_gate.lock() else {
-        return;
-    };
-    let Ok(generation) = begin_native_lifecycle_action(state) else {
-        return;
-    };
-    if native_lifecycle_action_is_current(state, generation) {
-        hide_main_note_window(app_handle);
-    }
-}
-
 fn clear_active_target_and_hide_note(app_handle: &AppHandle, state: &AppState) {
     let Ok(_operation_guard) = state.native_window_operation_gate.lock() else {
         return;
@@ -3676,10 +3664,10 @@ pub fn run() {
                             continue;
                         }
 
-                        if let Err(message) = desktop::native_transition::flush_active_editor(&app_handle_hk, "shortcut") {
-                            let _ = app_handle_hk.emit("skribly://hotkey-error", message);
-                            continue;
-                        }
+                        let transition = match desktop::native_transition::flush_active_editor(&app_handle_hk, "shortcut") {
+                            Ok(ticket) => ticket,
+                            Err(message) => { let _ = app_handle_hk.emit("skribly://hotkey-error", message); continue; }
+                        };
                         let transaction_handle = app_handle_hk.clone();
                         let transaction_coordinator = coordinator_hk.clone();
                         let _ = app_handle_hk.run_on_main_thread(move || {
@@ -3698,6 +3686,7 @@ pub fn run() {
                                 return;
                             }
                         };
+                        if !transition.can_commit(&state_hk) { return; }
                         clear_active_target_and_hide_note_locked(&transaction_handle, &state_hk);
 
                         #[cfg(target_os = "windows")]
@@ -3856,6 +3845,7 @@ pub fn run() {
                             *suppressed = Some(target.context_fingerprint());
                         }
                         hide_context_note_rail(&transaction_handle);
+                        transition.finish(true);
                         });
                     }
                 }

@@ -6,7 +6,7 @@ Scope: audit BE-01 through BE-09; GitHub #261–268 and account consent #258. Im
 
 The operation gate never blocks a native UI callback. A contended transaction returns a retry error or retains the previous native state. Docking debounce and shortcut placement queue native work on the event loop; workers do not own a gate while awaiting that work. Superseded docking generations remain cancelled. The gate still serializes physical commits; contention does not authorize an unlocked commit.
 
-Native shortcut, Quit and OS editor-close first request a durable frontend save. The worker waits at most five seconds, without owning a native gate, for the exact request acknowledgement from `main`. A stale acknowledgement, changed active note, failure or timeout cancels the transition. Quit retains the editor on failure. The composer must flush text, rich text and ink through this contract; forced termination and Windows end-session cannot promise a JavaScript save.
+Native shortcut, Quit and OS editor-close first request a durable frontend save. The worker waits at most five seconds, without owning a native gate, for the exact request acknowledgement from `main`. A stale acknowledgement, changed active note, failure or timeout cancels the transition. Request-scoped input quiescence remains until the native `native-transition-finished` outcome; a transferable ticket owns the transition until commit, and the active note plus five-second deadline are revalidated under the native gate before any queued action can commit. Quit retains the editor on failure. The composer must flush text, rich text and ink through this contract; forced termination and Windows end-session cannot promise a JavaScript save.
 
 ## Protected local persistence
 
