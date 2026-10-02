@@ -5,10 +5,10 @@ import {
   type InkPoint,
   type InkStroke,
   type InkTool,
-} from '../../../lib/richContentStore';
+} from '../persistence/richContentStore';
 
-export type { InkPoint, InkStroke, InkTool } from '../../../lib/richContentStore';
-export { MAX_INK_STROKES } from '../../../lib/richContentStore';
+export type { InkPoint, InkStroke, InkTool } from '../persistence/richContentStore';
+export { MAX_INK_STROKES } from '../persistence/richContentStore';
 export const MAX_INK_POINTS = MAX_INK_POINTS_PER_NOTE;
 export const MAX_INK_STROKE_POINTS = MAX_INK_POINTS_PER_STROKE;
 
