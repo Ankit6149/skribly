@@ -1,4 +1,5 @@
-import type { SkribNote, TargetWindowInfo } from '../../../lib/geometry';
+import type { SkribNote } from '../../notes/model/noteTypes';
+import type { TargetWindowInfo } from '../../../shared/native/windowTypes';
 
 export interface NoteGroup {
   key: string;
