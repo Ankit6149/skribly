@@ -8,6 +8,8 @@
 
 **Scope:** A separate `feature/android-foundation` branch based on `01acfac`; no mobile changes merged into the desktop candidate.
 
+**Tracking:** [Android outcome #276](https://github.com/Ankit6149/skribly/issues/276). Historical epic #46 is closed as a duplicate and was not reopened or treated as active acceptance.
+
 **Acceptance:** Source/browser foundation only. No APK or installed Android acceptance. **Linear write-back pending**; no mobile Linear issue was available to this executor.
 
 ## What changed and why
