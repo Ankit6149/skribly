@@ -2220,7 +2220,7 @@ fn set_active_target(
     build_overlay_payload(&app_handle, &state, false)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn get_storage_health(state: State<'_, AppState>) -> StorageHealthPayload {
     state.storage_health()
 }
@@ -2343,7 +2343,7 @@ fn get_note_preferences(
     core::preferences::load(&path)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn set_note_preferences(
     app_handle: AppHandle,
     multiple_notes_per_context: bool,
@@ -2356,7 +2356,7 @@ fn set_note_preferences(
     core::preferences::save(&path, multiple_notes_per_context)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn launch_supported_target_application(process_name: String) -> Result<String, String> {
     desktop::target_launch::launch(&process_name)
 }
@@ -2606,7 +2606,7 @@ fn close_skrib_note_here(app_handle: AppHandle, state: State<'_, AppState>) -> R
     Ok(())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn toggle_skrib_collapse(
     app_handle: AppHandle,
     state: State<'_, AppState>,
@@ -3332,7 +3332,7 @@ fn permanently_delete_skrib_note(
     Ok(build_mutation_payload(&app_handle, &state, false))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn get_all_skribs(state: State<'_, AppState>) -> Vec<SkribNote> {
     let mut skribs = state.coordinator.get_all_skribs();
     skribs.sort_by(|left, right| {
@@ -3388,7 +3388,7 @@ fn account_session_remove(app_handle: AppHandle, key: String) -> Result<(), Stri
     account::remove_session_value(&directory, key.trim())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn get_account_device_claim() -> Result<String, String> {
     account::device_claim()
 }
@@ -3403,12 +3403,23 @@ fn apply_account_entitlement(token: String) -> Result<license::LicenseStatus, St
 }
 
 #[tauri::command]
-fn clear_account_entitlement(
+async fn clear_account_entitlement(
     app_handle: AppHandle,
-    state: State<'_, AppState>,
 ) -> Result<license::LicenseStatus, String> {
-    let status = license::deactivate_global()?;
-    clear_active_target_and_hide_note(&app_handle, &state);
+    // DPAPI and durable generation replacement must not stall a native window callback.
+    let status = tauri::async_runtime::spawn_blocking(license::deactivate_global)
+        .await
+        .map_err(|_| "The local account worker is unavailable. Retry signing out.".to_string())??;
+    let ui_handle = app_handle.clone();
+    app_handle
+        .run_on_main_thread(move || {
+            let state = ui_handle.state::<AppState>();
+            clear_active_target_and_hide_note(&ui_handle, &state);
+        })
+        .map_err(|_| {
+            "The account was cleared, but the editor could not be hidden. Retry signing out."
+                .to_string()
+        })?;
     Ok(status)
 }
 

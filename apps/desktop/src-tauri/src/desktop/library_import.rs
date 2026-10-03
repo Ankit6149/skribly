@@ -186,60 +186,68 @@ struct ImportPlan {
 pub fn install_library_import_bridge<R: Runtime>(app: &App<R>) -> tauri::Result<()> {
     let preview_handle = app.handle().clone();
     app.listen(LIBRARY_IMPORT_PREVIEW_REQUEST_EVENT, move |event| {
-        let request_id = request_id_from_payload(event.payload());
-        let result = match serde_json::from_str::<ImportPreviewRequest>(event.payload()) {
-            Ok(request) => match perform_preview(&preview_handle, request.clone()) {
-                Ok(preview) => ImportPreviewResult {
-                    request_id: request.request_id,
-                    preview: Some(preview),
-                    error: None,
+        let preview_handle = preview_handle.clone();
+        let payload = event.payload().to_owned();
+        tauri::async_runtime::spawn_blocking(move || {
+            let request_id = request_id_from_payload(&payload);
+            let result = match serde_json::from_str::<ImportPreviewRequest>(&payload) {
+                Ok(request) => match perform_preview(&preview_handle, request.clone()) {
+                    Ok(preview) => ImportPreviewResult {
+                        request_id: request.request_id,
+                        preview: Some(preview),
+                        error: None,
+                    },
+                    Err(error) => ImportPreviewResult {
+                        request_id: request.request_id,
+                        preview: None,
+                        error: Some(error),
+                    },
                 },
-                Err(error) => ImportPreviewResult {
-                    request_id: request.request_id,
+                Err(_) => ImportPreviewResult {
+                    request_id,
                     preview: None,
-                    error: Some(error),
+                    error: Some("Skribli rejected an invalid import-preview request.".into()),
                 },
-            },
-            Err(_) => ImportPreviewResult {
-                request_id,
-                preview: None,
-                error: Some("Skribli rejected an invalid import-preview request.".into()),
-            },
-        };
-        let _ = preview_handle.emit_to(
-            LIBRARY_WINDOW_LABEL,
-            LIBRARY_IMPORT_PREVIEW_RESULT_EVENT,
-            result,
-        );
+            };
+            let _ = preview_handle.emit_to(
+                LIBRARY_WINDOW_LABEL,
+                LIBRARY_IMPORT_PREVIEW_RESULT_EVENT,
+                result,
+            );
+        });
     });
 
     let apply_handle = app.handle().clone();
     app.listen(LIBRARY_IMPORT_APPLY_REQUEST_EVENT, move |event| {
-        let request_id = request_id_from_payload(event.payload());
-        let result = match serde_json::from_str::<ImportApplyRequest>(event.payload()) {
-            Ok(request) => match perform_apply(&apply_handle, request.clone()) {
-                Ok(summary) => ImportApplyResult {
-                    request_id: request.request_id,
-                    summary: Some(summary),
-                    error: None,
+        let apply_handle = apply_handle.clone();
+        let payload = event.payload().to_owned();
+        tauri::async_runtime::spawn_blocking(move || {
+            let request_id = request_id_from_payload(&payload);
+            let result = match serde_json::from_str::<ImportApplyRequest>(&payload) {
+                Ok(request) => match perform_apply(&apply_handle, request.clone()) {
+                    Ok(summary) => ImportApplyResult {
+                        request_id: request.request_id,
+                        summary: Some(summary),
+                        error: None,
+                    },
+                    Err(error) => ImportApplyResult {
+                        request_id: request.request_id,
+                        summary: None,
+                        error: Some(error),
+                    },
                 },
-                Err(error) => ImportApplyResult {
-                    request_id: request.request_id,
+                Err(_) => ImportApplyResult {
+                    request_id,
                     summary: None,
-                    error: Some(error),
+                    error: Some("Skribli rejected an invalid import-apply request.".into()),
                 },
-            },
-            Err(_) => ImportApplyResult {
-                request_id,
-                summary: None,
-                error: Some("Skribli rejected an invalid import-apply request.".into()),
-            },
-        };
-        let _ = apply_handle.emit_to(
-            LIBRARY_WINDOW_LABEL,
-            LIBRARY_IMPORT_APPLY_RESULT_EVENT,
-            result,
-        );
+            };
+            let _ = apply_handle.emit_to(
+                LIBRARY_WINDOW_LABEL,
+                LIBRARY_IMPORT_APPLY_RESULT_EVENT,
+                result,
+            );
+        });
     });
 
     Ok(())
