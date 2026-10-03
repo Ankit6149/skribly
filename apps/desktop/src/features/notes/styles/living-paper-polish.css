@@ -748,3 +748,67 @@
   .composer-context-tab { top: 12px; }
   .composer-reminder-window { inset: 52px 9px 51px auto; width: calc(100% - 18px); }
 }
+
+
+/* Editor tools share the quiet paper surface and one compact interaction rhythm. */
+.composer-mode-pill {
+  position: absolute; z-index: 31; bottom: 12px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 2px; padding: 3px; max-width: calc(100% - 154px);
+  border: 1px solid rgb(38 41 35 / 12%); border-radius: 999px;
+  background: color-mix(in srgb, var(--paper) 68%, transparent);
+}
+.composer-mode-pill button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  min-width: 54px; min-height: 30px; padding: 0 9px; border: 0; border-radius: 999px;
+  color: var(--skribli-ink); background: transparent; font: 600 11px/1 var(--skribli-ui-font); cursor: pointer;
+}
+.composer-mode-pill button[aria-pressed='true'] { background: var(--paper); box-shadow: 0 1px 3px rgb(38 41 35 / 8%); }
+.composer-mode-pill button:hover:not(:disabled) { background: color-mix(in srgb, var(--paper) 86%, transparent); }
+.composer-mode-pill button:disabled { opacity: var(--control-disabled-opacity); cursor: default; }
+.composer-mode-pill button:focus-visible { outline: 2px solid var(--olive); outline-offset: 1px; }
+.composer-mode-pill svg, .composer-format-bar svg, .inline-attachment-object svg { stroke-width: 1.65; }
+.composer-format-bar { width: 290px; max-width: calc(100% - 16px); padding: 5px; gap: 1px; border: 1px solid rgb(38 41 35 / 12%); border-radius: 13px; }
+.composer-format-bar button { display: grid; place-items: center; flex: 0 0 28px; width: 28px; height: 28px; border-radius: 7px; background: transparent; }
+.composer-format-bar button:hover { background: color-mix(in srgb, var(--mint) 45%, var(--paper)); }
+.composer-format-bar button:focus-visible { outline: 2px solid var(--olive); outline-offset: 1px; }
+.composer-format-divider { align-self: center; width: 1px; height: 16px; margin: 0 2px; background: rgb(38 41 35 / 14%); }
+.composer-format-swatches { display: flex; flex: 1 0 100%; align-items: center; gap: 6px; padding: 5px 4px 2px; border-top: 1px solid rgb(38 41 35 / 10%); }
+.composer-format-bar .composer-format-swatch { width: 24px; height: 24px; flex-basis: 24px; background: var(--format-swatch); border: 2px solid var(--paper); outline: 1px solid rgb(38 41 35 / 17%); border-radius: 50%; }
+.composer-format-bar .composer-format-swatch:focus-visible { outline: 2px solid var(--olive); }
+.composer-slash-menu { max-height: min(276px, calc(100% - 16px)); }
+.composer-textarea blockquote { margin: 8px 0; padding: 2px 0 2px 14px; border-left: 2px solid rgb(38 41 35 / 28%); color: var(--skribli-muted); }
+.composer-textarea hr { margin: 14px 0; border: 0; border-top: 1px solid rgb(38 41 35 / 24%); }
+.inline-attachment-image .inline-attachment-preview,
+.inline-attachment-ink .inline-attachment-preview { padding: 4px; border: 1px solid rgb(38 41 35 / 14%); border-radius: 9px; background: var(--paper); box-shadow: 0 2px 5px rgb(38 41 35 / 6%); }
+.inline-attachment:is(:hover,:focus-within) .inline-attachment-preview { box-shadow: 0 3px 8px rgb(38 41 35 / 10%); }
+.inline-attachment-meta { display: block; font: 500 9px/1.4 var(--skribli-ui-font); color: var(--skribli-muted); }
+.inline-attachment-document { width: 216px; min-height: 64px; padding: 10px 35px 10px 10px; display: grid; grid-template-columns: 30px minmax(0,1fr); gap: 2px 8px; border: 1px solid rgb(38 41 35 / 14%); border-radius: 10px; background: color-mix(in srgb,var(--paper) 80%,transparent); }
+.inline-attachment-document .inline-attachment-preview { grid-row: 1 / 3; align-self: center; padding: 0; border: 0; background: transparent; box-shadow: none; }
+.inline-attachment-document .inline-attachment-preview svg { width: 25px; height: 25px; }
+.inline-attachment-document .inline-attachment-name { margin: 0; align-self: end; color: var(--skribli-ink); font-size: 11px; }
+.inline-attachment-document .inline-attachment-more { top: 6px; right: 5px; }
+.inline-attachment-document .inline-attachment-remove { top: 34px; right: 6px; }
+.inline-attachment-remove, .inline-attachment-more { width: 24px; height: 24px; }
+.inline-attachment-popover { z-index: 41; background: var(--paper); border: 1px solid rgb(38 41 35 / 13%); }
+.attachment-delete-confirmation { position: relative; z-index: 42; margin: 6px 0; padding: 12px; border: 1px solid rgb(38 41 35 / 16%); border-radius: 12px; background: var(--paper); font: 500 11px/1.5 var(--skribli-ui-font); box-shadow: 0 4px 12px rgb(38 41 35 / 10%); }
+.attachment-delete-confirmation strong { font-size: 12px; }
+.attachment-delete-confirmation p { margin: 5px 0 8px; overflow-wrap: anywhere; }
+.attachment-delete-confirmation > div { display: flex; justify-content: flex-end; gap: 6px; }
+.attachment-delete-confirmation button { min-height: 30px; padding: 4px 10px; border: 1px solid rgb(38 41 35 / 16%); border-radius: 8px; background: var(--paper); color: var(--skribli-ink); cursor: pointer; }
+.attachment-delete-confirmation .danger { color: white; background: #854040; }
+.attachment-delete-confirmation button:focus-visible { outline: 2px solid var(--olive); outline-offset: 2px; }
+.composer-resize-handle { width: 26px; height: 26px; }
+@media (max-width: 360px) {
+  .composer-mode-pill button { min-width: 45px; padding-inline: 6px; gap: 3px; }
+  .composer-mode-pill { bottom: 13px; }
+}
+@media (forced-colors: active) {
+  .composer-mode-pill, .composer-format-bar, .inline-attachment-document, .attachment-delete-confirmation { background: Canvas; border-color: CanvasText; }
+  .composer-mode-pill button[aria-pressed='true'] { background: Highlight; color: HighlightText; }
+  .composer-format-bar .composer-format-swatch { forced-color-adjust: none; }
+}
+
+/* Save state sits above the editing mode so neither label occludes the other. */
+.composer-save-indicator { bottom: 52px; left: 50%; right: auto; transform: translateX(-50%); width: max-content; max-width: calc(100% - 32px); font-size: 10px; pointer-events: none; }
+
+@media (max-width: 360px) { .composer-mode-pill { left: calc(50% - 24px); } }

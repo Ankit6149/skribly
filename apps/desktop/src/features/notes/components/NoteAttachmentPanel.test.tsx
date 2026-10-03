@@ -46,6 +46,9 @@ describe('attachment collection', () => {
     await act(async () => {
       (container.querySelector('.attachment-tray-remove') as HTMLButtonElement).click();
     });
+    expect(removeAttachmentFromNote).not.toHaveBeenCalled();
+    expect(container.querySelector('[role="alertdialog"]')?.textContent).toContain('photo.png');
+    await act(async () => { Array.from(container.querySelectorAll('button')).find((button) => button.textContent === 'Delete file')!.click(); });
     expect(removeAttachmentFromNote).toHaveBeenCalledWith('test-note', 'new-photo');
     expect(container.querySelector('.attachment-tray-item')).toBeNull();
   });
@@ -62,6 +65,9 @@ describe('attachment collection', () => {
     await act(async () => root.render(<NoteAttachmentPanel noteId="test-note" compact
       filesRequest={{ id: 1, files: [] }} removeRequest={{ id: 'new-photo', nonce: 1 }}
       onPlaceInline={onPlaceInline} onRemoved={onRemoved} />));
+    expect(removeAttachmentFromNote).not.toHaveBeenCalled();
+    expect(container.querySelector('[role="alertdialog"]')?.textContent).toContain('photo.png');
+    await act(async () => { Array.from(container.querySelectorAll('button')).find((button) => button.textContent === 'Delete file')!.click(); });
     expect(removeAttachmentFromNote).toHaveBeenCalledWith('test-note', 'new-photo');
     expect(onRemoved).toHaveBeenCalledWith('new-photo');
     expect(container.querySelector('.attachment-drawer-handle')).toBeNull();

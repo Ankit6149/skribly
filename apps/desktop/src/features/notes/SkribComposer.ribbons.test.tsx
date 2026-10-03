@@ -2,6 +2,7 @@
 import React, { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { replaceRichTextForNote } from './persistence/richContentStore';
 import { SkribComposer } from './SkribComposer';
 import type { SkribNote } from './model/noteTypes';
 
@@ -24,7 +25,7 @@ let root: Root; let container: HTMLDivElement;
 beforeEach(async () => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   container = document.createElement('div'); document.body.append(container); root = createRoot(container);
-  await act(async () => root.render(<SkribComposer note={note} target={null} openAction="created" />));
+  await act(async () => root.render(<React.StrictMode><SkribComposer note={note} target={null} openAction="created" /></React.StrictMode>));
 });
 afterEach(async () => { await act(async () => root.unmount()); container.remove(); });
 async function click(label: string) {
@@ -32,6 +33,39 @@ async function click(label: string) {
 }
 
 describe('note icon ribbons', () => {
+  it('accepts and saves typing after the actual StrictMode effect replay', async () => {
+    const editor = container.querySelector('[role="textbox"]') as HTMLDivElement;
+    await act(async () => {
+      editor.innerHTML = '<p>StrictMode draft</p>';
+      editor.dispatchEvent(new InputEvent('input', { inputType: 'insertText', bubbles: true }));
+    });
+    expect(editor.textContent).toBe('StrictMode draft');
+    expect(container.textContent).not.toContain('already closing');
+    await act(async () => editor.dispatchEvent(new FocusEvent('focusout', { bubbles: true })));
+    expect(replaceRichTextForNote).toHaveBeenCalledWith(note.id, { html: '<p>StrictMode draft</p>', plainText: 'StrictMode draft' });
+  });
+
+  it('keeps the newer formatting draft when an older component write fails', async () => {
+    let reject!: (error: Error) => void;
+    vi.mocked(replaceRichTextForNote).mockImplementationOnce(() => new Promise((_yes, no) => { reject = no; }));
+    const editor = container.querySelector('[role="textbox"]') as HTMLDivElement;
+    await act(async () => {
+      editor.innerHTML = '<p><strong>A</strong></p>';
+      editor.dispatchEvent(new InputEvent('input', { bubbles: true }));
+      editor.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
+    });
+    await act(async () => {
+      editor.innerHTML = '<p><em>B</em></p>';
+      editor.dispatchEvent(new InputEvent('input', { bubbles: true }));
+      reject(new Error('Synthetic quota fault'));
+    });
+    expect(editor.innerHTML).toBe('<p><em>B</em></p>');
+    const retry = Array.from(container.querySelectorAll('button')).find((button) => button.textContent === 'Retry saving')!;
+    expect(retry).toBeTruthy();
+    await act(async () => retry.click());
+    expect(replaceRichTextForNote).toHaveBeenLastCalledWith(note.id, { html: '<p><em>B</em></p>', plainText: 'B' });
+  });
+
   it('opens close choices in a modal and returns focus when editing continues', async () => {
     const close = container.querySelector('[aria-label="Close note options"]') as HTMLButtonElement;
     expect(close.disabled).toBe(false);
@@ -49,7 +83,7 @@ describe('note icon ribbons', () => {
 
   it('opens labelled icon actions from Add and closes them on a second click', async () => {
     await click('Add or mark this Skrib');
-    for (const label of ['Draw on this note', 'Attach a photo, video or file', 'Add a checklist']) {
+    for (const label of ['Attach a photo, video or file', 'Add a checklist']) {
       const button = container.querySelector(`[aria-label="${label}"]`)!;
       expect(button.querySelector('svg')).not.toBeNull();
       expect(button.querySelector('span')?.textContent).not.toBe('');

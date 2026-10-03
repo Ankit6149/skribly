@@ -1,3 +1,6 @@
+import type { NoteDiscardRecovery } from '../lifecycle/discardRecovery';
+import { hasMeaningfulRichText } from '../model/richTextPresence';
+
 export type SkribAttachmentKind = 'image' | 'video' | 'document' | 'ink';
 export type InkTool = 'pen' | 'highlighter' | 'eraser';
 
@@ -51,6 +54,7 @@ export interface StoredRichContent {
   richText?: SkribRichTextDocument;
   view?: SkribViewPreferences;
   updatedAt: number;
+  discardRecovery?: NoteDiscardRecovery;
 }
 
 export interface AttachmentCandidate {
@@ -64,6 +68,7 @@ export interface RichContentPersistence {
   put(content: StoredRichContent): Promise<void>;
   delete(noteId: string): Promise<void>;
   listNoteIds(): Promise<string[]>;
+  transaction?<T>(operation: (persistence: RichContentPersistence) => Promise<T>): Promise<T>;
 }
 
 export interface RichContentRepositoryOptions {
@@ -353,8 +358,44 @@ async function runTransaction<T>(
   });
 }
 
+// Read/modify/write stays inside one IndexedDB readwrite transaction, shared by all WebViews.
+async function withRichMutation<T>(operation: (persistence: RichContentPersistence) => Promise<T>): Promise<T> {
+  const db = await openDatabase();
+  return new Promise<T>((resolve, reject) => {
+    const transaction = db.transaction(STORE_NAME, 'readwrite');
+    const store = transaction.objectStore(STORE_NAME);
+    let finished = false;
+    let result: T;
+    let failure: unknown;
+    const request = <R>(value: IDBRequest<R>) => new Promise<R>((yes, no) => {
+      value.onsuccess = () => yes(value.result);
+      value.onerror = () => no(value.error ?? new Error('Local content request failed.'));
+    });
+    const scoped: RichContentPersistence = {
+      get: (id) => request(store.get(id)),
+      put: async (content) => { await request(store.put(content)); },
+      delete: async (id) => { await request(store.delete(id)); },
+      listNoteIds: async () => (await request(store.getAllKeys())).map(String),
+    };
+    transaction.oncomplete = () => {
+      db.close();
+      if (finished) resolve(result);
+      else reject(new Error('Local content mutation ended before it could finish. No later writes were accepted.'));
+    };
+    transaction.onabort = () => { db.close(); reject(failure ?? transaction.error ?? new Error('Local content mutation was cancelled.')); };
+    void operation(scoped).then((value) => { result = value; finished = true; }, (reason) => {
+      failure = reason;
+      try { transaction.abort(); } catch { db.close(); reject(reason); }
+    });
+  });
+}
+
+// Test/in-memory adapters also coordinate independent repositories that share a persistence object.
+const memoryMutationQueues = new WeakMap<RichContentPersistence, Map<string, Promise<void>>>();
+
 export function createIndexedDbRichContentPersistence(): RichContentPersistence {
   return {
+    transaction: withRichMutation,
     get: (noteId) =>
       runTransaction<StoredRichContent | undefined>('readonly', (store, setResult, reject) => {
         const request = store.get(noteId);
@@ -430,17 +471,52 @@ function normalizeRichTextDocument(document?: Partial<SkribRichTextDocument>): S
   return document as SkribRichTextDocument;
 }
 
+function record(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+export function validateDiscardRecovery(value: unknown, noteId: string): NoteDiscardRecovery {
+  const fail = () => { throw new Error('This note has an unsupported or damaged discard recovery record. It was preserved; editing is paused to protect both versions.'); };
+  if (!record(value) || value.version !== 1) return fail();
+  for (const snapshot of [value.current, value.baseline]) {
+    if (!record(snapshot) || typeof snapshot.text !== 'string' || [...snapshot.text].length > 20_000 ||
+      !['yellow', 'peach', 'mint', 'sky', 'lavender', 'rose', 'aqua', 'sand'].includes(String(snapshot.color)) ||
+      !record(snapshot.rich) || snapshot.rich.noteId !== noteId || !Array.isArray(snapshot.rich.attachments) ||
+      snapshot.rich.attachments.length > MAX_NOTE_ATTACHMENTS || !Array.isArray(snapshot.reminders) || snapshot.reminders.length > 1000) return fail();
+    for (const attachment of snapshot.rich.attachments) {
+      if (!record(attachment) || typeof attachment.id !== 'string' || !/^[a-zA-Z0-9_-]{1,180}$/.test(attachment.id) ||
+        typeof attachment.name !== 'string' || typeof attachment.mimeType !== 'string' ||
+        !['image', 'video', 'document', 'ink'].includes(String(attachment.kind)) ||
+        !(attachment.blob instanceof Blob) || attachment.size !== attachment.blob.size) return fail();
+    }
+    if (snapshot.rich.richText && (!record(snapshot.rich.richText) || !normalizeRichTextDocument(snapshot.rich.richText))) return fail();
+    if (snapshot.rich.inkDocument) {
+      if (!record(snapshot.rich.inkDocument) || snapshot.rich.inkDocument.version !== 1 || !Array.isArray(snapshot.rich.inkDocument.strokes)) return fail();
+      try { validateInkDocument(snapshot.rich.inkDocument.strokes); } catch { return fail(); }
+    }
+    for (const reminder of snapshot.reminders) {
+      if (!record(reminder) || reminder.noteId !== noteId || typeof reminder.id !== 'string' || typeof reminder.title !== 'string' ||
+        reminder.title.length > 180 || !['dueAt', 'createdAt', 'updatedAt'].every((field) => typeof reminder[field] === 'number' && Number.isFinite(reminder[field])) ||
+        !['completedAt', 'dismissedAt', 'notifiedAt'].every((field) => reminder[field] === null || (typeof reminder[field] === 'number' && Number.isFinite(reminder[field]))) ||
+        (reminder.repeat !== undefined && !['none', 'daily', 'weekdays', 'weekly', 'monthly'].includes(String(reminder.repeat)))) return fail();
+    }
+  }
+  return value as unknown as NoteDiscardRecovery;
+}
+
 export function createRichContentRepository(
   persistence: RichContentPersistence,
   options: RichContentRepositoryOptions = {}
 ) {
   const now = options.now ?? Date.now;
   const createId = options.createId ?? defaultCreateId;
-  const mutationQueues = new Map<string, Promise<void>>();
+  const mutationQueues = memoryMutationQueues.get(persistence) ?? new Map<string, Promise<void>>();
+  memoryMutationQueues.set(persistence, mutationQueues);
 
-  const mutate = <T>(noteId: string, operation: () => Promise<T>): Promise<T> => {
+  const mutate = <T>(noteId: string, operation: (persistence: RichContentPersistence) => Promise<T>): Promise<T> => {
+    if (persistence.transaction) return persistence.transaction(operation);
     const previous = mutationQueues.get(noteId) ?? Promise.resolve();
-    const result = previous.then(operation);
+    const result = previous.then(() => operation(persistence));
     const tail = result.then(
       () => undefined,
       () => undefined
@@ -452,8 +528,8 @@ export function createRichContentRepository(
     return result;
   };
 
-  const get = async (noteId: string): Promise<StoredRichContent> => {
-    const stored = await persistence.get(noteId);
+  const get = async (noteId: string, source = persistence): Promise<StoredRichContent> => {
+    const stored = await source.get(noteId);
     if (!stored) {
       return {
         noteId,
@@ -462,6 +538,7 @@ export function createRichContentRepository(
         updatedAt: 0,
       };
     }
+    if (stored.discardRecovery !== undefined) validateDiscardRecovery(stored.discardRecovery, noteId);
     const { richText: storedRichText, ...storedWithoutRichText } = stored;
     const richText = normalizeRichTextDocument(storedRichText);
     return {
@@ -472,8 +549,8 @@ export function createRichContentRepository(
     };
   };
 
-  const addFiles = (noteId: string, files: File[]): Promise<SkribAttachment[]> => mutate(noteId, async () => {
-    const content = await get(noteId);
+  const addFiles = (noteId: string, files: File[]): Promise<SkribAttachment[]> => mutate(noteId, async (persistence) => {
+    const content = await get(noteId, persistence);
     validateAttachments(content.attachments, files);
     const createdAt = now();
     const accepted = files.map<SkribAttachment>((file) => ({
@@ -490,10 +567,10 @@ export function createRichContentRepository(
     return attachments;
   });
 
-  const addInk = (noteId: string, blob: Blob): Promise<SkribAttachment[]> => mutate(noteId, async () => {
+  const addInk = (noteId: string, blob: Blob): Promise<SkribAttachment[]> => mutate(noteId, async (persistence) => {
     if (blob.type && blob.type !== 'image/png') throw new Error('Drawings must be stored as PNG images.');
     validateFileSize('Skribli drawing.png', blob.size, MAX_INK_ATTACHMENT_BYTES);
-    const content = await get(noteId);
+    const content = await get(noteId, persistence);
     const withoutPreviousInk = content.attachments.filter((item) => item.kind !== 'ink');
     const total = withoutPreviousInk.reduce((sum, item) => sum + item.size, 0) + blob.size;
     if (total > MAX_NOTE_ATTACHMENT_BYTES) {
@@ -514,13 +591,14 @@ export function createRichContentRepository(
     return attachments;
   });
 
-  const replaceInk = (noteId: string, strokes: ReadonlyArray<InkStroke>): Promise<SkribInkDocument> => mutate(noteId, async () => {
-    const content = await get(noteId);
+  const replaceInk = (noteId: string, strokes: ReadonlyArray<InkStroke>): Promise<SkribInkDocument> => mutate(noteId, async (persistence) => {
+    const content = await get(noteId, persistence);
     const inkDocument = validateInkDocument(strokes, now());
     if (
       inkDocument.strokes.length === 0 &&
       content.attachments.length === 0 &&
       !content.richText &&
+      !content.discardRecovery &&
       normalizeViewPreferences(content.view).textSize === 'medium'
     ) {
       await persistence.delete(noteId);
@@ -533,34 +611,39 @@ export function createRichContentRepository(
   const replaceRichText = (
     noteId: string,
     value: Pick<SkribRichTextDocument, 'html' | 'plainText'>
-  ): Promise<SkribRichTextDocument> => mutate(noteId, async () => {
+  ): Promise<SkribRichTextDocument> => mutate(noteId, async (persistence) => {
     if (value.html.length > MAX_RICH_TEXT_HTML_CHARACTERS || [...value.plainText].length > 20_000) {
       throw new Error('This formatted note is too large to store safely.');
     }
-    const content = await get(noteId);
+    const content = await get(noteId, persistence);
     const richText: SkribRichTextDocument = {
       version: 1,
-      html: value.html,
+      html: hasMeaningfulRichText(value, content.attachments.map((item) => item.id)) ? value.html : '',
       plainText: value.plainText,
       updatedAt: now(),
     };
-    await persistence.put({ ...content, noteId, richText, updatedAt: richText.updatedAt });
+    const { richText: _previousRich, ...withoutRich } = content;
+    const next: StoredRichContent = { ...withoutRich, noteId, ...(richText.html ? { richText } : {}), updatedAt: richText.updatedAt };
+    if (!next.richText && !next.attachments.length && !next.inkDocument?.strokes.length &&
+      !next.discardRecovery && normalizeViewPreferences(next.view).textSize === 'medium') await persistence.delete(noteId);
+    else await persistence.put(next);
     return richText;
   });
 
   const getInk = async (noteId: string): Promise<SkribInkDocument> => {
-    const content = await get(noteId);
+    const content = await get(noteId, persistence);
     return content.inkDocument ?? { version: 1, strokes: [], updatedAt: 0 };
   };
 
-  const removeAttachment = (noteId: string, attachmentId: string): Promise<SkribAttachment[]> => mutate(noteId, async () => {
-    const content = await get(noteId);
+  const removeAttachment = (noteId: string, attachmentId: string): Promise<SkribAttachment[]> => mutate(noteId, async (persistence) => {
+    const content = await get(noteId, persistence);
     const attachments = content.attachments.filter((item) => item.id !== attachmentId);
     if (attachments.length === content.attachments.length) return attachments;
     if (
       attachments.length === 0 &&
       !content.inkDocument?.strokes.length &&
       !content.richText &&
+      !content.discardRecovery &&
       normalizeViewPreferences(content.view).textSize === 'medium'
     ) {
       await persistence.delete(noteId);
@@ -573,45 +656,46 @@ export function createRichContentRepository(
   const updateView = (
     noteId: string,
     view: Partial<SkribViewPreferences>
-  ): Promise<SkribViewPreferences> => mutate(noteId, async () => {
-    const content = await get(noteId);
+  ): Promise<SkribViewPreferences> => mutate(noteId, async (persistence) => {
+    const content = await get(noteId, persistence);
     const nextView = normalizeViewPreferences({ ...content.view, ...view });
     const updatedAt = now();
     await persistence.put({ ...content, noteId, view: nextView, updatedAt });
     return nextView;
   });
 
-  const restoreContent = (noteId: string, snapshot: StoredRichContent): Promise<void> => mutate(noteId, async () => {
+  const restoreContent = (noteId: string, snapshot: StoredRichContent): Promise<void> => mutate(noteId, async (persistence) => {
     if (snapshot.noteId !== noteId) throw new Error('Cannot restore content belonging to another note.');
-    if (snapshot.attachments.length === 0 && !snapshot.inkDocument?.strokes.length &&
+    const retainedRecovery = (await get(noteId, persistence)).discardRecovery;
+    if (!retainedRecovery && snapshot.attachments.length === 0 && !snapshot.inkDocument?.strokes.length &&
       !snapshot.richText && normalizeViewPreferences(snapshot.view).textSize === 'medium') {
       await persistence.delete(noteId);
       return;
     }
-    await persistence.put({ ...snapshot, attachments: [...snapshot.attachments], updatedAt: now() });
+    await persistence.put({ ...snapshot, ...(retainedRecovery ? { discardRecovery: retainedRecovery } : {}), attachments: [...snapshot.attachments], updatedAt: now() });
   });
 
-  const deleteIfOrphaned = (noteId: string): Promise<boolean> => mutate(noteId, async () => {
-    if (!options.noteExists) return false;
-    if (await options.noteExists(noteId)) return false;
-    await persistence.delete(noteId);
-    return true;
-  });
+  // Native existence reads and IndexedDB deletes cannot share an atomic transaction.
+  // Retain inferred orphans until a native tombstone/lease protocol can authorize reclamation.
+  const deleteIfOrphaned = async (_noteId: string): Promise<boolean> => false;
 
-  const deleteContent = (noteId: string): Promise<void> => mutate(noteId, async () => {
+  const deleteContent = (noteId: string): Promise<void> => mutate(noteId, async (persistence) => {
     await persistence.delete(noteId);
   });
 
-  const deleteOrphans = async (existingNoteIds: Iterable<string>): Promise<string[]> => {
-    const known = new Set(existingNoteIds);
-    const orphanIds = (await persistence.listNoteIds()).filter((noteId) => !known.has(noteId)).sort();
-    for (const noteId of orphanIds) {
-      await mutate(noteId, async () => {
-        await persistence.delete(noteId);
-      });
-    }
-    return orphanIds;
-  };
+  const deleteOrphans = async (_existingNoteIds: Iterable<string>): Promise<string[]> => [];
+
+  const retainDiscardRecovery = (noteId: string, recovery: NoteDiscardRecovery): Promise<void> => mutate(noteId, async (persistence) => {
+    if (recovery.current.rich.noteId !== noteId || recovery.baseline.rich.noteId !== noteId) throw new Error('Recovery belongs to another note.');
+    const content = await get(noteId, persistence);
+    await persistence.put({ ...content, discardRecovery: recovery, updatedAt: now() });
+  });
+  const clearDiscardRecovery = (noteId: string): Promise<void> => mutate(noteId, async (persistence) => {
+    const { discardRecovery: _recovery, ...content } = await get(noteId, persistence);
+    if (!content.attachments.length && !content.inkDocument?.strokes.length && !content.richText && normalizeViewPreferences(content.view).textSize === 'medium') {
+      await persistence.delete(noteId);
+    } else await persistence.put(content);
+  });
 
   return {
     get,
@@ -622,6 +706,8 @@ export function createRichContentRepository(
     getInk,
     updateView,
     restoreContent,
+    retainDiscardRecovery,
+    clearDiscardRecovery,
     removeAttachment,
     delete: deleteContent,
     deleteIfOrphaned,
@@ -631,7 +717,8 @@ export function createRichContentRepository(
 }
 
 const defaultPersistence = createIndexedDbRichContentPersistence();
-const defaultRepository = createRichContentRepository(defaultPersistence);
+const isNotePreview = import.meta.env.DEV && typeof location !== 'undefined' && location.pathname.endsWith('/note-source-preview.html');
+const defaultRepository = createRichContentRepository(isNotePreview ? createMemoryRichContentPersistence() : defaultPersistence);
 
 export const getRichContent = defaultRepository.get;
 export const addFilesToNote = defaultRepository.addFiles;
@@ -641,6 +728,8 @@ export const replaceRichTextForNote = defaultRepository.replaceRichText;
 export const getInkForNote = defaultRepository.getInk;
 export const updateNoteViewPreferences = defaultRepository.updateView;
 export const restoreRichContentForNote = defaultRepository.restoreContent;
+export const retainDiscardRecoveryForNote = defaultRepository.retainDiscardRecovery;
+export const clearDiscardRecoveryForNote = defaultRepository.clearDiscardRecovery;
 export const removeAttachmentFromNote = defaultRepository.removeAttachment;
 export const deleteOrphanedRichContent = defaultRepository.deleteOrphans;
 

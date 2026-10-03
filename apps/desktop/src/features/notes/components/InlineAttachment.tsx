@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { ArrowLeft, ArrowRight, Download, FileText, MoreHorizontal, X } from 'lucide-react';
-import { createAttachmentObjectUrl, revokeAttachmentObjectUrl, type SkribAttachment } from '../persistence/richContentStore';
+import { createAttachmentObjectUrl, revokeAttachmentObjectUrl, formatAttachmentSize, type SkribAttachment } from '../persistence/richContentStore';
 import type { InlineAttachmentSize } from '../model/inlineAttachmentModel';
 
 export const INLINE_ATTACHMENT_MIME = 'application/x-skribli-attachment';
 
-export function InlineAttachment({ attachment, disabled, size, onSizeChange, onMove, onDelete }: {
+export function InlineAttachment({ attachment, disabled, size, onSizeChange, onMove, onRemoveReference }: {
   attachment: SkribAttachment; disabled: boolean; size: InlineAttachmentSize;
   onSizeChange: (size: InlineAttachmentSize) => void;
-  onMove: (direction: -1 | 1) => void; onDelete?: (() => void) | undefined;
+  onMove: (direction: -1 | 1) => void; onRemoveReference: () => void;
 }) {
   const [url, setUrl] = useState<string | null>(null);
   const [actionsOpen, setActionsOpen] = useState(false);
@@ -33,13 +33,14 @@ export function InlineAttachment({ attachment, disabled, size, onSizeChange, onM
         title="Attachment options" onClick={() => setActionsOpen((open) => !open)}>
         <MoreHorizontal size={16} aria-hidden="true" />
       </button>
-      <button type="button" className="inline-attachment-remove" disabled={disabled || !onDelete}
-        aria-label={`Remove ${attachment.name} from note`} title="Remove attached file from this note"
+      <button type="button" className="inline-attachment-remove" disabled={disabled}
+        aria-label={`Remove ${attachment.name} from text`} title="Remove from text — keep file in attachments"
         onMouseDown={(event) => event.preventDefault()}
-        onClick={(event) => { event.stopPropagation(); onDelete?.(); }}>
+        onClick={(event) => { event.stopPropagation(); onRemoveReference(); }}>
         <X size={13} aria-hidden="true" />
       </button>
       <span className="inline-attachment-name" title={attachment.name}>{attachment.name}</span>
+      <span className="inline-attachment-meta">{attachment.name.split('.').pop()?.toUpperCase()} · {formatAttachmentSize(attachment.size)}</span>
       {actionsOpen && <span className="inline-attachment-popover" role="group" aria-label={`Options for ${attachment.name}`}>
         {(attachment.kind === 'image' || attachment.kind === 'ink') && <span className="inline-attachment-sizes" role="group" aria-label="Image size">
           {(['small', 'medium', 'large'] as const).map((option) => <button key={option} type="button"

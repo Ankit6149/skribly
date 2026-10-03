@@ -16,6 +16,7 @@ interface NoteAttachmentPanelProps {
   disabled?: boolean;
   compact?: boolean;
   pickerRequest?: number;
+  refreshRequest?: number;
   openDrawerRequest?: number;
   filesRequest?: { id: number; files: File[] } | null;
   removeRequest?: { id: string; nonce: number } | null;
@@ -55,6 +56,7 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
   disabled = false,
   compact = false,
   pickerRequest = 0,
+  refreshRequest = 0,
   openDrawerRequest = 0,
   filesRequest = null,
   removeRequest = null,
@@ -67,6 +69,7 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
   onRemoved,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const deleteDialogRef = useRef<HTMLDivElement>(null);
   const lastPickerRequestRef = useRef(pickerRequest);
   const lastOpenDrawerRequestRef = useRef(openDrawerRequest);
   const lastFilesRequestRef = useRef<number | null>(filesRequest?.id ?? null);
@@ -84,6 +87,10 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
   const [playingVideoId, setPlayingVideoId] = useState<string | null>(null);
   const panelBusy = isAdding || removingId !== null;
 
+  useEffect(() => {
+    if (confirmRemoveId) deleteDialogRef.current?.querySelector<HTMLButtonElement>('button')?.focus();
+  }, [confirmRemoveId]);
+
   const reportError = useCallback((reason: unknown) => {
     const message = reason instanceof Error ? reason.message : String(reason);
     setError(message);
@@ -96,7 +103,7 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
     setError(null);
     void getRichContent(noteId)
       .then((content) => {
-        if (!cancelled) setAttachments(content.attachments);
+        if (!cancelled) setAttachments(content.discardRecovery?.current.rich.attachments ?? content.attachments);
       })
       .catch((reason) => {
         if (!cancelled) reportError(reason);
@@ -107,7 +114,7 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [noteId, reportError]);
+  }, [noteId, reportError, refreshRequest]);
 
   useEffect(() => {
     const nextUrls: Record<string, string> = {};
@@ -240,7 +247,8 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
     if (!removeRequest || removeRequest.nonce === lastRemoveRequestRef.current) return;
     if (disabled || panelBusy || operationInProgressRef.current) return;
     lastRemoveRequestRef.current = removeRequest.nonce;
-    void remove(removeRequest.id, true);
+    setConfirmRemoveId(removeRequest.id);
+    setCompactExpanded(true);
   }, [disabled, panelBusy, removeRequest]);
 
   const hiddenPicker = (
@@ -274,6 +282,12 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
         aria-label="Attached files"
       >
         {hiddenPicker}
+        {confirmRemoveId && <div ref={deleteDialogRef} className="attachment-delete-confirmation" role="alertdialog" aria-modal="false" onKeyDown={(event) => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); setConfirmRemoveId(null); } }} aria-label="Delete attached file" aria-describedby={`attachment-delete-detail-${noteId}`}>
+          <strong>Delete this attached file?</strong>
+          <p id={`attachment-delete-detail-${noteId}`}>?{attachments.find((item) => item.id === confirmRemoveId)?.name}? will be removed from this note and its saved attachments.</p>
+          <div><button type="button" disabled={panelBusy} onClick={() => setConfirmRemoveId(null)}>Keep file</button>
+            <button type="button" className="danger" disabled={disabled || panelBusy} onClick={() => void remove(confirmRemoveId, true)}>Delete file</button></div>
+        </div>}
         {isLoading ? (
           <span className="attachment-strip-status" role="status">Reading attachments…</span>
         ) : attachments.length > 0 ? (
@@ -314,8 +328,8 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
                 <button type="button" className="attachment-tray-remove"
                   disabled={disabled || panelBusy}
                   aria-label={`Remove ${attachment.name} from note`}
-                  title="Remove attached file from this note"
-                  onClick={() => void remove(attachment.id, true)}>
+                  title="Delete attached file ? confirmation required"
+                  onClick={() => setConfirmRemoveId(attachment.id)}>
                   <X size={12} aria-hidden="true" />
                 </button>
                 <strong title={attachment.name}>{attachment.name}</strong>
