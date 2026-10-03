@@ -94,6 +94,17 @@ try {
     Invoke-OwnerGate -Name 'native-format' -Command 'cargo' -CommandArguments @('fmt', '--manifest-path', 'apps/desktop/src-tauri/Cargo.toml', '--check')
     $env:SKRIBLY_TRIAL_ENFORCED = '0'
     Invoke-OwnerGate -Name 'native-tests' -Command 'cargo' -CommandArguments @('test', '--manifest-path', 'apps/desktop/src-tauri/Cargo.toml', '--', '--test-threads=1')
+    Invoke-OwnerGate -Name 'release-storage-build' -Command 'cargo' -CommandArguments @('build', '--release', '--manifest-path', 'apps/desktop/src-tauri/Cargo.toml', '--features', 'storage-acceptance', '--bin', 'storage_acceptance')
+    $storageEvidence = Join-Path $repositoryRoot "artifacts/owner-candidates/$candidateId/storage-acceptance-evidence.json"
+    $storageAppData = Join-Path $repositoryRoot "artifacts/owner-candidates/$candidateId/synthetic-app-data"
+    New-Item -ItemType Directory -Path $storageAppData -ErrorAction Stop | Out-Null
+    $savedAppData = $env:APPDATA
+    try {
+        $env:APPDATA = $storageAppData
+        Invoke-OwnerGate -Name 'release-storage-matrix' -Command 'powershell.exe' -CommandArguments @('-NoProfile', '-File', 'scripts/validation/storage-acceptance.ps1', '-BinaryPath', 'apps/desktop/src-tauri/target/release/storage_acceptance.exe', '-EvidencePath', $storageEvidence, '-CommitSha', $SourceCommit)
+    } finally {
+        $env:APPDATA = $savedAppData
+    }
     $env:SKRIBLY_TRIAL_ENFORCED = '1'
     Invoke-OwnerGate -Name 'trial-enforced-check' -Command 'cargo' -CommandArguments @('check', '--manifest-path', 'apps/desktop/src-tauri/Cargo.toml')
     Invoke-OwnerGate -Name 'owner-provenance-regressions' -Command 'powershell.exe' -CommandArguments @('-NoProfile', '-File', 'scripts/windows/candidate-provenance.test.ps1')
@@ -114,9 +125,7 @@ try {
     if ((Get-CandidateFileIdentity -Path $lockIdentity.path).sha256 -ne $lockIdentity.sha256) { throw 'Dependency lock changed during candidate build.' }
     $application = Get-CandidateFileIdentity -Path (Join-Path $repositoryRoot 'apps/desktop/src-tauri/target/release/skribly.exe')
     $installer = Get-CandidateFileIdentity -Path (Join-Path $repositoryRoot "apps/desktop/src-tauri/target/release/bundle/nsis/Skribli_${version}_x64-setup.exe")
-    $msiFiles = @(Get-ChildItem -LiteralPath (Join-Path $repositoryRoot 'apps/desktop/src-tauri/target/release/bundle/msi') -File -Filter '*.msi')
-    if ($msiFiles.Count -ne 1) { throw 'Expected exactly one MSI candidate; remove stale bundle outputs before an owner build.' }
-    $msi = Get-CandidateFileIdentity -Path $msiFiles[0].FullName
+    $msi = Get-CandidateFileIdentity -Path $currentMsiFiles[0].FullName
     New-Item -ItemType Directory -Path $OutputDirectory -ErrorAction Stop | Out-Null
     foreach ($file in @($application, $installer, $msi)) {
         $destination = Join-Path $OutputDirectory $file.file_name
@@ -124,12 +133,14 @@ try {
         if ((Get-CandidateFileIdentity -Path $destination).sha256 -ne $file.sha256) { throw 'Candidate copy hash mismatch.' }
     }
     [IO.File]::Copy($brandingEvidence, (Join-Path $OutputDirectory 'branding-evidence.json'), $false)
+    [IO.File]::Copy($storageEvidence, (Join-Path $OutputDirectory 'storage-acceptance-evidence.json'), $false)
     $manifest = [ordered]@{
         schema_version = 1; candidate_id = $candidateId; private_test_only = $true; public_release_accepted = $false
         created_at_utc = [DateTime]::UtcNow.ToString('o'); version = $version; product_name = $config.productName
         source = [ordered]@{ commit_sha = $SourceCommit; tree_sha = [string](Read-OwnerGitValue -GitArguments @('rev-parse', 'HEAD^{tree}')); clean = $true; package_lock_sha256 = $lockIdentity.sha256 }
         toolchain = [ordered]@{ node = $nodeVersion; npm = $npmVersion; rustc = $rustVersion; cargo = $cargoVersion }
         gates = @($gateResults.ToArray())
+        storage_acceptance = [ordered]@{ evidence_file = 'storage-acceptance-evidence.json'; sha256 = (Get-CandidateFileIdentity -Path $storageEvidence).sha256; synthetic_profile_only = $true }
         application = [ordered]@{ file_name = $application.file_name; bytes = $application.bytes; sha256 = $application.sha256; signing = (Get-OwnerSigningState -Path (Join-Path $OutputDirectory $application.file_name)) }
         installers = @(@($installer, $msi) | ForEach-Object { [ordered]@{ file_name = $_.file_name; bytes = $_.bytes; sha256 = $_.sha256; signing = (Get-OwnerSigningState -Path (Join-Path $OutputDirectory $_.file_name)) } })
         build_configuration = [ordered]@{ trial_enforced = $true; owner_public_key_sha256 = (Get-CandidateFileIdentity -Path (Join-Path $repositoryRoot 'scripts/license/owner-alpha-public-key.txt')).sha256; account_function = 'account-session' }
