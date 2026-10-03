@@ -180,9 +180,21 @@ for (const marker of [
   "$env:SKRIBLY_TRIAL_ENFORCED = '1'",
   '$env:SKRIBLY_LICENSE_PUBLIC_KEY = $publicKey',
   '$env:VITE_SKRIBLY_APP_VERSION = $version',
-  'npm run tauri -- build --bundles nsis',
 ]) {
   if (!localOwnerBuild.includes(marker)) failures.push(`Local owner build is missing: ${marker}`);
+}
+
+// The owner builder uses structured PowerShell arguments, not a shell command string.
+// Require the executable gate invocation itself; comments cannot satisfy this check.
+function hasOwnerBundleGate(source) {
+  return /^\s*Invoke-OwnerGate\s+-Name\s+'windows-bundles'\s+-Command\s+'npm\.cmd'\s+-CommandArguments\s+@\(\s*'run'\s*,\s*'tauri'\s*,\s*'--'\s*,\s*'build'\s*,\s*'--bundles'\s*,\s*'nsis,msi'\s*\)\s*$/m.test(source);
+}
+if (!hasOwnerBundleGate(localOwnerBuild)) {
+  failures.push('Local owner build must run both NSIS and MSI through the failing windows-bundles gate.');
+}
+if (hasOwnerBundleGate(localOwnerBuild.replace("'nsis,msi'", "'nsis'")) ||
+    hasOwnerBundleGate(localOwnerBuild.split('\n').map(line => '# ' + line).join('\n'))) {
+  failures.push('Local owner bundle negative fixtures accepted a missing MSI or comment-only gate.');
 }
 
 if (rootPackage.scripts?.tauri !== 'npm --workspace @skribly/desktop run tauri --') {
