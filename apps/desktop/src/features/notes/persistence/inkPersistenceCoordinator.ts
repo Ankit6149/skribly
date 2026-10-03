@@ -64,9 +64,7 @@ export class InkPersistenceCoordinator {
     const operation = this.persistenceChain
       .catch(() => undefined)
       .then(() => persist(strokes));
-    this.persistenceChain = operation;
-
-    return operation
+    const completion = operation
       .then(
         () => {
           this.persistedRevision = Math.max(this.persistedRevision, revision);
@@ -84,6 +82,21 @@ export class InkPersistenceCoordinator {
         this.pendingOperations = Math.max(0, this.pendingOperations - 1);
         this.emit();
       });
+    // Include acknowledgement/state publication in the chain, not just the write.
+    this.persistenceChain = completion.then(() => undefined);
+    return completion;
+  }
+
+  async flush(persist: (strokes: InkStroke[]) => Promise<void>): Promise<boolean> {
+    // Drain every already accepted stroke. If a prior write failed, retry the
+    // complete latest snapshot once; never report success for a missing write.
+    let chain: Promise<void>;
+    do {
+      chain = this.persistenceChain;
+      await chain;
+    } while (chain !== this.persistenceChain);
+    if (!this.getSnapshot().hasUnsavedChanges) return true;
+    return this.submit(this.strokes, persist);
   }
 
   private emit(): void {

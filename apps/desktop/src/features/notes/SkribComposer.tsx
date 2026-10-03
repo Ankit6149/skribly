@@ -50,7 +50,8 @@ import {
 import type { OpenNoteAction } from './lifecycle/noteLifecycle';
 import { bundledAppIcon } from './bundledAppIcon';
 import { applicationLabel } from '../widget/model/contextRailModel';
-import { InkCanvas } from './components/InkCanvas';
+import { InkCanvas, type InkCanvasHandle } from './components/InkCanvas';
+import { saveBeforeNativeDeadline } from './lifecycle/nativeSaveDeadline';
 import type { InkPersistenceState } from './persistence/inkPersistenceCoordinator';
 import { NoteAttachmentPanel } from './components/NoteAttachmentPanel';
 import { NoteReminderPanel } from '../reminders/components/NoteReminderPanel';
@@ -213,6 +214,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
   currentNoteId.current = note.id;
   const sizeBeforeExpand = useRef<Exclude<NoteSurfaceSize, 'large'>>('medium');
   const richTextEditorRef = useRef<RichTextEditorHandle>(null);
+  const inkCanvasRef = useRef<InkCanvasHandle>(null);
   const [richTextHtml, setRichTextHtml] = useState(() => plainTextToRichHtml(note.text));
   const richOperationsInProgress = useRef(new Map<string, number>());
   const inkPersistenceStateRef = useRef<InkPersistenceState>(inkPersistenceState);
@@ -363,6 +365,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
     setCancelConfirmationOpen(false);
     setDiscardRecovery(null);
     nativeTransitionRequest.current = null;
+    inkCanvasRef.current?.releaseTransition();
     setNativeTransitionBusy(false);
     if (nativeTransitionTimer.current) clearTimeout(nativeTransitionTimer.current);
     richOperationsInProgress.current.clear();
@@ -479,25 +482,44 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
       nativeTransitionRequest.current = payload.requestId;
       setNativeTransitionBusy(true);
       let saved = false;
+      let inkPrepared = false;
       try {
-        const ink = inkPersistenceStateRef.current;
-        if (!discardRecovery && !operationInProgress.current && richOperationsInProgress.current.size === 0 && !ink.hasUnsavedChanges && ink.status !== 'saving' &&
+        const nonInkOperation = [...richOperationsInProgress.current.keys()].some((kind) => kind !== 'ink');
+        if (!isInkLoading && sessionSnapshot.current?.rich.noteId === note.id && !richReadFailed && !discardRecovery && !operationInProgress.current && !nonInkOperation &&
           !toolTransitionInProgress.current && !resizeInProgress.current) {
-          richTextEditorRef.current?.flush();
-          saved = await flushRichText() && await saveController.flush();
-          saved = saved && currentNoteId.current === note.id && !inkPersistenceStateRef.current.hasUnsavedChanges &&
+          inkPrepared = true;
+          const inkSaving = inkCanvasRef.current
+            ? inkCanvasRef.current.prepareTransition()
+            : Promise.resolve(!inkPersistenceStateRef.current.hasUnsavedChanges && inkPersistenceStateRef.current.status !== 'saving');
+          saved = await saveBeforeNativeDeadline(async () => {
+            const inkSaved = await inkSaving;
+            if (!inkSaved) return false;
+            richTextEditorRef.current?.flush();
+            return await flushRichText() && await saveController.flush();
+          });
+          saved = saved && !disposed && nativeTransitionRequest.current === payload.requestId && currentNoteId.current === note.id && !inkPersistenceStateRef.current.hasUnsavedChanges &&
             inkPersistenceStateRef.current.status !== 'saving' && richOperationsInProgress.current.size === 0;
         }
       } catch { /* Keep the editor visible; native rejects the transition. */ }
-      if (!saved) { nativeTransitionRequest.current = null; setNativeTransitionBusy(false); }
-      else nativeTransitionTimer.current = setTimeout(() => {
-        if (nativeTransitionRequest.current === payload.requestId) { nativeTransitionRequest.current = null; setNativeTransitionBusy(false); }
+      // A previously reserved paste must still run when preparation is refused
+      // before any ink work. Do not render it disabled and consume its request.
+      if (!saved && !inkPrepared) { nativeTransitionRequest.current = null; setNativeTransitionBusy(false); }
+      if (nativeTransitionRequest.current === payload.requestId) nativeTransitionTimer.current = setTimeout(() => {
+        if (nativeTransitionRequest.current === payload.requestId) { nativeTransitionRequest.current = null; inkCanvasRef.current?.releaseTransition(); setNativeTransitionBusy(false); }
       }, 7500);
       await invoke('acknowledge_native_transition', { requestId: payload.requestId, saved,
         error: saved ? null : 'Your current note is not safely saved. Keep it open and retry saving.' }).catch(() => undefined);
+      // Keep input sealed until native has received the rejection. A late
+      // completion for an older request must not release a newer request.
+      if (!saved && nativeTransitionRequest.current === payload.requestId) {
+        nativeTransitionRequest.current = null;
+        if (nativeTransitionTimer.current) clearTimeout(nativeTransitionTimer.current);
+        inkCanvasRef.current?.releaseTransition();
+        setNativeTransitionBusy(false);
+      }
     }).then((dispose) => { if (disposed) dispose(); else unlisten = dispose; }).catch(() => undefined);
     return () => { disposed = true; unlisten?.(); };
-  }, [discardRecovery, flushRichText, isTauriAvailable, note.id, saveController]);
+  }, [discardRecovery, flushRichText, isInkLoading, isTauriAvailable, note.id, richReadFailed, saveController]);
 
   useEffect(() => {
     if (!isTauriAvailable) return;
@@ -506,6 +528,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
     void listen<{ requestId: string; noteId: string; completed: boolean }>('skribly://native-transition-finished', ({ payload }) => {
       if (payload.noteId !== note.id || nativeTransitionRequest.current !== payload.requestId) return;
       nativeTransitionRequest.current = null;
+      inkCanvasRef.current?.releaseTransition();
       if (nativeTransitionTimer.current) clearTimeout(nativeTransitionTimer.current);
       setNativeTransitionBusy(false);
     }).then((dispose) => { if (disposed) dispose(); else unlisten = dispose; }).catch(() => undefined);
@@ -1095,14 +1118,18 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
   };
 
   const persistInk = async (strokes: InkStroke[]) => {
-    if (!canWrite) return;
+    // A native save may drain accepted ink while input is quiesced. Other
+    // read-only conditions must reject, never acknowledge a skipped write.
+    if (!storageWritable || !licenceAllowsWrite || discardRecovery || richReadFailed || currentNoteId.current !== note.id) {
+      throw new Error('The drawing is not writable. Keep the note open and retry saving.');
+    }
     const document = await replaceInkForNote(note.id, strokes);
     setInkStrokes(document.strokes);
     void emit('skribly://rich-content-updated', { noteId: note.id }).catch(() => undefined);
   };
 
   const saveInkPreview = async (blob: Blob) => {
-    if (!canWrite) return;
+    if (!canWrite) throw new Error('The drawing preview is not writable. Keep the note open and retry saving.');
     await addInkToNote(note.id, blob);
     void emit('skribly://rich-content-updated', { noteId: note.id }).catch(() => undefined);
   };
@@ -1513,6 +1540,8 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
             {!isInkLoading && (
               <div className={`composer-ink-layer ${drawingEnabled ? 'active' : ''}`}>
                 <InkCanvas
+                  key={note.id}
+                  ref={inkCanvasRef}
                   variant="overlay"
                   onFinishDrawing={() => void openRoomyTool('draw')}
                   initialStrokes={inkStrokes}
