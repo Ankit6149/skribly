@@ -6,11 +6,12 @@ returns boolean language plpgsql immutable set search_path = '' as $$
 declare
   c text; m text; c_core numeric[]; m_core numeric[];
   c_pre text[]; m_pre text[]; ci text; mi text; i integer;
+  semver_pattern constant text := '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*)?(?:[+][0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$';
 begin
   if client_version is null or minimum_version is null
      or char_length(client_version) > 64 or char_length(minimum_version) > 64
-     or client_version !~ '^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:[+][0-9A-Za-z.-]+)?$'
-     or minimum_version !~ '^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:[+][0-9A-Za-z.-]+)?$' then return false; end if;
+     or client_version !~ semver_pattern
+     or minimum_version !~ semver_pattern then return false; end if;
   c := split_part(client_version, '+', 1); m := split_part(minimum_version, '+', 1);
   c_core := string_to_array(split_part(c, '-', 1), '.')::numeric[];
   m_core := string_to_array(split_part(m, '-', 1), '.')::numeric[];
@@ -71,7 +72,9 @@ begin
     raise exception 'device claim is invalid' using errcode = '22023';
   end if;
   if p_app_version is null
-     or p_app_version !~ '^[0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$'
+     -- Keep the released client envelope: stable, prerelease OR build metadata.
+     -- Combined prerelease+build clients remain unsupported by the existing profile constraint.
+     or p_app_version !~ '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*|[+][0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$'
      or char_length(p_app_version) > 64 then
     raise exception 'app version is invalid' using errcode = '22023';
   end if;

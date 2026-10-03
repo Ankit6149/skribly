@@ -18,5 +18,22 @@ that uses this optional field. Deploy the matching Edge Function after its migra
 was changed by the source repair. Unsupported/malformed request JSON returns 400, oversized streamed
 requests return 413, and internal/auth-service failures retain the existing error boundary.
 
+Client versions keep the existing database envelope: stable versions, a prerelease suffix, or build
+metadata. Empty identifiers and leading zeroes in numeric core/prerelease identifiers are rejected;
+numeric build metadata may contain leading zeroes. Combined prerelease plus build client versions
+remain unsupported by the released profile constraint. Announcement comparison validates complete
+SemVer before comparing its core, so malformed metadata cannot pass merely because its core is older.
+
+Before an approved deployment, record the existing function definitions, grants and Edge source in
+restricted rollback evidence without reading account rows or signing material. Apply the migration
+first, then deploy the Edge Function with JWT verification retained. Verify function signatures,
+private schema/RLS boundaries, service-role-only execution grants, and pure version-helper results;
+run consent/trial writes only on the isolated fixture or an explicitly authorized test account.
+After clients that send null consent are shipped, rollback must preserve null-as-unchanged consent,
+the existing RPC result columns, and service-role-only execution. Restoring the pre-repair RPC or
+Edge parser would reject those refreshes or reset consent. Use an owner-reviewed replacement
+function/migration and compatible Edge source; retain trial/profile rows and the private signing
+key. This source review does not authorize production deployment or a PostgreSQL minor upgrade.
+
 The matching raw 32-byte public key must be embedded in the Windows build through
 `SKRIBLY_LICENSE_PUBLIC_KEY` as unpadded base64url. Never commit the private JWK.

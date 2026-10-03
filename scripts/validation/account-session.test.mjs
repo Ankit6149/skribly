@@ -66,3 +66,26 @@ test('routine refresh preserves consent; explicit boolean is forwarded and persi
     assert.equal((await result.json()).productUpdatesOptIn, true);
   }
 });
+
+test('malformed client versions return 400 before account validation or signing', async () => {
+  for (const appVersion of [
+    '0.1.50-..', '0.1.50-beta..1', '0.1.50-beta.', '0.1.50-01', '0.1.50-beta.01',
+    '0.1.50+..', '0.1.50+build..1', '0.1.50+build.', '00.1.50', '0.01.50', '0.1.050',
+    '0.1.50\n', '0.1.50 ', '0.1.51-beta.1+build.1',
+  ]) {
+    const h = harness();
+    const result = await h.handler(request(JSON.stringify({ deviceClaim: `skd_${'a'.repeat(43)}`, appVersion })));
+    assert.equal(result.status, 400, JSON.stringify(appVersion));
+    assert.deepEqual(await result.json(), { error: 'invalid_request' });
+    assert.equal(h.calls(), 0);
+  }
+});
+
+test('released stable, prerelease and build versions preserve the claim request value', async () => {
+  for (const appVersion of ['0.1.51', '0.1.51-beta.0', '0.1.51-beta.10', '0.1.51+build.01', '0.1.51-1-alpha', '2147483648.0.0']) {
+    const h = harness();
+    const result = await h.handler(request(JSON.stringify({ deviceClaim: `skd_${'a'.repeat(43)}`, appVersion })));
+    assert.equal(result.status, 200, appVersion);
+    assert.equal(h.args().p_app_version, appVersion);
+  }
+});

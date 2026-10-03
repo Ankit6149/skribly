@@ -13,7 +13,8 @@ const JSON_HEADERS = {
   "Cache-Control": "no-store",
 };
 const DEVICE_CLAIM = /^skd_[A-Za-z0-9_-]{43}$/;
-const APP_VERSION = /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/;
+// Match the database's released client envelope: stable, prerelease OR build metadata.
+const APP_VERSION = /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*|\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
 const MAX_REQUEST_BYTES = 4096;
 const OFFLINE_GRACE_SECONDS = 72 * 60 * 60;
 
@@ -84,6 +85,7 @@ async function readBody(request: Request): Promise<RequestBody> {
     !DEVICE_CLAIM.test(value.deviceClaim) ||
     typeof value.appVersion !== "string" ||
     value.appVersion.length > 64 ||
+    value.appVersion.trim() !== value.appVersion ||
     !APP_VERSION.test(value.appVersion) ||
     (value.productUpdatesOptIn != null && typeof value.productUpdatesOptIn !== "boolean")
   ) {
