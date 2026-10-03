@@ -156,7 +156,9 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
   const sessionSnapshot = useRef<NoteSessionSnapshot | null>(null);
   const [attachmentPickerRequest, setAttachmentPickerRequest] = useState(0);
   const [attachmentDrawerRequest, setAttachmentDrawerRequest] = useState(0);
-  const [pastedFilesRequest, setPastedFilesRequest] = useState<{ id: number; files: File[] } | null>(null);
+  const [pastedFilesRequest, setPastedFilesRequest] = useState<{ id: number; noteId: string; files: File[] } | null>(null);
+  const clipboardRequestSequence = useRef(0);
+  const clipboardReservation = useRef<{ id: number; noteId: string } | null>(null);
   const [attachmentCount, setAttachmentCount] = useState(0);
   const [inlineAttachments, setInlineAttachments] = useState<SkribAttachment[]>([]);
   const [inkStrokes, setInkStrokes] = useState<InkStroke[]>([]);
@@ -237,6 +239,18 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
     (busy: boolean) => setRichOperationBusy('reminder', busy),
     [setRichOperationBusy]
   );
+  const reportBlockedPaste = useCallback(() => {
+    setComposerError('Paste was not added while this note was busy or read-only. Your clipboard was not changed; paste again when the note is ready.');
+  }, []);
+  const settleClipboardRequest = useCallback((requestId: number, requestNoteId: string) => {
+    if (clipboardReservation.current?.id !== requestId || clipboardReservation.current.noteId !== requestNoteId) return;
+    clipboardReservation.current = null;
+    if (currentNoteId.current === requestNoteId) {
+      setRichOperationBusy('clipboard', false);
+      setPastedFilesRequest((request) => request?.id === requestId ? null : request);
+    }
+  }, [setRichOperationBusy]);
+  useEffect(() => () => { clipboardReservation.current = null; }, []);
   const richSaveController = useMemo(() => new RichTextSaveController(async (draft) => {
     if (currentNoteId.current === note.id) setRichOperationBusy('rich-text', true);
     try {
@@ -342,6 +356,8 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
     temporaryToolSurface.current = null;
     setAttachmentCount(0);
     setInlineAttachments([]);
+    clipboardReservation.current = null;
+    setPastedFilesRequest(null);
     setRichTextHtml(plainTextToRichHtml(saveController.getSnapshot().draft));
     sessionSnapshot.current = null;
     setCancelConfirmationOpen(false);
@@ -465,7 +481,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
       let saved = false;
       try {
         const ink = inkPersistenceStateRef.current;
-        if (!discardRecovery && !operationInProgress.current && !ink.hasUnsavedChanges && ink.status !== 'saving' &&
+        if (!discardRecovery && !operationInProgress.current && richOperationsInProgress.current.size === 0 && !ink.hasUnsavedChanges && ink.status !== 'saving' &&
           !toolTransitionInProgress.current && !resizeInProgress.current) {
           richTextEditorRef.current?.flush();
           saved = await flushRichText() && await saveController.flush();
@@ -1467,7 +1483,16 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
               drawingEnabled={drawingEnabled}
               describedBy={textareaDescription}
               onChange={handleRichTextChange}
-              onPasteFiles={(files) => { if (!nativeTransitionRequest.current) setPastedFilesRequest({ id: Date.now(), files }); }}
+              onPasteBlocked={reportBlockedPaste}
+              onPasteFiles={(files) => {
+                if (!canWrite || operationInProgress.current || nativeTransitionRequest.current || clipboardReservation.current ||
+                  cancelConfirmationOpen || drawingEnabled || isInkLoading) { reportBlockedPaste(); return; }
+                const request = { id: ++clipboardRequestSequence.current, noteId: note.id, files };
+                clipboardReservation.current = request;
+                // Reserve before React queues the child effect: native/discard barriers see it immediately.
+                setRichOperationBusy('clipboard', true);
+                setPastedFilesRequest(request);
+              }}
               onRequestDraw={canWrite && !isFinishing ? () => void openRoomyTool('draw') : undefined}
               onRequestReminder={canWrite && !isFinishing ? () => void openRoomyTool('reminder') : undefined}
               onRequestAttachment={canWrite && !isFinishing && !hasPendingRichOperation
@@ -1508,12 +1533,13 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
             pickerRequest={attachmentPickerRequest}
             openDrawerRequest={attachmentDrawerRequest}
             filesRequest={pastedFilesRequest}
+            onFilesRequestSettled={settleClipboardRequest}
             disabled={!canWrite || isInkLoading || isFinishing || drawingEnabled || deleteConfirmation === 'confirming'}
             onError={setComposerError}
             onBusyChange={handleAttachmentsBusy}
             onCountChange={setAttachmentCount}
             onAttachmentsChange={setInlineAttachments}
-            onPlaceInline={(items) => richTextEditorRef.current?.insertAttachments(items) ?? false}
+            onPlaceInline={(items) => currentNoteId.current === note.id && (richTextEditorRef.current?.insertAttachments(items) ?? false)}
             onRemoved={(id) => richTextEditorRef.current?.removeAttachment(id)}
           />
 

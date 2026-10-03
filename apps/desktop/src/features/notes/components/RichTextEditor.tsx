@@ -32,6 +32,7 @@ interface RichTextEditorProps {
   onChange: (html: string, plainText: string) => boolean;
   onBlur: () => void;
   onPasteFiles: (files: File[]) => void;
+  onPasteBlocked?: () => void;
   onRequestAttachment?: (() => void) | undefined;
   onDeleteAttachment?: ((id: string) => void) | undefined;
   onRequestDraw?: (() => void) | undefined;
@@ -126,7 +127,7 @@ function clipboardFiles(event: ClipboardEvent<HTMLDivElement>): File[] {
 }
 
 export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(function RichTextEditor(
-  { noteId, initialHtml, disabled, drawingEnabled, describedBy, onChange, onBlur, onPasteFiles, onRequestAttachment, onRequestDraw, onRequestReminder, onHistoryChange, attachments = NO_ATTACHMENTS },
+  { noteId, initialHtml, disabled, drawingEnabled, describedBy, onChange, onBlur, onPasteFiles, onPasteBlocked, onRequestAttachment, onRequestDraw, onRequestReminder, onHistoryChange, attachments = NO_ATTACHMENTS },
   forwardedRef
 ) {
   const editorRef = useRef<HTMLDivElement>(null);
@@ -453,7 +454,7 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
     if (!commandInProgress.current) emitChange();
   };
   const handlePaste = (event: ClipboardEvent<HTMLDivElement>) => {
-    if (disabled || drawingEnabled) { event.preventDefault(); return; }
+    if (disabled || drawingEnabled) { event.preventDefault(); onPasteBlocked?.(); return; }
     const files = clipboardFiles(event);
     if (files.length > 0) {
       event.preventDefault();
