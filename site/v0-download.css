@@ -1,0 +1,50 @@
+.owner-download-form [hidden] { display: none !important; }
+.owner-download-form .owner-platforms {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.owner-platforms legend {
+  margin-bottom: 12px;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.owner-platform-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.owner-download-form .owner-platform-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 84px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fffefa;
+  cursor: pointer;
+  text-transform: none;
+  letter-spacing: normal;
+}
+.owner-platform-card:has(input:checked) { border-color: #5f795b; background: #edf2e8; }
+.owner-platform-card:has(input:focus-visible) { outline: 2px solid #5f795b; outline-offset: 3px; }
+.owner-platform-card:has(input:disabled) { cursor: progress; opacity: .7; }
+.owner-download-form .owner-platform-card input {
+  width: 18px;
+  height: 18px;
+  min-height: 0;
+  flex: 0 0 18px;
+  margin: 0;
+  padding: 0;
+  accent-color: #5f795b;
+}
+.owner-platform-card span { display: grid; gap: 5px; }
+.owner-platform-card strong { font-size: 16px; font-weight: 700; }
+.owner-platform-card small { font-size: 12px; font-weight: 500; color: #566051; }
+.owner-package-detail { margin: 0; color: #566051; font-size: 14px; line-height: 1.6; }
+@media (max-width: 420px) {
+  .owner-download-form { padding: 18px; }
+  .owner-platform-grid { grid-template-columns: 1fr; gap: 8px; }
+  .owner-download-form .owner-platform-card { gap: 8px; padding: 10px; }
+}
