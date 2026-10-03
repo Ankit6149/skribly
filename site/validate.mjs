@@ -36,6 +36,7 @@ const requiredFiles = [
   'sitemap.xml',
   'llms.txt',
   'assets/skribli-v0-windows.enc',
+  'assets/skribli-android-preview-0.0.1-arm64.enc',
   'assets/skribly-note-mark-v2.svg',
   'assets/skribly-social-card-v2.svg',
   'assets/phosphor/regular/style.css',
@@ -330,6 +331,10 @@ for (const message of validateInterfaceLabAssetHashes(interfaceLabAssets, {
 const encryptedArtifact = await readFile(join(root, 'assets/skribli-v0-windows.enc'));
 if (encryptedArtifact.length < 2_000_000 || encryptedArtifact.subarray(0, 8).toString('ascii') !== 'SKRV0E01') {
   failures.push('Encrypted v0 Windows artifact is missing or invalid.');
+}
+const encryptedAndroidArtifact = await readFile(join(root, 'assets/skribli-android-preview-0.0.1-arm64.enc'));
+if (encryptedAndroidArtifact.length < 100_000 || encryptedAndroidArtifact.subarray(0, 8).toString('ascii') !== 'SKRV0E01') {
+  failures.push('Encrypted Android preview artifact is missing or invalid.');
 }
 
 const releaseWorkflow = await readFile(join(repoRoot, '.github/workflows/release.yml'), 'utf8');
