@@ -78,3 +78,21 @@ test('Interface Lab asset gate rejects changed live HTML/JS/CSS bytes', () => {
     'interface-lab-v3.css': css,
   }).some((error) => error.includes('interface-lab-v3.js')));
 });
+
+test('Interface Lab integrity hashes exact LF bytes and rejects CRLF conversion for every asset', () => {
+  const assets = {
+    'interface-lab-v3.html': Buffer.from('<main>studio</main>\n'),
+    'interface-lab-v3.js': Buffer.from('boot();\n'),
+    'interface-lab-v3.css': Buffer.from('.studio{display:block}\n'),
+  };
+  const manifest = { schema_version: 1, assets: Object.entries(assets).map(([path, bytes]) => ({
+    path, sha256: createHash('sha256').update(bytes).digest('hex'),
+  })) };
+  assert.deepEqual(validateInterfaceLabAssetHashes(manifest, assets), []);
+  for (const [path, bytes] of Object.entries(assets)) {
+    const converted = Buffer.from(bytes.toString('utf8').replace(/\n/g, '\r\n'));
+    const errors = validateInterfaceLabAssetHashes(manifest, { ...assets, [path]: converted });
+    assert.equal(errors.length, 1);
+    assert.ok(errors[0].includes(path));
+  }
+});
