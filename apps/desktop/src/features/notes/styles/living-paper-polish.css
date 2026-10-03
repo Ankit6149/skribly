@@ -753,14 +753,14 @@
 /* Editor tools share the quiet paper surface and one compact interaction rhythm. */
 .composer-mode-pill {
   position: absolute; z-index: 31; bottom: 12px; left: 50%; transform: translateX(-50%);
-  display: flex; gap: 2px; padding: 3px; max-width: calc(100% - 154px);
+  display: flex; gap: 2px; padding: 2px; max-width: calc(100% - 154px);
   border: 1px solid rgb(38 41 35 / 12%); border-radius: 999px;
   background: color-mix(in srgb, var(--paper) 68%, transparent);
 }
 .composer-mode-pill button {
   display: inline-flex; align-items: center; justify-content: center; gap: 5px;
-  min-width: 54px; min-height: 30px; padding: 0 9px; border: 0; border-radius: 999px;
-  color: var(--skribli-ink); background: transparent; font: 600 11px/1 var(--skribli-ui-font); cursor: pointer;
+  min-width: 54px; min-height: 24px; padding: 0 9px; border: 0; border-radius: 999px;
+  color: var(--skribli-ink); background: transparent; font: 400 12px/1 var(--skribli-note-font); cursor: pointer;
 }
 .composer-mode-pill button[aria-pressed='true'] { background: var(--paper); box-shadow: 0 1px 3px rgb(38 41 35 / 8%); }
 .composer-mode-pill button:hover:not(:disabled) { background: color-mix(in srgb, var(--paper) 86%, transparent); }
