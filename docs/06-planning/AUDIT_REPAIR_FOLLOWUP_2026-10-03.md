@@ -6,14 +6,23 @@ Source follow-up for **Part of ARC-66**, [draft PR #275](https://github.com/Anki
 This supplements the [earlier repair execution snapshot](AUDIT_REPAIR_EXECUTION_2026-10-03.md);
 the 43 original audit entries remain distinct from build and installed acceptance.
 
-**Private v0.1.52 candidate status: rebuild and mandatory release storage matrix pending.**
+**Private v0.1.52 candidate status: all build gates passed; encrypted delivery prepared; website update held for backend approval.**
 The earlier candidate was held after the synthetic Windows storage matrix exposed a long-path
 atomic replacement failure. Repair commit `c05c9411939b07f65f546c1b6def22387eb2cbda` is integrated;
-three new Windows regressions and the updated 184-test library suite pass. The coordinator is
-running the complete candidate gates again. No accepted installer or passing matrix is claimed here.
+three new Windows regressions and the updated 184-test library suite pass. The coordinator has
+finished the complete candidate gates. The preceding `c8796d3` candidate passed all 20 build gates
+and all 15 release storage scenarios, but CI then exposed a modal-focus race. The coordinator repaired
+that race in `62f031ab8a98018c213a777dfefe8aa2f2eac44a`; the final candidate passed all 20 gates,
+including all 15 release storage scenarios. Both NSIS and MSI installers were built and branded.
 
-**Exact candidate source SHA:** pending coordinator entry after build completion.
-**Artifact hashes, signing state and website handoff evidence:** pending coordinator entry.
+**Exact final candidate source SHA:** `62f031ab8a98018c213a777dfefe8aa2f2eac44a`.
+**NSIS:** 3,756,851 bytes; SHA-256 `bfa590f9c1a5f893a9a56c0ff5e98d01b76a85adc397533853f4346bacebffb8`.
+**MSI:** 5,005,312 bytes; SHA-256 `0750275965b57d3fce9669a030d52f7430df97b9683648fde13f8c99c49e880b`.
+**Application:** 13,933,056 bytes; SHA-256 `642a2cb2b19eda60df92d00561fc77aa6bcafe45e9868cd015b2f26633b9f978`.
+All three are **NotSigned**. The immutable source/toolchain/gate manifest and storage/branding evidence
+were retained outside the repository. Local decryption of the staged encrypted NSIS matches its exact
+manifest hash using the existing external owner key. The key was not printed, committed or uploaded.
+Website publication and downloaded-byte verification remain pending backend approval.
 The product website still serves **v0.1.51**. The matching backend migration/Edge deployment remains
 awaiting owner approval; no production mutation is claimed.
 
@@ -43,13 +52,16 @@ awaiting owner approval; no production mutation is claimed.
   validator describes the current combined Type/Draw, formatting, slash and attachment contract.
 - Existing note handwriting remains **Kalam**. The thin Type/Draw control uses **DM Sans**, matching
   other controls; display typography remains **Manrope**. This is not a global font replacement.
+- Re-enabling the editor after the close dialog no longer steals focus restored to the invoking
+  button. Switching to another note still focuses its editor. The mounted dialog test now explicitly
+  runs deferred autofocus, and a separate regression covers re-enabling and note switching.
 
 ## Findings and why
 
 The release storage gate found a defect that ordinary library tests had not covered: long synthetic
 Windows paths could fail during atomic replacement. Candidate handoff stopped at that failure.
-Repair and direct library evidence improve the source; rerunning the required release matrix is
-necessary before the repaired candidate can be accepted as build evidence.
+The source repair, new regressions and rerun of the required release matrix all passed for the
+repaired candidate. This establishes build/fixture evidence, not installed acceptance.
 
 Ink flushing removes the earlier inconvenient cancellation whenever ink was dirty while preserving
 the fail-safe native transition. Worker routing reduces explicit request work in native callbacks;
@@ -61,15 +73,16 @@ integrity checks make byte hashes reflect the deployed source rather than local 
 
 | Check | Recorded result / limitation |
 | --- | --- |
-| Desktop | **54 files / 307 tests passed** |
+| Desktop | **54 files / 308 tests passed** on final candidate source |
 | Required lint | **147 source files; zero warnings/errors**; invalid-hook fixture rejected |
 | Updated native library | **184 tests passed**, including three new Windows long-path regressions |
-| Integrated native suite | **Pending current candidate run.** The earlier **223-test** result predates the three added library regressions and must not be presented as the updated total |
+| Integrated native suite | **229 test executions passed**: 184 library, 3 application and 42 migration/recovery; formatting passed |
 | Synthetic Edge | **5 tests passed**, including invalid-version rejection before account calls |
 | Site | **34 required files validated; 13 tests passed**, including LF asset integrity |
 | Isolated SQL | All **four migrations** and expanded consent/version/trial assertions passed on PostgreSQL **18.3 / PGlite 0.5.8**, synthetic Auth/roles; not live PostgreSQL 17.6 or cross-connection evidence |
-| Current candidate release storage matrix | **Pending rebuild outcome**; earlier candidate failed and remains unaccepted |
-| Installer/build/signing/download evidence | **Pending exact candidate manifest and handoff verification** |
+| Current candidate release storage matrix | **15/15 passed** on final source, including long-path crash, lock, corruption and permission fixtures |
+| Candidate-source CI | All five CI jobs and Windows release storage acceptance passed on `62f031a` |
+| Installer/build/signing/download evidence | **20/20 build gates passed**; NSIS/MSI branding passed; immutable hashes recorded; unsigned; local encrypted NSIS decryption matches manifest. Website handoff pending |
 
 Candidate gates require a clean approved full source SHA, pinned **Node 22.23.1 / npm 10.9.8**,
 locked dependencies, supported Rust/Cargo, no unapproved environment overrides, and modern PowerShell.
@@ -78,7 +91,7 @@ theme, compact surface, lint, typecheck, tests, production build, Rust formattin
 The release storage feature binary and crash/file-lock matrix precede the trial-enforced native check
 and NSIS/MSI bundling. An immutable manifest records source/toolchain/configuration, gate outcomes,
 storage-evidence hash, application/installer hashes and actual signing state; existing candidate
-evidence must not be overwritten. These are required gates, not a claim that the current run passed.
+evidence must not be overwritten. All 20 gates passed for the candidate source above.
 
 ## Impact
 
@@ -93,8 +106,8 @@ No APK, physical-device acceptance, desktop-to-mobile sync or released mobile ca
 
 ## Remaining gaps and uncertainty
 
-- Current candidate full suite, release storage matrix, package hashes/signing and website download
-  verification must be recorded before handoff. An installer build is not installed Windows acceptance.
+- Candidate full suite, release storage matrix, package hashes/signing and local encrypted-byte proof
+  are recorded. Website download verification remains pending. An installer build is not installed Windows acceptance.
 - Laptop tests remain necessary for close/sliding, paint/white flashes, focus, clipboard/files,
   ink/text saves, disk failure/recovery, multi-monitor/DPI and install/upgrade/uninstall/retention.
 - BE-09 retains synchronous startup and UI/persistence placement transactions; exact-binary latency,
@@ -109,17 +122,15 @@ No APK, physical-device acceptance, desktop-to-mobile sync or released mobile ca
 
 ## Next recommended execution
 
-Finish the current candidate gates; if any fails, retain the failure evidence and hold handoff.
-Record the exact accepted build source, full suite/matrix outcome, immutable manifest and artifact
-hashes. After the required backend decision, execute only the approved migration-then-Edge scope.
+After the required backend decision, execute only the approved migration-then-Edge scope.
 Verify any authorized private website replacement and downloaded installer hash before giving the
 owner a laptop test handoff. Update the dated hosted report and existing issues with actual outcomes;
 keep acceptance open where Windows, backend or human verification remains.
 
 ## Human decision required
 
-Backend production execution is still pending owner approval. The private candidate rebuild is
-authorized but its current result is unverified. The owner performs laptop acceptance after a verified
+Backend production execution is still pending owner approval. The private candidate is built and
+verified within the stated build/fixture boundary. The owner performs laptop acceptance after a verified
 website handoff. No public release, signing change or paid-plan/Auth-settings change is approved by
 this source report.
 
