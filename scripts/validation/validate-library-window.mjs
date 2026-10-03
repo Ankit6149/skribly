@@ -155,8 +155,8 @@ const requiredLibraryHost = [
   "invoke<SkribNote[]>('get_all_skribs')",
   '.onFocusChanged',
   'filterLibraryNotes(notesInView, query)',
-  'role="listbox"',
-  'aria-selected={selected}',
+  'role="group" aria-label="Matching saved notes"',
+  'aria-pressed={selected}',
   'READ-ONLY LIBRARY VIEW',
   'Export this note',
   'Export note records',
@@ -179,6 +179,9 @@ const forbiddenLibraryHost = [
   "invoke('set_active_target'",
   'position: fixed',
   'alwaysOnTop',
+  'role="listbox"',
+  'role="option"',
+  'aria-selected={selected}',
 ];
 for (const marker of forbiddenLibraryHost) {
   if (libraryHost.includes(marker)) {

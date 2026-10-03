@@ -70,10 +70,17 @@ for (const marker of [
   '"sha=$resolvedSha" >> $env:GITHUB_OUTPUT',
   "node-version: '22.23.1'",
   'npm ci',
+  'name: Validate repository governance',
+  'name: Validate product contracts',
+  'name: Validate website contracts',
+  'name: Typecheck application',
+  'name: Run application tests',
+  'name: Build application assets',
   'npm run product-truth:validate',
-  'name: Validate native application contracts\n        env:\n          SKRIBLY_TRIAL_ENFORCED: "0"',
+  'name: Check native formatting',
+  'name: Test native application',
   'cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml',
-  'name: Validate trial-enforced native configuration',
+  'name: Check trial-enforced native configuration',
   'cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml',
   'npm run tauri -- build --bundles nsis,msi',
   './scripts/validation/verify-windows-installer-branding.ps1 -RunInstalledPayloadSmoke',
@@ -86,6 +93,70 @@ for (const marker of [
   'actions/upload-artifact@v7',
 ]) {
   if (!workflow.includes(marker)) failures.push(`Private test workflow is missing: ${marker}`);
+}
+
+const steps = workflow.split(/^      - name: /m).slice(1).map((block) => {
+  const [name, ...bodyLines] = block.split('\n');
+  return { name: name?.trim() ?? '', body: bodyLines.join('\n') };
+});
+const validationCommands = [
+  ['Validate repository governance', 'npm run governance:validate'],
+  ['Validate product contracts', 'npm run product-truth:validate'],
+  ['Validate website contracts', 'npm run site:validate'],
+  ['Typecheck application', 'npm run typecheck'],
+  ['Run application tests', 'npm run test'],
+  ['Build application assets', 'npm run build'],
+  ['Check native formatting', 'cargo fmt --manifest-path apps/desktop/src-tauri/Cargo.toml --check'],
+  ['Test native application', 'cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -- --test-threads=1'],
+  ['Check trial-enforced native configuration', 'cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml'],
+];
+const gateIndexes = [];
+for (const [name, command] of validationCommands) {
+  const matches = steps
+    .map((step, index) => ({ step, index }))
+    .filter(({ step }) => step.name === name);
+  if (matches.length !== 1) {
+    failures.push(`Each required validation must be its own workflow step: ${name}`);
+    continue;
+  }
+  const { step, index } = matches[0];
+  const runCommands = step.body
+    .split('\n')
+    .filter((line) => line.startsWith('        run: '))
+    .map((line) => line.slice('        run: '.length).trim());
+  if (runCommands.length !== 1 || runCommands[0] !== command) {
+    failures.push(`${name} must run only its single required command.`);
+  }
+  if (/^\s*continue-on-error:\s*true\s*$/m.test(step.body)) {
+    failures.push(`${name} must fail the job immediately on a nonzero exit.`);
+  }
+  gateIndexes.push(index);
+}
+const candidateBuildIndex = steps.findIndex((step) => step.name === 'Build Windows installers');
+if (candidateBuildIndex < 0 || gateIndexes.some((index) => index >= candidateBuildIndex)) {
+  failures.push('The Windows candidate build must follow every independent application and native validation step.');
+} else if (/^\s*if:\s*.*\b(?:always|failure)\s*\(/m.test(steps[candidateBuildIndex].body)) {
+  failures.push('The Windows candidate build must not run after a failed validation step.');
+}
+
+// Controlled negative fixture: GitHub runs these independent steps sequentially
+// and does not reach later steps after a failed run command. Inject first and
+// middle failures to ensure the installer is not reachable in either case.
+if (gateIndexes.length === validationCommands.length && candidateBuildIndex > Math.max(...gateIndexes)) {
+  for (const failedGate of [0, Math.floor(gateIndexes.length / 2)]) {
+    let candidateBuildRan = false;
+    let failed = false;
+    for (let index = 0; index <= candidateBuildIndex; index += 1) {
+      if (index === candidateBuildIndex) candidateBuildRan = true;
+      if (index === gateIndexes[failedGate]) {
+        failed = true;
+        break;
+      }
+    }
+    if (!failed || candidateBuildRan) {
+      failures.push(`Injected ${failedGate === 0 ? 'first' : 'middle'} validation failure reached a later step.`);
+    }
+  }
 }
 
 if (workflow.includes("commit_sha = '${{ github.sha }}'")) {

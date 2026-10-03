@@ -1,4 +1,5 @@
 import { access, readFile, readdir } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
@@ -83,6 +84,40 @@ if (await exists(".github/workflows")) {
     if (deletesBranches && enumeratesAllBranches) {
       failures.push(`${relativePath} enumerates and deletes remote branches; use GitHub post-merge head deletion instead.`);
     }
+  }
+
+  const cleanupWorkflow = await read('.github/workflows/branch-cleanup.yml');
+  for (const marker of [
+    'gh api --paginate',
+    'pulls?state=open',
+    'grep -Fqx -- "$branch" "$protected_refs"',
+    'sort -u > "$RUNNER_TEMP/open-pr-current.txt"',
+    'git merge-base --is-ancestor "$expected_sha" "origin/$default_branch"',
+    'git push --force-with-lease="refs/heads/$branch:$expected_sha" origin ":refs/heads/$branch"',
+    "--format='%(refname:strip=3)%09%(objectname)'",
+  ]) {
+    if (!cleanupWorkflow.includes(marker)) {
+      failures.push(`Branch cleanup is missing a current-head safety check: ${marker}`);
+    }
+  }
+  if (/audited_delete|is_audited_for_deletion|permanently approved branch/i.test(cleanupWorkflow)) {
+    failures.push('Branch cleanup must not delete by static branch-name approval.');
+  }
+  if (!/pull-requests:\s*read/.test(cleanupWorkflow) || !/contents:\s*write/.test(cleanupWorkflow)) {
+    failures.push('Branch cleanup must use only pull-request read and branch-content write permissions.');
+  }
+
+  const branchSafetyTest = await read('scripts/governance/test-branch-cleanup-safety.mjs');
+  if (!branchSafetyTest.includes('force-with-lease') || !branchSafetyTest.includes("'--is-ancestor'")) {
+    failures.push('Branch cleanup safety fixture must exercise Git ancestry and stale-head leases.');
+  }
+  const branchSafetyResult = spawnSync(process.execPath, ['scripts/governance/test-branch-cleanup-safety.mjs'], {
+    cwd: repositoryRoot,
+    encoding: 'utf8',
+    windowsHide: true,
+  });
+  if (branchSafetyResult.status !== 0) {
+    failures.push(`Branch cleanup safety fixture failed: ${(branchSafetyResult.stderr || branchSafetyResult.stdout).trim()}`);
   }
 }
 
