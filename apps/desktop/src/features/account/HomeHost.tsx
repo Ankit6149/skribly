@@ -327,7 +327,7 @@ export const ReadySurface: React.FC<{ onNavigate: (destination: WorkspaceDestina
 
   useEffect(() => {
     void refreshStatus();
-  }, []);
+  }, [refreshStatus]);
 
   return (
     <main className="home-main desktop-ready-surface">
