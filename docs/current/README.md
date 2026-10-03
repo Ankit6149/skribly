@@ -17,6 +17,10 @@ Use this page before reading design explorations, old owner candidates, historic
 - [Repository governance](../06-planning/REPOSITORY_GOVERNANCE.md)
 - [Target repository structure](REPOSITORY_STRUCTURE.md)
 
+## Current audit repairs
+
+- [3 October repair execution and remaining acceptance](../06-planning/AUDIT_REPAIR_EXECUTION_2026-10-03.md)
+
 ## Current release status
 
 - [v0.1.51 private owner candidate](../04-operations/OWNER_CANDIDATE_V0.1.51.md)
