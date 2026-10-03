@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { validateDesktopStylePrecedence } from './desktop-css-order.mjs';
 
 const root = resolve(import.meta.dirname, '..', '..');
 const read = (path) => readFileSync(resolve(root, path), 'utf8');
@@ -94,8 +95,7 @@ for (const fontImport of [
   if (!main.includes(fontImport)) throw new Error(`Desktop entrypoint is missing ${fontImport}.`);
 }
 
-if (main.lastIndexOf('../styles/website-theme.css') < main.lastIndexOf('../styles/startup-recovery.css')) {
-  throw new Error('The website-aligned desktop theme must load after feature styles.');
-}
+const importOrder = await validateDesktopStylePrecedence(root, main);
+if (importOrder.errors.length > 0) throw new Error(importOrder.errors.join('\n'));
 
-console.log('Desktop theme validated: website tokens, complete surface coverage, and Kalam note content.');
+console.log(`Desktop theme validated: website tokens, ${importOrder.appCssGraph.length} transitive App styles, feature precedence, and Kalam note content.`);

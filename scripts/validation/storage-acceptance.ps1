@@ -6,6 +6,7 @@ param(
   [string]$EvidencePath,
 
   [Parameter(Mandatory = $true)]
+  [ValidatePattern('^[0-9a-fA-F]{40}$')]
   [string]$CommitSha
 )
 
@@ -14,12 +15,69 @@ Set-StrictMode -Version Latest
 
 $BinaryPath = (Resolve-Path $BinaryPath).Path
 $EvidencePath = [System.IO.Path]::GetFullPath($EvidencePath)
-$appDataRoot = Join-Path $env:APPDATA 'app.skribly.desktop'
-$acceptanceRoot = Join-Path $appDataRoot (Join-Path 'storage-acceptance' $CommitSha)
+$appDataRoot = [System.IO.Path]::GetFullPath((Join-Path $env:APPDATA 'app.skribly.desktop'))
+$acceptanceParent = [System.IO.Path]::GetFullPath((Join-Path $appDataRoot 'storage-acceptance'))
+$acceptanceRoot = [System.IO.Path]::GetFullPath((Join-Path $acceptanceParent $CommitSha))
 $results = [System.Collections.Generic.List[object]]::new()
 
-if (Test-Path $acceptanceRoot) {
-  Remove-Item $acceptanceRoot -Recurse -Force
+function Assert-SyntheticChild {
+  param([string]$Parent, [string]$Child)
+
+  $boundary = $Parent.TrimEnd([char[]]@('\', '/')) + [System.IO.Path]::DirectorySeparatorChar
+  if (-not $Child.StartsWith($boundary, [System.StringComparison]::OrdinalIgnoreCase)) {
+    throw 'Storage acceptance path escapes its synthetic parent.'
+  }
+}
+
+function Assert-NoReparseAncestors {
+  param([string]$Path)
+
+  $current = $Path
+  while ($current) {
+    $item = $null
+    try { $item = Get-Item -LiteralPath $current -Force -ErrorAction Stop }
+    catch {
+      if ($_.CategoryInfo.Category -ne [System.Management.Automation.ErrorCategory]::ObjectNotFound) { throw }
+    }
+    if ($null -ne $item) {
+      if (($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+        throw 'Storage acceptance refuses reparse points in its directory ancestry.'
+      }
+      if (-not $item.PSIsContainer) { throw 'Storage acceptance requires a directory ancestry.' }
+    }
+    $current = [System.IO.Path]::GetDirectoryName($current)
+  }
+}
+
+function Assert-NoReparseDescendants {
+  param([string]$Root)
+
+  # Enumerate one directory at a time: never follow a junction during inspection.
+  $directories = [System.Collections.Generic.Stack[string]]::new()
+  $directories.Push($Root)
+  while ($directories.Count -gt 0) {
+    $directory = $directories.Pop()
+    foreach ($item in Get-ChildItem -LiteralPath $directory -Force) {
+      Assert-SyntheticChild -Parent $Root -Child ([System.IO.Path]::GetFullPath($item.FullName))
+      if (($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+        throw 'Storage acceptance refuses reparse points in existing evidence.'
+      }
+      if ($item.PSIsContainer) { $directories.Push($item.FullName) }
+    }
+  }
+}
+
+# Verify the final absolute target before any recursive removal. The hash is a
+# single directory name, never an owner-supplied relative path or wildcard.
+Assert-SyntheticChild -Parent $appDataRoot -Child $acceptanceParent
+Assert-SyntheticChild -Parent $acceptanceParent -Child $acceptanceRoot
+if (-not ([System.IO.Path]::GetDirectoryName($acceptanceRoot)).Equals($acceptanceParent, [System.StringComparison]::OrdinalIgnoreCase)) {
+  throw 'Storage acceptance requires a direct commit directory below its synthetic parent.'
+}
+Assert-NoReparseAncestors -Path $acceptanceRoot
+if (Test-Path -LiteralPath $acceptanceRoot) {
+  Assert-NoReparseDescendants -Root $acceptanceRoot
+  Remove-Item -LiteralPath $acceptanceRoot -Recurse -Force
 }
 New-Item $acceptanceRoot -ItemType Directory -Force | Out-Null
 

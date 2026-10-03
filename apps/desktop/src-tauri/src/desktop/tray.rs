@@ -32,8 +32,8 @@ fn classify_tray_action(id: &str) -> TrayAction {
     }
 }
 
-fn tray_action_requires_overlay_hide(action: TrayAction) -> bool {
-    action == TrayAction::Quit
+fn tray_action_requires_overlay_hide(_action: TrayAction) -> bool {
+    false // Hide only after the durable-save barrier has acknowledged shutdown.
 }
 
 pub fn install_tray<R: Runtime>(app: &App<R>) -> tauri::Result<()> {
@@ -58,13 +58,6 @@ pub fn install_tray<R: Runtime>(app: &App<R>) -> tauri::Result<()> {
         .show_menu_on_left_click(true)
         .on_menu_event(|app, event| {
             let action = classify_tray_action(event.id.as_ref());
-            if tray_action_requires_overlay_hide(action) {
-                // Hide the transparent always-on-top HWND before beginning shutdown so neither a
-                // dot nor its native region can linger during teardown.
-                if let Some(window) = app.get_webview_window("main") {
-                    let _ = window.hide();
-                }
-            }
             match action {
                 TrayAction::OpenSkribli => {
                     // Preserve the workspace the user was last reading.
@@ -99,7 +92,7 @@ pub fn install_tray<R: Runtime>(app: &App<R>) -> tauri::Result<()> {
                         let _ = window.set_focus();
                     }
                 }
-                TrayAction::Quit => app.exit(0),
+                TrayAction::Quit => crate::desktop::native_transition::request_quit(app),
                 TrayAction::Ignore => {}
             }
         })
@@ -129,7 +122,7 @@ mod tests {
         );
         assert_eq!(classify_tray_action(QUIT_ID), TrayAction::Quit);
         assert_eq!(classify_tray_action("unknown"), TrayAction::Ignore);
-        assert!(tray_action_requires_overlay_hide(TrayAction::Quit));
+        assert!(!tray_action_requires_overlay_hide(TrayAction::Quit));
         assert!(!tray_action_requires_overlay_hide(TrayAction::OpenSkribli));
     }
 }

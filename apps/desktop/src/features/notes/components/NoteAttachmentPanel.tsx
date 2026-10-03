@@ -16,8 +16,10 @@ interface NoteAttachmentPanelProps {
   disabled?: boolean;
   compact?: boolean;
   pickerRequest?: number;
+  refreshRequest?: number;
   openDrawerRequest?: number;
-  filesRequest?: { id: number; files: File[] } | null;
+  filesRequest?: { id: number; noteId?: string; files: File[] } | null;
+  onFilesRequestSettled?: (requestId: number, noteId: string) => void;
   removeRequest?: { id: string; nonce: number } | null;
   onError?: (message: string) => void;
   onBusyChange?: (busy: boolean) => void;
@@ -55,8 +57,10 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
   disabled = false,
   compact = false,
   pickerRequest = 0,
+  refreshRequest = 0,
   openDrawerRequest = 0,
   filesRequest = null,
+  onFilesRequestSettled,
   removeRequest = null,
   onError,
   onBusyChange,
@@ -67,11 +71,13 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
   onRemoved,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const deleteDialogRef = useRef<HTMLDivElement>(null);
   const lastPickerRequestRef = useRef(pickerRequest);
   const lastOpenDrawerRequestRef = useRef(openDrawerRequest);
   const lastFilesRequestRef = useRef<number | null>(filesRequest?.id ?? null);
   const lastRemoveRequestRef = useRef<number | null>(removeRequest?.nonce ?? null);
   const operationInProgressRef = useRef(false);
+  const operationOwnerRef = useRef({ noteId, live: true });
   const [attachments, setAttachments] = useState<SkribAttachment[]>([]);
   const [urls, setUrls] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
@@ -83,6 +89,18 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
   const [photoIndex, setPhotoIndex] = useState(0);
   const [playingVideoId, setPlayingVideoId] = useState<string | null>(null);
   const panelBusy = isAdding || removingId !== null;
+
+  useEffect(() => {
+    const owner = { noteId, live: true };
+    operationOwnerRef.current = owner;
+    operationInProgressRef.current = false;
+    setIsAdding(false);
+    return () => { owner.live = false; };
+  }, [noteId]);
+
+  useEffect(() => {
+    if (confirmRemoveId) deleteDialogRef.current?.querySelector<HTMLButtonElement>('button')?.focus();
+  }, [confirmRemoveId]);
 
   const reportError = useCallback((reason: unknown) => {
     const message = reason instanceof Error ? reason.message : String(reason);
@@ -96,7 +114,7 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
     setError(null);
     void getRichContent(noteId)
       .then((content) => {
-        if (!cancelled) setAttachments(content.attachments);
+        if (!cancelled) setAttachments(content.discardRecovery?.current.rich.attachments ?? content.attachments);
       })
       .catch((reason) => {
         if (!cancelled) reportError(reason);
@@ -107,7 +125,7 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [noteId, reportError]);
+  }, [noteId, reportError, refreshRequest]);
 
   useEffect(() => {
     const nextUrls: Record<string, string> = {};
@@ -150,7 +168,12 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
   }, [disabled, panelBusy, pickerRequest]);
 
   const addFiles = useCallback(async (files: FileList | File[] | null) => {
-    if (!files || files.length === 0 || disabled || operationInProgressRef.current) return;
+    if (!files || files.length === 0) return;
+    if (disabled || operationInProgressRef.current) {
+      reportError('Paste was not added while this note was busy. Your clipboard was not changed; paste again when the note is ready.');
+      return;
+    }
+    const owner = operationOwnerRef.current;
     operationInProgressRef.current = true;
     setIsAdding(true);
     onBusyChange?.(true);
@@ -158,29 +181,37 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
     try {
       const previous = new Set(attachments.map((item) => item.id));
       const next = await addFilesToNote(noteId, Array.from(files));
+      if (!owner.live || operationOwnerRef.current !== owner) return;
       setAttachments(next);
       onAttachmentsChange?.(next);
       const newItems = next.filter((item) => !previous.has(item.id));
       if (!onPlaceInline || !onPlaceInline(newItems)) {
         const canExpand = await onRequestExpand?.();
-        if (canExpand !== false) setCompactExpanded(true);
+        if (owner.live && operationOwnerRef.current === owner && canExpand !== false) setCompactExpanded(true);
       }
-      void emit('skribly://rich-content-updated', { noteId }).catch(() => undefined);
+      if (owner.live && operationOwnerRef.current === owner) void emit('skribly://rich-content-updated', { noteId }).catch(() => undefined);
     } catch (reason) {
-      reportError(reason);
+      if (owner.live && operationOwnerRef.current === owner) reportError(reason);
     } finally {
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      setIsAdding(false);
-      operationInProgressRef.current = false;
-      onBusyChange?.(false);
+      if (owner.live && operationOwnerRef.current === owner) {
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        setIsAdding(false);
+        operationInProgressRef.current = false;
+        onBusyChange?.(false);
+      }
     }
   }, [attachments, disabled, noteId, onBusyChange, onRequestExpand, reportError, onAttachmentsChange, onPlaceInline]);
 
   useEffect(() => {
     if (!filesRequest || filesRequest.id === lastFilesRequestRef.current) return;
     lastFilesRequestRef.current = filesRequest.id;
-    void addFiles(filesRequest.files);
-  }, [addFiles, filesRequest]);
+    const requestNoteId = filesRequest.noteId ?? noteId;
+    if (requestNoteId !== noteId) {
+      onFilesRequestSettled?.(filesRequest.id, requestNoteId);
+      return;
+    }
+    void addFiles(filesRequest.files).finally(() => onFilesRequestSettled?.(filesRequest.id, requestNoteId));
+  }, [addFiles, filesRequest, noteId, onFilesRequestSettled]);
 
   useEffect(() => {
     if (!isLoading && attachments.length === 0) setCompactExpanded(false);
@@ -240,7 +271,8 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
     if (!removeRequest || removeRequest.nonce === lastRemoveRequestRef.current) return;
     if (disabled || panelBusy || operationInProgressRef.current) return;
     lastRemoveRequestRef.current = removeRequest.nonce;
-    void remove(removeRequest.id, true);
+    setConfirmRemoveId(removeRequest.id);
+    setCompactExpanded(true);
   }, [disabled, panelBusy, removeRequest]);
 
   const hiddenPicker = (
@@ -274,6 +306,12 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
         aria-label="Attached files"
       >
         {hiddenPicker}
+        {confirmRemoveId && <div ref={deleteDialogRef} className="attachment-delete-confirmation" role="alertdialog" aria-modal="false" onKeyDown={(event) => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); setConfirmRemoveId(null); } }} aria-label="Delete attached file" aria-describedby={`attachment-delete-detail-${noteId}`}>
+          <strong>Delete this attached file?</strong>
+          <p id={`attachment-delete-detail-${noteId}`}>?{attachments.find((item) => item.id === confirmRemoveId)?.name}? will be removed from this note and its saved attachments.</p>
+          <div><button type="button" disabled={panelBusy} onClick={() => setConfirmRemoveId(null)}>Keep file</button>
+            <button type="button" className="danger" disabled={disabled || panelBusy} onClick={() => void remove(confirmRemoveId, true)}>Delete file</button></div>
+        </div>}
         {isLoading ? (
           <span className="attachment-strip-status" role="status">Reading attachments…</span>
         ) : attachments.length > 0 ? (
@@ -314,8 +352,8 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
                 <button type="button" className="attachment-tray-remove"
                   disabled={disabled || panelBusy}
                   aria-label={`Remove ${attachment.name} from note`}
-                  title="Remove attached file from this note"
-                  onClick={() => void remove(attachment.id, true)}>
+                  title="Delete attached file ? confirmation required"
+                  onClick={() => setConfirmRemoveId(attachment.id)}>
                   <X size={12} aria-hidden="true" />
                 </button>
                 <strong title={attachment.name}>{attachment.name}</strong>

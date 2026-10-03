@@ -1,6 +1,7 @@
 import { access, readFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { validateInterfaceLabAssetHashes, validateInterfaceLabRuntime } from './interface-lab-contract.mjs';
 
 const root = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(root, '..');
@@ -13,6 +14,10 @@ const requiredFiles = [
   'download-success.html',
   'v0-download.html',
   'interface-lab.html',
+  'interface-lab-v3.html',
+  'interface-lab-v3.js',
+  'interface-lab-v3.css',
+  'interface-lab-assets.json',
   'styles.css',
   'ux-polish.css',
   'landing-typography.css',
@@ -20,6 +25,7 @@ const requiredFiles = [
   'product-truth.css',
   'app.js',
   'v0-download.js',
+  'v0-download-core.mjs',
   'interface-lab.css',
   'interface-lab.js',
   'commerce-config.js',
@@ -174,8 +180,8 @@ const requiredLandingTruth = [
   'One calm My Skribs rail',
   'NEW SKRIB FOR',
   'Saved locally',
-  'Saved note folds into a dot',
-  'returns saved notes to one movable My Skribs rail',
+  'stable active note for that context',
+  'returns the note to My Skribs',
   'Multiple simultaneous note windows, screenshot pins, checklists',
   'Owner v0 testing',
   'contextual annotation layer for Windows',
@@ -240,9 +246,8 @@ if (/\/api\/download/i.test(app)) {
 
 const answers = await readFile(join(root, 'answers.html'), 'utf8');
 for (const fact of [
-  'creates one empty note',
-  'reopens that note',
-  'returns it to one movable My Skribs rail',
+  'stable active note for that context',
+  'returns the note to the My Skribs rail',
   'one active editor at a time',
   'Public downloads are disabled',
 ]) {
@@ -274,7 +279,7 @@ for (const fact of [
 }
 
 const ownerDownloadPage = await readFile(join(root, 'v0-download.html'), 'utf8');
-for (const marker of ['data-v0-key-form', 'data-v0-key-status', './v0-download.js']) {
+for (const marker of ['data-v0-key-form', 'data-v0-key-status', 'data-v0-retry', './v0-download.js']) {
   if (!ownerDownloadPage.includes(marker)) failures.push(`Owner v0 page is missing: ${marker}`);
 }
 if (/type="email"|current-password|Supabase/i.test(ownerDownloadPage)) {
@@ -282,53 +287,38 @@ if (/type="email"|current-password|Supabase/i.test(ownerDownloadPage)) {
 }
 
 const ownerDownloadScript = await readFile(join(root, 'v0-download.js'), 'utf8');
-for (const marker of [
-  '/assets/skribli-v0-windows.enc',
-  "'PBKDF2'",
-  "'AES-GCM'",
-  '210_000',
-  "link.download = 'Skribli_0.1.51_x64-setup.exe'",
-]) {
+for (const marker of ["from './v0-download-core.mjs'", 'data-v0-retry', 'availability_', 'integrity_header', 'authentication']) {
   if (!ownerDownloadScript.includes(marker)) failures.push(`Owner v0 client flow is missing: ${marker}`);
+}
+const ownerDownloadCore = await readFile(join(root, 'v0-download-core.mjs'), 'utf8');
+for (const marker of ['/assets/skribli-v0-windows.enc', "'PBKDF2'", "'AES-GCM'", '210_000', '15_000', 'SKRV0E01']) {
+  if (!ownerDownloadCore.includes(marker)) failures.push(`Owner v0 package flow is missing: ${marker}`);
 }
 if (/supabase|\/api\/download|accessToken/i.test(ownerDownloadScript)) {
   failures.push('Owner v0 client must use only local key decryption.');
 }
 
-// The Interface Lab is a present-tense design/review contract, not a compatibility target for
-// retired prototype concepts. Validate the surfaces and review fixtures we expect to keep current.
-const interfaceLab = await readFile(join(root, 'interface-lab.html'), 'utf8');
-const requiredInterfaceLabMarkers = [
-  'data-view="overview"',
-  'data-view="structure"',
-  'data-view="motion"',
-  'data-view="note"',
-  'data-view="attachments"',
-  'data-view="drawing"',
-  'data-view="reminder"',
-  'data-view="dot"',
-  'data-view="rail"',
-  'data-view="library"',
-  'data-view="calendar"',
-  'data-view="home"',
-  'data-view="onboarding"',
-  'data-view="account"',
-  'data-view="recovery"',
-  'data-view="matrix"',
-  'data-note-tool="attach"',
-  'data-note-tool="draw"',
-  'data-note-tool="remind"',
-  'data-rail-scope="here"',
-  'data-rail-scope="all"',
-  'id="labScale"',
-  'id="labRuntime"',
-  './interface-lab.js',
-];
-for (const marker of requiredInterfaceLabMarkers) {
-  if (!interfaceLab.includes(marker)) failures.push(`Interface lab is missing current review marker: ${marker}`);
+const checkoutSource = await readFile(join(root, 'api/checkout.js'), 'utf8');
+if (!checkoutSource.includes("status(503)") || !checkoutSource.includes("code: 'sales_unavailable'")) {
+  failures.push('Paid checkout must return an explicit unavailable response until owner decisions and fulfillment exist.');
 }
-for (const retiredMarker of ['data-resize-corner', 'Pill and rail', 'data-add-attachment="Link"']) {
-  if (interfaceLab.includes(retiredMarker)) failures.push(`Interface lab reintroduced retired prototype marker: ${retiredMarker}`);
+
+// The visible Interface Lab fetches and mounts v3 assets. Validate those live dependencies and
+// real controls after stripping comments so stale compatibility notes cannot satisfy the gate.
+const interfaceLab = await readFile(join(root, 'interface-lab.html'), 'utf8');
+const interfaceLabV3 = await readFile(join(root, 'interface-lab-v3.html'), 'utf8');
+const interfaceLabV3Script = await readFile(join(root, 'interface-lab-v3.js'), 'utf8');
+const interfaceLabV3Css = await readFile(join(root, 'interface-lab-v3.css'));
+for (const message of validateInterfaceLabRuntime(interfaceLab, interfaceLabV3, interfaceLabV3Script)) {
+  failures.push(`Interface Lab runtime contract: ${message}`);
+}
+const interfaceLabAssets = JSON.parse(await readFile(join(root, 'interface-lab-assets.json'), 'utf8'));
+for (const message of validateInterfaceLabAssetHashes(interfaceLabAssets, {
+  'interface-lab-v3.html': Buffer.from(interfaceLabV3),
+  'interface-lab-v3.js': Buffer.from(interfaceLabV3Script),
+  'interface-lab-v3.css': interfaceLabV3Css,
+})) {
+  failures.push(`Interface Lab asset integrity: ${message}`);
 }
 
 const encryptedArtifact = await readFile(join(root, 'assets/skribli-v0-windows.enc'));

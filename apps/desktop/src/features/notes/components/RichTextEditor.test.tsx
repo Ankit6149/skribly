@@ -2,7 +2,7 @@
 import React, { act, createRef } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { RichTextEditor, type RichTextEditorHandle } from './RichTextEditor';
+import { RichTextEditor, sanitizeRichTextHtml, type RichTextEditorHandle } from './RichTextEditor';
 import type { SkribAttachment } from '../persistence/richContentStore';
 
 const attachment: SkribAttachment = { id: 'attachment-1', name: 'reference.png', kind: 'image', mimeType: 'image/png', size: 4, createdAt: 1, blob: new Blob(['test']) };
@@ -18,6 +18,73 @@ beforeEach(() => {
 afterEach(async () => { await act(async () => root.unmount()); container.remove(); Reflect.deleteProperty(document, 'execCommand'); vi.restoreAllMocks(); });
 
 describe('inline attachment editing', () => {
+  it('preserves restored control focus after re-enabling and focuses a different note', async () => {
+    vi.useFakeTimers();
+    const opener = document.createElement('button');
+    document.body.append(opener);
+    const render = (noteId: string, disabled: boolean) => root.render(<RichTextEditor noteId={noteId} initialHtml=""
+      disabled={disabled} drawingEnabled={false} describedBy="status" onChange={() => true}
+      onBlur={() => undefined} onPasteFiles={() => undefined} />);
+    try {
+      await act(async () => render('first', false));
+      await act(async () => vi.advanceTimersByTime(0));
+      await act(async () => render('first', true));
+      opener.focus();
+      await act(async () => render('first', false));
+      await act(async () => vi.advanceTimersByTime(0));
+      expect(document.activeElement).toBe(opener);
+      await act(async () => render('next', false));
+      await act(async () => vi.advanceTimersByTime(0));
+      expect(document.activeElement).toBe(container.querySelector('[role="textbox"]'));
+    } finally {
+      opener.remove();
+      vi.useRealTimers();
+    }
+  });
+
+  it('retains undo history when the parent replaces its history callback', async () => {
+    const ref = createRef<RichTextEditorHandle>();
+    const render = (html: string, onHistoryChange: (undo: boolean, redo: boolean) => void) => root.render(<RichTextEditor ref={ref} noteId="n" initialHtml={html}
+      disabled={false} drawingEnabled={false} describedBy="status" onChange={() => true} onHistoryChange={onHistoryChange}
+      onBlur={() => undefined} onPasteFiles={() => undefined} />);
+    await act(async () => render('<p>Original</p>', vi.fn()));
+    const editor = container.querySelector('[role="textbox"]') as HTMLDivElement;
+    await act(async () => { editor.innerHTML = '<p>Edited</p>'; editor.dispatchEvent(new InputEvent('input', { bubbles: true })); });
+    const latestHistory = vi.fn();
+    await act(async () => render('<p>Edited</p>', latestHistory));
+    await act(async () => ref.current!.undo());
+    expect(editor.textContent).toBe('Original');
+    expect(latestHistory).toHaveBeenLastCalledWith(false, true);
+  });
+
+  it('retains italic, underline and supported colors while stripping unsafe pasted styles', () => {
+    const clean = sanitizeRichTextHtml('<p><i>Italic</i><u>Underlined</u><span style="color:#486b8c;background-color:#cfe5d7;background-image:url(https://invalid.test/tracker);position:fixed" onclick="bad()">Color</span><script>bad()</script></p>');
+    expect(clean).toContain('<em>Italic</em>'); expect(clean).toContain('<u>Underlined</u>');
+    expect(clean).toContain('color: rgb(72, 107, 140)'); expect(clean).toContain('background-color: rgb(207, 229, 215)');
+    expect(clean).not.toContain('https:'); expect(clean).not.toContain('onclick'); expect(clean).not.toContain('position'); expect(clean).not.toContain('<script');
+    expect(sanitizeRichTextHtml('<p><br></p>')).toBe('');
+  });
+
+  it('preserves a literal slash when keyboard selects an unavailable action', async () => {
+    const onChange = vi.fn(() => true);
+    await act(async () => root.render(<RichTextEditor noteId="n" initialHtml="" disabled={false} drawingEnabled={false}
+      describedBy="status" onChange={onChange} onBlur={() => undefined} onPasteFiles={() => undefined} />));
+    const editor = container.querySelector('[role="textbox"]') as HTMLDivElement;
+    const before = document.createRange(); before.selectNodeContents(editor); before.collapse(true);
+    window.getSelection()!.removeAllRanges(); window.getSelection()!.addRange(before);
+    await act(async () => editor.dispatchEvent(new KeyboardEvent('keydown', { key: '/', bubbles: true })));
+    await act(async () => {
+      editor.textContent = '/';
+      const caret = document.createRange(); caret.setStart(editor.firstChild!, 1); caret.collapse(true);
+      window.getSelection()!.removeAllRanges(); window.getSelection()!.addRange(caret);
+      editor.dispatchEvent(new InputEvent('input', { data: '/', bubbles: true }));
+      editor.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    });
+    await act(async () => editor.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })));
+    expect(editor.textContent).toBe('/');
+    expect(container.querySelector('[aria-label="Insert in note"]')).not.toBeNull();
+  });
+
   it('opens the inline file picker from a slash shortcut without a persistent caret rail', async () => {
     const onRequestAttachment = vi.fn();
     await act(async () => root.render(<RichTextEditor noteId="n" initialHtml="<p>Thought</p>"
@@ -190,14 +257,15 @@ describe('inline attachment editing', () => {
     ['image', 'reference.png', 'image/png'],
     ['video', 'clip.mp4', 'video/mp4'],
     ['document', 'brief.pdf', 'application/pdf'],
-  ] as const)('requests removal of an inline %s from its visible cross', async (kind, name, mimeType) => {
+  ] as const)('removes only the inline %s reference, keeping the underlying file', async (kind, name, mimeType) => {
     const onDeleteAttachment = vi.fn();
     await act(async () => root.render(<RichTextEditor noteId="n" initialHtml='<p>Thought<span data-skrib-attachment="attachment-1" contenteditable="false"></span></p>'
       attachments={[{ ...attachment, kind, name, mimeType }]} disabled={false} drawingEnabled={false} describedBy="status" onChange={() => true} onBlur={() => undefined} onPasteFiles={() => undefined}
       onDeleteAttachment={onDeleteAttachment} />));
-    await act(async () => (container.querySelector(`[aria-label="Remove ${name} from note"]`) as HTMLButtonElement).click());
-    expect(onDeleteAttachment).toHaveBeenCalledWith('attachment-1');
-    expect(container.querySelector(`[aria-label="Options for ${name}"]`)).not.toBeNull();
+    await act(async () => (container.querySelector(`[aria-label="Remove ${name} from text"]`) as HTMLButtonElement).click());
+    expect(onDeleteAttachment).not.toHaveBeenCalled();
+    expect(container.querySelector('[data-skrib-attachment]')).toBeNull();
+    expect(container.querySelector(`[aria-label="Options for ${name}"]`)).toBeNull();
   });
   it('removes an empty image paragraph without adding a newline to the note', async () => {
     const ref = createRef<RichTextEditorHandle>();

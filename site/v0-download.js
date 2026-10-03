@@ -1,16 +1,47 @@
-(() => {
-  const form = document.querySelector('[data-v0-key-form]');
-  const submit = document.querySelector('[data-v0-key-submit]');
-  const status = document.querySelector('[data-v0-key-status]');
-  if (!(form instanceof HTMLFormElement) || !(submit instanceof HTMLButtonElement) || !status) return;
+import { decryptInstaller, DownloadFailure, fetchEncryptedInstaller } from './v0-download-core.mjs';
 
-  const setStatus = (message, isError = false) => {
+const form = document.querySelector('[data-v0-key-form]');
+const submit = document.querySelector('[data-v0-key-submit]');
+const retry = document.querySelector('[data-v0-retry]');
+const status = document.querySelector('[data-v0-key-status]');
+
+if (form instanceof HTMLFormElement && submit instanceof HTMLButtonElement && status instanceof HTMLElement && retry instanceof HTMLButtonElement) {
+  let encryptedPackage = null;
+
+  const setStatus = (message, state = 'info') => {
     status.textContent = message;
-    status.classList.toggle('is-error', isError);
+    status.dataset.state = state;
+    status.classList.toggle('is-error', state === 'error');
   };
 
-  const bytesEqual = (value, expected) =>
-    value.length === expected.length && value.every((byte, index) => byte === expected[index]);
+  const setBusy = (busy) => {
+    submit.disabled = busy;
+    retry.disabled = busy;
+  };
+
+  const retryFetch = async () => {
+    retry.hidden = true;
+    setBusy(true);
+    setStatus('Checking the owner installer package…');
+    try {
+      encryptedPackage = await fetchEncryptedInstaller();
+      setStatus('The installer package is available. Enter your key to decrypt it.');
+      form.elements.namedItem('downloadKey')?.focus();
+    } catch (error) {
+      if (error instanceof DownloadFailure && error.category.startsWith('availability_')) {
+        setStatus('The installer is temporarily unavailable. Check your connection and retry.', 'error');
+      } else if (error instanceof DownloadFailure && error.category === 'integrity_header') {
+        setStatus('The downloaded package is invalid. Contact the owner before trying again.', 'error');
+      } else {
+        setStatus('The installer could not be checked. Retry in a moment.', 'error');
+      }
+      retry.hidden = false;
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  retry.addEventListener('click', retryFetch);
 
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -19,54 +50,44 @@
     const keyInput = form.elements.namedItem('downloadKey');
     if (!(keyInput instanceof HTMLInputElement)) return;
     const downloadKey = keyInput.value;
-    submit.disabled = true;
-    setStatus('Checking key and decrypting the installer...');
+    keyInput.value = '';
+    setBusy(true);
+    retry.hidden = true;
+    setStatus('Checking key and preparing the installer…');
 
     try {
-      const response = await fetch('/assets/skribli-v0-windows.enc', { cache: 'no-store' });
-      if (!response.ok) throw new Error('The current v0 installer is not ready yet.');
-      const encrypted = new Uint8Array(await response.arrayBuffer());
-      const magic = new TextEncoder().encode('SKRV0E01');
-      if (encrypted.length < 53 || !bytesEqual(encrypted.slice(0, 8), magic)) {
-        throw new Error('The installer package is invalid.');
-      }
-
-      const material = await crypto.subtle.importKey(
-        'raw',
-        new TextEncoder().encode(downloadKey),
-        'PBKDF2',
-        false,
-        ['deriveKey']
-      );
-      const aesKey = await crypto.subtle.deriveKey(
-        { name: 'PBKDF2', salt: encrypted.slice(8, 24), iterations: 210_000, hash: 'SHA-256' },
-        material,
-        { name: 'AES-GCM', length: 256 },
-        false,
-        ['decrypt']
-      );
-      const installer = await crypto.subtle.decrypt(
-        { name: 'AES-GCM', iv: encrypted.slice(24, 36), tagLength: 128 },
-        aesKey,
-        encrypted.slice(36)
-      );
-
+      if (!encryptedPackage) encryptedPackage = await fetchEncryptedInstaller();
+      const installer = await decryptInstaller(encryptedPackage, downloadKey);
       const objectUrl = URL.createObjectURL(
         new Blob([installer], { type: 'application/vnd.microsoft.portable-executable' })
       );
       const link = document.createElement('a');
       link.href = objectUrl;
-      link.download = 'Skribli_0.1.51_x64-setup.exe';
+      link.download = form.dataset.installerFilename || 'Skribli_Windows_setup.exe';
       document.body.appendChild(link);
       link.click();
       link.remove();
       window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+      encryptedPackage = null;
       setStatus('Installer download started. Open the .exe to install Skribli on this PC.');
-    } catch {
-      setStatus('That key is incorrect, or the installer is not ready yet.', true);
+    } catch (error) {
+      if (error instanceof DownloadFailure && error.category.startsWith('availability_')) {
+        setStatus('The installer is temporarily unavailable. Check your connection and retry.', 'error');
+        retry.hidden = false;
+      } else if (error instanceof DownloadFailure && error.category === 'integrity_header') {
+        encryptedPackage = null;
+        setStatus('The downloaded package is invalid. Contact the owner before trying again.', 'error');
+        retry.hidden = false;
+      } else if (error instanceof DownloadFailure && error.category === 'authentication') {
+        setStatus('A wrong key or damaged ciphertext can both prevent authentication. Recheck the key; if it persists, contact the owner.', 'error');
+        keyInput.focus();
+      } else {
+        setStatus('The installer could not be prepared. Retry in a moment.', 'error');
+        retry.hidden = false;
+      }
     } finally {
       keyInput.value = '';
-      submit.disabled = false;
+      setBusy(false);
     }
   });
-})();
+}

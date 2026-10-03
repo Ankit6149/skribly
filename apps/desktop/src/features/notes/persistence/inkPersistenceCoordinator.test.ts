@@ -21,6 +21,33 @@ function deferred() {
 }
 
 describe('InkPersistenceCoordinator', () => {
+  it('flushes the complete queue, including acknowledgements, before reporting saved', async () => {
+    const allowSave = deferred();
+    const coordinator = new InkPersistenceCoordinator([]);
+    const persist = async () => { await allowSave.promise; };
+    const first = coordinator.submit([stroke('first')], persist);
+    const second = coordinator.submit([stroke('first'), stroke('second')], persist);
+    let finished = false;
+    const flush = coordinator.flush(persist).then((saved) => { finished = true; return saved; });
+    await Promise.resolve();
+    expect(finished).toBe(false);
+    allowSave.resolve();
+    expect(await flush).toBe(true);
+    await Promise.all([first, second]);
+    expect(coordinator.getSnapshot()).toMatchObject({ status: 'idle', hasUnsavedChanges: false });
+  });
+
+  it('retries only the latest failed snapshot and retains it if the retry fails', async () => {
+    const coordinator = new InkPersistenceCoordinator([]);
+    const latest = [stroke('latest')];
+    await coordinator.submit(latest, async () => { throw new Error('disk unavailable'); });
+    const attempts: InkStroke[][] = [];
+    expect(await coordinator.flush(async (value) => { attempts.push(value); throw new Error('still unavailable'); })).toBe(false);
+    expect(attempts).toEqual([latest]);
+    expect(coordinator.getSnapshot()).toMatchObject({ strokes: latest, hasUnsavedChanges: true, error: 'still unavailable' });
+    expect(await coordinator.flush(async (value) => { attempts.push(value); })).toBe(true);
+    expect(attempts).toEqual([latest, latest]);
+  });
   it('keeps rapid optimistic strokes when an older parent acknowledgement arrives', async () => {
     const firstSaveStarted = deferred();
     const allowFirstSave = deferred();

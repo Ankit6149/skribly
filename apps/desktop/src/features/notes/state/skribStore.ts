@@ -111,7 +111,7 @@ interface SkribStoreState {
     height: number
   ) => Promise<void>;
   updateSkribText: (id: string, text: string) => Promise<boolean>;
-  updateSkribColor: (id: string, color: SkribNote['color']) => Promise<void>;
+  updateSkribColor: (id: string, color: SkribNote['color']) => Promise<boolean>;
   toggleSkribCollapse: (id: string) => Promise<void>;
   setSkribCollapsed: (id: string, collapsed: boolean) => Promise<boolean>;
   saveSkribWindowPosition: (id: string) => Promise<void>;
@@ -376,30 +376,29 @@ export const useSkribStore = create<SkribStoreState>((set, get) => ({
 
   updateSkribColor: async (id, color) => {
     const blocked = writeBlockMessage();
-    if (blocked) {
-      set({ errorMessage: blocked });
-      return;
-    }
-
-    const previousSkribs = get().skribs;
-    set({
-      skribs: previousSkribs.map((n) => (n.id === id ? { ...n, color } : n)),
-    });
-
-    if (!get().isTauriAvailable) return;
+    if (blocked) { set({ errorMessage: blocked }); return false; }
+    const previousColor = get().skribs.find((note) => note.id === id)?.color;
+    if (!previousColor) { set({ errorMessage: 'This note is no longer available.' }); return false; }
+    const applyColor = (value: SkribNote['color']) => set((state) => ({
+      skribs: state.skribs.map((note) => note.id === id ? { ...note, color: value } : note),
+      allSkribs: state.allSkribs.map((note) => note.id === id ? { ...note, color: value } : note),
+    }));
+    applyColor(color);
+    if (!get().isTauriAvailable) return true;
     try {
       const payload = await invoke<OverlayStatePayload>('update_skrib_color', { id, color });
-      set({
-        skribs: payload.skribs,
-        overlayMetrics: payload.overlay_metrics || get().overlayMetrics,
-        initStatus: payload.init_status || get().initStatus,
-        errorMessage: null,
-        storageErrorMessage: null,
-      });
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      set({ skribs: previousSkribs, errorMessage: `Failed to change color: ${msg}` });
+      const saved = payload.skribs.find((note) => note.id === id);
+      if (!saved || saved.color !== color) throw new Error('The saved paper color was not confirmed.');
+      // Color writes do not own the editor's newer typed draft or other note records.
+      applyColor(saved.color);
+      set({ overlayMetrics: payload.overlay_metrics || get().overlayMetrics,
+        initStatus: payload.init_status || get().initStatus, errorMessage: null, storageErrorMessage: null });
+      return true;
+    } catch (reason) {
+      applyColor(previousColor);
+      set({ errorMessage: `Failed to change color: ${reason instanceof Error ? reason.message : String(reason)}` });
       await get().refreshStorageHealth();
+      return false;
     }
   },
 

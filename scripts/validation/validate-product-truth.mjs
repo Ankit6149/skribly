@@ -114,7 +114,9 @@ const requiredCurrentDocumentation = [
   [interactionSpec, 'Zero active matches creates one note', 'interaction specification'],
   [interactionSpec, '**Move to Trash** is the ordinary delete action', 'interaction specification'],
   [interactionSpec, 'Portable import', 'interaction specification'],
-  [interactionSpec, 'The editor exposes **Type**, **Draw**, **Files**, and **Reminder** tools.', 'interaction specification'],
+  [interactionSpec, 'The editor has one thin **Type / Draw** pill.', 'interaction specification'],
+  [interactionSpec, 'Files and reminders remain reachable through the existing attachment/tool controls.', 'interaction specification'],
+  [interactionSpec, 'Only selecting an enabled command removes that slash', 'interaction specification'],
   [interactionSpec, 'every scrollable desktop surface uses the themed scrollbar tokens', 'interaction specification'],
   [interactionSpec, 'Explicitly deferred interactions', 'interaction specification'],
   [componentInventory, 'Implemented foundations under #21', 'component inventory'],
@@ -291,7 +293,9 @@ for (const claim of requiredTargetCaptureImplementation) {
 
 const requiredShortcutFlow = [
   'native_window_operation_gate.lock()',
-  'clear_active_target_and_hide_note_locked(&app_handle_hk, &state_hk);',
+  'clear_active_target_and_hide_note_locked(&transaction_handle, &state_hk);',
+  'desktop::native_transition::flush_active_editor(&app_handle_hk, "shortcut")',
+  'if !transition.can_commit(&state_hk)',
   'capture_foreground_target()',
   'revalidate_captured_target(&capture)',
   'present_target_capture_error',

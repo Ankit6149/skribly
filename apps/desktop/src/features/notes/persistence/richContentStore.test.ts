@@ -211,7 +211,7 @@ describe('rich content repository', () => {
     expect(await persistence.listNoteIds()).toEqual(['note-1']);
   });
 
-  it('protects referenced notes and deletes confirmed orphans', async () => {
+  it('retains inferred orphans even with an existence preflight because native restoration can race', async () => {
     const persistence = createMemoryRichContentPersistence([content('kept'), content('orphan')]);
     const referenced = new Set(['kept']);
     const repository = createRichContentRepository(persistence, {
@@ -219,19 +219,20 @@ describe('rich content repository', () => {
     });
 
     expect(await repository.deleteIfOrphaned('kept')).toBe(false);
-    expect(await repository.deleteIfOrphaned('orphan')).toBe(true);
-    expect(await persistence.listNoteIds()).toEqual(['kept']);
+    expect(await repository.deleteIfOrphaned('orphan')).toBe(false);
+    referenced.add('orphan');
+    expect(await persistence.listNoteIds()).toEqual(['kept', 'orphan']);
   });
 
-  it('provides a deterministic authoritative orphan sweep', async () => {
+  it('does not reclaim new rich content from a stale native ID snapshot', async () => {
     const persistence = createMemoryRichContentPersistence([
       content('note-c'),
       content('note-a'),
       content('note-b'),
     ]);
     const repository = createRichContentRepository(persistence);
-    expect(await repository.deleteOrphans(['note-b'])).toEqual(['note-a', 'note-c']);
-    expect(await persistence.listNoteIds()).toEqual(['note-b']);
+    expect(await repository.deleteOrphans(['note-b'])).toEqual([]);
+    expect(await persistence.listNoteIds()).toEqual(['note-a', 'note-b', 'note-c']);
   });
 
   it('serializes concurrent attachment and vector-ink writes for the same note', async () => {
@@ -348,4 +349,44 @@ describe('vector ink persistence', () => {
     expect(stored.attachments.map((attachment) => attachment.id)).toEqual([secondAttachment.id]);
     expect(stored.inkDocument?.strokes).toEqual([stroke()]);
   });
+});
+
+
+it('coordinates two repositories sharing an adapter without losing rich text or view preferences', async () => {
+  const gate = createFirstPutGate();
+  const first = createRichContentRepository(gate.persistence);
+  const second = createRichContentRepository(gate.persistence);
+  const a = first.replaceRichText('n', { html: '<p>A</p>', plainText: 'A' });
+  await gate.waitForFirstPut();
+  const b = second.updateView('n', { textSize: 'large' });
+  gate.releaseFirstPut();
+  await Promise.all([a, b]);
+  expect(await second.get('n')).toMatchObject({ richText: { plainText: 'A' }, view: { textSize: 'large' } });
+});
+
+it('retains both sets of blobs durably while restoring an empty baseline', async () => {
+  const persistence = createMemoryRichContentPersistence();
+  const repository = createRichContentRepository(persistence, { createId: () => 'new-image' });
+  const baseline = { text: '', color: 'yellow' as const, rich: await repository.get('n'), reminders: [] };
+  await repository.addFiles('n', [new File(['bytes'], 'new.png', { type: 'image/png' })]);
+  const current = { ...baseline, text: 'New', rich: await repository.get('n') };
+  await repository.retainDiscardRecovery('n', { version: 1, baseline, current });
+  await repository.restoreContent('n', baseline.rich);
+  const reopened = createRichContentRepository(persistence);
+  expect((await reopened.get('n')).discardRecovery?.current.rich.attachments[0]?.blob.size).toBe(5);
+  await reopened.restoreContent('n', current.rich);
+  await reopened.clearDiscardRecovery('n');
+  expect((await reopened.get('n')).attachments[0]?.id).toBe('new-image');
+  expect((await reopened.get('n')).discardRecovery).toBeUndefined();
+});
+
+it('preserves unknown or damaged recovery intents and refuses to clear them', async () => {
+  for (const journal of [{ version: 2 }, { version: 1, current: {}, baseline: {} }]) {
+    const original = { noteId: 'n', attachments: [], updatedAt: 1, discardRecovery: journal } as unknown as StoredRichContent;
+    const persistence = createMemoryRichContentPersistence([original]);
+    const repository = createRichContentRepository(persistence);
+    await expect(repository.get('n')).rejects.toThrow('preserved');
+    await expect(repository.clearDiscardRecovery('n')).rejects.toThrow('preserved');
+    expect(await persistence.get('n')).toBe(original);
+  }
 });

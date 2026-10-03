@@ -4,7 +4,12 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+#[path = "../src/core/durable_state.rs"]
+mod durable_state;
+
 mod core {
+    pub(crate) use crate::durable_state;
+
     pub mod account {
         include!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/core/account.rs"));
     }

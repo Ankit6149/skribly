@@ -27,13 +27,14 @@ import {
   replaceInkForNote,
   replaceRichTextForNote,
   restoreRichContentForNote,
+  retainDiscardRecoveryForNote,
+  clearDiscardRecoveryForNote,
   updateNoteViewPreferences,
   type InkStroke,
   type SkribTextSize,
   type SkribAttachment,
-  type StoredRichContent,
 } from './persistence/richContentStore';
-import { completeReminder, dismissReminder, listReminders, restoreRemindersForNote, type SkribReminder } from '../reminders/persistence/reminderStore';
+import { cancelRemindersForTrashedNote, completeRemindersForArchivedNote, listReminders, restoreRemindersForNote } from '../reminders/persistence/reminderStore';
 import { useLicenseStore } from '../licensing/state/licenseStore';
 import { useSkribStore } from './state/skribStore';
 import { useSkribUiStore } from './state/skribUiStore';
@@ -49,7 +50,8 @@ import {
 import type { OpenNoteAction } from './lifecycle/noteLifecycle';
 import { bundledAppIcon } from './bundledAppIcon';
 import { applicationLabel } from '../widget/model/contextRailModel';
-import { InkCanvas } from './components/InkCanvas';
+import { InkCanvas, type InkCanvasHandle } from './components/InkCanvas';
+import { saveBeforeNativeDeadline } from './lifecycle/nativeSaveDeadline';
 import type { InkPersistenceState } from './persistence/inkPersistenceCoordinator';
 import { NoteAttachmentPanel } from './components/NoteAttachmentPanel';
 import { NoteReminderPanel } from '../reminders/components/NoteReminderPanel';
@@ -64,6 +66,9 @@ import { NoteDeleteConfirmation } from './components/NoteDeleteConfirmation';
 import { NotePlaceHeader } from './components/NotePlaceHeader';
 import { NoteSaveIndicator } from './components/NoteSaveIndicator';
 import { NoteWindowControls } from './components/NoteWindowControls';
+import { RichTextSaveController } from './persistence/richTextSaveController';
+import { hasMeaningfulRichText } from './model/richTextPresence';
+import { discardWithRecovery, restoreNoteSession, type NoteDiscardRecovery, type NoteSessionSnapshot } from './lifecycle/discardRecovery';
 import type { NoteSurfaceSize, ResizeDirection } from './model/noteSurfaceTypes';
 import {
   borrowedSurfaceAfterResize,
@@ -101,6 +106,14 @@ function saveStatusLabel(snapshot: DraftSaveSnapshot): string {
 }
 
 export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, openAction }) => {
+  // Store the session baseline by note identity. Store-driven text/color updates
+  // for this same note must not recreate the save controller or change Discard.
+  const [sessionInitial, setSessionInitial] = useState(() => ({
+    noteId: note.id, text: note.text, color: note.color,
+  }));
+  if (sessionInitial.noteId !== note.id) {
+    setSessionInitial({ noteId: note.id, text: note.text, color: note.color });
+  }
   const {
     trashSkrib,
     archiveSkrib,
@@ -117,7 +130,14 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
   } = useSkribStore();
   const licenseStatus = useLicenseStore((state) => state.status);
   const licenceAllowsWrite = !licenseStatus.enforcementEnabled || licenseStatus.canWrite;
-  const canWrite = storageWritable && licenceAllowsWrite;
+  const [nativeTransitionBusy, setNativeTransitionBusy] = useState(false);
+  const nativeTransitionRequest = useRef<string | null>(null);
+  const nativeTransitionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [richReadFailed, setRichReadFailed] = useState(false);
+  const [richLoadRevision, setRichLoadRevision] = useState(0);
+  const [attachmentRefresh, setAttachmentRefresh] = useState(0);
+  const [discardRecovery, setDiscardRecovery] = useState<NoteDiscardRecovery | null>(null);
+  const canWrite = storageWritable && licenceAllowsWrite && !discardRecovery && !nativeTransitionBusy && !richReadFailed;
   const { closeComposer } = useSkribUiStore();
   const [text, setText] = useState(note.text);
   const [composerError, setComposerError] = useState<string | null>(null);
@@ -134,11 +154,12 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
   const [placeDetailOpen, setPlaceDetailOpen] = useState(false);
   const [cancelConfirmationOpen, setCancelConfirmationOpen] = useState(false);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
-  const sessionSnapshot = useRef<{ text: string; color: SkribNote['color']; rich: StoredRichContent; reminders: SkribReminder[] } | null>(null);
-  const [inlineDeleteRequest, setInlineDeleteRequest] = useState<{ id: string; nonce: number } | null>(null);
+  const sessionSnapshot = useRef<NoteSessionSnapshot | null>(null);
   const [attachmentPickerRequest, setAttachmentPickerRequest] = useState(0);
   const [attachmentDrawerRequest, setAttachmentDrawerRequest] = useState(0);
-  const [pastedFilesRequest, setPastedFilesRequest] = useState<{ id: number; files: File[] } | null>(null);
+  const [pastedFilesRequest, setPastedFilesRequest] = useState<{ id: number; noteId: string; files: File[] } | null>(null);
+  const clipboardRequestSequence = useRef(0);
+  const clipboardReservation = useRef<{ id: number; noteId: string } | null>(null);
   const [attachmentCount, setAttachmentCount] = useState(0);
   const [inlineAttachments, setInlineAttachments] = useState<SkribAttachment[]>([]);
   const [inkStrokes, setInkStrokes] = useState<InkStroke[]>([]);
@@ -174,6 +195,8 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
       paperRef.current?.querySelector<HTMLButtonElement>('.composer-intent-tray button:not(:disabled)')?.focus();
     }
   }, [noteMenuOpen, toolGatewayOpen]);
+  const [richDraftPending, setRichDraftPending] = useState(false);
+  const [richSaveFailed, setRichSaveFailed] = useState(false);
   const [richOperationCount, setRichOperationCount] = useState(0);
   const [inkPersistenceState, setInkPersistenceState] = useState<InkPersistenceState>({
     status: 'idle',
@@ -191,8 +214,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
   currentNoteId.current = note.id;
   const sizeBeforeExpand = useRef<Exclude<NoteSurfaceSize, 'large'>>('medium');
   const richTextEditorRef = useRef<RichTextEditorHandle>(null);
-  const richTextSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendingRichText = useRef<{ html: string; plainText: string } | null>(null);
+  const inkCanvasRef = useRef<InkCanvasHandle>(null);
   const [richTextHtml, setRichTextHtml] = useState(() => plainTextToRichHtml(note.text));
   const richOperationsInProgress = useRef(new Map<string, number>());
   const inkPersistenceStateRef = useRef<InkPersistenceState>(inkPersistenceState);
@@ -219,35 +241,38 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
     (busy: boolean) => setRichOperationBusy('reminder', busy),
     [setRichOperationBusy]
   );
-  const flushRichText = useCallback(async () => {
-    if (richTextSaveTimer.current) {
-      clearTimeout(richTextSaveTimer.current);
-      richTextSaveTimer.current = null;
+  const reportBlockedPaste = useCallback(() => {
+    setComposerError('Paste was not added while this note was busy or read-only. Your clipboard was not changed; paste again when the note is ready.');
+  }, []);
+  const settleClipboardRequest = useCallback((requestId: number, requestNoteId: string) => {
+    if (clipboardReservation.current?.id !== requestId || clipboardReservation.current.noteId !== requestNoteId) return;
+    clipboardReservation.current = null;
+    if (currentNoteId.current === requestNoteId) {
+      setRichOperationBusy('clipboard', false);
+      setPastedFilesRequest((request) => request?.id === requestId ? null : request);
     }
-    const pending = pendingRichText.current;
-    if (!pending) return true;
-    pendingRichText.current = null;
-    setRichOperationBusy('rich-text', true);
+  }, [setRichOperationBusy]);
+  useEffect(() => () => { clipboardReservation.current = null; }, []);
+  const richSaveController = useMemo(() => new RichTextSaveController(async (draft) => {
+    if (currentNoteId.current === note.id) setRichOperationBusy('rich-text', true);
     try {
-      await replaceRichTextForNote(note.id, pending);
+      await replaceRichTextForNote(note.id, draft);
+      if (currentNoteId.current === note.id) setRichSaveFailed(false);
       void emit('skribly://rich-content-updated', { noteId: note.id }).catch(() => undefined);
-      return true;
-    } catch (reason) {
-      pendingRichText.current = pending;
-      setComposerError(
-        `Skribli could not save this formatting yet: ${reason instanceof Error ? reason.message : String(reason)}`
-      );
-      return false;
     } finally {
-      setRichOperationBusy('rich-text', false);
+      if (currentNoteId.current === note.id) setRichOperationBusy('rich-text', false);
     }
-  }, [note.id, setRichOperationBusy]);
-
+  }, (reason) => {
+    if (currentNoteId.current === note.id) {
+      setRichSaveFailed(true);
+      setComposerError(`Skribli could not save this formatting yet: ${reason instanceof Error ? reason.message : String(reason)}`);
+    }
+  }, 320, setRichDraftPending), [note.id, setRichOperationBusy]);
+  const flushRichText = useCallback(() => richSaveController.flush(), [richSaveController]);
   const scheduleRichTextSave = useCallback((html: string, plainText: string) => {
-    pendingRichText.current = { html, plainText };
-    if (richTextSaveTimer.current) clearTimeout(richTextSaveTimer.current);
-    richTextSaveTimer.current = setTimeout(() => void flushRichText(), 320);
-  }, [flushRichText]);
+    richSaveController.setDraft({ html, plainText });
+  }, [richSaveController]);
+  useEffect(() => { richSaveController.activate(); return () => richSaveController.suspend(); }, [richSaveController]);
   const handleInkPersistenceState = useCallback((state: InkPersistenceState) => {
     inkPersistenceStateRef.current = state;
     setInkPersistenceState(state);
@@ -256,10 +281,10 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
   const saveController = useMemo(
     () =>
       new DraftSaveController({
-        initialText: note.text,
-        persist: (draft) => persistSkribText(note.id, draft),
+        initialText: sessionInitial.text,
+        persist: (draft) => persistSkribText(sessionInitial.noteId, draft),
       }),
-    [note.id]
+    [sessionInitial]
   );
   const [saveSnapshot, setSaveSnapshot] = useState<DraftSaveSnapshot>(
     saveController.getSnapshot()
@@ -324,17 +349,25 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
     setText(saveController.getSnapshot().draft);
     setSaveSnapshot(saveController.getSnapshot());
     setComposerError(null);
+    setRichSaveFailed(false);
+    setRichDraftPending(false);
+    setRichReadFailed(false);
     setDiagnosticsPath(null);
     setActivePanel(null);
     setDrawingEnabled(false);
     temporaryToolSurface.current = null;
     setAttachmentCount(0);
     setInlineAttachments([]);
-    setRichTextHtml(plainTextToRichHtml(note.text));
+    clipboardReservation.current = null;
+    setPastedFilesRequest(null);
+    setRichTextHtml(plainTextToRichHtml(saveController.getSnapshot().draft));
     sessionSnapshot.current = null;
     setCancelConfirmationOpen(false);
-    pendingRichText.current = null;
-    if (richTextSaveTimer.current) clearTimeout(richTextSaveTimer.current);
+    setDiscardRecovery(null);
+    nativeTransitionRequest.current = null;
+    inkCanvasRef.current?.releaseTransition();
+    setNativeTransitionBusy(false);
+    if (nativeTransitionTimer.current) clearTimeout(nativeTransitionTimer.current);
     richOperationsInProgress.current.clear();
     setRichOperationCount(0);
     const cleanInkState: InkPersistenceState = {
@@ -406,7 +439,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
     saveController.acceptCommittedText(note.text);
   }, [note.text, saveController]);
 
-  useEffect(() => () => saveController.dispose(), [saveController]);
+  useEffect(() => { saveController.activate(); return () => saveController.suspend(); }, [saveController]);
 
   useEffect(() => {
     if (!isTauriAvailable) return;
@@ -440,31 +473,108 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
   }, [flushRichText, isTauriAvailable, note.id, saveController]);
 
   useEffect(() => {
+    if (!isTauriAvailable) return;
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+    void listen<{ requestId: string; reason: 'shortcut' | 'quit' | 'close'; noteId: string }>('skribly://prepare-native-transition', async ({ payload }) => {
+      if (disposed || payload.noteId !== note.id || nativeTransitionRequest.current) return;
+      richTextEditorRef.current?.flush();
+      nativeTransitionRequest.current = payload.requestId;
+      setNativeTransitionBusy(true);
+      let saved = false;
+      let inkPrepared = false;
+      try {
+        const nonInkOperation = [...richOperationsInProgress.current.keys()].some((kind) => kind !== 'ink');
+        if (!isInkLoading && sessionSnapshot.current?.rich.noteId === note.id && !richReadFailed && !discardRecovery && !operationInProgress.current && !nonInkOperation &&
+          !toolTransitionInProgress.current && !resizeInProgress.current) {
+          inkPrepared = true;
+          const inkSaving = inkCanvasRef.current
+            ? inkCanvasRef.current.prepareTransition()
+            : Promise.resolve(!inkPersistenceStateRef.current.hasUnsavedChanges && inkPersistenceStateRef.current.status !== 'saving');
+          saved = await saveBeforeNativeDeadline(async () => {
+            const inkSaved = await inkSaving;
+            if (!inkSaved) return false;
+            richTextEditorRef.current?.flush();
+            return await flushRichText() && await saveController.flush();
+          });
+          saved = saved && !disposed && nativeTransitionRequest.current === payload.requestId && currentNoteId.current === note.id && !inkPersistenceStateRef.current.hasUnsavedChanges &&
+            inkPersistenceStateRef.current.status !== 'saving' && richOperationsInProgress.current.size === 0;
+        }
+      } catch { /* Keep the editor visible; native rejects the transition. */ }
+      // A previously reserved paste must still run when preparation is refused
+      // before any ink work. Do not render it disabled and consume its request.
+      if (!saved && !inkPrepared) { nativeTransitionRequest.current = null; setNativeTransitionBusy(false); }
+      if (nativeTransitionRequest.current === payload.requestId) nativeTransitionTimer.current = setTimeout(() => {
+        if (nativeTransitionRequest.current === payload.requestId) { nativeTransitionRequest.current = null; inkCanvasRef.current?.releaseTransition(); setNativeTransitionBusy(false); }
+      }, 7500);
+      await invoke('acknowledge_native_transition', { requestId: payload.requestId, saved,
+        error: saved ? null : 'Your current note is not safely saved. Keep it open and retry saving.' }).catch(() => undefined);
+      // Keep input sealed until native has received the rejection. A late
+      // completion for an older request must not release a newer request.
+      if (!saved && nativeTransitionRequest.current === payload.requestId) {
+        nativeTransitionRequest.current = null;
+        if (nativeTransitionTimer.current) clearTimeout(nativeTransitionTimer.current);
+        inkCanvasRef.current?.releaseTransition();
+        setNativeTransitionBusy(false);
+      }
+    }).then((dispose) => { if (disposed) dispose(); else unlisten = dispose; }).catch(() => undefined);
+    return () => { disposed = true; unlisten?.(); };
+  }, [discardRecovery, flushRichText, isInkLoading, isTauriAvailable, note.id, richReadFailed, saveController]);
+
+  useEffect(() => {
+    if (!isTauriAvailable) return;
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+    void listen<{ requestId: string; noteId: string; completed: boolean }>('skribly://native-transition-finished', ({ payload }) => {
+      if (payload.noteId !== note.id || nativeTransitionRequest.current !== payload.requestId) return;
+      nativeTransitionRequest.current = null;
+      inkCanvasRef.current?.releaseTransition();
+      if (nativeTransitionTimer.current) clearTimeout(nativeTransitionTimer.current);
+      setNativeTransitionBusy(false);
+    }).then((dispose) => { if (disposed) dispose(); else unlisten = dispose; }).catch(() => undefined);
+    return () => { disposed = true; unlisten?.(); if (nativeTransitionTimer.current) clearTimeout(nativeTransitionTimer.current); };
+  }, [isTauriAvailable, note.id]);
+
+  useEffect(() => {
     let cancelled = false;
     setIsInkLoading(true);
-    void Promise.all([getInkForNote(note.id), getRichContent(note.id), listReminders()])
+    setRichReadFailed(false);
+    void Promise.all([getInkForNote(sessionInitial.noteId), getRichContent(sessionInitial.noteId), listReminders()])
       .then(([document, richContent, reminders]) => {
         if (!cancelled) {
+          const recovery = richContent.discardRecovery;
+          if (recovery) {
+            setDiscardRecovery(recovery);
+            setComposerError("A previous discard was interrupted. Your kept edits and original note are retained locally. Restore kept edits before continuing.");
+            setRichTextHtml(recovery.current.rich.richText?.html ?? plainTextToRichHtml(recovery.current.text));
+            setText(recovery.current.text);
+            setInlineAttachments(recovery.current.rich.attachments);
+            setInkStrokes(recovery.current.rich.inkDocument?.strokes ?? []);
+            setTextSize(recovery.current.rich.view?.textSize ?? 'medium');
+            sessionSnapshot.current = recovery.baseline;
+            return;
+          }
           sessionSnapshot.current = {
-            text: note.text, color: note.color, rich: richContent,
-            reminders: reminders.filter((item) => item.noteId === note.id).map(({ status: _status, ...item }) => item),
+            text: sessionInitial.text, color: sessionInitial.color, rich: richContent,
+            reminders: reminders.filter((item) => item.noteId === sessionInitial.noteId).map(({ status: _status, ...item }) => item),
           };
-          setHasScheduledReminder(reminders.some((item) => item.noteId === note.id &&
+          setHasScheduledReminder(reminders.some((item) => item.noteId === sessionInitial.noteId &&
             (item.status === 'upcoming' || item.status === 'overdue')));
           setInkStrokes(document.strokes);
           setTextSize(richContent.view?.textSize ?? 'medium');
           setAttachmentCount(richContent.attachments.length);
           setRichTextHtml(
-            richContent.richText?.plainText === note.text
+            richContent.richText?.plainText === sessionInitial.text
               ? richContent.richText.html
-              : plainTextToRichHtml(note.text)
+              : plainTextToRichHtml(sessionInitial.text)
           );
         }
       })
       .catch((reason) => {
         if (!cancelled) {
+          setRichReadFailed(true);
           setComposerError(
-            `Skribli could not read this drawing: ${reason instanceof Error ? reason.message : String(reason)}`
+            `Skribli could not read this note content: ${reason instanceof Error ? reason.message : String(reason)}`
           );
         }
       })
@@ -474,7 +584,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
     return () => {
       cancelled = true;
     };
-  }, [note.id]);
+  }, [sessionInitial, richLoadRevision]);
 
   useEffect(() => {
     if (!isTauriAvailable) return;
@@ -629,7 +739,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
     return (
       richContent.attachments.length > 0 ||
       Boolean(richContent.inkDocument?.strokes.length) ||
-      Boolean(richContent.richText?.html) ||
+      hasMeaningfulRichText(richContent.richText, richContent.attachments.map((item) => item.id)) ||
       reminders.some((reminder) => reminder.noteId === note.id)
     );
   }, [note.id]);
@@ -735,6 +845,38 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
     storageWritable,
   ]);
 
+  const restoreSessionOperations = useCallback(() => ({
+    restoreRich: (snapshot: NoteSessionSnapshot) => restoreRichContentForNote(note.id, snapshot.rich),
+    restoreReminders: (snapshot: NoteSessionSnapshot) => restoreRemindersForNote(note.id, snapshot.reminders),
+    restoreColor: async (snapshot: NoteSessionSnapshot) => {
+      if (!await updateSkribColor(note.id, snapshot.color)) throw new Error('The paper color could not be restored.');
+    },
+    restoreText: async (snapshot: NoteSessionSnapshot) => {
+      if (!await persistSkribText(note.id, snapshot.text)) throw new Error('The note text could not be restored.');
+    },
+  }), [note.id, updateSkribColor]);
+
+  const recoverKeptEdits = useCallback(async () => {
+    if (!discardRecovery || !storageWritable || !licenceAllowsWrite) return;
+    await runExclusive(async () => {
+      try {
+        await restoreNoteSession(discardRecovery.current, restoreSessionOperations());
+        await clearDiscardRecoveryForNote(note.id);
+        stageSkribDraft(note.id, discardRecovery.current.text);
+        saveController.adoptRestoredText(discardRecovery.current.text);
+        setDiscardRecovery(null);
+        setComposerError(null);
+        setRichTextHtml(discardRecovery.current.rich.richText?.html ?? plainTextToRichHtml(discardRecovery.current.text));
+        setInlineAttachments(discardRecovery.current.rich.attachments);
+        setAttachmentRefresh((revision) => revision + 1);
+        void emit('skribly://rich-content-updated', { noteId: note.id }).catch(() => undefined);
+        void emit('skribly://reminders-updated', { noteId: note.id }).catch(() => undefined);
+      } catch (reason) {
+        setComposerError(`Your kept edits are still retained. Restore could not finish: ${reason instanceof Error ? reason.message : String(reason)}`);
+      }
+    });
+  }, [discardRecovery, licenceAllowsWrite, note.id, restoreSessionOperations, runExclusive, saveController, storageWritable]);
+
   const discardSessionAndClose = useCallback(async () => {
     const baseline = sessionSnapshot.current;
     if (!baseline || !canWrite || richOperationsInProgress.current.size > 0 ||
@@ -743,33 +885,58 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
       return;
     }
     await runExclusive(async () => {
+      richTextEditorRef.current?.flush();
+      if (!await flushRichText()) return;
       const currentDraft = saveController.getSnapshot().draft;
       await saveController.prepareForDelete();
-      if (richTextSaveTimer.current) clearTimeout(richTextSaveTimer.current);
-      pendingRichText.current = null;
+      richSaveController.suspend();
+      let recovery: NoteDiscardRecovery | null = null;
       try {
-        await restoreRichContentForNote(note.id, baseline.rich);
-        await restoreRemindersForNote(note.id, baseline.reminders);
+        const [stored, reminders] = await Promise.all([getRichContent(note.id), listReminders()]);
+        const { discardRecovery: _journal, ...rich } = stored;
+        recovery = { version: 1, baseline, current: { text: currentDraft, color: note.color, rich,
+          reminders: reminders.filter((item) => item.noteId === note.id).map(({ status: _status, ...item }) => item) } };
+        const result = await discardWithRecovery(recovery, {
+          ...restoreSessionOperations(),
+          retain: (journal) => retainDiscardRecoveryForNote(note.id, journal),
+          clear: () => clearDiscardRecoveryForNote(note.id),
+          finish: async () => {
+            if (openAction === 'created') {
+              if (!await discardEmptySkrib(note.id)) throw new Error('The new note could not be discarded safely.');
+            } else if (openAction !== 'detached' && !await setSkribCollapsed(note.id, true)) {
+              throw new Error('The note could not close safely.');
+            }
+          },
+        });
         void emit('skribly://rich-content-updated', { noteId: note.id }).catch(() => undefined);
         void emit('skribly://reminders-updated', { noteId: note.id }).catch(() => undefined);
-        if (note.color !== baseline.color) await updateSkribColor(note.id, baseline.color);
-        discardSkribDraft(note.id);
-        if (!await persistSkribText(note.id, baseline.text)) throw new Error('The original text could not be restored.');
-        if (openAction === 'created') {
-          if (!await discardEmptySkrib(note.id)) throw new Error('The new note could not be discarded safely.');
-          await hideWindow();
-        } else if (openAction === 'detached') {
-          await hideWindow();
-        } else if (!await setSkribCollapsed(note.id, true)) {
-          throw new Error('The note could not close safely.');
+        if (result.discarded) {
+          discardSkribDraft(note.id);
+          saveController.adoptRestoredText(baseline.text);
+          setRichTextHtml(baseline.rich.richText?.html ?? plainTextToRichHtml(baseline.text));
+          setInlineAttachments(baseline.rich.attachments);
+          setAttachmentRefresh((revision) => revision + 1);
+          setInkStrokes(baseline.rich.inkDocument?.strokes ?? []);
+          setTextSize(baseline.rich.view?.textSize ?? 'medium');
+          if (result.closed) await hideWindow();
+          else {
+            richSaveController.activate();
+            setCancelConfirmationOpen(false);
+            setComposerError('Your changes were discarded and the original note is saved. Closing did not finish; use Done to try again.');
+          }
+          return;
         }
+        if (!result.recovered) setDiscardRecovery(recovery);
+        throw result.error;
       } catch (reason) {
         stageSkribDraft(note.id, currentDraft);
-        saveController.resumeAfterDeleteFailure('Discard did not finish. The editor stayed open; retry or save the note.');
+        saveController.resumeAfterDeleteFailure('Discard did not finish. Your kept edits are retained; retry or save the note.');
+        richSaveController.activate();
         setComposerError(`Discard did not finish: ${reason instanceof Error ? reason.message : String(reason)}`);
       }
     });
-  }, [canWrite, discardEmptySkrib, hideWindow, note.color, note.id, openAction, runExclusive, saveController, setSkribCollapsed, updateSkribColor]);
+  }, [canWrite, discardEmptySkrib, flushRichText, hideWindow, note.color, note.id, openAction, richSaveController,
+    restoreSessionOperations, runExclusive, saveController, setSkribCollapsed]);
 
   const cancelDeleteConfirmation = useCallback(() => {
     setDeleteConfirmation((state) => reduceDeleteConfirmation(state, 'cancel'));
@@ -858,6 +1025,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
   };
 
   const handleRichTextChange = (html: string, plainText: string): boolean => {
+    if (nativeTransitionRequest.current) return false;
     if (!handleTextChange(plainText)) return false;
     setRichTextHtml(html);
     scheduleRichTextSave(html, plainText);
@@ -871,8 +1039,9 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
 
   const handleRetry = async () => {
     setComposerError(null);
-    const saved = await saveController.retry();
-    if (!saved) {
+    richTextEditorRef.current?.flush();
+    const [saved, richSaved] = await Promise.all([saveController.retry(), flushRichText()]);
+    if (!saved || !richSaved) {
       setComposerError('The latest text is still not saved. Keep this window open and try again.');
     }
   };
@@ -908,13 +1077,36 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
     }
   };
 
+  const resizeByKeyboard = async (key: string, largeStep: boolean) => {
+    if (!canWrite || isFinishing || resizeInProgress.current || toolTransitionInProgress.current || hasPendingRichOperation || hasUnsavedInk) return;
+    resizeInProgress.current = true;
+    setIsResizing(true);
+    try {
+      const physical = isTauriAvailable ? await getCurrentWindow().innerSize() : null;
+      const scale = isTauriAvailable ? await getCurrentWindow().scaleFactor() : 1;
+      const width = physical ? physical.width / scale : note.width;
+      const height = physical ? physical.height / scale : note.height;
+      const step = largeStep ? 32 : 8;
+      const next = { width: Math.max(320, Math.min(820, width + (key === 'ArrowRight' ? step : key === 'ArrowLeft' ? -step : 0))),
+        height: Math.max(260, Math.min(760, height + (key === 'ArrowDown' ? step : key === 'ArrowUp' ? -step : 0))) };
+      if (isTauriAvailable) await invoke('set_skrib_window_dimensions', { noteId: note.id, ...next, temporary: false });
+      else {
+        useSkribStore.setState((state) => ({ skribs: state.skribs.map((item) => item.id === note.id ? { ...item, ...next } : item) }));
+      }
+      temporaryToolSurface.current = null;
+      setSurfaceSize(next.width >= 680 ? 'large' : next.width >= 500 ? 'medium' : 'compact');
+    } catch (reason) {
+      setComposerError(`Skribli could not resize: ${reason instanceof Error ? reason.message : String(reason)}`);
+    } finally { resizeInProgress.current = false; setIsResizing(false); }
+  };
+
   const handleColorChange = async (color: (typeof NOTE_COLORS)[number]) => {
     if (!canWrite || color === note.color) {
       setColorPickerOpen(false);
       return;
     }
     try {
-      await updateSkribColor(note.id, color);
+      if (!await updateSkribColor(note.id, color)) throw new Error('The paper color could not be saved.');
       setColorPickerOpen(false);
     } catch (reason) {
       setComposerError(
@@ -926,14 +1118,18 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
   };
 
   const persistInk = async (strokes: InkStroke[]) => {
-    if (!canWrite) return;
+    // A native save may drain accepted ink while input is quiesced. Other
+    // read-only conditions must reject, never acknowledge a skipped write.
+    if (!storageWritable || !licenceAllowsWrite || discardRecovery || richReadFailed || currentNoteId.current !== note.id) {
+      throw new Error('The drawing is not writable. Keep the note open and retry saving.');
+    }
     const document = await replaceInkForNote(note.id, strokes);
     setInkStrokes(document.strokes);
     void emit('skribly://rich-content-updated', { noteId: note.id }).catch(() => undefined);
   };
 
   const saveInkPreview = async (blob: Blob) => {
-    if (!canWrite) return;
+    if (!canWrite) throw new Error('The drawing preview is not writable. Keep the note open and retry saving.');
     await addInkToNote(note.id, blob);
     void emit('skribly://rich-content-updated', { noteId: note.id }).catch(() => undefined);
   };
@@ -992,16 +1188,17 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
         return;
       }
 
+      richTextEditorRef.current?.flush();
+      if (!await flushRichText() || !await saveController.flush()) {
+        setDeleteConfirmation((state) => reduceDeleteConfirmation(state, 'delete-failed'));
+        setComposerError('Your latest changes could not be saved, so the note stayed open and was not moved to Trash.');
+        return;
+      }
       await saveController.prepareForDelete();
       const movedToTrash = await trashSkrib(note.id);
       if (movedToTrash) {
         try {
-          const linkedReminders = (await listReminders()).filter(
-            (reminder) =>
-              reminder.noteId === note.id &&
-              (reminder.status === 'upcoming' || reminder.status === 'overdue')
-          );
-          await Promise.all(linkedReminders.map((reminder) => dismissReminder(reminder.id)));
+          await cancelRemindersForTrashedNote(note.id);
           void emit('skribly://reminders-updated', { noteId: note.id }).catch(() => undefined);
         } catch {
           // The note is already safely in Trash; the Calendar will still expose any stale reminder.
@@ -1038,11 +1235,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
         return;
       }
       try {
-        const linkedReminders = (await listReminders()).filter(
-          (reminder) => reminder.noteId === note.id &&
-            (reminder.status === 'upcoming' || reminder.status === 'overdue')
-        );
-        await Promise.all(linkedReminders.map((reminder) => completeReminder(reminder.id)));
+        await completeRemindersForArchivedNote(note.id);
         void emit('skribly://reminders-updated', { noteId: note.id }).catch(() => undefined);
       } catch {
         // The note is already safely archived; reminder refresh can retry later.
@@ -1055,7 +1248,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
   const recoveryDirectory = storageNotice?.backupDirectory || storageBackupDirectory;
   const visibleError =
     composerError || inkPersistenceState.error || saveSnapshot.error || storageErrorMessage;
-  const saveLabel = saveStatusLabel(saveSnapshot);
+  const saveLabel = richSaveFailed ? 'Save failed' : richDraftPending && richOperationCount === 0 ? 'Unsaved formatting' : saveStatusLabel(saveSnapshot);
   const hasPendingRichOperation = richOperationCount > 0;
   const hasUnsavedInk = inkPersistenceState.hasUnsavedChanges;
   const saveDetail = hasUnsavedInk
@@ -1209,7 +1402,9 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
         {visibleError && (
           <div className="composer-error" role="alert">
             <span>{visibleError}</span>
-            {saveSnapshot.status === 'failed' && storageWritable && licenceAllowsWrite && (
+            {richReadFailed && <button type="button" onClick={() => setRichLoadRevision((revision) => revision + 1)}>Retry reading note</button>}
+            {discardRecovery && <button type="button" onClick={() => void recoverKeptEdits()} disabled={isFinishing || !storageWritable || !licenceAllowsWrite}>Restore kept edits</button>}
+            {(saveSnapshot.status === 'failed' || richSaveFailed) && canWrite && (
               <button type="button" onClick={() => void handleRetry()} disabled={isFinishing}>
                 Retry saving
               </button>
@@ -1221,6 +1416,13 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
             {diagnosticsPath && <small>Diagnostics saved to: {diagnosticsPath}</small>}
           </div>
         )}
+
+        <div className="composer-mode-pill" role="group" aria-label="Note editing mode">
+          <button type="button" aria-pressed={!drawingEnabled} disabled={!canWrite || isFinishing || isInkLoading || isResizing}
+            onClick={() => { if (drawingEnabled) void openRoomyTool('draw'); }}><Type size={15} aria-hidden="true" /><span>Type</span></button>
+          <button type="button" aria-pressed={drawingEnabled} disabled={!canWrite || isFinishing || isInkLoading || isResizing}
+            onClick={() => { if (!drawingEnabled) void openRoomyTool('draw'); }}><PenLine size={15} aria-hidden="true" /><span>Draw</span></button>
+        </div>
 
         <div className="composer-intent-gateway" data-open={toolGatewayOpen || undefined}>
           <button
@@ -1241,20 +1443,6 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
           </button>
           {toolGatewayOpen && (
             <div id="composer-add-options" className="composer-intent-tray" role="group" aria-label="Skrib tools">
-              <button
-                type="button"
-                className={drawingEnabled ? 'active' : ''}
-                aria-label={drawingEnabled ? 'Finish drawing' : 'Draw on this note'}
-                aria-pressed={drawingEnabled}
-                disabled={!canWrite || isFinishing || isInkLoading}
-                onClick={() => {
-                  void openRoomyTool('draw');
-                  setToolGatewayOpen(false);
-                }}
-              >
-                <PenLine size={15} aria-hidden="true" />
-                <span>{drawingEnabled ? 'Finish drawing' : 'Draw'}</span>
-              </button>
               <button
                 type="button"
                 disabled={!canWrite || isFinishing || hasPendingRichOperation || drawingEnabled}
@@ -1318,16 +1506,26 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
               noteId={note.id}
               initialHtml={richTextHtml}
               attachments={inlineAttachments}
-              disabled={!canWrite || isInkLoading}
+              disabled={!canWrite || isInkLoading || isFinishing || cancelConfirmationOpen}
               drawingEnabled={drawingEnabled}
               describedBy={textareaDescription}
               onChange={handleRichTextChange}
-              onPasteFiles={(files) => setPastedFilesRequest({ id: Date.now(), files })}
+              onPasteBlocked={reportBlockedPaste}
+              onPasteFiles={(files) => {
+                if (!canWrite || operationInProgress.current || nativeTransitionRequest.current || clipboardReservation.current ||
+                  cancelConfirmationOpen || drawingEnabled || isInkLoading) { reportBlockedPaste(); return; }
+                const request = { id: ++clipboardRequestSequence.current, noteId: note.id, files };
+                clipboardReservation.current = request;
+                // Reserve before React queues the child effect: native/discard barriers see it immediately.
+                setRichOperationBusy('clipboard', true);
+                setPastedFilesRequest(request);
+              }}
+              onRequestDraw={canWrite && !isFinishing ? () => void openRoomyTool('draw') : undefined}
+              onRequestReminder={canWrite && !isFinishing ? () => void openRoomyTool('reminder') : undefined}
               onRequestAttachment={canWrite && !isFinishing && !hasPendingRichOperation
                 ? () => setAttachmentPickerRequest((request) => request + 1) : undefined}
-              onDeleteAttachment={(id) => setInlineDeleteRequest((previous) => ({ id, nonce: (previous?.nonce ?? 0) + 1 }))}
               onBlur={() => {
-                if (!canWrite || operationInProgress.current) return;
+                if (!canWrite || operationInProgress.current || cancelConfirmationOpen) return;
                 richTextEditorRef.current?.flush();
                 void Promise.all([flushRichText(), saveController.flush()]).then(([richSaved, saved]) => {
                   if (
@@ -1342,6 +1540,8 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
             {!isInkLoading && (
               <div className={`composer-ink-layer ${drawingEnabled ? 'active' : ''}`}>
                 <InkCanvas
+                  key={note.id}
+                  ref={inkCanvasRef}
                   variant="overlay"
                   onFinishDrawing={() => void openRoomyTool('draw')}
                   initialStrokes={inkStrokes}
@@ -1357,17 +1557,18 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
 
           <NoteAttachmentPanel
             noteId={note.id}
+            refreshRequest={attachmentRefresh}
             compact
             pickerRequest={attachmentPickerRequest}
-            removeRequest={inlineDeleteRequest}
             openDrawerRequest={attachmentDrawerRequest}
             filesRequest={pastedFilesRequest}
+            onFilesRequestSettled={settleClipboardRequest}
             disabled={!canWrite || isInkLoading || isFinishing || drawingEnabled || deleteConfirmation === 'confirming'}
             onError={setComposerError}
             onBusyChange={handleAttachmentsBusy}
             onCountChange={setAttachmentCount}
             onAttachmentsChange={setInlineAttachments}
-            onPlaceInline={(items) => richTextEditorRef.current?.insertAttachments(items) ?? false}
+            onPlaceInline={(items) => currentNoteId.current === note.id && (richTextEditorRef.current?.insertAttachments(items) ?? false)}
             onRemoved={(id) => richTextEditorRef.current?.removeAttachment(id)}
           />
 
@@ -1390,7 +1591,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
         )}
 
         <NoteSaveIndicator
-          snapshot={saveSnapshot}
+          snapshot={{ ...saveSnapshot, status: richSaveFailed ? 'failed' : hasPendingRichOperation ? 'saving' : richDraftPending ? 'dirty' : saveSnapshot.status }}
           showSavedPulse={showSavedPulse}
           saveLabel={saveLabel}
           saveDetail={saveDetail}
@@ -1437,6 +1638,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
           cancelConfirmationOpen={cancelConfirmationOpen}
           onFinish={() => void finishAndHide()}
           onResize={(direction) => void startManualResize(direction)}
+          onKeyboardResize={(key, largeStep) => void resizeByKeyboard(key, largeStep)}
         />
       </section>
     </div>

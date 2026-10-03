@@ -85,23 +85,35 @@ jobs:
       - name: Validate private-artifact safety boundary
         run: node scripts/validation/validate-private-test-artifact-workflow.mjs
 
-      - name: Validate application contracts
-        run: |
-          npm run governance:validate
-          npm run product-truth:validate
-          npm run site:validate
-          npm run typecheck
-          npm run test
-          npm run build
+      - name: Validate repository governance
+        run: npm run governance:validate
 
-      - name: Validate native application contracts
+      - name: Validate product contracts
+        run: npm run product-truth:validate
+
+      - name: Validate website contracts
+        run: npm run site:validate
+
+      - name: Typecheck application
+        run: npm run typecheck
+
+      - name: Run application tests
+        run: npm run test
+
+      - name: Build application assets
+        run: npm run build
+
+      - name: Check native formatting
         env:
           SKRIBLY_TRIAL_ENFORCED: "0"
-        run: |
-          cargo fmt --manifest-path apps/desktop/src-tauri/Cargo.toml --check
-          cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -- --test-threads=1
+        run: cargo fmt --manifest-path apps/desktop/src-tauri/Cargo.toml --check
 
-      - name: Validate trial-enforced native configuration
+      - name: Test native application
+        env:
+          SKRIBLY_TRIAL_ENFORCED: "0"
+        run: cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -- --test-threads=1
+
+      - name: Check trial-enforced native configuration
         run: cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml
 
       - name: Build Windows installers

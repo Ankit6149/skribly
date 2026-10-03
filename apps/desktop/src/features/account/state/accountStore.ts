@@ -1,6 +1,7 @@
 import type { Session } from '@supabase/supabase-js';
 import { create } from 'zustand';
 import {
+  clearAccountEntitlement,
   claimAccountEntitlement,
   getAccountClient,
   withAccountTimeout,
@@ -8,7 +9,6 @@ import {
   type AccountEntitlementResult,
   type AccountRole,
 } from '../accountClient';
-import { invoke } from '@tauri-apps/api/core';
 import { emit } from '@tauri-apps/api/event';
 import type { LicenseStatus } from '../../licensing/state/licenseStore';
 
@@ -31,7 +31,7 @@ interface AccountStoreState {
   message: string | null;
   init: () => Promise<void>;
   signUp: (email: string, password: string, productUpdatesOptIn: boolean) => Promise<void>;
-  signIn: (email: string, password: string, productUpdatesOptIn: boolean) => Promise<void>;
+  signIn: (email: string, password: string, productUpdatesOptIn: boolean | null) => Promise<void>;
   retry: () => Promise<void>;
   signOut: () => Promise<void>;
   resetToSignIn: () => void;
@@ -39,6 +39,20 @@ interface AccountStoreState {
 }
 
 let initialization: Promise<void> | null = null;
+let accountActionGeneration = 0;
+let entitlementOperationGeneration = 0;
+let pendingSignOutAuth = false;
+let pendingSignOutClear = false;
+
+function beginAccountAction(): number {
+  accountActionGeneration += 1;
+  entitlementOperationGeneration += 1;
+  return accountActionGeneration;
+}
+
+function isCurrentAccountAction(generation: number): boolean {
+  return generation === accountActionGeneration;
+}
 
 function cleanEmail(value: string): string {
   return value.trim().toLocaleLowerCase('en-US');
@@ -56,12 +70,21 @@ function validateCredentials(email: string, password: string): string | null {
 
 async function claim(
   session: Session,
-  productUpdatesOptIn: boolean
+  productUpdatesOptIn: boolean | null,
+  generation: number
 ): Promise<AccountEntitlementResult> {
-  return withAccountTimeout(
-    claimAccountEntitlement(session, productUpdatesOptIn),
-    'Account and device verification'
-  );
+  const entitlementGeneration = ++entitlementOperationGeneration;
+  const isCurrentEntitlement = () =>
+    isCurrentAccountAction(generation) && entitlementGeneration === entitlementOperationGeneration;
+  try {
+    return await withAccountTimeout(
+      claimAccountEntitlement(session, productUpdatesOptIn, isCurrentEntitlement),
+      'Account and device verification'
+    );
+  } catch (error) {
+    if (isCurrentEntitlement()) entitlementOperationGeneration += 1;
+    throw error;
+  }
 }
 
 export const useAccountStore = create<AccountStoreState>((set, get) => ({
@@ -76,6 +99,7 @@ export const useAccountStore = create<AccountStoreState>((set, get) => ({
   init: async () => {
     if (initialization) return initialization;
     initialization = (async () => {
+      const generation = beginAccountAction();
       const configured = getAccountClient();
       if (!configured) {
         set({
@@ -93,12 +117,14 @@ export const useAccountStore = create<AccountStoreState>((set, get) => ({
           'Protected session restore'
         );
       } catch (error) {
+        if (!isCurrentAccountAction(generation)) return;
         set({
           phase: 'error',
           message: error instanceof Error ? error.message : String(error),
         });
         return;
       }
+      if (!isCurrentAccountAction(generation)) return;
       const { data, error } = response;
       if (error) {
         set({ phase: 'error', message: error.message });
@@ -111,7 +137,8 @@ export const useAccountStore = create<AccountStoreState>((set, get) => ({
 
       set({ phase: 'claiming', email: data.session.user.email ?? null });
       try {
-        const result = await claim(data.session, get().productUpdatesOptIn);
+        const result = await claim(data.session, null, generation);
+        if (!isCurrentAccountAction(generation)) return;
         set({
           phase: 'ready',
           email: data.session.user.email ?? null,
@@ -122,6 +149,7 @@ export const useAccountStore = create<AccountStoreState>((set, get) => ({
           message: null,
         });
       } catch (error) {
+        if (!isCurrentAccountAction(generation)) return;
         set({
           phase: 'error',
           email: data.session.user.email ?? null,
@@ -135,6 +163,11 @@ export const useAccountStore = create<AccountStoreState>((set, get) => ({
   },
 
   signUp: async (emailValue, password, productUpdatesOptIn) => {
+    if (pendingSignOutAuth || pendingSignOutClear) {
+      set({ phase: 'error', message: 'Finish signing out of the current account before creating another account.' });
+      return;
+    }
+    const generation = beginAccountAction();
     const email = cleanEmail(emailValue);
     const validation = validateCredentials(email, password);
     if (validation) {
@@ -155,6 +188,7 @@ export const useAccountStore = create<AccountStoreState>((set, get) => ({
         'Account creation'
       );
     } catch (error) {
+      if (!isCurrentAccountAction(generation)) return;
       set({
         phase: 'verificationPending',
         email,
@@ -165,6 +199,7 @@ export const useAccountStore = create<AccountStoreState>((set, get) => ({
       });
       return;
     }
+    if (!isCurrentAccountAction(generation)) return;
     const { data, error } = response;
     if (error) {
       set({ phase: 'signedOut', message: error.message });
@@ -181,7 +216,8 @@ export const useAccountStore = create<AccountStoreState>((set, get) => ({
 
     set({ phase: 'claiming' });
     try {
-      const result = await claim(data.session, productUpdatesOptIn);
+      const result = await claim(data.session, productUpdatesOptIn, generation);
+      if (!isCurrentAccountAction(generation)) return;
       set({
         phase: 'ready',
         email: data.user?.email ?? email,
@@ -191,11 +227,17 @@ export const useAccountStore = create<AccountStoreState>((set, get) => ({
         announcements: result.announcements,
       });
     } catch (claimError) {
+      if (!isCurrentAccountAction(generation)) return;
       set({ phase: 'error', message: claimError instanceof Error ? claimError.message : String(claimError) });
     }
   },
 
   signIn: async (emailValue, password, productUpdatesOptIn) => {
+    if (pendingSignOutAuth || pendingSignOutClear) {
+      set({ phase: 'error', message: 'Finish signing out of the current account before signing in to another account.' });
+      return;
+    }
+    const generation = beginAccountAction();
     const email = cleanEmail(emailValue);
     const validation = validateCredentials(email, password);
     if (validation) {
@@ -208,7 +250,7 @@ export const useAccountStore = create<AccountStoreState>((set, get) => ({
       return;
     }
 
-    set({ phase: 'loading', email, productUpdatesOptIn, message: null });
+    set({ phase: 'loading', email, message: null });
     let response: Awaited<ReturnType<typeof configured.client.auth.signInWithPassword>>;
     try {
       response = await withAccountTimeout(
@@ -216,6 +258,7 @@ export const useAccountStore = create<AccountStoreState>((set, get) => ({
         'Sign in'
       );
     } catch (error) {
+      if (!isCurrentAccountAction(generation)) return;
       set({
         phase: 'signedOut',
         email,
@@ -223,6 +266,7 @@ export const useAccountStore = create<AccountStoreState>((set, get) => ({
       });
       return;
     }
+    if (!isCurrentAccountAction(generation)) return;
     const { data, error } = response;
     if (error || !data.session) {
       set({ phase: 'signedOut', message: error?.message || 'Sign-in did not create a session.' });
@@ -231,7 +275,8 @@ export const useAccountStore = create<AccountStoreState>((set, get) => ({
 
     set({ phase: 'claiming' });
     try {
-      const result = await claim(data.session, productUpdatesOptIn);
+      const result = await claim(data.session, productUpdatesOptIn, generation);
+      if (!isCurrentAccountAction(generation)) return;
       set({
         phase: 'ready',
         email: data.user.email ?? email,
@@ -242,19 +287,85 @@ export const useAccountStore = create<AccountStoreState>((set, get) => ({
         message: null,
       });
     } catch (claimError) {
+      if (!isCurrentAccountAction(generation)) return;
       set({ phase: 'error', message: claimError instanceof Error ? claimError.message : String(claimError) });
     }
   },
 
   retry: async () => {
+    if (pendingSignOutAuth) {
+      await get().signOut();
+      return;
+    }
+    if (pendingSignOutClear) {
+      const generation = beginAccountAction();
+      try {
+        await clearAccountEntitlement();
+        if (!isCurrentAccountAction(generation)) return;
+        pendingSignOutClear = false;
+        set({
+          phase: 'signedOut',
+          email: null,
+          accountRole: null,
+          entitlement: null,
+          productUpdatesOptIn: false,
+          announcements: [],
+          message: null,
+        });
+        try {
+          await emit('skribly://license-status-request');
+        } catch (error) {
+          if (!isCurrentAccountAction(generation)) return;
+          set({
+            message: `Signed out and cleared device access, but Skribli could not refresh the displayed access status: ${error instanceof Error ? error.message : String(error)}.`,
+          });
+        }
+      } catch (error) {
+        if (!isCurrentAccountAction(generation)) return;
+        set({
+          phase: 'error',
+          message: `Skribli could not clear device access: ${error instanceof Error ? error.message : String(error)}. Try again.`,
+        });
+      }
+      return;
+    }
     await get().init();
   },
 
   signOut: async () => {
+    const generation = beginAccountAction();
     const configured = getAccountClient();
-    if (configured) await configured.client.auth.signOut({ scope: 'local' });
-    await invoke('clear_account_entitlement').catch(() => undefined);
-    await emit('skribly://license-status-request');
+    pendingSignOutAuth = Boolean(configured);
+    try {
+      if (configured) {
+        const response = await withAccountTimeout(
+          configured.client.auth.signOut({ scope: 'local' }),
+          'Sign out'
+        );
+        if (response.error) throw response.error;
+      }
+    } catch (error) {
+      if (isCurrentAccountAction(generation)) {
+        set({ phase: 'error', message: `Skribli could not finish signing out: ${error instanceof Error ? error.message : String(error)}.` });
+      }
+      return;
+    }
+    pendingSignOutAuth = false;
+    if (!isCurrentAccountAction(generation)) return;
+    pendingSignOutClear = true;
+    try {
+      await clearAccountEntitlement();
+    } catch (error) {
+      if (isCurrentAccountAction(generation)) {
+        set({
+          phase: 'error',
+          message: `Account signed out, but Skribli could not clear device access: ${error instanceof Error ? error.message : String(error)}. Retry to finish sign-out.`,
+        });
+      }
+      return;
+    }
+    pendingSignOutClear = false;
+    if (!isCurrentAccountAction(generation)) return;
     set({
       phase: 'signedOut',
       email: null,
@@ -264,9 +375,17 @@ export const useAccountStore = create<AccountStoreState>((set, get) => ({
       announcements: [],
       message: null,
     });
+    try {
+      await emit('skribly://license-status-request');
+    } catch (error) {
+      set({
+        message: `Signed out and cleared device access, but Skribli could not refresh the displayed access status: ${error instanceof Error ? error.message : String(error)}.`,
+      });
+    }
   },
 
-  resetToSignIn: () =>
+  resetToSignIn: () => {
+    beginAccountAction();
     set((state) => ({
       phase: 'signedOut',
       accountRole: null,
@@ -274,7 +393,8 @@ export const useAccountStore = create<AccountStoreState>((set, get) => ({
       announcements: [],
       message: null,
       email: state.email,
-    })),
+    }));
+  },
 
   clearMessage: () => set({ message: null }),
 }));

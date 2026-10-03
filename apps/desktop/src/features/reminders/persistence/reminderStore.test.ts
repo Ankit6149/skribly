@@ -60,6 +60,69 @@ describe('reminder state', () => {
     expect(advanced.dueAt).toBeGreaterThan(currentTime);
   });
 
+  it('stops recurring reminders when their note is moved to Trash without advancing the series', async () => {
+    const persistence = createMemoryReminderPersistence([
+      reminder({ dueAt: BASE_TIME - HOUR, repeat: 'daily', notifiedAt: BASE_TIME - HOUR }),
+    ]);
+    const store = createReminderStore(persistence, { now: () => BASE_TIME });
+
+    await store.finishForNote('note-1', 'dismissed');
+
+    const cancelled = await store.get('reminder-1', BASE_TIME);
+    expect(cancelled).toMatchObject({
+      dueAt: BASE_TIME - HOUR,
+      repeat: 'daily',
+      dismissedAt: BASE_TIME,
+      status: 'dismissed',
+    });
+    expect(await store.claimDue(BASE_TIME + 2 * HOUR)).toEqual([]);
+  });
+
+  it('completes reminder series when a note is archived without advancing them', async () => {
+    const persistence = createMemoryReminderPersistence([
+      reminder({ dueAt: BASE_TIME - HOUR, repeat: 'weekly' }),
+    ]);
+    const store = createReminderStore(persistence, { now: () => BASE_TIME });
+
+    await store.finishForNote('note-1', 'completed');
+
+    expect(await store.get('reminder-1', BASE_TIME)).toMatchObject({
+      dueAt: BASE_TIME - HOUR,
+      repeat: 'weekly',
+      completedAt: BASE_TIME,
+      dismissedAt: null,
+      status: 'completed',
+    });
+    expect(await store.claimDue(BASE_TIME + 2 * HOUR)).toEqual([]);
+  });
+
+  it('claims a due reminder only once across stores sharing the same persistence', async () => {
+    const persistence = createMemoryReminderPersistence([
+      reminder({ dueAt: BASE_TIME - HOUR }),
+    ]);
+    const first = createReminderStore(persistence, { now: () => BASE_TIME });
+    const second = createReminderStore(persistence, { now: () => BASE_TIME });
+
+    const [firstClaims, secondClaims] = await Promise.all([
+      first.claimDue(BASE_TIME),
+      second.claimDue(BASE_TIME),
+    ]);
+
+    expect(firstClaims.length + secondClaims.length).toBe(1);
+  });
+
+  it('rejects calendar mutations when the shared write policy is read-only', async () => {
+    const persistence = createMemoryReminderPersistence([reminder()]);
+    const store = createReminderStore(persistence, {
+      now: () => BASE_TIME,
+      assertCanWrite: async () => { throw new Error('read-only'); },
+    });
+
+    await expect(store.complete('reminder-1')).rejects.toThrow('read-only');
+    await expect(store.delete('reminder-1')).rejects.toThrow('read-only');
+    expect(await store.get('reminder-1', BASE_TIME)).toMatchObject({ completedAt: null, dismissedAt: null });
+  });
+
   it('uses local calendar rules for weekdays and month-end repeats', () => {
     const friday = new Date(2026, 7, 28, 9, 30).getTime();
     const monday = nextRecurringDueAt(friday, 'weekdays', friday);

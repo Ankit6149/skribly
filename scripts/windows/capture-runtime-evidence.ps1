@@ -1,11 +1,14 @@
 param(
     [string]$ProcessName = "skribly",
+    [int]$ProcessId = 0,
+    [string]$CandidateManifestPath = '',
     [int]$Samples = 60,
     [int]$IntervalSeconds = 10,
     [string]$OutputPath = "docs/07-validation/evidence/runtime-metrics.csv"
 )
 
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot 'candidate-provenance.ps1')
 
 if ($Samples -lt 2) {
     throw "Samples must be at least 2."
@@ -15,19 +18,30 @@ if ($IntervalSeconds -lt 1) {
     throw "IntervalSeconds must be at least 1."
 }
 
-$process = Get-Process -Name $ProcessName -ErrorAction SilentlyContinue | Select-Object -First 1
+$matchingProcesses = @(Get-Process -Name $ProcessName -ErrorAction SilentlyContinue)
+if ($ProcessId -gt 0) {
+    $process = Get-Process -Id $ProcessId -ErrorAction Stop
+} elseif ($matchingProcesses.Count -gt 1) {
+    throw "Multiple processes named '$ProcessName' are running. Specify -ProcessId to select the exact process."
+} else { $process = $matchingProcesses | Select-Object -First 1 }
 if (-not $process) {
     throw "Process '$ProcessName' is not running. Start Skribli before running this script."
 }
+$processStartUtc = $process.StartTime.ToUniversalTime().ToString('o')
+$executable = Get-CandidateFileIdentity -Path $process.Path
+$candidate = Resolve-RuntimeCandidateIdentity -Executable $executable -ManifestPath $CandidateManifestPath
+if ($candidate.status -eq 'unknown') { Write-Warning 'Build source identity is unknown. Checkout HEAD will not be attributed to this executable.' }
+if (Test-Path -LiteralPath $OutputPath) { throw 'Runtime evidence already exists. Choose a new OutputPath; evidence is not overwritten.' }
 
 $outputDirectory = Split-Path -Parent $OutputPath
 if ($outputDirectory) {
     New-Item -ItemType Directory -Force -Path $outputDirectory | Out-Null
 }
 
-$commitSha = "unknown"
+$checkoutCommitSha = "unknown"
 try {
-    $commitSha = (git rev-parse HEAD).Trim()
+    $checkoutCommitSha = (git -C (Join-Path $PSScriptRoot '../..') rev-parse HEAD).Trim()
+    if ($LASTEXITCODE -ne 0) { $checkoutCommitSha = 'unknown' }
 } catch {
     Write-Warning "Could not read the current Git commit SHA."
 }
@@ -44,7 +58,10 @@ try {
 }
 
 Write-Host "Capturing Skribli runtime evidence"
-Write-Host "Commit: $commitSha"
+Write-Host "Measured application source: $($candidate.source_commit) ($($candidate.status))"
+Write-Host "Checkout HEAD (separate context): $checkoutCommitSha"
+Write-Host "Executable: $($executable.path)"
+Write-Host "Executable SHA-256: $($executable.sha256)"
 Write-Host "Process ID: $($process.Id)"
 Write-Host "Windows: $($computerInfo.WindowsProductName) $($computerInfo.WindowsVersion) build $($computerInfo.OsBuildNumber)"
 Write-Host "Reported desktop scale: $scalePercent%"
@@ -53,6 +70,7 @@ Write-Host "Samples: $Samples every $IntervalSeconds second(s)"
 $results = New-Object System.Collections.Generic.List[object]
 $previousCpuSeconds = [double]$process.CPU
 $previousTimestamp = Get-Date
+$resultsStart = $previousTimestamp
 
 for ($sample = 1; $sample -le $Samples; $sample++) {
     if ($sample -gt 1) {
@@ -60,7 +78,7 @@ for ($sample = 1; $sample -le $Samples; $sample++) {
     }
 
     $current = Get-Process -Id $process.Id -ErrorAction SilentlyContinue
-    if (-not $current) {
+    if (-not $current -or $current.StartTime.ToUniversalTime().ToString('o') -ne $processStartUtc -or $current.Path -ne $executable.path) {
         throw "Skribli exited before sample $sample."
     }
 
@@ -71,7 +89,15 @@ for ($sample = 1; $sample -le $Samples; $sample++) {
 
     $row = [pscustomobject]@{
         TimestampUtc = $timestamp.ToUniversalTime().ToString("o")
-        CommitSha = $commitSha
+        CheckoutCommitSha = $checkoutCommitSha
+        MeasuredSourceCommitSha = $candidate.source_commit
+        BuildIdentityStatus = $candidate.status
+        ExecutablePath = $executable.path
+        ExecutableSha256 = $executable.sha256
+        ExecutableBytes = $executable.bytes
+        ProcessStartUtc = $processStartUtc
+        CandidateManifestPath = $candidate.manifest_path
+        CandidateManifestSha256 = $candidate.manifest_sha256
         ProcessId = $current.Id
         CpuPercent = [math]::Round($cpuPercent, 3)
         WorkingSetMb = [math]::Round($current.WorkingSet64 / 1MB, 2)
@@ -82,6 +108,8 @@ for ($sample = 1; $sample -le $Samples; $sample++) {
         WindowsVersion = $computerInfo.WindowsVersion
         WindowsBuild = $computerInfo.OsBuildNumber
         DesktopScalePercent = $scalePercent
+        ElapsedCaptureSeconds = [math]::Round(($timestamp - $resultsStart).TotalSeconds, 3)
+        MeasurementScope = 'selected parent process only; excludes WebView child processes'
     }
 
     $results.Add($row)
@@ -97,7 +125,15 @@ for ($sample = 1; $sample -le $Samples; $sample++) {
     $previousTimestamp = $timestamp
 }
 
-$results | Export-Csv -Path $OutputPath -NoTypeInformation -Encoding UTF8
+$finalExecutable = Get-CandidateFileIdentity -Path $executable.path
+if ($finalExecutable.sha256 -ne $executable.sha256) { throw 'Executable file changed during capture; evidence rejected.' }
+# CreateNew prevents a second capture from replacing accepted evidence.
+$csv = ($results | ConvertTo-Csv -NoTypeInformation) -join [Environment]::NewLine
+$stream = [IO.File]::Open([IO.Path]::GetFullPath($OutputPath), [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
+try {
+    $writer = New-Object IO.StreamWriter($stream, (New-Object Text.UTF8Encoding($false)))
+    try { $writer.Write($csv); $writer.Flush(); $stream.Flush($true) } finally { $writer.Dispose() }
+} finally { $stream.Dispose() }
 
 $first = $results[0]
 $last = $results[$results.Count - 1]

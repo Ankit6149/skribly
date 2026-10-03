@@ -60,16 +60,7 @@ const SETTINGS_ITEMS = [
   { id: 'about', label: 'About & updates', icon: Info },
 ] as const;
 
-const BusySurface: React.FC<{ label: string }> = ({ label }) => (
-  <div className="account-page account-page-centered" role="status" aria-live="polite">
-    <img className="account-mark" src={skriblyMarkUrl} alt="" />
-    <div className="account-spinner" aria-hidden="true" />
-    <h1>{label}</h1>
-    <p>Skribli keeps your Skrib content on this device while it verifies only your account and trial.</p>
-  </div>
-);
-
-const AccountSetupSurface: React.FC = () => {
+export const AccountSetupSurface: React.FC = () => {
   const {
     phase,
     email: accountEmail,
@@ -131,7 +122,7 @@ const AccountSetupSurface: React.FC = () => {
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (mode === 'create') await signUp(email, password, updatesOptIn);
-    else await signIn(email, password, updatesOptIn);
+    else await signIn(email, password, null);
   };
 
   return (
@@ -172,11 +163,10 @@ const AccountSetupSurface: React.FC = () => {
             <h2>Continue to Skribli</h2>
             <p>Create the owner account or sign in on this device.</p>
           </div>
-          <div className="account-tabs" role="tablist" aria-label="Account action">
+          <div className="account-tabs" aria-label="Account action">
             <button
               type="button"
-              role="tab"
-              aria-selected={mode === 'create'}
+              aria-pressed={mode === 'create'}
               onClick={() => {
                 setMode('create');
                 clearMessage();
@@ -186,8 +176,7 @@ const AccountSetupSurface: React.FC = () => {
             </button>
             <button
               type="button"
-              role="tab"
-              aria-selected={mode === 'signIn'}
+              aria-pressed={mode === 'signIn'}
               onClick={() => {
                 setMode('signIn');
                 clearMessage();
@@ -316,25 +305,29 @@ export const WorkspaceSidebar: React.FC<{
 export const ReadySurface: React.FC<{ onNavigate: (destination: WorkspaceDestination) => void }> = ({ onNavigate }) => {
   const { entitlement, announcements } = useAccountStore();
   const [activeCount, setActiveCount] = useState<number | null>(null);
-  const [storageHealth, setStorageHealth] = useState<StorageHealthPayload | null>(null);
+  const [storageCheck, setStorageCheck] = useState<'loading' | 'healthy' | 'readOnly' | 'error'>('loading');
 
-  useEffect(() => {
-    let disposed = false;
-    void Promise.all([
+  const refreshStatus = useCallback(async () => {
+    setStorageCheck('loading');
+    const [notesResult, storageResult] = await Promise.allSettled([
       invoke<SkribNote[]>('get_all_skribs'),
       invoke<StorageHealthPayload>('get_storage_health'),
-    ]).then(([notes, storage]) => {
-      if (disposed) return;
-      setActiveCount(notes.filter((note) => note.deleted_at == null && note.archived_at == null).length);
-      setStorageHealth(storage);
-    }).catch(() => {
-      if (!disposed) {
-        setActiveCount(null);
-        setStorageHealth(null);
-      }
-    });
-    return () => { disposed = true; };
+    ]);
+    if (notesResult.status === 'fulfilled') {
+      setActiveCount(notesResult.value.filter((note) => note.deleted_at == null && note.archived_at == null).length);
+    } else {
+      setActiveCount(null);
+    }
+    if (storageResult.status === 'fulfilled') {
+      setStorageCheck(storageResult.value.writable ? 'healthy' : 'readOnly');
+    } else {
+      setStorageCheck('error');
+    }
   }, []);
+
+  useEffect(() => {
+    void refreshStatus();
+  }, [refreshStatus]);
 
   return (
     <main className="home-main desktop-ready-surface">
@@ -367,14 +360,33 @@ export const ReadySurface: React.FC<{ onNavigate: (destination: WorkspaceDestina
 
       <aside className="desktop-ready-status" aria-label="Skribli status">
         <span className="account-kicker">RIGHT NOW</span>
-        <h2>{storageHealth?.writable === false ? 'Your content is protected.' : 'Nothing needs managing.'}</h2>
+        <h2>{storageCheck === 'loading'
+          ? 'Checking local data.'
+          : storageCheck === 'error'
+            ? 'Storage could not be verified.'
+            : storageCheck === 'readOnly'
+              ? 'Your content is protected.'
+              : 'Your local Skribs are ready.'}</h2>
         <div className="desktop-status-row">
           <strong>{activeCount == null ? 'Local Skribs' : `${activeCount} active Skrib${activeCount === 1 ? '' : 's'}`}</strong>
           <span>Use Find only when context is not enough.</span>
         </div>
         <div className="desktop-status-row">
-          <strong>{storageHealth?.writable === false ? 'Read-only protection' : 'Local storage healthy'}</strong>
-          <span>{storageHealth?.writable === false ? 'Reading and export remain available.' : 'Your Skrib content stays on this PC.'}</span>
+          <strong>{storageCheck === 'loading'
+            ? 'Checking local storage'
+            : storageCheck === 'error'
+              ? 'Storage could not be verified'
+              : storageCheck === 'readOnly'
+                ? 'Read-only protection'
+                : 'Local storage verified'}</strong>
+          <span>{storageCheck === 'loading'
+            ? 'Checking whether local data can be changed safely.'
+            : storageCheck === 'error'
+              ? 'Writing is blocked until Skribli can verify local storage.'
+              : storageCheck === 'readOnly'
+                ? 'Reading and export remain available.'
+                : 'Your Skrib content stays on this PC.'}</span>
+          <button className="account-secondary" type="button" onClick={() => void refreshStatus()}>Check again</button>
         </div>
         {announcements[0] && (
           <div className="desktop-ready-announcement">
@@ -402,6 +414,7 @@ export const SettingsSurface: React.FC<{
   const licenseStatus = useLicenseStore((state) => state.status);
   const [section, setSection] = useState<SettingsSection>('general');
   const [storage, setStorage] = useState<StorageHealthPayload | null>(null);
+  const [storageCheck, setStorageCheck] = useState<'loading' | 'healthy' | 'readOnly' | 'error'>('loading');
   const [exporting, setExporting] = useState(false);
   const [exportMessage, setExportMessage] = useState<string | null>(null);
   const exportRequest = useRef<string | null>(null);
@@ -409,10 +422,14 @@ export const SettingsSurface: React.FC<{
   const canApplyImport = Boolean(storage?.writable) && (!licenseStatus.enforcementEnabled || licenseStatus.canWrite);
 
   const refreshStorage = useCallback(async () => {
+    setStorageCheck('loading');
     try {
-      setStorage(await invoke<StorageHealthPayload>('get_storage_health'));
+      const result = await invoke<StorageHealthPayload>('get_storage_health');
+      setStorage(result);
+      setStorageCheck(result.writable ? 'healthy' : 'readOnly');
     } catch {
       setStorage(null);
+      setStorageCheck('error');
     }
   }, []);
 
@@ -551,11 +568,23 @@ export const SettingsSurface: React.FC<{
                 <p>Portable import/export and lifecycle recovery are kept together here.</p>
               </div>
 
-              <div className="desktop-storage-card" data-state={storage?.writable === false ? 'blocked' : 'healthy'}>
+              <div className="desktop-storage-card" data-state={storageCheck}>
                 <HardDrive size={18} aria-hidden="true" />
                 <div>
-                  <strong>{storage?.writable === false ? 'Skribli is protecting this store' : 'Local storage is healthy'}</strong>
-                  <span>{storage?.writable === false ? 'Reading and export remain available while writes are blocked.' : 'Current note records are available on this device.'}</span>
+                  <strong>{storageCheck === 'loading'
+                    ? 'Checking local storage'
+                    : storageCheck === 'error'
+                      ? 'Could not verify local storage'
+                      : storageCheck === 'readOnly'
+                        ? 'Skribli is protecting this store'
+                        : 'Local storage verified'}</strong>
+                  <span>{storageCheck === 'loading'
+                    ? 'Waiting for a verified storage response.'
+                    : storageCheck === 'error'
+                      ? 'Writes stay blocked until the storage check succeeds. Reading and export remain available.'
+                      : storageCheck === 'readOnly'
+                        ? 'Reading and export remain available while writes are blocked.'
+                        : 'Current note records are available on this device.'}</span>
                 </div>
                 <button className="account-secondary" type="button" onClick={() => void refreshStorage()}>Check again</button>
               </div>
@@ -627,8 +656,9 @@ export const SettingsSurface: React.FC<{
 };
 
 export const HomeHost: React.FC = () => {
-  const { phase, init } = useAccountStore();
+  const { phase, init, retry, message } = useAccountStore();
   const [guideVisible, setGuideVisible] = useState(false);
+  const [accountRecoveryVisible, setAccountRecoveryVisible] = useState(false);
   const [workspace, setWorkspace] = useState<WorkspaceDestination>('ready');
   const [libraryRequest, setLibraryRequest] = useState<{ view: LibraryView; noteId?: string }>({ view: 'notes' });
 
@@ -659,6 +689,10 @@ export const HomeHost: React.FC = () => {
   useEffect(() => {
     void init();
   }, [init]);
+
+  useEffect(() => {
+    if (phase === 'ready') setAccountRecoveryVisible(false);
+  }, [phase]);
 
   useEffect(() => {
     let disposed = false;
@@ -708,10 +742,7 @@ export const HomeHost: React.FC = () => {
   return (
     <>
       {phase === 'ready' && <ReminderNotificationMonitor />}
-      {phase === 'loading' ? <BusySurface label="Opening Skribli…" />
-        : phase === 'claiming' ? <BusySurface label="Verifying this device…" />
-        : phase !== 'ready' ? <AccountSetupSurface />
-        : (
+      {
           <div className="desktop-workspace-shell desktop-app-v2">
             <WorkspaceSidebar
               active={workspace}
@@ -719,7 +750,32 @@ export const HomeHost: React.FC = () => {
               onShowGuide={() => setGuideVisible(true)}
             />
             <div className="desktop-workspace-content">
-              {guideVisible ? (
+              {phase !== 'ready' && (
+                <div className="account-local-access-notice" role="status">
+                  <span>
+                    {phase === 'loading' || phase === 'claiming'
+                      ? 'Checking account access. Local Find and export remain available while verification runs.'
+                      : phase === 'configurationRequired'
+                      ? 'Account services are unavailable. Local Find and export remain available.'
+                      : phase === 'signedOut'
+                        ? 'No account is connected. Local Find and export remain available; writing follows this device’s access status.'
+                        : phase === 'verificationPending'
+                          ? 'Verify the account email when ready. Local Find and export remain available.'
+                          : `Account verification needs attention${message ? `: ${message}` : ''}. Local Find and export remain available.`}
+                  </span>
+                  <button type="button" className="account-secondary" disabled={phase === 'loading' || phase === 'claiming'} onClick={() => setAccountRecoveryVisible(true)}>
+                    Manage account
+                  </button>
+                  {(phase === 'error' || phase === 'configurationRequired' || phase === 'verificationPending') && (
+                    <button type="button" className="account-secondary" onClick={() => void retry()}>
+                      Retry verification
+                    </button>
+                  )}
+                </div>
+              )}
+              {accountRecoveryVisible ? (
+                <AccountSetupSurface />
+              ) : guideVisible ? (
                 <OnboardingSurface
                   onComplete={() => {
                     if (typeof window !== 'undefined') completeOnboarding(window.localStorage);
@@ -754,7 +810,7 @@ export const HomeHost: React.FC = () => {
               )}
             </div>
           </div>
-        )}
+        }
     </>
   );
 };

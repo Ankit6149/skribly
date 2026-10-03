@@ -1,5 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { version as desktopVersion } from '../../../src-tauri/tauri.conf.json';
+import { describe, expect, it, vi } from 'vitest';
 import {
+  applyEntitlementWhenCurrent,
   parseEntitlementPayload,
   protectedSessionStorage,
   readAccountConfiguration,
@@ -9,12 +11,45 @@ import {
 const SIGNED_TOKEN = `${'a'.repeat(90)}.${'b'.repeat(86)}`;
 
 describe('account client boundary', () => {
+  it('skips a stale entitlement after the account action changes while a native update is queued', async () => {
+    let current = true;
+    let resolveFirst!: (value: { mode: 'beta'; enforcementEnabled: false; canWrite: true; trialDaysTotal: number; trialDaysRemaining: number; trialExpiresAt: null; deviceId: string; licensedEmail: null; updatesUntil: null; message: string }) => void;
+    const status = {
+      mode: 'beta' as const, enforcementEnabled: false as const, canWrite: true as const,
+      trialDaysTotal: 7, trialDaysRemaining: 7, trialExpiresAt: null, deviceId: 'test',
+      licensedEmail: null, updatesUntil: null, message: 'test',
+    };
+    const firstApply = vi.fn(() => new Promise<typeof status>((resolve) => { resolveFirst = resolve; }));
+    const staleApply = vi.fn(async () => status);
+    const first = applyEntitlementWhenCurrent('first-token', () => true, firstApply);
+    await Promise.resolve();
+    const stale = applyEntitlementWhenCurrent('stale-token', () => current, staleApply);
+    current = false;
+    resolveFirst(status);
+
+    await expect(first).resolves.toEqual(status);
+    await expect(stale).rejects.toThrow('superseded');
+    expect(firstApply).toHaveBeenCalledOnce();
+    expect(staleApply).not.toHaveBeenCalled();
+  });
+
   it('ships a functional free account-service configuration', () => {
     const configuration = readAccountConfiguration();
     expect(configuration?.supabaseUrl).toBe('https://bccgutpkjxtogqbywsxr.supabase.co');
     expect(configuration?.publishableKey).toMatch(/^sb_publishable_/);
     expect(configuration?.entitlementFunction).toBe('account-session');
-    expect(configuration?.appVersion).toBe('0.1.32');
+    expect(configuration?.appVersion).toBe(import.meta.env.VITE_SKRIBLY_APP_VERSION || desktopVersion);
+  });
+
+  it('derives the fallback version from the desktop release and honors a build override', () => {
+    try {
+      vi.stubEnv('VITE_SKRIBLY_APP_VERSION', undefined);
+      expect(readAccountConfiguration()?.appVersion).toBe(desktopVersion);
+      vi.stubEnv('VITE_SKRIBLY_APP_VERSION', '0.1.99');
+      expect(readAccountConfiguration()?.appVersion).toBe('0.1.99');
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it('uses an async storage contract outside the installed Tauri runtime', async () => {

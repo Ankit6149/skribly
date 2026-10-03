@@ -42,6 +42,7 @@ export class DraftSaveController {
   private timer: ReturnType<typeof setTimeout> | null = null;
   private drainPromise: Promise<boolean> | null = null;
   private disposed = false;
+  private suspended = false;
   private deletePrepared = false;
 
   constructor(options: DraftSaveControllerOptions) {
@@ -73,7 +74,7 @@ export class DraftSaveController {
   }
 
   setDraft(nextDraft: string): DraftChangeResult {
-    if (this.disposed || this.deletePrepared) {
+    if (this.disposed || this.suspended || this.deletePrepared) {
       return {
         accepted: false,
         error: 'This note is already closing and cannot accept more changes.',
@@ -115,7 +116,7 @@ export class DraftSaveController {
   }
 
   async flush(): Promise<boolean> {
-    if (this.disposed || this.deletePrepared) return false;
+    if (this.disposed || this.suspended || this.deletePrepared) return false;
     this.clearTimer();
     if (this.draft === this.committed) {
       this.status = 'saved';
@@ -150,6 +151,29 @@ export class DraftSaveController {
     this.disposed = true;
   }
 
+  // React can replay setup/cleanup without destroying component state.
+  // Pause ownership on cleanup; irreversible disposal belongs to final owners.
+  suspend(): void {
+    this.clearTimer();
+    this.suspended = true;
+  }
+
+  activate(): void {
+    if (this.disposed) return;
+    this.suspended = false;
+    if (!this.deletePrepared && !this.drainPromise && this.draft !== this.committed) this.scheduleSave();
+  }
+
+  adoptRestoredText(text: string): void {
+    if (this.disposed || this.drainPromise) return;
+    this.clearTimer();
+    this.deletePrepared = false;
+    this.draft = this.committed = text;
+    this.status = 'saved';
+    this.error = null;
+    this.emit();
+  }
+
   private scheduleSave(): void {
     this.clearTimer();
     this.timer = setTimeout(() => {
@@ -170,7 +194,7 @@ export class DraftSaveController {
   }
 
   private async drain(): Promise<boolean> {
-    while (!this.disposed && !this.deletePrepared && this.draft !== this.committed) {
+    while (!this.disposed && !this.suspended && !this.deletePrepared && this.draft !== this.committed) {
       const draftToPersist = this.draft;
       this.status = 'saving';
       this.error = null;
@@ -208,7 +232,7 @@ export class DraftSaveController {
   }
 
   private emit(): void {
-    if (this.disposed) return;
+    if (this.disposed || this.suspended) return;
     const snapshot = this.getSnapshot();
     this.onChange?.(snapshot);
     this.listeners.forEach((listener) => listener(snapshot));

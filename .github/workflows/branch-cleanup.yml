@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: read
 
 concurrency:
   group: branch-cleanup-${{ github.repository }}
@@ -26,81 +27,31 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Delete only verified stale branches
+      - name: Collect branches used by open pull requests
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api --paginate "repos/$GITHUB_REPOSITORY/pulls?state=open&per_page=100" \
+            --jq '.[] | [.head.ref, .base.ref] | .[]' \
+            | sort -u > "$RUNNER_TEMP/open-pr-refs.txt"
+
+      - name: Delete only merged, unchanged, unreferenced heads
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
 
           git fetch origin '+refs/heads/*:refs/remotes/origin/*' --prune
 
           readonly default_branch='main'
-
-          # These branch heads were individually audited against their merged PRs.
-          # Squash merges do not make the old branch head an ancestor of main, so
-          # ancestry alone cannot identify them as redundant.
-          readonly -a audited_delete=(
-            'chore/141-cleanup-product-truth-branch'
-            'chore/cleanup-merged-branches'
-            'chore/cleanup-squash-merged-branches'
-            'docs/expanded-product-roadmap'
-            'docs/111-first-preview-evidence'
-            'docs/111-first-preview-evidence-2'
-            'feat/110-first-note-onboarding'
-            'feat/126-all-skribs-window'
-            'feat/131-reversible-trash'
-            'feat/133-portable-import'
-            'feat/136-private-test-artifact'
-            'fix/14-crash-safe-storage'
-            'fix/19-monitor-work-area-placement'
-            'fix/20-canonical-note-lifecycle'
-            'fix/33-repository-governance'
-            'fix/launch-readiness-pass'
-            'fix/136-private-artifact-branding'
-            'fix/140-current-product-truth'
-            'fix/86-node-runtime-contract'
-            'fix/86-package-lock-runtime-metadata'
-            'fix/89-vercel-node-runtime'
-            'fix/91-92-ordered-note-saving'
-            'fix/97-safe-delete-confirmation'
-            'fix/99-product-truth-readme'
-            'fix/101-rust-note-validation'
-            'fix/105-single-instance-routing'
-            'fix/107-bounded-winevent-pipeline'
-            'fix/109-fail-closed-target-capture'
-            'fix/111-vercel-ignored-builds'
-            'fix/114-public-site-product-truth'
-            'integrate/133-portable-import'
-            'temp/onboarding-handoff'
-            'test/33-unrelated-branch-survival'
-          )
-
-          is_audited_for_deletion() {
-            local candidate="$1"
-            local stale
-            for stale in "${audited_delete[@]}"; do
-              if [[ "$candidate" == "$stale" ]]; then
-                return 0
-              fi
-            done
-            return 1
-          }
-
-          delete_remote_branch() {
-            local candidate="$1"
-            git push origin ":refs/heads/$candidate"
-          }
-
-          mapfile -t remote_branches < <(
-            git for-each-ref \
-              --format='%(refname:strip=3)' \
-              refs/remotes/origin \
-              | sort -u
-          )
-
+          readonly protected_refs="$RUNNER_TEMP/open-pr-refs.txt"
           deleted=0
           preserved=0
 
-          for branch in "${remote_branches[@]}"; do
+          while IFS=$'\t' read -r branch expected_sha; do
             [[ -z "$branch" || "$branch" == 'HEAD' ]] && continue
 
             if [[ "$branch" == "$default_branch" || "$branch" == release/* || "$branch" == hotfix/* ]]; then
@@ -109,22 +60,44 @@ jobs:
               continue
             fi
 
-            if is_audited_for_deletion "$branch"; then
-              echo "Deleting audited merged or disposable branch: $branch"
-              delete_remote_branch "$branch"
-              deleted=$((deleted + 1))
+            if grep -Fqx -- "$branch" "$protected_refs"; then
+              echo "Preserving branch used by an open pull request: $branch"
+              preserved=$((preserved + 1))
               continue
             fi
 
-            if git merge-base --is-ancestor "origin/$branch" "origin/$default_branch"; then
-              echo "Deleting branch fully merged into $default_branch: $branch"
-              delete_remote_branch "$branch"
+            if ! git merge-base --is-ancestor "$expected_sha" "origin/$default_branch"; then
+              echo "Preserving branch with commits not merged into $default_branch: $branch"
+              preserved=$((preserved + 1))
+              continue
+            fi
+
+            if ! gh api --paginate "repos/$GITHUB_REPOSITORY/pulls?state=open&per_page=100" \
+              --jq '.[] | [.head.ref, .base.ref] | .[]' \
+              | sort -u > "$RUNNER_TEMP/open-pr-current.txt"; then
+              echo "Could not verify open pull-request references; stopping cleanup before deletion."
+              exit 1
+            fi
+
+            if grep -Fqx -- "$branch" "$RUNNER_TEMP/open-pr-current.txt"; then
+              echo "Preserving branch now used by an open pull request: $branch"
+              preserved=$((preserved + 1))
+              continue
+            fi
+
+            if git push --force-with-lease="refs/heads/$branch:$expected_sha" origin ":refs/heads/$branch"; then
+              echo "Deleted unchanged merged branch: $branch ($expected_sha)"
               deleted=$((deleted + 1))
             else
-              echo "Preserving unmerged branch: $branch"
+              echo "Preserving branch whose head changed after inspection: $branch"
               preserved=$((preserved + 1))
             fi
-          done
+          done < <(
+            git for-each-ref \
+              --format='%(refname:strip=3)%09%(objectname)' \
+              refs/remotes/origin \
+              | sort -u
+          )
 
           echo "Deleted branches: $deleted"
           echo "Preserved branches: $preserved"

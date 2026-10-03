@@ -1,17 +1,16 @@
 # Skribli
 
-Skribli is a local-first contextual annotation application for Windows 10 and Windows 11. Public downloads are disabled, while the encrypted owner v0 installer is available through a key-protected page. The current release supports pastel typed and handwritten Skribs, pen/highlighter/eraser input, local image/video/document attachments, one-time reminders, and a local calendar.
+Skribli is a local-first contextual annotation application for Windows 10 and Windows 11. Public downloads are disabled. An encrypted owner v0 candidate is available through a key-protected channel, but it is not a public release. The current release supports pastel typed and handwritten Skribs, pen/highlighter/eraser input, local image/video/document attachments, daily, weekday, weekly, and monthly reminders, and a local calendar.
 
 ## Current workflow
 
 - Focus a supported Windows application.
 - Press Ctrl + Shift + Space.
 - Skribli clears any previous target and revalidates the foreground window and process identity.
-- With no matching active note, Skribli creates one empty note.
-- With an existing active match, Skribli reopens the deterministic existing note.
+- By default, Skribli reopens the stable active note for a matching context, or creates one when there is no match. An opt-in preference creates a fresh note on every shortcut press.
 - Type, draw, attach a local reference, or set a reminder in one focused paper-like editor.
-- Done, Escape, Ctrl+Enter, or close waits for text and rich content to save, then folds the active note into a movable pastel dot.
-- Select or move the dot to reopen or reposition the active note. The current v0 shows one active note or dot at a time.
+- Done, Escape, Ctrl+Enter, or close waits for text and rich content to save, then returns the active note to the My Skribs rail.
+- Reopen the active note from the rail. Skribli shows one active editor at a time.
 - Ordinary Delete moves a saved note to local Trash. An untouched empty note uses a separate constrained discard path.
 - The background process remains available in the Windows system tray.
 
@@ -39,7 +38,7 @@ Imported files are not uploaded and never cause Skribli to launch, focus, guess,
 - reversible 30-day Trash without silent automatic purge;
 - truthful local note-record export and portable JSON import with preview and rollback;
 - editable vector drawing, bounded local attachments, reminders, and calendar views;
-- saved-note collapse/restore through one movable pastel dot;
+- saved-note return and reopen through the My Skribs rail;
 - target-monitor work-area placement;
 - bounded Windows accessibility-event delivery;
 - single-instance routing;
