@@ -194,4 +194,9 @@ test('platform allowlist rejects arbitrary URLs before any network call', async 
     assert.equal(Object.hasOwn(options, 'body'), false);
     return responseFor(200);
   }, 100, 'desktop');
+  await fetchEncryptedInstaller(async (url, options) => {
+    assert.equal(url, '/assets/skribli-android-preview-0.0.1-arm64.enc');
+    assert.equal(Object.hasOwn(options, 'body'), false);
+    return responseFor(200);
+  }, 100, 'android');
 });

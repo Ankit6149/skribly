@@ -17,7 +17,7 @@ export const OWNER_ARTIFACTS = Object.freeze({
     mime: 'application/vnd.android.package-archive',
     label: 'Android preview APK',
     description: 'Android 7+ · ARM64 · v0.0.1 private preview. Local text notes only; no desktop sync yet.',
-    ready: false,
+    ready: true,
     next: 'Open the .apk on your Android phone. This is a private preview; save notes explicitly.',
   }),
 });
