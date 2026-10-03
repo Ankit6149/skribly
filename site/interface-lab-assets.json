@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "assets": [
+    {
+      "path": "interface-lab-v3.html",
+      "sha256": "d87c795575fc9557a598aab316bc0eebc202943448941b13e03a092ae4f8e74e"
+    },
+    {
+      "path": "interface-lab-v3.js",
+      "sha256": "d780af92691487aa4ed36d63c5af7a5bc7b939431598f546ec2783c2da92752b"
+    },
+    {
+      "path": "interface-lab-v3.css",
+      "sha256": "301e2da73954f4233b650febcd7acd92d8cfe2fa50ff9fd1331aeba3556518c8"
+    }
+  ]
+}

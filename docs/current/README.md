@@ -37,11 +37,10 @@ If an ADR conflicts with a later accepted decision or actual current runtime con
 
 ## Known documentation drift being cleaned
 
-The repository accumulated many design/release documents during rapid iteration. The hygiene program under issue #229 will:
+The repository accumulated many design/release documents during rapid iteration. Issue #229 is closed. Its historical cleanup is not evidence that every current contract is already reconciled; remaining drift should be corrected in the owning current document and validators:
 
 - separate current contracts from historical material;
-- reconcile stale version references;
-- reconcile superseded shortcut/reminder/widget wording;
+- reconcile stale version references and superseded shortcut/reminder/widget wording;
 - reduce duplicate “final” design documents;
 - make one release-status document point to the exact current candidate;
 - keep historical evidence auditable without letting it become product truth.

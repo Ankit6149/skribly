@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "prebuild": "node ../../scripts/validation/validate-react-runtime.mjs && node ../../scripts/validation/validate-desktop-theme.mjs && node ../../scripts/validation/validate-compact-surface.mjs",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && node ../../scripts/validation/validate-desktop-theme-fixture.mjs",
     "preview": "vite preview",
     "tauri": "tauri",
     "lint": "node ../../scripts/validation/validate-lint-contract.mjs && eslint src --report-unused-disable-directives",
