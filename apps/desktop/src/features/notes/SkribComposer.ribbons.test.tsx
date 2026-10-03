@@ -20,7 +20,7 @@ vi.mock('./persistence/richContentStore', async (original) => ({
   getInkForNote: vi.fn(async () => ({ strokes: [] })),
   replaceRichTextForNote: vi.fn(async () => undefined),
 }));
-const note: SkribNote = { id: 'ribbon-test', target_process_name: 'chrome.exe', target_title: 'GitHub · Issue', rel_x: 0, rel_y: 0, width: 560, height: 440, text: '', color: 'yellow', collapsed: false, created_at: 1, updated_at: 1 };
+const note: SkribNote = { id: 'ribbon-test', target_process_name: 'chrome.exe', target_title: 'GitHub Â· Issue', rel_x: 0, rel_y: 0, width: 560, height: 440, text: '', color: 'yellow', collapsed: false, created_at: 1, updated_at: 1 };
 let root: Root; let container: HTMLDivElement;
 beforeEach(async () => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
@@ -85,18 +85,25 @@ describe('note icon ribbons', () => {
   });
 
   it('opens close choices in a modal and returns focus when editing continues', async () => {
-    const close = container.querySelector('[aria-label="Close note options"]') as HTMLButtonElement;
-    expect(close.disabled).toBe(false);
-    await act(async () => close.click());
-    const dialog = container.querySelector('[role="alertdialog"]') as HTMLDivElement;
-    expect(dialog.getAttribute('aria-modal')).toBe('true');
-    expect(dialog.closest('.composer-discard-overlay')).not.toBeNull();
-    expect(Array.from(dialog.querySelectorAll('button')).map((button) => button.textContent?.trim()))
+    vi.useFakeTimers();
+    try {
+      const close = container.querySelector('[aria-label="Close note options"]') as HTMLButtonElement;
+      expect(close.disabled).toBe(false);
+      await act(async () => close.click());
+      const dialog = container.querySelector('[role="alertdialog"]') as HTMLDivElement;
+      expect(dialog.getAttribute('aria-modal')).toBe('true');
+      expect(dialog.closest('.composer-discard-overlay')).not.toBeNull();
+      expect(Array.from(dialog.querySelectorAll('button')).map((button) => button.textContent?.trim()))
       .toEqual(['Keep editing', 'Save and close', 'Discard and close']);
-    expect(document.activeElement?.textContent).toBe('Keep editing');
-    await act(async () => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })));
-    expect(container.querySelector('[role="alertdialog"]')).toBeNull();
-    expect(document.activeElement).toBe(close);
+      expect(document.activeElement?.textContent).toBe('Keep editing');
+      await act(async () => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })));
+      expect(container.querySelector('[role="alertdialog"]')).toBeNull();
+      // Run the re-enabled editor's deferred autofocus: it must not steal restored focus.
+      await act(async () => vi.advanceTimersByTime(0));
+      expect(document.activeElement).toBe(close);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('opens labelled icon actions from Add and closes them on a second click', async () => {

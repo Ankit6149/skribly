@@ -145,6 +145,7 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
   const savedSelection = useRef<Range | null>(null);
   const [attachmentHosts, setAttachmentHosts] = useState<HTMLElement[]>([]);
   const activeNoteId = useRef(noteId);
+  const focusNoteId = useRef(noteId);
   const commandInProgress = useRef(false);
   const past = useRef<string[]>([]);
   const future = useRef<string[]>([]);
@@ -181,7 +182,15 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
 
   useEffect(() => {
     if (disabled) return;
-    const timer = window.setTimeout(() => editorRef.current?.focus(), 0);
+    const changedNote = focusNoteId.current !== noteId;
+    focusNoteId.current = noteId;
+    const timer = window.setTimeout(() => {
+      const editor = editorRef.current;
+      const active = document.activeElement;
+      // Re-enabling after a modal must preserve focus restored to its opener.
+      // Only claim focus when no other control currently owns it.
+      if (editor && (changedNote || !active || active === document.body || active === editor)) editor.focus();
+    }, 0);
     return () => window.clearTimeout(timer);
   }, [disabled, noteId]);
 

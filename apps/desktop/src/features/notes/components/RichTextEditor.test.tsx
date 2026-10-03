@@ -18,6 +18,30 @@ beforeEach(() => {
 afterEach(async () => { await act(async () => root.unmount()); container.remove(); Reflect.deleteProperty(document, 'execCommand'); vi.restoreAllMocks(); });
 
 describe('inline attachment editing', () => {
+  it('preserves restored control focus after re-enabling and focuses a different note', async () => {
+    vi.useFakeTimers();
+    const opener = document.createElement('button');
+    document.body.append(opener);
+    const render = (noteId: string, disabled: boolean) => root.render(<RichTextEditor noteId={noteId} initialHtml=""
+      disabled={disabled} drawingEnabled={false} describedBy="status" onChange={() => true}
+      onBlur={() => undefined} onPasteFiles={() => undefined} />);
+    try {
+      await act(async () => render('first', false));
+      await act(async () => vi.advanceTimersByTime(0));
+      await act(async () => render('first', true));
+      opener.focus();
+      await act(async () => render('first', false));
+      await act(async () => vi.advanceTimersByTime(0));
+      expect(document.activeElement).toBe(opener);
+      await act(async () => render('next', false));
+      await act(async () => vi.advanceTimersByTime(0));
+      expect(document.activeElement).toBe(container.querySelector('[role="textbox"]'));
+    } finally {
+      opener.remove();
+      vi.useRealTimers();
+    }
+  });
+
   it('retains undo history when the parent replaces its history callback', async () => {
     const ref = createRef<RichTextEditorHandle>();
     const render = (html: string, onHistoryChange: (undo: boolean, redo: boolean) => void) => root.render(<RichTextEditor ref={ref} noteId="n" initialHtml={html}
