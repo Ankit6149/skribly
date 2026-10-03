@@ -1,0 +1,6 @@
+{
+  "identifier": "mobile-local",
+  "description": "Private local note frontend, no filesystem, network or OS integration permissions",
+  "windows": ["main"],
+  "permissions": []
+}

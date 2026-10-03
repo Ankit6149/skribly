@@ -1,0 +1,40 @@
+{
+  "name": "@skribly/android",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run src && node --test prepare-android-build.test.mjs",
+    "lint": "eslint src --config eslint.config.mjs --max-warnings 0",
+    "tauri": "tauri",
+    "android:init": "tauri android init",
+    "android:dev": "tauri android dev",
+    "android:build": "node prepare-android-build.mjs && tauri android build --debug --target aarch64 --apk"
+  },
+  "dependencies": {
+    "@fontsource/dm-sans": "5.3.0",
+    "@fontsource/kalam": "5.3.0",
+    "@fontsource/manrope": "5.3.0",
+    "@skribly/design-system": "0.0.0",
+    "@skribly/shared": "0.0.0",
+    "lucide-react": "^1.45.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.0.0",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "eslint": "^10.12.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "typescript-eslint": "^8.71.0",
+    "fake-indexeddb": "6.2.5",
+    "typescript": "^5.0.0",
+    "vite": "^8.3.0",
+    "vitest": "^5.0.0"
+  }
+}
