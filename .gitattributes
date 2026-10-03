@@ -1,0 +1,2 @@
+# Tauri rewrites this manifest during bundling; keep its checkout bytes canonical.
+apps/desktop/src-tauri/Cargo.toml text eol=lf
