@@ -49,6 +49,7 @@ $rustVersion = (& rustc --version).Trim()
 if ($LASTEXITCODE -ne 0) { throw 'Rust is unavailable.' }
 $cargoVersion = (& cargo --version).Trim()
 if ($LASTEXITCODE -ne 0) { throw 'Cargo is unavailable.' }
+$storageShell = Get-Command pwsh -ErrorAction Stop
 
 # Ignored local Vite env files and arbitrary inherited build overrides are not approved source.
 foreach ($directory in @($repositoryRoot, (Join-Path $repositoryRoot 'apps/desktop'))) {
@@ -101,7 +102,7 @@ try {
     $savedAppData = $env:APPDATA
     try {
         $env:APPDATA = $storageAppData
-        Invoke-OwnerGate -Name 'release-storage-matrix' -Command 'powershell.exe' -CommandArguments @('-NoProfile', '-File', 'scripts/validation/storage-acceptance.ps1', '-BinaryPath', 'apps/desktop/src-tauri/target/release/storage_acceptance.exe', '-EvidencePath', $storageEvidence, '-CommitSha', $SourceCommit)
+        Invoke-OwnerGate -Name 'release-storage-matrix' -Command $storageShell.Source -CommandArguments @('-NoProfile', '-File', 'scripts/validation/storage-acceptance.ps1', '-BinaryPath', 'apps/desktop/src-tauri/target/release/storage_acceptance.exe', '-EvidencePath', $storageEvidence, '-CommitSha', $SourceCommit)
     } finally {
         $env:APPDATA = $savedAppData
     }
