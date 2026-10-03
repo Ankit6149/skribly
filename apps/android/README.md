@@ -1,6 +1,6 @@
 # Android foundation
 
-Private, local-only Android-first implementation started at the owner's request on 3 October 2026. This workspace is separate from the Windows owner candidate. It is not an Android release, a synced desktop companion, or an APK download.
+Private, local-only Android-first implementation started at the owner's request on 3 October 2026. This workspace is separate from the Windows owner candidate. It is a mobile preview, not a synced desktop companion or a production Android release.
 
 ## Implemented
 
@@ -38,9 +38,26 @@ npm --workspace @skribly/android run android:dev
 npm --workspace @skribly/android run android:build
 ```
 
-`android:build` requests a **debug** build. The preview application ID is provisional and no production signing key is configured. Generated Android build sources, APKs and AABs are ignored. No SDK packages or Rust targets were installed during this foundation work.
+`android:build` requests an **ARM64 debug APK** with bundled frontend assets. The preview application ID `app.skribly.mobilepreview` is provisional and no production signing key is configured. Generated Android build sources, APKs and AABs are ignored. Minimum Android SDK is 24 (Android 7.0); the generated target/compile SDK is 36.
 
-On 3 October, Android SDK platform 34 and Java 17 were detected locally, but no NDK directory or Rust Android target was present. `android:init` stopped at the environment prerequisite check; it did not generate an Android project. Cargo metadata and Rust formatting passed, but native/mobile compilation and APK/device testing remain **unverified**.
+The initial environment check found SDK 34/Java 17 without an NDK or Rust Android target. A later owner-authorized build installed the official NDK 28.2.13676358, SDK/build tools 36 and the `aarch64-linux-android` target. Build/download/cache paths were scoped to D:; no global Windows security setting was changed. Native ARM64 compilation succeeded, then Tauri's Windows JNI symlink step failed because this host cannot create symlinks.
+
+### Windows packaging fallback
+
+After the native library was compiled by `android:build` with `tauri/custom-protocol`, this generated-project fallback packages that library using the official Gradle wrapper:
+
+```powershell
+# JAVA_HOME, ANDROID_HOME, NDK_HOME, CARGO_TARGET_DIR, GRADLE_USER_HOME,
+# ANDROID_USER_HOME and TEMP/TMP must point to your configured toolchain/cache.
+./apps/android/package-windows-preview.ps1 `
+  -NativeLibrary "$env:CARGO_TARGET_DIR/aarch64-linux-android/debug/libskribli_mobile_lib.so" `
+  -NativeSha256 <SHA256-recorded-after-current-native-compilation> `
+  -BuiltSourceCommit <full-commit-of-compiled-runtime-source>
+```
+
+The helper requires the hash recorded after compilation and the compiled source commit. It rejects changed tracked runtime/build inputs, a mismatched library and native output older than the frontend build. It validates ARM64 ELF, generated task/version contracts and native dependencies, prepares backup/network rules, copies the compiled library into ignored `jniLibs`, and strips debug symbols only from the copy. It excludes only the already-completed `rustBuildArm64Debug` task. Gradle still performs Android manifest merge, resources, Kotlin/Dex, APK packaging and debug signing. These checks supplement the compile log; always compile current source and inspect embedded assets rather than attesting an old library with new metadata. No tool binaries, user security settings, original library or production signing key are modified.
+
+Final package inspection and the reproducible evidence are recorded in [private preview build report](../../docs/06-planning/ANDROID_PRIVATE_PREVIEW_2026-10-03.md). A built APK is not phone acceptance.
 
 ## Data and recovery limits
 
@@ -48,7 +65,7 @@ On 3 October, Android SDK platform 34 and Java 17 were detected locally, but no 
 - IndexedDB is not an encrypted vault or a backup. Uninstalling/clearing app data can remove notes. There is no export/import or cloud backup in this foundation.
 - There is no permanent-delete action. Trash preserves the note text and is reversible.
 - This schema's version 1 is new storage, not a rewrite of desktop data. A future schema must have a tested migration; never reset unreadable data to an empty library.
-- Empty permissions and a restrictive production CSP keep the shell minimal. Android generated manifests/backup/network configuration still require inspection after initialization; do not infer platform permissions from the frontend.
+- Tauri command permissions are empty and the production CSP is restrictive. Android's generated framework retains `INTERNET`; this is distinct from Tauri permissions. The preparer disables cleartext networking and excludes note storage from platform cloud backup/device transfer. OEM behavior and final merged permissions still need inspection/testing; these rules are not a data backup feature.
 
 ## Verification and next work
 
