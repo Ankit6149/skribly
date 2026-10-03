@@ -26,6 +26,8 @@ const requiredFiles = [
   'app.js',
   'v0-download.js',
   'v0-download-core.mjs',
+  'v0-download-ui.mjs',
+  'v0-download.css',
   'interface-lab.css',
   'interface-lab.js',
   'commerce-config.js',
@@ -279,7 +281,7 @@ for (const fact of [
 }
 
 const ownerDownloadPage = await readFile(join(root, 'v0-download.html'), 'utf8');
-for (const marker of ['data-v0-key-form', 'data-v0-key-status', 'data-v0-retry', './v0-download.js']) {
+for (const marker of ['data-v0-key-form', 'data-v0-key-status', 'data-v0-retry', './v0-download.js', 'value="desktop"', 'value="android"']) {
   if (!ownerDownloadPage.includes(marker)) failures.push(`Owner v0 page is missing: ${marker}`);
 }
 if (/type="email"|current-password|Supabase/i.test(ownerDownloadPage)) {
@@ -287,8 +289,12 @@ if (/type="email"|current-password|Supabase/i.test(ownerDownloadPage)) {
 }
 
 const ownerDownloadScript = await readFile(join(root, 'v0-download.js'), 'utf8');
-for (const marker of ["from './v0-download-core.mjs'", 'data-v0-retry', 'availability_', 'integrity_header', 'authentication']) {
+for (const marker of ["from './v0-download-core.mjs'", "from './v0-download-ui.mjs'", 'artifact.mime', 'artifact.filename']) {
   if (!ownerDownloadScript.includes(marker)) failures.push(`Owner v0 client flow is missing: ${marker}`);
+}
+const ownerDownloadUI = await readFile(join(root, 'v0-download-ui.mjs'), 'utf8');
+for (const marker of ['data-v0-retry', 'availability_', 'integrity_header', 'authentication']) {
+  if (!ownerDownloadUI.includes(marker)) failures.push(`Owner download UI is missing: ${marker}`);
 }
 const ownerDownloadCore = await readFile(join(root, 'v0-download-core.mjs'), 'utf8');
 for (const marker of ['/assets/skribli-v0-windows.enc', "'PBKDF2'", "'AES-GCM'", '210_000', '15_000', 'SKRV0E01']) {
