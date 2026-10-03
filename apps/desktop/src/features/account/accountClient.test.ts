@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
+  applyEntitlementWhenCurrent,
   parseEntitlementPayload,
   protectedSessionStorage,
   readAccountConfiguration,
@@ -9,6 +10,28 @@ import {
 const SIGNED_TOKEN = `${'a'.repeat(90)}.${'b'.repeat(86)}`;
 
 describe('account client boundary', () => {
+  it('skips a stale entitlement after the account action changes while a native update is queued', async () => {
+    let current = true;
+    let resolveFirst!: (value: { mode: 'beta'; enforcementEnabled: false; canWrite: true; trialDaysTotal: number; trialDaysRemaining: number; trialExpiresAt: null; deviceId: string; licensedEmail: null; updatesUntil: null; message: string }) => void;
+    const status = {
+      mode: 'beta' as const, enforcementEnabled: false as const, canWrite: true as const,
+      trialDaysTotal: 7, trialDaysRemaining: 7, trialExpiresAt: null, deviceId: 'test',
+      licensedEmail: null, updatesUntil: null, message: 'test',
+    };
+    const firstApply = vi.fn(() => new Promise<typeof status>((resolve) => { resolveFirst = resolve; }));
+    const staleApply = vi.fn(async () => status);
+    const first = applyEntitlementWhenCurrent('first-token', () => true, firstApply);
+    await Promise.resolve();
+    const stale = applyEntitlementWhenCurrent('stale-token', () => current, staleApply);
+    current = false;
+    resolveFirst(status);
+
+    await expect(first).resolves.toEqual(status);
+    await expect(stale).rejects.toThrow('superseded');
+    expect(firstApply).toHaveBeenCalledOnce();
+    expect(staleApply).not.toHaveBeenCalled();
+  });
+
   it('ships a functional free account-service configuration', () => {
     const configuration = readAccountConfiguration();
     expect(configuration?.supabaseUrl).toBe('https://bccgutpkjxtogqbywsxr.supabase.co');

@@ -1,5 +1,5 @@
 import { listen } from '@tauri-apps/api/event';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   createAttachmentObjectUrl,
   formatAttachmentSize,
@@ -26,21 +26,33 @@ export const LibraryRichContent: React.FC<LibraryRichContentProps> = ({ noteId }
   const [reminders, setReminders] = useState<ReminderWithStatus[]>([]);
   const [urls, setUrls] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
+  const [loadedNoteId, setLoadedNoteId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const requestGeneration = useRef(0);
 
   const refresh = useCallback(async () => {
+    const generation = ++requestGeneration.current;
+    setIsLoading(true);
     try {
       const [richContent, allReminders] = await Promise.all([getRichContent(noteId), listReminders()]);
+      if (generation !== requestGeneration.current) return;
       setAttachments(richContent.attachments);
       setInkStrokeCount(richContent.inkDocument?.strokes.length ?? 0);
       setReminders(allReminders.filter((reminder) => reminder.noteId === noteId));
+      setLoadedNoteId(noteId);
       setError(null);
     } catch (reason) {
+      if (generation !== requestGeneration.current) return;
+      setLoadedNoteId(noteId);
       setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      if (generation === requestGeneration.current) setIsLoading(false);
     }
   }, [noteId]);
 
   useEffect(() => {
     void refresh();
+    return () => { requestGeneration.current += 1; };
   }, [refresh]);
 
   useEffect(() => {
@@ -80,6 +92,9 @@ export const LibraryRichContent: React.FC<LibraryRichContentProps> = ({ noteId }
     [attachments]
   );
 
+  if (loadedNoteId !== noteId) {
+    return isLoading ? <div className="library-state" role="status">Loading saved files…</div> : null;
+  }
   if (error) return <div className="library-rich-error" role="alert">Rich note data unavailable: {error}</div>;
   if (visibleAttachments.length === 0 && inkStrokeCount === 0 && reminders.length === 0) return null;
 

@@ -119,6 +119,7 @@ describe('reminder state', () => {
     });
 
     await expect(store.complete('reminder-1')).rejects.toThrow('read-only');
+    await expect(store.delete('reminder-1')).rejects.toThrow('read-only');
     expect(await store.get('reminder-1', BASE_TIME)).toMatchObject({ completedAt: null, dismissedAt: null });
   });
 

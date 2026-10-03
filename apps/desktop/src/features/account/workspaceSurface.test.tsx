@@ -1,14 +1,27 @@
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
-import { ReadySurface, SettingsSurface, WorkspaceSidebar } from './HomeHost';
+import { AccountSetupSurface, HomeHost, ReadySurface, SettingsSurface, WorkspaceSidebar } from './HomeHost';
 import { LibraryHost } from '../library/LibraryHost';
 
+const accountState = vi.hoisted(() => ({
+  phase: 'ready' as string,
+  email: 'owner@example.test',
+  accountRole: 'owner',
+  productUpdatesOptIn: false,
+  entitlement: { canWrite: true, mode: 'licensed' },
+  announcements: [],
+  message: 'Service unavailable',
+  signOut: vi.fn(),
+  signIn: vi.fn(),
+  signUp: vi.fn(),
+  retry: vi.fn(),
+  resetToSignIn: vi.fn(),
+  clearMessage: vi.fn(),
+  init: vi.fn(),
+}));
 vi.mock('./state/accountStore', () => ({
-  useAccountStore: () => ({
-    email: 'owner@example.test', accountRole: 'owner', productUpdatesOptIn: false,
-    entitlement: { canWrite: true, mode: 'licensed' }, announcements: [], signOut: vi.fn(),
-  }),
+  useAccountStore: () => accountState,
 }));
 
 describe('new desktop workspace integration', () => {
@@ -18,6 +31,28 @@ describe('new desktop workspace integration', () => {
     expect(html).toContain('Find a Skrib');
     expect(html).not.toContain('Start a new Skrib every time');
     expect(html).not.toContain('Sign out');
+  });
+
+  it('labels the account check honestly until storage health returns', () => {
+    const html = renderToStaticMarkup(<ReadySurface onNavigate={vi.fn()} />);
+    expect(html).toContain('Checking local storage');
+    expect(html).not.toContain('Local storage verified');
+  });
+
+  it('uses ordinary pressed buttons for account mode selection', () => {
+    const html = renderToStaticMarkup(<AccountSetupSurface />);
+    expect(html).toContain('aria-pressed="true"');
+    expect(html).not.toContain('role="tab"');
+    expect(html).not.toContain('role="tablist"');
+  });
+
+  it('keeps local workspace navigation available after an account service error', () => {
+    accountState.phase = 'error';
+    const html = renderToStaticMarkup(<HomeHost />);
+    expect(html).toContain('Local Find and export remain available');
+    expect(html).toContain('Find');
+    expect(html).not.toContain('Back to sign in');
+    accountState.phase = 'ready';
   });
 
   it('keeps the existing note preference in the new Settings surface', () => {

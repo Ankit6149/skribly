@@ -157,7 +157,28 @@ html[data-skribly-window="home"] #root,
 }
 
 .account-tabs button { min-height: 38px; border-radius: 10px; }
-.account-tabs button[aria-selected="true"] { background: white; color: var(--account-ink); box-shadow: 0 3px 10px rgba(36, 37, 31, 0.08); }
+.account-tabs button[aria-pressed="true"] { background: white; color: var(--account-ink); box-shadow: 0 3px 10px rgba(36, 37, 31, 0.08); }
+
+.account-local-access-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 16px 20px 0;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--account-ink) 10%, transparent);
+  border-radius: 14px;
+  background: var(--lavender, #e8def8);
+  color: var(--account-ink);
+  font-size: 13px;
+}
+
+.account-local-access-notice > span { flex: 1; min-width: 0; }
+.account-local-access-notice .account-secondary { min-height: 36px; }
+
+@media (max-width: 760px) {
+  .account-local-access-notice { align-items: stretch; flex-direction: column; margin: 12px; }
+}
 .account-text-button { text-decoration: underline; text-underline-offset: 3px; }
 
 .account-card form { display: grid; gap: 15px; }

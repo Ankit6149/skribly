@@ -720,7 +720,10 @@ export function createReminderStore(persistence: ReminderPersistence, options: R
     claimDue,
     calendar,
     restoreForNote,
-    delete: (id: string) => persistence.delete(id),
+    delete: async (id: string) => {
+      await assertCanWrite();
+      await persistence.delete(id);
+    },
     deleteForNote: (noteId: string) => persistence.deleteForNote(validateNoteId(noteId)),
   };
 }

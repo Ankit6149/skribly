@@ -1,5 +1,5 @@
 import { emit, listen } from '@tauri-apps/api/event';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { SkribNote } from '../notes/model/noteTypes';
 import {
   completeReminder,
@@ -13,6 +13,7 @@ import { noteDisplayTitle } from './libraryModel';
 interface ReminderCalendarProps {
   notes: SkribNote[];
   onOpenNote: (noteId: string) => void;
+  canWrite: boolean;
 }
 
 function dateKey(date: Date): string {
@@ -42,18 +43,26 @@ function calendarDays(cursor: Date): Date[] {
   });
 }
 
-export const ReminderCalendar: React.FC<ReminderCalendarProps> = ({ notes, onOpenNote }) => {
+export const ReminderCalendar: React.FC<ReminderCalendarProps> = ({ notes, onOpenNote, canWrite }) => {
   const [cursor, setCursor] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   const [selectedDateKey, setSelectedDateKey] = useState(() => dateKey(new Date()));
   const [groups, setGroups] = useState<CalendarReminderGroup[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [mutatingId, setMutatingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isStale, setIsStale] = useState(false);
+  const hasLoaded = useRef(false);
+  const dayButtons = useRef(new Map<string, HTMLButtonElement>());
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
 
   const refresh = useCallback(async () => {
+    setIsLoading(true);
+    if (hasLoaded.current) setIsStale(true);
     try {
-      setGroups(await getReminderCalendar(Date.now(), timeZone));
+      const nextGroups = await getReminderCalendar(Date.now(), timeZone);
+      setGroups(nextGroups);
+      hasLoaded.current = true;
+      setIsStale(false);
       setError(null);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
@@ -96,6 +105,16 @@ export const ReminderCalendar: React.FC<ReminderCalendarProps> = ({ notes, onOpe
     setSelectedDateKey(dateKey(next));
   };
 
+  const moveSelectedDate = (offsetDays: number) => {
+    const [year, month, day] = selectedDateKey.split('-').map(Number);
+    const next = new Date(year!, month! - 1, day!);
+    next.setDate(next.getDate() + offsetDays);
+    const nextKey = dateKey(next);
+    setSelectedDateKey(nextKey);
+    setCursor(new Date(next.getFullYear(), next.getMonth(), 1));
+    window.requestAnimationFrame(() => dayButtons.current.get(nextKey)?.focus());
+  };
+
   const mutate = async (reminder: ReminderWithStatus, action: 'complete' | 'dismiss') => {
     if (mutatingId) return;
     setMutatingId(reminder.id);
@@ -135,7 +154,12 @@ export const ReminderCalendar: React.FC<ReminderCalendarProps> = ({ notes, onOpe
         </div>
       </header>
 
-      {error && <div className="library-export-message error" role="alert">{error}</div>}
+      {error && (
+        <div className="library-export-message error" role="alert">
+          <span>Could not read reminders: {error}</span>
+          <button type="button" onClick={() => void refresh()}>Retry</button>
+        </div>
+      )}
 
       <div className="reminder-calendar-layout">
         <div className="reminder-month-grid" aria-label={monthLabel(cursor)}>
@@ -144,7 +168,7 @@ export const ReminderCalendar: React.FC<ReminderCalendarProps> = ({ notes, onOpe
               <span key={weekday}>{weekday}</span>
             ))}
           </div>
-          <div className="reminder-days">
+          <div className="reminder-days" role="group" aria-label={`${monthLabel(cursor)} dates`}>
             {days.map((day) => {
               const key = dateKey(day);
               const reminders = remindersByDate.get(key) ?? [];
@@ -157,7 +181,29 @@ export const ReminderCalendar: React.FC<ReminderCalendarProps> = ({ notes, onOpe
                     key === selectedDateKey ? 'selected' : ''
                   }`}
                   aria-pressed={key === selectedDateKey}
+                  tabIndex={key === selectedDateKey ? 0 : -1}
                   aria-label={`${day.toLocaleDateString()}${reminders.length ? `, ${reminders.length} reminders` : ''}`}
+                  ref={(element) => {
+                    if (element) dayButtons.current.set(key, element);
+                    else dayButtons.current.delete(key);
+                  }}
+                  onKeyDown={(event) => {
+                    const offsets: Record<string, number> = {
+                      ArrowLeft: -1,
+                      ArrowRight: 1,
+                      ArrowUp: -7,
+                      ArrowDown: 7,
+                    };
+                    const offset = offsets[event.key];
+                    if (offset !== undefined) {
+                      event.preventDefault();
+                      moveSelectedDate(offset);
+                    } else if (event.key === 'Home' || event.key === 'End') {
+                      event.preventDefault();
+                      const weekdayOffset = day.getDay();
+                      moveSelectedDate(event.key === 'Home' ? -weekdayOffset : 6 - weekdayOffset);
+                    }
+                  }}
                   onClick={() => setSelectedDateKey(key)}
                 >
                   <span>{day.getDate()}</span>
@@ -181,20 +227,27 @@ export const ReminderCalendar: React.FC<ReminderCalendarProps> = ({ notes, onOpe
         <aside className="reminder-day-agenda" aria-label="Selected day reminders">
           <header>
             <span className="library-kicker">AGENDA</span>
-            <strong>
+            <strong aria-live="polite" aria-atomic="true">
               {new Intl.DateTimeFormat(undefined, { dateStyle: 'full' }).format(
                 new Date(`${selectedDateKey}T12:00:00`)
               )}
             </strong>
           </header>
-          {isLoading ? (
+          {isLoading && !hasLoaded.current ? (
             <div className="library-state" role="status">Reading reminders…</div>
+          ) : error && !hasLoaded.current ? (
+            <div className="library-state" role="status">
+              <strong>Reminders could not be loaded</strong>
+              <span>Try again to check this day.</span>
+            </div>
           ) : selectedReminders.length === 0 ? (
             <div className="library-state">
-              <strong>Nothing due</strong>
-              <span>Set a reminder from any Skrib to see it here.</span>
+              <strong>{isStale ? 'Showing saved results' : 'Nothing due'}</strong>
+              <span>{isStale ? 'Refresh failed; these results may be out of date.' : 'Set a reminder from any Skrib to see it here.'}</span>
             </div>
           ) : (
+            <>
+            {isStale && <div className="library-state" role="status">Refresh failed. Showing saved results.</div>}
             <div className="reminder-agenda-list">
               {selectedReminders.map((reminder) => {
                 const note = noteById.get(reminder.noteId);
@@ -211,8 +264,8 @@ export const ReminderCalendar: React.FC<ReminderCalendarProps> = ({ notes, onOpe
                       )}
                       {(reminder.status === 'upcoming' || reminder.status === 'overdue') && (
                         <>
-                          <button type="button" disabled={mutatingId !== null} onClick={() => void mutate(reminder, 'complete')}>Complete</button>
-                          <button type="button" disabled={mutatingId !== null} onClick={() => void mutate(reminder, 'dismiss')}>Dismiss</button>
+                          <button type="button" disabled={!canWrite || mutatingId !== null} onClick={() => void mutate(reminder, 'complete')}>Complete</button>
+                          <button type="button" disabled={!canWrite || mutatingId !== null} onClick={() => void mutate(reminder, 'dismiss')}>Dismiss</button>
                         </>
                       )}
                     </div>
@@ -220,7 +273,9 @@ export const ReminderCalendar: React.FC<ReminderCalendarProps> = ({ notes, onOpe
                 );
               })}
             </div>
+            </>
           )}
+          {!canWrite && <p className="library-readonly-status" role="status">Read-only: reminder history stays visible.</p>}
         </aside>
       </div>
     </section>

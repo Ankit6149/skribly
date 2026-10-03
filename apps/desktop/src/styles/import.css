@@ -85,6 +85,13 @@
   outline-offset: 2px;
 }
 
+.library-import-close-reason {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--lavender, #e8def8);
+  color: #3e4250 !important;
+}
+
 .library-import-file-row {
   padding: 12px 14px;
   display: flex;
