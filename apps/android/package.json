@@ -7,12 +7,12 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
+    "test": "vitest run src && node --test prepare-android-build.test.mjs",
     "lint": "eslint src --config eslint.config.mjs --max-warnings 0",
     "tauri": "tauri",
     "android:init": "tauri android init",
     "android:dev": "tauri android dev",
-    "android:build": "tauri android build --debug"
+    "android:build": "node prepare-android-build.mjs && tauri android build --debug --target aarch64 --apk"
   },
   "dependencies": {
     "@fontsource/dm-sans": "5.3.0",
