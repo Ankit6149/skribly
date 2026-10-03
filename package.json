@@ -12,7 +12,7 @@
     "tauri": "npm --workspace @skribly/desktop run tauri --",
     "build": "npm run build --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
-    "lint": "npm run lint --workspaces --if-present",
+    "lint": "npm --workspace @skribly/desktop run lint",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "react-runtime:validate": "node scripts/validation/validate-react-runtime.mjs",
     "desktop-theme:validate": "node scripts/validation/validate-desktop-theme.mjs",
