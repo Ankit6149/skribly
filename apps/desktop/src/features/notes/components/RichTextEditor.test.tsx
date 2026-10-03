@@ -18,6 +18,21 @@ beforeEach(() => {
 afterEach(async () => { await act(async () => root.unmount()); container.remove(); Reflect.deleteProperty(document, 'execCommand'); vi.restoreAllMocks(); });
 
 describe('inline attachment editing', () => {
+  it('retains undo history when the parent replaces its history callback', async () => {
+    const ref = createRef<RichTextEditorHandle>();
+    const render = (html: string, onHistoryChange: (undo: boolean, redo: boolean) => void) => root.render(<RichTextEditor ref={ref} noteId="n" initialHtml={html}
+      disabled={false} drawingEnabled={false} describedBy="status" onChange={() => true} onHistoryChange={onHistoryChange}
+      onBlur={() => undefined} onPasteFiles={() => undefined} />);
+    await act(async () => render('<p>Original</p>', vi.fn()));
+    const editor = container.querySelector('[role="textbox"]') as HTMLDivElement;
+    await act(async () => { editor.innerHTML = '<p>Edited</p>'; editor.dispatchEvent(new InputEvent('input', { bubbles: true })); });
+    const latestHistory = vi.fn();
+    await act(async () => render('<p>Edited</p>', latestHistory));
+    await act(async () => ref.current!.undo());
+    expect(editor.textContent).toBe('Original');
+    expect(latestHistory).toHaveBeenLastCalledWith(false, true);
+  });
+
   it('retains italic, underline and supported colors while stripping unsafe pasted styles', () => {
     const clean = sanitizeRichTextHtml('<p><i>Italic</i><u>Underlined</u><span style="color:#486b8c;background-color:#cfe5d7;background-image:url(https://invalid.test/tracker);position:fixed" onclick="bad()">Color</span><script>bad()</script></p>');
     expect(clean).toContain('<em>Italic</em>'); expect(clean).toContain('<u>Underlined</u>');

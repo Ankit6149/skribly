@@ -1,5 +1,6 @@
 import React, {
   forwardRef,
+  useCallback,
   useEffect,
   useImperativeHandle,
   useRef,
@@ -146,7 +147,7 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
   const commandInProgress = useRef(false);
   const past = useRef<string[]>([]);
   const future = useRef<string[]>([]);
-  const notifyHistory = () => onHistoryChange?.(past.current.length > 0, future.current.length > 0);
+  const notifyHistory = useCallback(() => onHistoryChange?.(past.current.length > 0, future.current.length > 0), [onHistoryChange]);
 
   const refreshAttachmentHosts = () => {
     const nodes = Array.from(editorRef.current?.querySelectorAll<HTMLElement>(ATTACHMENT_SELECTOR) ?? []);
@@ -175,7 +176,7 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
     activeNoteId.current = noteId;
     lastAcceptedHtml.current = next;
     refreshAttachmentHosts();
-  }, [initialHtml, noteId]);
+  }, [initialHtml, noteId, notifyHistory]);
 
   useEffect(() => {
     if (disabled) return;

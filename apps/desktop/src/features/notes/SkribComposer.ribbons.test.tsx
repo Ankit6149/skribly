@@ -2,7 +2,7 @@
 import React, { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { replaceRichTextForNote } from './persistence/richContentStore';
+import { getRichContent, replaceRichTextForNote } from './persistence/richContentStore';
 import { SkribComposer } from './SkribComposer';
 import type { SkribNote } from './model/noteTypes';
 
@@ -33,6 +33,24 @@ async function click(label: string) {
 }
 
 describe('note icon ribbons', () => {
+  it('retains the session and pending draft across same-note store updates, then resets for a new note', async () => {
+    const editor = container.querySelector('[role="textbox"]') as HTMLDivElement;
+    await act(async () => {
+      editor.innerHTML = '<p>Current draft</p>';
+      editor.dispatchEvent(new InputEvent('input', { bubbles: true }));
+    });
+    await click('More note actions');
+    const reads = vi.mocked(getRichContent).mock.calls.length;
+    await act(async () => root.render(<React.StrictMode><SkribComposer note={{ ...note, text: 'Current draft', color: 'mint' }} target={null} openAction="created" /></React.StrictMode>));
+    expect(container.querySelector('[role="textbox"]')?.textContent).toBe('Current draft');
+    expect(container.querySelector('.composer-note-menu')).not.toBeNull();
+    expect(vi.mocked(getRichContent).mock.calls.length).toBe(reads);
+    await act(async () => root.render(<React.StrictMode><SkribComposer note={{ ...note, id: 'next-note', text: 'Next note' }} target={null} openAction="created" /></React.StrictMode>));
+    expect(container.querySelector('[role="textbox"]')?.textContent).toBe('Next note');
+    expect(container.querySelector('.composer-note-menu')).toBeNull();
+    expect(getRichContent).toHaveBeenLastCalledWith('next-note');
+  });
+
   it('accepts and saves typing after the actual StrictMode effect replay', async () => {
     const editor = container.querySelector('[role="textbox"]') as HTMLDivElement;
     await act(async () => {

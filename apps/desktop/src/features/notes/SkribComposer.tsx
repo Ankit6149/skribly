@@ -105,6 +105,14 @@ function saveStatusLabel(snapshot: DraftSaveSnapshot): string {
 }
 
 export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, openAction }) => {
+  // Store the session baseline by note identity. Store-driven text/color updates
+  // for this same note must not recreate the save controller or change Discard.
+  const [sessionInitial, setSessionInitial] = useState(() => ({
+    noteId: note.id, text: note.text, color: note.color,
+  }));
+  if (sessionInitial.noteId !== note.id) {
+    setSessionInitial({ noteId: note.id, text: note.text, color: note.color });
+  }
   const {
     trashSkrib,
     archiveSkrib,
@@ -257,10 +265,10 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
   const saveController = useMemo(
     () =>
       new DraftSaveController({
-        initialText: note.text,
-        persist: (draft) => persistSkribText(note.id, draft),
+        initialText: sessionInitial.text,
+        persist: (draft) => persistSkribText(sessionInitial.noteId, draft),
       }),
-    [note.id]
+    [sessionInitial]
   );
   const [saveSnapshot, setSaveSnapshot] = useState<DraftSaveSnapshot>(
     saveController.getSnapshot()
@@ -334,7 +342,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
     temporaryToolSurface.current = null;
     setAttachmentCount(0);
     setInlineAttachments([]);
-    setRichTextHtml(plainTextToRichHtml(note.text));
+    setRichTextHtml(plainTextToRichHtml(saveController.getSnapshot().draft));
     sessionSnapshot.current = null;
     setCancelConfirmationOpen(false);
     setDiscardRecovery(null);
@@ -492,7 +500,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
     let cancelled = false;
     setIsInkLoading(true);
     setRichReadFailed(false);
-    void Promise.all([getInkForNote(note.id), getRichContent(note.id), listReminders()])
+    void Promise.all([getInkForNote(sessionInitial.noteId), getRichContent(sessionInitial.noteId), listReminders()])
       .then(([document, richContent, reminders]) => {
         if (!cancelled) {
           const recovery = richContent.discardRecovery;
@@ -508,18 +516,18 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
             return;
           }
           sessionSnapshot.current = {
-            text: note.text, color: note.color, rich: richContent,
-            reminders: reminders.filter((item) => item.noteId === note.id).map(({ status: _status, ...item }) => item),
+            text: sessionInitial.text, color: sessionInitial.color, rich: richContent,
+            reminders: reminders.filter((item) => item.noteId === sessionInitial.noteId).map(({ status: _status, ...item }) => item),
           };
-          setHasScheduledReminder(reminders.some((item) => item.noteId === note.id &&
+          setHasScheduledReminder(reminders.some((item) => item.noteId === sessionInitial.noteId &&
             (item.status === 'upcoming' || item.status === 'overdue')));
           setInkStrokes(document.strokes);
           setTextSize(richContent.view?.textSize ?? 'medium');
           setAttachmentCount(richContent.attachments.length);
           setRichTextHtml(
-            richContent.richText?.plainText === note.text
+            richContent.richText?.plainText === sessionInitial.text
               ? richContent.richText.html
-              : plainTextToRichHtml(note.text)
+              : plainTextToRichHtml(sessionInitial.text)
           );
         }
       })
@@ -537,7 +545,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
     return () => {
       cancelled = true;
     };
-  }, [note.id, richLoadRevision]);
+  }, [sessionInitial, richLoadRevision]);
 
   useEffect(() => {
     if (!isTauriAvailable) return;

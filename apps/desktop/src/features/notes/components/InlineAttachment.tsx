@@ -12,12 +12,13 @@ export function InlineAttachment({ attachment, disabled, size, onSizeChange, onM
 }) {
   const [url, setUrl] = useState<string | null>(null);
   const [actionsOpen, setActionsOpen] = useState(false);
+  const attachmentBlob = attachment.blob;
   useEffect(() => {
     let next: string | null = null;
-    try { next = createAttachmentObjectUrl(attachment); } catch { /* Keep the file name readable. */ }
+    try { next = createAttachmentObjectUrl({ blob: attachmentBlob }); } catch { /* Keep the file name readable. */ }
     setUrl(next);
     return () => { if (next) revokeAttachmentObjectUrl(next); };
-  }, [attachment.blob]);
+  }, [attachmentBlob]);
   return (
     <span className={`inline-attachment-object inline-attachment-${attachment.kind}`} data-size={size}
       onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setActionsOpen(false); }}>
