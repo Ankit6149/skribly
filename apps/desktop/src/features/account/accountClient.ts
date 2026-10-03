@@ -1,3 +1,4 @@
+import { version as desktopVersion } from '../../../src-tauri/tauri.conf.json';
 import { invoke } from '@tauri-apps/api/core';
 import { emit } from '@tauri-apps/api/event';
 import { createClient, type Session, type SupabaseClient, type SupportedStorage } from '@supabase/supabase-js';
@@ -95,7 +96,7 @@ export function readAccountConfiguration(): AccountConfiguration | null {
   const entitlementFunction = String(
     import.meta.env.VITE_SKRIBLY_ACCOUNT_FUNCTION || 'account-session'
   ).trim();
-  const appVersion = String(import.meta.env.VITE_SKRIBLY_APP_VERSION || '0.1.32').trim();
+  const appVersion = String(import.meta.env.VITE_SKRIBLY_APP_VERSION || desktopVersion).trim();
 
   if (
     !isHttpsUrl(supabaseUrl) ||

@@ -1,3 +1,4 @@
+import { version as desktopVersion } from '../../../src-tauri/tauri.conf.json';
 import { describe, expect, it, vi } from 'vitest';
 import {
   applyEntitlementWhenCurrent,
@@ -37,7 +38,18 @@ describe('account client boundary', () => {
     expect(configuration?.supabaseUrl).toBe('https://bccgutpkjxtogqbywsxr.supabase.co');
     expect(configuration?.publishableKey).toMatch(/^sb_publishable_/);
     expect(configuration?.entitlementFunction).toBe('account-session');
-    expect(configuration?.appVersion).toBe('0.1.32');
+    expect(configuration?.appVersion).toBe(import.meta.env.VITE_SKRIBLY_APP_VERSION || desktopVersion);
+  });
+
+  it('derives the fallback version from the desktop release and honors a build override', () => {
+    try {
+      vi.stubEnv('VITE_SKRIBLY_APP_VERSION', undefined);
+      expect(readAccountConfiguration()?.appVersion).toBe(desktopVersion);
+      vi.stubEnv('VITE_SKRIBLY_APP_VERSION', '0.1.99');
+      expect(readAccountConfiguration()?.appVersion).toBe('0.1.99');
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it('uses an async storage contract outside the installed Tauri runtime', async () => {

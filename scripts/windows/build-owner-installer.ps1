@@ -98,8 +98,18 @@ try {
     Invoke-OwnerGate -Name 'trial-enforced-check' -Command 'cargo' -CommandArguments @('check', '--manifest-path', 'apps/desktop/src-tauri/Cargo.toml')
     Invoke-OwnerGate -Name 'owner-provenance-regressions' -Command 'powershell.exe' -CommandArguments @('-NoProfile', '-File', 'scripts/windows/candidate-provenance.test.ps1')
     Invoke-OwnerGate -Name 'windows-bundles' -Command 'npm.cmd' -CommandArguments @('run', 'tauri', '--', 'build', '--bundles', 'nsis,msi')
+    # Validate only this candidate's bundles; keep older cached artifacts intact.
+    $candidateBundleRoot = Join-Path $repositoryRoot "artifacts/owner-candidates/$candidateId/bundles"
+    $candidateNsisDirectory = Join-Path $candidateBundleRoot 'nsis'
+    $candidateMsiDirectory = Join-Path $candidateBundleRoot 'msi'
+    New-Item -ItemType Directory -Path $candidateNsisDirectory, $candidateMsiDirectory -ErrorAction Stop | Out-Null
+    $currentNsisPath = Join-Path $repositoryRoot "apps/desktop/src-tauri/target/release/bundle/nsis/Skribli_${version}_x64-setup.exe"
+    $currentMsiFiles = @(Get-ChildItem -LiteralPath (Join-Path $repositoryRoot 'apps/desktop/src-tauri/target/release/bundle/msi') -File | Where-Object { $_.Name -like "Skribli_${version}_*.msi" })
+    if ($currentMsiFiles.Count -ne 1) { throw 'Expected one current-version MSI candidate.' }
+    Copy-Item -LiteralPath $currentNsisPath -Destination $candidateNsisDirectory -ErrorAction Stop
+    Copy-Item -LiteralPath $currentMsiFiles[0].FullName -Destination $candidateMsiDirectory -ErrorAction Stop
     $brandingEvidence = Join-Path $repositoryRoot "artifacts/owner-candidates/$candidateId/branding-evidence.json"
-    Invoke-OwnerGate -Name 'package-branding' -Command 'powershell.exe' -CommandArguments @('-NoProfile', '-File', 'scripts/validation/verify-windows-installer-branding.ps1', '-EvidencePath', $brandingEvidence)
+    Invoke-OwnerGate -Name 'package-branding' -Command 'powershell.exe' -CommandArguments @('-NoProfile', '-File', 'scripts/validation/verify-windows-installer-branding.ps1', '-BundleRoot', $candidateBundleRoot, '-EvidencePath', $brandingEvidence)
     Assert-OwnerCheckout
     if ((Get-CandidateFileIdentity -Path $lockIdentity.path).sha256 -ne $lockIdentity.sha256) { throw 'Dependency lock changed during candidate build.' }
     $application = Get-CandidateFileIdentity -Path (Join-Path $repositoryRoot 'apps/desktop/src-tauri/target/release/skribly.exe')
