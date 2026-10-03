@@ -16,6 +16,8 @@
 
 Added `apps/android` as a React/Vite frontend with a minimal Tauri 2 shell, preserving the repository's one-UI-framework rule. Desktop window capture, tray, account/native license commands and background loops are not imported. The existing desktop paper palette and typography are the visual target: UI uses DM Sans/Manrope; typed Skrib content uses Kalam.
 
+The separate native crate has a committed Cargo lockfile resolved from the existing local registry cache (418 packages); this records dependency resolution, not Android compilation.
+
 The useful first slice is a local text library with search, editor, eight paper colours, truthful Save state and reversible Trash. Shared `mobile.ts` provides versioned validation and explicit capability declarations. Browser IndexedDB compares expected revision and writes in one transaction; only transaction completion counts as saved. Save failure retains the draft, and future or malformed stored records are preserved and block normal writes through the unreadable library. This keeps a small foundation from inheriting desktop lifecycle or sync assumptions.
 
 The Product Design index skill was read before UI work. This is implementation against the existing desktop code/design target, with no new visual direction or mockup approval claim. Shared design tokens, equal 44px touch targets, consistent icon strokes, restrained paper cards, keyboard-visible focus, native modal focus containment, reduced-motion-safe static layouts and responsive widths guide this slice.
