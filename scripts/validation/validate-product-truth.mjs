@@ -291,7 +291,9 @@ for (const claim of requiredTargetCaptureImplementation) {
 
 const requiredShortcutFlow = [
   'native_window_operation_gate.lock()',
-  'clear_active_target_and_hide_note_locked(&app_handle_hk, &state_hk);',
+  'clear_active_target_and_hide_note_locked(&transaction_handle, &state_hk);',
+  'desktop::native_transition::flush_active_editor(&app_handle_hk, "shortcut")',
+  'if !transition.can_commit(&state_hk)',
   'capture_foreground_target()',
   'revalidate_captured_target(&capture)',
   'present_target_capture_error',

@@ -3718,7 +3718,7 @@ pub fn run() {
                         #[cfg(not(target_os = "windows"))]
                         let target = match transaction_coordinator.get_active_target() {
                             Some(target) => target,
-                            None => continue,
+                            None => return,
                         };
 
                         let Some(window) = transaction_handle.get_webview_window("main") else {
