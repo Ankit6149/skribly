@@ -10,7 +10,7 @@
 
 **Tracking:** [Android outcome #276](https://github.com/Ankit6149/skribly/issues/276). Historical epic #46 is closed as a duplicate and was not reopened or treated as active acceptance.
 
-**Acceptance:** Source/browser foundation only. No APK or installed Android acceptance. **Linear write-back pending**; no mobile Linear issue was available to this executor.
+**Initial acceptance:** Source/browser foundation only. The initial prerequisite block and no-APK result below describe that first execution. A later owner-authorized [private preview build](ANDROID_PRIVATE_PREVIEW_2026-10-03.md) installed prerequisites, compiled ARM64 and produced an inspected debug APK. Installed Android acceptance remains open. **Linear write-back pending**; no mobile Linear issue was available to this executor.
 
 ## What changed and why
 

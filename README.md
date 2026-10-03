@@ -54,7 +54,7 @@ The current Windows build includes:
 
 Current portable JSON does **not** include IndexedDB ink, attachment blobs or reminders. Browser URL/DOM anchoring, macOS, cloud sync, collaboration, AI and public commerce remain deferred/not released.
 
-The owner requested starting Android development on 3 October 2026. The separate [Android foundation](apps/android/README.md) has a runnable local frontend; APK/device verification remains pending and it is not included in the Windows owner installer.
+The owner requested starting Android development on 3 October 2026. The separate [Android foundation](apps/android/README.md) has a runnable local frontend and an inspected ARM64 debug APK for private owner testing. Real-phone acceptance remains pending; mobile is not included in the Windows owner installer.
 
 ## Development prerequisites
 
