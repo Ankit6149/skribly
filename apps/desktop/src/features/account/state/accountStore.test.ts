@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
   getAccountClient: vi.fn(),
   claimAccountEntitlement: vi.fn(),
   clearAccountEntitlement: vi.fn(),
+  emit: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('../accountClient', () => ({
@@ -12,7 +13,7 @@ vi.mock('../accountClient', () => ({
   clearAccountEntitlement: mocks.clearAccountEntitlement,
   withAccountTimeout: (operation: PromiseLike<unknown>) => Promise.resolve(operation),
 }));
-vi.mock('@tauri-apps/api/event', () => ({ emit: vi.fn().mockResolvedValue(undefined) }));
+vi.mock('@tauri-apps/api/event', () => ({ emit: mocks.emit }));
 
 const status = {
   mode: 'licensed' as const,
@@ -140,5 +141,28 @@ describe('account session operations', () => {
     expect(signOut).toHaveBeenCalledTimes(2);
     expect(mocks.clearAccountEntitlement).toHaveBeenCalledTimes(1);
     expect(useAccountStore.getState()).toMatchObject({ phase: 'signedOut', entitlement: null });
+  });
+
+  it('keeps sign-out complete when status refresh broadcast fails during retry', async () => {
+    mocks.getAccountClient.mockReturnValue({
+      client: { auth: { signOut: vi.fn().mockResolvedValue({ error: null }) } },
+      configuration: {},
+    });
+    mocks.clearAccountEntitlement.mockRejectedValueOnce(new Error('temporary native failure'));
+    const { useAccountStore } = await import('./accountStore');
+
+    await useAccountStore.getState().signOut();
+    expect(useAccountStore.getState().phase).toBe('error');
+    mocks.emit.mockRejectedValueOnce(new Error('status event unavailable'));
+
+    await useAccountStore.getState().retry();
+
+    expect(useAccountStore.getState()).toMatchObject({
+      phase: 'signedOut',
+      entitlement: null,
+      message: expect.stringContaining('could not refresh the displayed access status'),
+    });
+    expect(mocks.clearAccountEntitlement).toHaveBeenCalledTimes(2);
+    expect(mocks.getAccountClient).toHaveBeenCalledTimes(1);
   });
 });

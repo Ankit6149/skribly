@@ -303,7 +303,6 @@ export const useAccountStore = create<AccountStoreState>((set, get) => ({
         await clearAccountEntitlement();
         if (!isCurrentAccountAction(generation)) return;
         pendingSignOutClear = false;
-        await emit('skribly://license-status-request');
         set({
           phase: 'signedOut',
           email: null,
@@ -313,6 +312,14 @@ export const useAccountStore = create<AccountStoreState>((set, get) => ({
           announcements: [],
           message: null,
         });
+        try {
+          await emit('skribly://license-status-request');
+        } catch (error) {
+          if (!isCurrentAccountAction(generation)) return;
+          set({
+            message: `Signed out and cleared device access, but Skribli could not refresh the displayed access status: ${error instanceof Error ? error.message : String(error)}.`,
+          });
+        }
       } catch (error) {
         if (!isCurrentAccountAction(generation)) return;
         set({
