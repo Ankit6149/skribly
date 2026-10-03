@@ -117,4 +117,28 @@ describe('account session operations', () => {
     expect(mocks.clearAccountEntitlement).toHaveBeenCalledTimes(2);
     expect(useAccountStore.getState()).toMatchObject({ phase: 'signedOut', entitlement: null });
   });
+
+  it('keeps sign-out retryable when Supabase resolves with an auth error', async () => {
+    const signOut = vi.fn()
+      .mockResolvedValueOnce({ error: new Error('session revoke failed') })
+      .mockResolvedValueOnce({ error: null });
+    mocks.getAccountClient.mockReturnValue({
+      client: { auth: { signOut } },
+      configuration: {},
+    });
+    const { useAccountStore } = await import('./accountStore');
+
+    await useAccountStore.getState().signOut();
+    expect(useAccountStore.getState()).toMatchObject({
+      phase: 'error',
+      message: expect.stringContaining('session revoke failed'),
+    });
+    expect(mocks.clearAccountEntitlement).not.toHaveBeenCalled();
+
+    await useAccountStore.getState().retry();
+
+    expect(signOut).toHaveBeenCalledTimes(2);
+    expect(mocks.clearAccountEntitlement).toHaveBeenCalledTimes(1);
+    expect(useAccountStore.getState()).toMatchObject({ phase: 'signedOut', entitlement: null });
+  });
 });

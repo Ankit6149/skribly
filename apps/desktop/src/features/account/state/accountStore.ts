@@ -41,6 +41,7 @@ interface AccountStoreState {
 let initialization: Promise<void> | null = null;
 let accountActionGeneration = 0;
 let entitlementOperationGeneration = 0;
+let pendingSignOutAuth = false;
 let pendingSignOutClear = false;
 
 function beginAccountAction(): number {
@@ -162,6 +163,10 @@ export const useAccountStore = create<AccountStoreState>((set, get) => ({
   },
 
   signUp: async (emailValue, password, productUpdatesOptIn) => {
+    if (pendingSignOutAuth || pendingSignOutClear) {
+      set({ phase: 'error', message: 'Finish signing out of the current account before creating another account.' });
+      return;
+    }
     const generation = beginAccountAction();
     const email = cleanEmail(emailValue);
     const validation = validateCredentials(email, password);
@@ -228,6 +233,10 @@ export const useAccountStore = create<AccountStoreState>((set, get) => ({
   },
 
   signIn: async (emailValue, password, productUpdatesOptIn) => {
+    if (pendingSignOutAuth || pendingSignOutClear) {
+      set({ phase: 'error', message: 'Finish signing out of the current account before signing in to another account.' });
+      return;
+    }
     const generation = beginAccountAction();
     const email = cleanEmail(emailValue);
     const validation = validateCredentials(email, password);
@@ -284,6 +293,10 @@ export const useAccountStore = create<AccountStoreState>((set, get) => ({
   },
 
   retry: async () => {
+    if (pendingSignOutAuth) {
+      await get().signOut();
+      return;
+    }
     if (pendingSignOutClear) {
       const generation = beginAccountAction();
       try {
@@ -315,9 +328,14 @@ export const useAccountStore = create<AccountStoreState>((set, get) => ({
   signOut: async () => {
     const generation = beginAccountAction();
     const configured = getAccountClient();
+    pendingSignOutAuth = Boolean(configured);
     try {
       if (configured) {
-        await withAccountTimeout(configured.client.auth.signOut({ scope: 'local' }), 'Sign out');
+        const response = await withAccountTimeout(
+          configured.client.auth.signOut({ scope: 'local' }),
+          'Sign out'
+        );
+        if (response.error) throw response.error;
       }
     } catch (error) {
       if (isCurrentAccountAction(generation)) {
@@ -325,6 +343,7 @@ export const useAccountStore = create<AccountStoreState>((set, get) => ({
       }
       return;
     }
+    pendingSignOutAuth = false;
     if (!isCurrentAccountAction(generation)) return;
     pendingSignOutClear = true;
     try {
@@ -340,8 +359,6 @@ export const useAccountStore = create<AccountStoreState>((set, get) => ({
     }
     pendingSignOutClear = false;
     if (!isCurrentAccountAction(generation)) return;
-    await emit('skribly://license-status-request');
-    if (!isCurrentAccountAction(generation)) return;
     set({
       phase: 'signedOut',
       email: null,
@@ -351,17 +368,26 @@ export const useAccountStore = create<AccountStoreState>((set, get) => ({
       announcements: [],
       message: null,
     });
+    try {
+      await emit('skribly://license-status-request');
+    } catch (error) {
+      set({
+        message: `Signed out and cleared device access, but Skribli could not refresh the displayed access status: ${error instanceof Error ? error.message : String(error)}.`,
+      });
+    }
   },
 
-  resetToSignIn: () =>
-    (beginAccountAction(), set((state) => ({
+  resetToSignIn: () => {
+    beginAccountAction();
+    set((state) => ({
       phase: 'signedOut',
       accountRole: null,
       entitlement: null,
       announcements: [],
       message: null,
       email: state.email,
-    }))),
+    }));
+  },
 
   clearMessage: () => set({ message: null }),
 }));
