@@ -34,6 +34,10 @@ Automated regression coverage includes nonblocking gate contention and successfu
 
 Exact commands/results are recorded in the execution report. Existing dead-code compiler warnings remain unrelated. Required Windows acceptance: repeated shortcut/close/Quit during debounce, failed disk save and rich/ink saves; drag/open/close on both edges; mixed DPI/monitors; antivirus/file locks; force interruption of protected generation commits; startup/recovery; idle resource and UI latency measurements. These tests use a synthetic profile, never the founder's account/note profile.
 
+Integration verification on 3 October: the complete Cargo manifest suite passed 223 tests (181 library, 3 application, 39 embedded migration/recovery tests), with `cargo fmt --check` passing. The migration harness now imports the durable generation module used by the embedded account/licence sources.
+
+All four account migrations and the supplied SQL assertions also executed successfully against an isolated in-memory PostgreSQL 18.3 engine through PGlite 0.5.8, with synthetic auth tables/roles. This checks SQL execution, version precedence, preserved/explicit consent and trial snapshots. It does not establish hosted Supabase compatibility, cross-connection contention, or production deployment acceptance.
+
 ## Rollback/recovery
 
 Source rollback restores the previous implementation without a data-format migration; retain protected recovery generations and avoid manually deleting primary files. An older implementation will not provide the new interruption guarantees. If storage becomes unreadable, preserve all generations and use validated recovery; do not reset trial/account metadata to make an error disappear.
