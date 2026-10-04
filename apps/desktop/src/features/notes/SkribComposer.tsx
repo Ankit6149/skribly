@@ -302,7 +302,12 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
   const contextTabLabel = applicationLabel(target?.process_name || note.target_process_name || '');
 
   useEffect(() => {
-    if (!isTauriAvailable || !hasSavedContext) return;
+    if (!isTauriAvailable) return;
+    if (!hasSavedContext) {
+      setNativeAppIconUrl(null);
+      void invoke('clear_skrib_tab_bounds', { noteId: note.id }).catch(() => undefined);
+      return;
+    }
     const processName = target?.process_name || note.target_process_name;
     if (!processName) return;
     let live = true;

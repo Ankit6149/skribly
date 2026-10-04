@@ -47,12 +47,11 @@ fn signal_existing_instance() -> Result<(), String> {
         if let Some(hwnd) = home_window {
             unsafe {
                 let _ = ShowWindow(hwnd, SW_RESTORE);
-                if !SetForegroundWindow(hwnd).as_bool() {
-                    return Err(
-                        "Windows found Skribli but did not allow its Home window to come forward. Select Skribli from the taskbar and try again."
-                            .to_string(),
-                    );
-                }
+                // Windows may reject foreground activation even after it has restored and shown
+                // the existing window. That is a normal focus-stealing restriction, not a failed
+                // launch. The primary Skribli instance is healthy, so the secondary must exit
+                // quietly instead of presenting an alarming startup error.
+                let _ = SetForegroundWindow(hwnd);
             }
             return Ok(());
         }

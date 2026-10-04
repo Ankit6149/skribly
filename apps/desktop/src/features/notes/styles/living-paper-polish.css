@@ -607,7 +607,7 @@
 .skrib-composer.skrib-color-aqua { --context-pill-paper: var(--sand); }
 .skrib-composer.skrib-color-sand { --context-pill-paper: var(--aqua); }
 .composer-context-tab {
-  top: 16px;
+  top: 0;
   left: -16px;
   width: 40px;
   max-width: 40px;
@@ -745,7 +745,6 @@
 @media (max-width: 360px) {
   .composer-rich-editor-shell .composer-textarea,
   .composer-format-bar + .composer-textarea { padding-left: 24px; padding-right: 24px; }
-  .composer-context-tab { top: 12px; }
   .composer-reminder-window { inset: 52px 9px 51px auto; width: calc(100% - 18px); }
 }
 

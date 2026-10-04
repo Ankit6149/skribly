@@ -39,8 +39,8 @@ const NOTE_SURFACE_PAPER_INSET_LOGICAL: i32 = 3;
 // Initial mask before the DOM reports bounds: paper inset + border + attached 40x52px pill.
 const NOTE_SURFACE_TAB_LEFT_LOGICAL: i32 = 2;
 const NOTE_SURFACE_TAB_RIGHT_LOGICAL: i32 = 42;
-const NOTE_SURFACE_TAB_TOP_LOGICAL: i32 = 20;
-const NOTE_SURFACE_TAB_BOTTOM_LOGICAL: i32 = 72;
+const NOTE_SURFACE_TAB_TOP_LOGICAL: i32 = 3;
+const NOTE_SURFACE_TAB_BOTTOM_LOGICAL: i32 = 55;
 // Keep a one-pixel allowance only on curves; straight transparent fringe must be outside the HWND region.
 const NOTE_SURFACE_NATIVE_CURVE_ALLOWANCE_LOGICAL: i32 = 1;
 const COLLAPSED_NOTE_MAIN_REGION_LOGICAL_DIAMETER: i32 = 40;
@@ -178,12 +178,6 @@ fn calculate_native_surface_region(
                 scale_factor,
             );
             let inset = logical_to_physical(NOTE_SURFACE_PAPER_INSET_LOGICAL, scale_factor);
-            // The compact CSS layout moves the pill up 4px at a 360px viewport width.
-            let tab_offset = if physical_width <= logical_to_physical(360, scale_factor) {
-                4
-            } else {
-                0
-            };
             Ok(NativeSurfaceRegion {
                 primary: NativeEllipseRegion {
                     left: logical_to_physical(NOTE_SURFACE_PAPER_LEFT_LOGICAL, scale_factor),
@@ -194,16 +188,10 @@ fn calculate_native_surface_region(
                 badge: None,
                 tab: Some(NativeEllipseRegion {
                     left: logical_to_physical(NOTE_SURFACE_TAB_LEFT_LOGICAL, scale_factor),
-                    top: logical_to_physical(
-                        NOTE_SURFACE_TAB_TOP_LOGICAL - tab_offset,
-                        scale_factor,
-                    ),
+                    top: logical_to_physical(NOTE_SURFACE_TAB_TOP_LOGICAL, scale_factor),
                     right: logical_to_physical(NOTE_SURFACE_TAB_RIGHT_LOGICAL, scale_factor),
-                    bottom: logical_to_physical(
-                        NOTE_SURFACE_TAB_BOTTOM_LOGICAL - tab_offset,
-                        scale_factor,
-                    )
-                    .min(physical_height),
+                    bottom: logical_to_physical(NOTE_SURFACE_TAB_BOTTOM_LOGICAL, scale_factor)
+                        .min(physical_height),
                 }),
                 ellipse_width: ellipse,
                 ellipse_height: ellipse,
@@ -293,6 +281,13 @@ pub fn set_note_tab_bounds(
     *note_tab_bounds()
         .lock()
         .map_err(|_| "The note tab bounds are unavailable.")? = Some(tab);
+    refresh_note_window_surface(window)
+}
+
+pub fn clear_note_tab_bounds(window: &tauri::WebviewWindow) -> Result<(), String> {
+    *note_tab_bounds()
+        .lock()
+        .map_err(|_| "The note tab bounds are unavailable.")? = None;
     refresh_note_window_surface(window)
 }
 
@@ -1462,7 +1457,7 @@ mod tests {
         assert!(!note.circular);
         assert!(note.badge.is_none());
         let tab = note.tab.as_ref().expect("note place tab region");
-        assert_eq!((tab.left, tab.top, tab.right, tab.bottom), (2, 20, 42, 72));
+        assert_eq!((tab.left, tab.top, tab.right, tab.bottom), (2, 3, 42, 55));
 
         let dot = calculate_native_surface_region(44, 44, 1.0, NativeNoteSurface::Dot)
             .expect("dot region");
@@ -1543,14 +1538,13 @@ mod tests {
                 assert!(!region.circular);
                 assert!(region.badge.is_none());
                 let tab = region.tab.as_ref().expect("place tab region");
-                let tab_offset = if width <= 360 { 4 } else { 0 };
                 assert_eq!(
                     tab.left,
                     logical_to_physical(NOTE_SURFACE_TAB_LEFT_LOGICAL, scale)
                 );
                 assert_eq!(
                     tab.top,
-                    logical_to_physical(NOTE_SURFACE_TAB_TOP_LOGICAL - tab_offset, scale)
+                    logical_to_physical(NOTE_SURFACE_TAB_TOP_LOGICAL, scale)
                 );
                 assert_eq!(
                     tab.right,
@@ -1558,8 +1552,7 @@ mod tests {
                 );
                 assert_eq!(
                     tab.bottom,
-                    logical_to_physical(NOTE_SURFACE_TAB_BOTTOM_LOGICAL - tab_offset, scale)
-                        .min(physical_height)
+                    logical_to_physical(NOTE_SURFACE_TAB_BOTTOM_LOGICAL, scale).min(physical_height)
                 );
             }
         }

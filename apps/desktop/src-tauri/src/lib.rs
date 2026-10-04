@@ -52,7 +52,8 @@ use platform::windows_events::{WinEventPipeline, WIN_EVENT_QUEUE_CAPACITY};
 use platform::windows_focus::focus_external_window;
 #[cfg(target_os = "windows")]
 use platform::windows_placement::{
-    initialize_compact_window, position_compact_window_for_target, position_detached_note_window,
+    clear_note_tab_bounds as clear_native_note_tab_bounds, initialize_compact_window,
+    position_compact_window_for_target, position_detached_note_window,
     position_note_window_for_target, position_note_workspace_for_target,
     prepare_standard_compact_surface, refresh_note_window_surface, restore_standard_window_surface,
     set_note_tab_bounds as set_native_note_tab_bounds, transition_detached_note_window,
@@ -3107,6 +3108,42 @@ fn set_skrib_tab_bounds(
     }
 }
 
+#[tauri::command]
+fn clear_skrib_tab_bounds(
+    app_handle: AppHandle,
+    state: State<'_, AppState>,
+    note_id: String,
+) -> Result<(), String> {
+    let _operation_guard = state.native_window_operation_gate.lock()?;
+    let runtime = state
+        .note_window_runtime
+        .lock()
+        .map_err(|_| "The note window state is unavailable.")?;
+    if runtime
+        .active_note_id()
+        .is_some_and(|active| active != note_id)
+    {
+        return Ok(());
+    }
+    drop(runtime);
+    #[cfg(target_os = "windows")]
+    {
+        let window = app_handle
+            .get_webview_window("main")
+            .ok_or_else(|| "The note window is unavailable.".to_string())?;
+        let size = window.inner_size().map_err(|error| error.to_string())?;
+        if size.width < 200 || size.height < 200 {
+            return Ok(());
+        }
+        clear_native_note_tab_bounds(&window)
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = app_handle;
+        Ok(())
+    }
+}
+
 fn resize_skrib_window(
     app_handle: AppHandle,
     state: State<'_, AppState>,
@@ -3573,6 +3610,7 @@ pub fn run() {
             set_skrib_window_dimensions,
             begin_skrib_manual_resize,
             set_skrib_tab_bounds,
+            clear_skrib_tab_bounds,
             trash_skrib_note,
             archive_skrib_note,
             discard_empty_skrib_note,
