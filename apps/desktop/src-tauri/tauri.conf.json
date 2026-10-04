@@ -105,6 +105,8 @@
         "transparent": true,
         "alwaysOnTop": true,
         "skipTaskbar": true,
+        "focus": false,
+        "focusable": false,
         "shadow": false,
         "resizable": false,
         "maximizable": false,

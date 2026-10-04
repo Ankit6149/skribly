@@ -358,12 +358,15 @@ fn prepare_global_rail_surface(
         // The HWND stays alive for WebView painting, but its native region admits no backdrop or hits.
         set_global_reveal(rail, Some(0))?;
         runtime.reveal_width.store(0, Ordering::Release);
+        // Do not expose an empty DWM/Acrylic host while WebView lays out the new surface.
+        // The paint acknowledgement shows this same HWND before its native reveal begins.
+        rail.hide().map_err(|e| e.to_string())?;
         if let Some(handle) = app.get_webview_window("global-rail-handle") {
             let _ = handle.hide();
         }
         let (width, height) = rail_surface_dimensions(expanded, false);
         size_and_dock_rail(app, rail, width, height, expanded)?;
-        rail.show().map_err(|e| e.to_string())
+        Ok(())
     })();
     if let Err(error) = prepared {
         // No new state was emitted: restore the bounds of the still-rendered previous surface.
@@ -535,26 +538,40 @@ fn global_rail_reveal_frame(
     if progress < 1.0 {
         return false;
     }
-    let finished = runtime.presentation.lock().is_ok_and(|mut p| {
-        if opening {
-            p.finish_open(generation)
-        } else {
-            p.finish_close(generation)
-        }
-    });
-    if !finished {
-        return true;
-    }
     if opening {
+        // Keep the transition busy through the focus handoff. A Focused(false) event caused by
+        // replacing the compact HWND surface must never be interpreted as outside-click dismissal.
+        if !runtime
+            .presentation
+            .lock()
+            .is_ok_and(|p| p.is_current(generation))
+        {
+            return true;
+        }
         if let Err(error) = set_global_reveal(rail, None) {
             let _ = prepare_global_rail_surface(app, rail, false);
             let _ = app.emit_to("rail", "skribly://global-rail-presentation-error", error);
             return true;
         }
-        let _ = sync_ready_global_handle(app, rail);
+        let _ = rail.show();
         let _ = rail.set_focus();
+        let _ = sync_ready_global_handle(app, rail);
+        if !runtime
+            .presentation
+            .lock()
+            .is_ok_and(|mut p| p.finish_open(generation))
+        {
+            return true;
+        }
         emit_rail_window_state(app, false);
     } else {
+        if !runtime
+            .presentation
+            .lock()
+            .is_ok_and(|mut p| p.finish_close(generation))
+        {
+            return true;
+        }
         // Resize/backdrop restoration happens only after the native surface is fully clipped.
         let (width, height) = rail_surface_dimensions(false, false);
         if let Err(error) = size_and_dock_rail(app, rail, width, height, false) {
@@ -590,6 +607,9 @@ fn acknowledge_global_rail_surface(
         return Ok(false);
     };
     if expanded {
+        // The native host stays hidden while React paints, so an empty Acrylic rectangle cannot
+        // precede the content. Its zero-width region keeps this show non-interactive until reveal.
+        window.show().map_err(|e| e.to_string())?;
         animate_global_rail_surface(app_handle, window, surface_revision, true);
     } else {
         set_global_reveal(&window, None)?;
@@ -610,6 +630,9 @@ fn sync_global_panel_handle(
     let Some(handle) = app_handle.get_webview_window("global-rail-handle") else {
         return Ok(());
     };
+    handle
+        .set_focusable(false)
+        .map_err(|error| format!("Skribli could not keep the panel handle passive: {error}"))?;
     if !expanded {
         handle
             .hide()
@@ -647,6 +670,14 @@ fn sync_global_panel_handle(
         side,
     );
     Ok(())
+}
+
+fn should_dismiss_global_rail(
+    expanded: bool,
+    presentation_busy: bool,
+    still_focused: bool,
+) -> bool {
+    expanded && !presentation_busy && !still_focused
 }
 
 fn global_panel_handle_x(
@@ -1980,6 +2011,28 @@ fn next_note_color(notes: &[SkribNote]) -> String {
     NOTE_COLOR_ROTATION[next_index].into()
 }
 
+fn new_general_skrib(notes: &[SkribNote], timestamp_millis: u128) -> SkribNote {
+    let timestamp_seconds = (timestamp_millis / 1000) as u64;
+    SkribNote {
+        id: format!("skrib-general-{timestamp_millis}"),
+        // Empty context is deliberate: a manual thought must never inherit whichever app happens
+        // to be focused when the user presses New general Skrib.
+        target_process_name: String::new(),
+        target_title: String::new(),
+        rel_x: 0.0,
+        rel_y: 0.0,
+        width: 420.0,
+        height: 360.0,
+        text: String::new(),
+        color: next_note_color(notes),
+        collapsed: false,
+        created_at: timestamp_seconds,
+        updated_at: timestamp_seconds,
+        archived_at: None,
+        deleted_at: None,
+    }
+}
+
 fn relative_note_position(
     target: &TargetWindowInfo,
     physical_x: i32,
@@ -2574,6 +2627,64 @@ fn open_skrib_note_here(
     window.set_focus().map_err(|error| error.to_string())?;
     rail.show().map_err(|error| error.to_string())?;
     Ok(())
+}
+
+#[tauri::command]
+fn create_general_skrib(
+    app_handle: AppHandle,
+    state: State<'_, AppState>,
+    caller: tauri::WebviewWindow,
+) -> Result<String, String> {
+    if caller.label() != "rail" {
+        return Err("A general Skrib can only be created from My Skribs.".into());
+    }
+    let _operation_guard = state.native_window_operation_gate.lock()?;
+    let window = app_handle
+        .get_webview_window("main")
+        .ok_or_else(|| "The note window is unavailable.".to_string())?;
+    let rail = app_handle
+        .get_webview_window("rail")
+        .ok_or_else(|| "My Skribs rail is unavailable.".to_string())?;
+    let timestamp_millis = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis();
+    let note = new_general_skrib(&state.coordinator.get_all_skribs(), timestamp_millis);
+    let note_id = note.id.clone();
+    begin_native_lifecycle_action(&state)?;
+    #[cfg(target_os = "windows")]
+    let metrics = position_detached_note_window(&window, &rail, &note)?;
+    #[cfg(not(target_os = "windows"))]
+    let metrics = {
+        let _ = (&rail, &note);
+        OverlayMetrics::default()
+    };
+    run_persisted_mutation(&state, |coordinator| {
+        coordinator
+            .upsert_skrib(note)
+            .then_some(())
+            .ok_or_else(|| "The general Skrib did not pass native validation.".to_string())
+    })?;
+    set_runtime_active_target_locked(&state, None);
+    let request = detached_open_request(note_id.clone());
+    {
+        let mut runtime = state
+            .note_window_runtime
+            .lock()
+            .map_err(|_| "The note window state is unavailable.".to_string())?;
+        runtime.record_detached_placement(&note_id, &metrics);
+        runtime.record_open_request(request.clone());
+    }
+    let payload = build_mutation_payload(&app_handle, &state, false);
+    app_handle
+        .emit("skribly://overlay-update", payload)
+        .map_err(|error| error.to_string())?;
+    app_handle
+        .emit("skribly://open-note-request", request)
+        .map_err(|error| error.to_string())?;
+    window.show().map_err(|error| error.to_string())?;
+    window.set_focus().map_err(|error| error.to_string())?;
+    Ok(note_id)
 }
 
 #[tauri::command]
@@ -3598,6 +3709,7 @@ pub fn run() {
             get_rail_window_state,
             set_context_rail_peek,
             open_skrib_note_here,
+            create_general_skrib,
             get_open_skrib_note_id,
             close_skrib_note_here,
             show_global_note_rail,
@@ -4396,11 +4508,17 @@ pub fn run() {
             event: tauri::WindowEvent::Focused(false),
             ..
         } if label == "rail"
-            && rail_window_runtime().expanded.load(Ordering::Acquire)
-            && rail_window_runtime()
-                .presentation
-                .lock()
-                .is_ok_and(|p| !p.is_busy()) =>
+            && should_dismiss_global_rail(
+                rail_window_runtime().expanded.load(Ordering::Acquire),
+                rail_window_runtime()
+                    .presentation
+                    .lock()
+                    .map_or(true, |p| p.is_busy()),
+                app_handle
+                    .get_webview_window("rail")
+                    .and_then(|rail| rail.is_focused().ok())
+                    .unwrap_or(false),
+            ) =>
         {
             let _ = app_handle.emit_to("rail", "skribly://global-rail-dismiss", ());
         }
@@ -4970,6 +5088,44 @@ mod tests {
             "rose"
         );
         assert_eq!(next_note_color(&[color_note("last", "sand", 3)]), "yellow");
+    }
+
+    #[test]
+    fn manual_general_notes_have_no_application_context() {
+        let existing = color_note("existing", "yellow", 1);
+        let note = new_general_skrib(&[existing], 1_760_000_000_123);
+
+        assert_eq!(note.id, "skrib-general-1760000000123");
+        assert!(note.target_process_name.is_empty());
+        assert!(note.target_title.is_empty());
+        assert_eq!(note.color, "peach");
+        assert_eq!((note.width, note.height), (420.0, 360.0));
+        assert!(!note.collapsed);
+        assert!(note.is_active());
+    }
+
+    #[test]
+    fn stale_focus_loss_does_not_close_a_focused_or_transitioning_rail() {
+        assert!(!should_dismiss_global_rail(true, true, false));
+        assert!(!should_dismiss_global_rail(true, false, true));
+        assert!(!should_dismiss_global_rail(false, false, false));
+        assert!(should_dismiss_global_rail(true, false, false));
+    }
+
+    #[test]
+    fn outside_panel_handle_cannot_steal_focus_from_the_open_rail() {
+        let config: serde_json::Value =
+            serde_json::from_str(include_str!("../tauri.conf.json")).expect("valid Tauri config");
+        let handle = config["app"]["windows"]
+            .as_array()
+            .and_then(|windows| {
+                windows
+                    .iter()
+                    .find(|window| window["label"] == "global-rail-handle")
+            })
+            .expect("global panel handle window");
+        assert_eq!(handle["focus"], false);
+        assert_eq!(handle["focusable"], false);
     }
 
     #[test]

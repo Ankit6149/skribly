@@ -169,4 +169,32 @@ describe('global widget light dismissal', () => {
     await act(async () => { handle?.click(); });
     expect(native.emitTo).toHaveBeenCalledWith('rail', 'skribly://global-rail-dismiss');
   });
+
+  it('creates a detached general Skrib without passing the focused app as context', async () => {
+    native.invoke.mockImplementation(async (command: string) => {
+      if (command === 'get_rail_window_state') return {
+        contextual: false, expanded: true, revision: 1, dockSide: 'right',
+      };
+      if (command === 'get_all_skribs' || command === 'get_context_rail_notes') return [];
+      if (command === 'get_open_skrib_note_id') return null;
+      if (command === 'create_general_skrib') return 'skrib-general-1';
+      return undefined;
+    });
+    const { ContextRail } = await import('./ContextRail');
+    await act(async () => { root.render(<ContextRail contextual={false} />); });
+    const create = container.querySelector<HTMLButtonElement>('[aria-label="New general Skrib"]');
+    expect(create).not.toBeNull();
+    native.invoke.mockClear();
+
+    await act(async () => { create?.click(); });
+
+    expect(native.invoke).toHaveBeenNthCalledWith(1, 'get_open_skrib_note_id');
+    expect(native.invoke).toHaveBeenNthCalledWith(2, 'create_general_skrib');
+    expect(native.invoke).toHaveBeenNthCalledWith(3, 'set_context_rail_expanded', {
+      contextual: false,
+      expanded: false,
+      noteCount: 0,
+      reducedMotion: false,
+    });
+  });
 });
