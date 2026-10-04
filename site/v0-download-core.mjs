@@ -1,6 +1,34 @@
 const MAGIC = new TextEncoder().encode('SKRV0E01');
 const MINIMUM_PACKAGE_BYTES = 53;
 
+export const OWNER_ARTIFACTS = Object.freeze({
+  desktop: Object.freeze({
+    path: '/assets/skribli-v0-windows.enc',
+    filename: 'Skribli_0.1.53_x64-setup.exe',
+    mime: 'application/vnd.microsoft.portable-executable',
+    label: 'Windows installer',
+    description: 'Windows · x64 · v0.1.53 private owner test',
+    ready: true,
+    next: 'Open the .exe on your Windows PC to install Skribli.',
+  }),
+  android: Object.freeze({
+    path: '/assets/skribli-android-preview-0.0.2-arm64.enc',
+    filename: 'Skribli_Mobile_Preview_0.0.2_arm64.apk',
+    mime: 'application/vnd.android.package-archive',
+    label: 'Android preview APK',
+    description: 'Android 7+ · ARM64 · v0.0.2 private preview. Skribs and reminders work offline; encrypted desktop sync is not connected yet.',
+    ready: true,
+    next: 'Open the .apk on your Android phone. This is a private preview; save notes explicitly.',
+  }),
+});
+
+export function ownerArtifact(platform) {
+  if (!Object.hasOwn(OWNER_ARTIFACTS, platform)) {
+    throw new DownloadFailure('platform', 'Choose Desktop or Android.');
+  }
+  return OWNER_ARTIFACTS[platform];
+}
+
 export class DownloadFailure extends Error {
   constructor(category, message, options = {}) {
     super(message, options);
@@ -9,13 +37,15 @@ export class DownloadFailure extends Error {
   }
 }
 
-export async function fetchEncryptedInstaller(fetchImpl = fetch, timeoutMs = 15_000) {
+export async function fetchEncryptedInstaller(fetchImpl = fetch, timeoutMs = 15_000, platform = 'desktop') {
+  const artifact = ownerArtifact(platform);
+  if (!artifact.ready) throw new DownloadFailure('availability_pending', 'This preview package is not available yet.');
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(new Error('Owner installer request timed out.')), timeoutMs);
   try {
     let response;
     try {
-      response = await fetchImpl('/assets/skribli-v0-windows.enc', { cache: 'no-store', signal: controller.signal });
+      response = await fetchImpl(artifact.path, { cache: 'no-store', signal: controller.signal });
     } catch (cause) {
       const category = controller.signal.aborted ? 'availability_timeout' : 'availability_network';
       throw new DownloadFailure(category, 'The installer could not be reached.', { cause });

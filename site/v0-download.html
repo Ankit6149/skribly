@@ -10,20 +10,35 @@
     <link rel="stylesheet" href="./styles.css" />
     <link rel="stylesheet" href="./ux-polish.css" />
     <link rel="stylesheet" href="./landing-typography.css" />
+    <link rel="stylesheet" href="./v0-download.css" />
     <script type="module" src="./v0-download.js"></script>
   </head>
   <body>
     <main class="legal-page">
       <section class="legal-shell owner-download-shell" aria-labelledby="owner-download-title">
         <img src="./assets/skribly-note-mark-v2.svg" alt="" width="72" height="72" />
-        <p class="overline">SKRIBLI V0.1.51 · PRIVATE OWNER TEST</p>
-        <h1 id="owner-download-title">Enter your download key.</h1>
+        <p class="overline">SKRIBLI · PRIVATE OWNER DOWNLOADS</p>
+        <h1 id="owner-download-title">One key. Your devices.</h1>
         <p class="legal-intro">
-          The Windows installer is encrypted. The key is checked locally in this browser and is never sent
+          Choose your app and enter the same download key. Each package is encrypted. The key is checked locally in this browser and is never sent
           to Skribli, Vercel, GitHub, or any account provider.
         </p>
 
-        <form class="owner-download-form" data-v0-key-form data-installer-filename="Skribli_0.1.51_x64-setup.exe" novalidate>
+        <form class="owner-download-form" data-v0-key-form novalidate>
+          <fieldset class="owner-platforms">
+            <legend>Choose your device</legend>
+            <div class="owner-platform-grid">
+              <label class="owner-platform-card">
+                <input type="radio" name="platform" value="desktop" checked />
+                <span><strong>Desktop</strong><small>Windows · x64</small></span>
+              </label>
+              <label class="owner-platform-card">
+                <input type="radio" name="platform" value="android" />
+                <span><strong>Phone</strong><small>Android · ARM64</small></span>
+              </label>
+            </div>
+          </fieldset>
+          <p class="owner-package-detail" data-v0-package-detail>Windows · x64 · v0.1.53 private owner test</p>
           <label>
             <span>Download key</span>
             <input name="downloadKey" type="password" autocomplete="off" minlength="24" required />
@@ -31,9 +46,9 @@
           <button class="button button-dark" type="submit" data-v0-key-submit>
             Download Windows installer
           </button>
-          <button class="button button-light" type="button" data-v0-retry hidden>Retry installer check</button>
+          <button class="button button-light" type="button" data-v0-retry hidden>Retry package check</button>
           <p class="owner-download-status" data-v0-key-status role="status" aria-live="polite">
-            Enter the key exactly as provided.
+            Enter the key exactly as provided. It is cleared after each download.
           </p>
         </form>
 
