@@ -27,6 +27,8 @@ Site validation and all 19 website tests pass. Local decryption proof matched bo
 
 Desktop v0.1.53 uses null-as-unchanged consent refresh. The matching account migration and Edge function must be explicitly approved and deployed in that order before the desktop artifact is published. Android still requires real-phone launch, save/restart, Back, insets, TalkBack, notification delivery and storage-lifecycle acceptance. Cross-device sync is a reviewed ciphertext contract only; no live transport, key enrollment or sync claim exists.
 
+Automatic Vercel deployment from `main` is disabled in both possible project-root configurations. This lets the integrated source merge without publishing the backend-dependent owner package. After the account migration and Edge deployment are approved and verified, publication must use an explicit reviewed Vercel production deployment; CLI deployments remain available.
+
 ## Next recommended execution and human decision
 
 Approve or decline the prepared production account migration and matching Edge deployment. If approved, deploy and verify that backend, then publish the staged website, fetch both live ciphertexts, decrypt locally and compare the hashes above. Owner installation/runtime acceptance remains open after publication.
