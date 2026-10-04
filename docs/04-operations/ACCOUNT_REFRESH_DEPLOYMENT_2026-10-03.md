@@ -1,11 +1,21 @@
 # Account refresh deployment proposal — 3 October 2026
 
-**Status: awaiting repository-owner approval. Production mutation has not been performed.**
+**Status: executed after repository-owner approval on 4 October 2026. Installed Windows acceptance remains open.**
 
 Part of ARC-66; source review is [PR #275](https://github.com/Ankit6149/skribly/pull/275).
 This proposal is prepared against integration commit `0a9bfb74d2cc15858e78e3694b234f2a71cb7775`.
 Source checkout: `C:\Users\ANKIT BHARDWAJ\Desktop\skribli-desktop`.
 Later packaging/documentation commits do not authorize this backend execution.
+
+## Production execution — 4 October 2026
+
+The repository owner approved the exact migration-then-Edge sequence. Metadata-only preflight confirmed project `bccgutpkjxtogqbywsxr` was healthy on PostgreSQL 17.6 with the three expected prior migrations, `account-session` v4 and `verify_jwt=true`. No customer rows, tokens, password data, secret values, signing-key rows or signing-key getter were read.
+
+Migration source `20261002191011_account_refresh_consistency.sql` was applied once and recorded remotely as migration `20261004180606_account_refresh_consistency`. Post-migration metadata confirmed the four-column RPC result contract, `postgres` ownership, empty search paths, `service_role`-only execution for both public security-definer functions, and no client execution grant for the private comparison helper. Synthetic stable, prerelease, build-metadata and malformed-version checks all passed. No production account claim was invoked.
+
+The reviewed `supabase/functions/account-session/index.ts` source was deployed as `account-session` v5 with `verify_jwt=true`. Retrieved deployed source matches the repository after newline normalization. An unauthenticated POST was rejected by the platform with HTTP 401 before function execution. Security advisors remained unchanged: informational no-policy findings for service-only private tables and the previously documented leaked-password-protection warning.
+
+Executor: Codex coordinator. **Linear write-back pending:** Linear access is unavailable in this session.
 
 ## Observed production state and mismatch
 

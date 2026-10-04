@@ -1,5 +1,15 @@
 # Prepared owner platform refresh — 4 October 2026
 
+## Production execution — 4 October 2026
+
+Repository-owner approval was received after the integrated source merged to `main`. The matching Supabase migration and `account-session` v5 deployment completed and passed the metadata, grant, synthetic-version, source-match and unauthenticated HTTP 401 checks recorded in the account deployment report.
+
+Vercel production deployment `dpl_HD1G8Fp7W2bhy967SwrrjTdcJVLJ` reached READY and was aliased to `https://skribly-desktop.vercel.app`. The live owner page HTML, JavaScript modules and stylesheet match the merged source byte-for-byte. Both live ciphertexts returned HTTP 200, matched their prepared ciphertext hashes, decrypted locally with the external owner key, and matched the certified plaintext hashes below. The key was not printed, committed, uploaded or transmitted.
+
+Installed-device acceptance remains open: Windows install/upgrade and runtime behavior must be checked on the owner laptop, and Android launch/save/restart/Back/insets/TalkBack/notification/storage behavior must be checked on a supported ARM64 phone. Android desktop synchronization remains unconnected and is described that way on the live page.
+
+Executor: Codex coordinator. **Linear write-back pending:** Linear access is unavailable in this session.
+
 ## Execution summary
 
 Windows v0.1.53 and Android v0.0.2 are built, inspected, encrypted with the existing external owner key, and staged for the original owner download page. The production website has not been changed by this preparation.
