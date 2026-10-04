@@ -291,15 +291,18 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
   );
   const [showSavedPulse, setShowSavedPulse] = useState(false);
   const previousSaveStatus = useRef(saveController.getSnapshot().status);
+  const hasSavedContext = Boolean(
+    note.target_process_name.trim() || note.target_title.trim()
+  );
 
   const contextLabel = useMemo(() => {
-    if (!target) return note.target_title || note.target_process_name || 'Current application';
+    if (!target) return note.target_title || note.target_process_name || 'General Skrib';
     return target.title || target.process_name;
   }, [note.target_process_name, note.target_title, target]);
   const contextTabLabel = applicationLabel(target?.process_name || note.target_process_name || '');
 
   useEffect(() => {
-    if (!isTauriAvailable) return;
+    if (!isTauriAvailable || !hasSavedContext) return;
     const processName = target?.process_name || note.target_process_name;
     if (!processName) return;
     let live = true;
@@ -310,7 +313,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
       }
     }).catch(() => undefined);
     return () => { live = false; };
-  }, [isTauriAvailable, note.target_process_name, target?.process_name]);
+  }, [hasSavedContext, isTauriAvailable, note.target_process_name, target?.process_name]);
   const appProcessName = target?.process_name || note.target_process_name;
   const appIconUrl = bundledAppIcon(appProcessName)
     ?? nativeAppIconUrl;
@@ -1276,10 +1279,16 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
         data-surface-size={surfaceSize}
         aria-label={
           canWrite
-            ? isNewNote
-              ? 'Write a new contextual note'
-              : 'Edit a reopened contextual note'
-            : 'View contextual note'
+            ? hasSavedContext
+              ? isNewNote
+                ? 'Write a new contextual note'
+                : 'Edit a reopened contextual note'
+              : isNewNote
+                ? 'Write a new general note'
+                : 'Edit a general note'
+            : hasSavedContext
+              ? 'View contextual note'
+              : 'View general note'
         }
       >
         <NotePlaceHeader
@@ -1288,6 +1297,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
           contextFullAppLabel={contextFullAppLabel}
           appIconUrl={appIconUrl}
           isNewNote={isNewNote}
+          hasSavedContext={hasSavedContext}
           placeDetailOpen={placeDetailOpen}
           onPlaceDetailOpen={setPlaceDetailOpen}
         />
