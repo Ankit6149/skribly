@@ -4,11 +4,11 @@ This directory contains the Skribli product website. It uses plain HTML, CSS, Ja
 
 ## Current state
 
-Skribli is in **Windows release-candidate validation**. Public installer access is disabled.
+Skribli is in **private Windows owner testing**. Public installer access remains disabled.
 
 - Public installer access remains disabled; the owner download page requires a private key to decrypt its installer in the browser.
-- `/api/download` redirects to `/download-unavailable?reason=validation` and never resolves a release asset.
-- `/v0-download` delivers the encrypted v0.1.51 private owner candidate for installed Windows testing. Its key is kept outside the repository and website.
+- No public `/api/download` route is configured. The retired route is not part of the delivery contract.
+- `/v0-download` is prepared to deliver Windows v0.1.53 and Android v0.0.2 private owner candidates with one external key. Production publication remains tied to the matching account-backend approval and exact artifact verification.
 - The landing demonstration shows only the implemented compact editor workflow.
 - The site must not advertise floating dots, attached tabs, checklists, persistent widgets, full-screen overlays, or selective click-through as current behavior.
 - No customer journey should send visitors to the source repository or a release file.
@@ -20,7 +20,7 @@ Skribli is in **Windows release-candidate validation**. Public installer access 
 3. Skribli validates the foreground target and creates or reopens the deterministic contextual note.
 4. Write in the compact editor.
 5. Choose Done, Escape, Ctrl+Enter, or close.
-6. Skribli saves text and rich content, then folds the active note into a movable dot. An untouched empty note is discarded.
+6. By default, Skribli reopens the stable active note for that context, or creates one when no active match exists. The optional multiple-notes preference allows additional notes. Done saves text and rich content and returns the note to the My Skribs rail; an untouched empty note is discarded.
 
 The background process remains in the tray. Nothing from the note remains floating after the editor hides.
 

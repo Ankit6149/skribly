@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { Eraser, Highlighter, MousePointer2, PenLine, Redo2, Trash2, Undo2, X } from 'lucide-react';
 import {
   countInkPoints,
@@ -19,6 +19,11 @@ import {
 } from '../persistence/inkPersistenceCoordinator';
 
 export type { InkPersistenceState } from '../persistence/inkPersistenceCoordinator';
+
+export interface InkCanvasHandle {
+  prepareTransition: () => Promise<boolean>;
+  releaseTransition: () => void;
+}
 
 export interface InkCanvasProps {
   initialStrokes?: InkStroke[];
@@ -90,7 +95,7 @@ function drawStroke(
   context.restore();
 }
 
-export const InkCanvas: React.FC<InkCanvasProps> = ({
+export const InkCanvas = forwardRef<InkCanvasHandle, InkCanvasProps>(({
   initialStrokes = EMPTY_STROKES,
   disabled = false,
   onChange,
@@ -99,10 +104,11 @@ export const InkCanvas: React.FC<InkCanvasProps> = ({
   onPersistenceStateChange,
   onFinishDrawing,
   variant = 'panel',
-}) => {
+}, ref) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const activeStrokeRef = useRef<InkStroke | null>(null);
   const activePointerRef = useRef<number | null>(null);
+  const transitionQuiescedRef = useRef(false);
   const selectionDragRef = useRef<{
     strokeId: string;
     startX: number;
@@ -234,8 +240,30 @@ export const InkCanvas: React.FC<InkCanvasProps> = ({
     void persist(nextStrokes);
   }, [persist, persistenceCoordinator]);
 
+  useImperativeHandle(ref, () => ({
+    prepareTransition: async () => {
+      // Seal synchronously, before React renders disabled controls. Preserve a
+      // pointer's in-progress stroke/selection rather than waiting for pointerup.
+      transitionQuiescedRef.current = true;
+      const selection = selectionDragRef.current;
+      const stroke = activeStrokeRef.current;
+      const pointer = activePointerRef.current;
+      selectionDragRef.current = null;
+      activeStrokeRef.current = null;
+      activePointerRef.current = null;
+      if (pointer !== null && canvasRef.current?.hasPointerCapture(pointer)) {
+        canvasRef.current.releasePointerCapture(pointer);
+      }
+      if (selection) commit(selection.preview);
+      else if (stroke) commit([...persistenceCoordinator.getSnapshot().strokes, stroke]);
+      const saved = await persistenceCoordinator.flush(async (next) => { await onChange?.(next); });
+      return saved && pendingOperationsRef.current === 0;
+    },
+    releaseTransition: () => { transitionQuiescedRef.current = false; },
+  }), [commit, onChange, persistenceCoordinator]);
+
   const handlePointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => {
-    if (disabled || activePointerRef.current !== null || (event.pointerType === 'mouse' && event.button !== 0)) return;
+    if (disabled || transitionQuiescedRef.current || activePointerRef.current !== null || (event.pointerType === 'mouse' && event.button !== 0)) return;
     event.preventDefault();
     event.currentTarget.focus({ preventScroll: true });
     const currentStrokes = persistenceCoordinator.getSnapshot().strokes;
@@ -287,7 +315,7 @@ export const InkCanvas: React.FC<InkCanvasProps> = ({
   };
 
   const handlePointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => {
-    if (activePointerRef.current !== event.pointerId) return;
+    if (transitionQuiescedRef.current || activePointerRef.current !== event.pointerId) return;
     const selection = selectionDragRef.current;
     if (selection && interactionMode === 'select' && !disabled) {
       const rect = event.currentTarget.getBoundingClientRect();
@@ -351,7 +379,7 @@ export const InkCanvas: React.FC<InkCanvasProps> = ({
 
   const undo = () => {
     const currentStrokes = persistenceCoordinator.getSnapshot().strokes;
-    if (disabled || (currentStrokes.length === 0 && undoHistoryRef.current.length === 0)) return;
+    if (disabled || transitionQuiescedRef.current || (currentStrokes.length === 0 && undoHistoryRef.current.length === 0)) return;
     setClearPending(false);
     const previous = undoHistoryRef.current.pop() ?? currentStrokes.slice(0, -1);
     redoHistoryRef.current.push(currentStrokes);
@@ -361,7 +389,7 @@ export const InkCanvas: React.FC<InkCanvasProps> = ({
   };
 
   const redo = () => {
-    if (disabled) return;
+    if (disabled || transitionQuiescedRef.current) return;
     const next = redoHistoryRef.current.pop();
     if (!next) return;
     undoHistoryRef.current.push(persistenceCoordinator.getSnapshot().strokes);
@@ -371,14 +399,14 @@ export const InkCanvas: React.FC<InkCanvasProps> = ({
   };
 
   const deleteSelected = () => {
-    if (disabled || !selectedStrokeId) return;
+    if (disabled || transitionQuiescedRef.current || !selectedStrokeId) return;
     const currentStrokes = persistenceCoordinator.getSnapshot().strokes;
     commit(currentStrokes.filter((stroke) => stroke.id !== selectedStrokeId));
     setSelectedStrokeId(null);
   };
 
   const clear = () => {
-    if (disabled || persistenceCoordinator.getSnapshot().strokes.length === 0) return;
+    if (disabled || transitionQuiescedRef.current || persistenceCoordinator.getSnapshot().strokes.length === 0) return;
     if (!clearPending) {
       setClearPending(true);
       return;
@@ -390,7 +418,7 @@ export const InkCanvas: React.FC<InkCanvasProps> = ({
   const savePreview = async () => {
     const canvas = canvasRef.current;
     const currentStrokes = persistenceCoordinator.getSnapshot().strokes;
-    if (!canvas || currentStrokes.length === 0 || !onSavePreview || isSaving) return;
+    if (disabled || transitionQuiescedRef.current || !canvas || currentStrokes.length === 0 || !onSavePreview || isSaving) return;
     setIsSaving(true);
     setError(null);
     beginOperation();
@@ -588,4 +616,5 @@ export const InkCanvas: React.FC<InkCanvasProps> = ({
       )}
     </section>
   );
-};
+});
+InkCanvas.displayName = 'InkCanvas';

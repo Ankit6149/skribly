@@ -30,3 +30,5 @@ export interface ContextAnchor {
     nearbyTextHash?: string;
   };
 }
+export * from "./mobile";
+export * from "./sync";

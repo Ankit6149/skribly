@@ -4,12 +4,9 @@ module.exports = async function handler(request, response) {
     return response.status(405).json({ error: 'Method not allowed.' });
   }
 
-  const checkoutUrl = process.env.SKRIBLY_CHECKOUT_URL;
-  if (!checkoutUrl) {
-    response.setHeader('Cache-Control', 'no-store');
-    return response.redirect(302, '/#pricing');
-  }
-
   response.setHeader('Cache-Control', 'no-store');
-  return response.redirect(302, checkoutUrl);
+  return response.status(503).json({
+    error: 'Payments are unavailable. Skribli has not opened sales.',
+    code: 'sales_unavailable',
+  });
 };

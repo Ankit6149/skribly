@@ -45,9 +45,11 @@ pub(crate) struct NativeWindowOperationGate(Mutex<()>);
 
 impl NativeWindowOperationGate {
     pub(crate) fn lock(&self) -> Result<MutexGuard<'_, ()>, String> {
-        self.0
-            .lock()
-            .map_err(|_| "The native window operation lock is unavailable.".to_string())
+        // UI callbacks must never wait for a worker that may be waiting on a UI-dispatched getter.
+        // Contention is a cancelled native transaction, not permission to commit without ownership.
+        self.try_lock()?.ok_or_else(|| {
+            "A native window transition is in progress. Please try again.".to_string()
+        })
     }
     pub(crate) fn try_lock(&self) -> Result<Option<MutexGuard<'_, ()>>, String> {
         match self.0.try_lock() {
@@ -257,4 +259,20 @@ pub struct AppState {
     pub(crate) native_window_operation_gate: NativeWindowOperationGate,
     #[cfg(target_os = "windows")]
     pub win_event_pipeline: WinEventPipeline,
+}
+
+#[cfg(test)]
+mod operation_gate_tests {
+    use super::*;
+    #[test]
+    fn contended_native_gate_fails_without_waiting_for_the_owner() {
+        let gate = Arc::new(NativeWindowOperationGate::default());
+        let _owner = gate.lock().unwrap();
+        let contender = gate.clone();
+        let (sender, receiver) = std::sync::mpsc::channel();
+        std::thread::spawn(move || sender.send(contender.lock().is_err()).unwrap());
+        assert!(receiver
+            .recv_timeout(std::time::Duration::from_millis(250))
+            .unwrap());
+    }
 }

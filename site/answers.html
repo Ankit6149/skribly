@@ -23,7 +23,7 @@
             "name": "What is Skribli?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Skribli is a local-first contextual annotation app for Windows with pastel typed and handwritten Skribs, local image/video/document attachments, reminders, and a calendar."
+              "text": "Skribli is a local-first contextual annotation app for Windows with pastel typed and handwritten Skribs, pen/highlighter/eraser tools, local image/video/document attachments, repeating reminders, and a calendar."
             }
           },
           {
@@ -31,7 +31,7 @@
             "name": "What happens when I press the shortcut?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Skribli clears any previous target, captures and revalidates the foreground Windows application, then creates a new note or reopens the deterministic existing note for that context."
+              "text": "By default, Skribli clears any previous target, captures and revalidates the foreground Windows application, then reopens the stable active note for that context or creates one when no match exists. An opt-in preference creates a new note on every press."
             }
           },
           {
@@ -39,7 +39,7 @@
             "name": "Does Skribli leave a floating note after Done?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Yes. Done safely saves and returns the note to one movable My Skribs rail. Here shows the active screen, All shows active saved notes, and Archive keeps completed notes recoverable."
+              "text": "Done safely saves and returns the note to the My Skribs rail. Here shows the active screen, All shows active saved notes, and Archive keeps completed notes recoverable."
             }
           },
           {
@@ -77,17 +77,17 @@
 
         <section>
           <h2>What is Skribli?</h2>
-          <p>Skribli is a local-first contextual annotation app for Windows. The current build supports pastel typed and handwritten Skribs, pen/highlighter/eraser tools, local image/video/document attachments, one-time reminders, and a local calendar. Multiple simultaneous note windows, screenshot pins, checklists, and cloud sync are not claimed as shipped.</p>
+          <p>Skribli is a local-first contextual annotation app for Windows. The current build supports pastel typed and handwritten Skribs, pen/highlighter/eraser tools, local image/video/document attachments, daily, weekday, weekly, and monthly reminders, and a local calendar. Multiple simultaneous note windows, screenshot pins, checklists, and cloud sync are not claimed as shipped.</p>
         </section>
 
         <section>
           <h2>Does the shortcut create a new note or reopen one?</h2>
-          <p>Native code makes that decision explicitly. With no match, Skribli creates one empty note. With an existing match, it reopens that note. Legacy duplicate data is resolved deterministically rather than by collection order. The editor labels the result as new or reopened.</p>
+          <p>By default, the shortcut reopens the stable active note for the matching context, or creates one when no match exists. An opt-in preference creates a new note on every press. Legacy duplicate data is resolved deterministically rather than by collection order. The editor labels the result as new or reopened.</p>
         </section>
 
         <section>
           <h2>What remains on screen after Done?</h2>
-          <p>Done safely saves the active Skrib and returns it to one movable My Skribs rail. Here shows the active screen, All shows every active saved Skrib, and Archive keeps completed notes recoverable. Skribli shows one active editor at a time, while the background process and shortcut remain available in the Windows tray.</p>
+          <p>Done safely saves the active Skrib and returns it to the My Skribs rail. Here shows the active screen, All shows every active saved Skrib, and Archive keeps completed notes recoverable. Skribli shows one active editor at a time, while the background process and shortcut remain available in the Windows tray.</p>
         </section>
 
         <section>

@@ -52,7 +52,8 @@ use platform::windows_events::{WinEventPipeline, WIN_EVENT_QUEUE_CAPACITY};
 use platform::windows_focus::focus_external_window;
 #[cfg(target_os = "windows")]
 use platform::windows_placement::{
-    initialize_compact_window, position_compact_window_for_target, position_detached_note_window,
+    clear_note_tab_bounds as clear_native_note_tab_bounds, initialize_compact_window,
+    position_compact_window_for_target, position_detached_note_window,
     position_note_window_for_target, position_note_workspace_for_target,
     prepare_standard_compact_surface, refresh_note_window_surface, restore_standard_window_surface,
     set_note_tab_bounds as set_native_note_tab_bounds, transition_detached_note_window,
@@ -76,6 +77,21 @@ struct StorageHealthPayload {
     writable: bool,
     revision: u64,
     backup_directory: String,
+}
+
+#[tauri::command]
+fn acknowledge_native_transition(
+    window: WebviewWindow,
+    request_id: String,
+    saved: bool,
+    error: Option<String>,
+) -> Result<(), String> {
+    if window.label() != "main" {
+        return Err("Only the active editor can acknowledge saving.".into());
+    }
+    // Detailed frontend errors stay in its local UI; never log potentially private payloads.
+    let _ = error;
+    desktop::native_transition::acknowledge(&request_id, saved)
 }
 
 #[tauri::command]
@@ -342,12 +358,15 @@ fn prepare_global_rail_surface(
         // The HWND stays alive for WebView painting, but its native region admits no backdrop or hits.
         set_global_reveal(rail, Some(0))?;
         runtime.reveal_width.store(0, Ordering::Release);
+        // Do not expose an empty DWM/Acrylic host while WebView lays out the new surface.
+        // The paint acknowledgement shows this same HWND before its native reveal begins.
+        rail.hide().map_err(|e| e.to_string())?;
         if let Some(handle) = app.get_webview_window("global-rail-handle") {
             let _ = handle.hide();
         }
         let (width, height) = rail_surface_dimensions(expanded, false);
         size_and_dock_rail(app, rail, width, height, expanded)?;
-        rail.show().map_err(|e| e.to_string())
+        Ok(())
     })();
     if let Err(error) = prepared {
         // No new state was emitted: restore the bounds of the still-rendered previous surface.
@@ -519,26 +538,40 @@ fn global_rail_reveal_frame(
     if progress < 1.0 {
         return false;
     }
-    let finished = runtime.presentation.lock().is_ok_and(|mut p| {
-        if opening {
-            p.finish_open(generation)
-        } else {
-            p.finish_close(generation)
-        }
-    });
-    if !finished {
-        return true;
-    }
     if opening {
+        // Keep the transition busy through the focus handoff. A Focused(false) event caused by
+        // replacing the compact HWND surface must never be interpreted as outside-click dismissal.
+        if !runtime
+            .presentation
+            .lock()
+            .is_ok_and(|p| p.is_current(generation))
+        {
+            return true;
+        }
         if let Err(error) = set_global_reveal(rail, None) {
             let _ = prepare_global_rail_surface(app, rail, false);
             let _ = app.emit_to("rail", "skribly://global-rail-presentation-error", error);
             return true;
         }
-        let _ = sync_ready_global_handle(app, rail);
+        let _ = rail.show();
         let _ = rail.set_focus();
+        let _ = sync_ready_global_handle(app, rail);
+        if !runtime
+            .presentation
+            .lock()
+            .is_ok_and(|mut p| p.finish_open(generation))
+        {
+            return true;
+        }
         emit_rail_window_state(app, false);
     } else {
+        if !runtime
+            .presentation
+            .lock()
+            .is_ok_and(|mut p| p.finish_close(generation))
+        {
+            return true;
+        }
         // Resize/backdrop restoration happens only after the native surface is fully clipped.
         let (width, height) = rail_surface_dimensions(false, false);
         if let Err(error) = size_and_dock_rail(app, rail, width, height, false) {
@@ -574,6 +607,9 @@ fn acknowledge_global_rail_surface(
         return Ok(false);
     };
     if expanded {
+        // The native host stays hidden while React paints, so an empty Acrylic rectangle cannot
+        // precede the content. Its zero-width region keeps this show non-interactive until reveal.
+        window.show().map_err(|e| e.to_string())?;
         animate_global_rail_surface(app_handle, window, surface_revision, true);
     } else {
         set_global_reveal(&window, None)?;
@@ -594,6 +630,9 @@ fn sync_global_panel_handle(
     let Some(handle) = app_handle.get_webview_window("global-rail-handle") else {
         return Ok(());
     };
+    handle
+        .set_focusable(false)
+        .map_err(|error| format!("Skribli could not keep the panel handle passive: {error}"))?;
     if !expanded {
         handle
             .hide()
@@ -631,6 +670,14 @@ fn sync_global_panel_handle(
         side,
     );
     Ok(())
+}
+
+fn should_dismiss_global_rail(
+    expanded: bool,
+    presentation_busy: bool,
+    still_focused: bool,
+) -> bool {
+    expanded && !presentation_busy && !still_focused
 }
 
 fn global_panel_handle_x(
@@ -768,90 +815,93 @@ fn schedule_rail_edge_dock(
             }
             std::thread::sleep(Duration::from_millis(50));
         }
-        let state = app_handle.state::<AppState>();
-        let Ok(_operation_guard) = state.native_window_operation_gate.lock() else {
-            return;
-        };
-        if !runtime.movement_is_current(generation) {
-            return;
-        }
-        let Some(rail) = app_handle.get_webview_window(label) else {
-            return;
-        };
-        if !rail.is_visible().unwrap_or(false) {
-            return;
-        }
-        let Ok(current_position) = rail.outer_position() else {
-            return;
-        };
-        let Ok(window_size) = rail.outer_size() else {
-            return;
-        };
-        let runtime = if contextual {
-            context_rail_window_runtime()
-        } else {
-            rail_window_runtime()
-        };
-        if let Some(context) = runtime.context_placement() {
-            let scale = rail.scale_factor().unwrap_or(1.0);
-            let margin = (CONTEXT_RAIL_EDGE_MARGIN_LOGICAL * scale).round() as i32;
-            let contained = clamp_rail_position_to_bounds(
-                current_position,
-                window_size,
-                context.bounds,
-                margin,
-            );
-            let _ = rail.set_always_on_top(true);
-            if contained != current_position {
-                let _ = set_rail_position(&app_handle, &rail, contained, runtime);
+        let dock_handle = app_handle.clone();
+        let _ = app_handle.run_on_main_thread(move || {
+            let state = dock_handle.state::<AppState>();
+            let Ok(_operation_guard) = state.native_window_operation_gate.lock() else {
+                return;
+            };
+            if !runtime.movement_is_current(generation) {
+                return;
             }
-            runtime.record_context_placement(context.target_hwnd, context.bounds, contained);
+            let Some(rail) = dock_handle.get_webview_window(label) else {
+                return;
+            };
+            if !rail.is_visible().unwrap_or(false) {
+                return;
+            }
+            let Ok(current_position) = rail.outer_position() else {
+                return;
+            };
+            let Ok(window_size) = rail.outer_size() else {
+                return;
+            };
+            let runtime = if contextual {
+                context_rail_window_runtime()
+            } else {
+                rail_window_runtime()
+            };
+            if let Some(context) = runtime.context_placement() {
+                let scale = rail.scale_factor().unwrap_or(1.0);
+                let margin = (CONTEXT_RAIL_EDGE_MARGIN_LOGICAL * scale).round() as i32;
+                let contained = clamp_rail_position_to_bounds(
+                    current_position,
+                    window_size,
+                    context.bounds,
+                    margin,
+                );
+                let _ = rail.set_always_on_top(true);
+                if contained != current_position {
+                    let _ = set_rail_position(&dock_handle, &rail, contained, runtime);
+                }
+                runtime.record_context_placement(context.target_hwnd, context.bounds, contained);
+                runtime.docked_left.store(
+                    rail_dock_side(contained, window_size, context.bounds, margin)
+                        == RailDockSide::Left,
+                    Ordering::Release,
+                );
+                emit_rail_window_state(&dock_handle, true);
+                return;
+            }
+            if contextual {
+                return;
+            }
+            let monitor = rail
+                .current_monitor()
+                .ok()
+                .flatten()
+                .or_else(|| rail.primary_monitor().ok().flatten());
+            let Some(monitor) = monitor else {
+                return;
+            };
+            let work_area = monitor.work_area();
+            let scale = monitor.scale_factor();
+            let margin = (GLOBAL_RAIL_EDGE_MARGIN_LOGICAL * scale).round() as i32;
+            let bounds = RailDockBounds {
+                x: work_area.position.x,
+                y: work_area.position.y,
+                width: i32::try_from(work_area.size.width).unwrap_or(i32::MAX),
+                height: i32::try_from(work_area.size.height).unwrap_or(i32::MAX),
+            };
+            let docked = nearest_rail_edge_position(current_position, window_size, bounds, margin);
+            let _ = rail.set_always_on_top(true);
+            if docked != current_position {
+                let _ = set_rail_position(&dock_handle, &rail, docked, runtime);
+            }
             runtime.docked_left.store(
-                rail_dock_side(contained, window_size, context.bounds, margin)
-                    == RailDockSide::Left,
+                rail_dock_side(docked, window_size, bounds, margin) == RailDockSide::Left,
                 Ordering::Release,
             );
-            emit_rail_window_state(&app_handle, true);
-            return;
-        }
-        if contextual {
-            return;
-        }
-        let monitor = rail
-            .current_monitor()
-            .ok()
-            .flatten()
-            .or_else(|| rail.primary_monitor().ok().flatten());
-        let Some(monitor) = monitor else {
-            return;
-        };
-        let work_area = monitor.work_area();
-        let scale = monitor.scale_factor();
-        let margin = (GLOBAL_RAIL_EDGE_MARGIN_LOGICAL * scale).round() as i32;
-        let bounds = RailDockBounds {
-            x: work_area.position.x,
-            y: work_area.position.y,
-            width: i32::try_from(work_area.size.width).unwrap_or(i32::MAX),
-            height: i32::try_from(work_area.size.height).unwrap_or(i32::MAX),
-        };
-        let docked = nearest_rail_edge_position(current_position, window_size, bounds, margin);
-        let _ = rail.set_always_on_top(true);
-        if docked != current_position {
-            let _ = set_rail_position(&app_handle, &rail, docked, runtime);
-        }
-        runtime.docked_left.store(
-            rail_dock_side(docked, window_size, bounds, margin) == RailDockSide::Left,
-            Ordering::Release,
-        );
-        let _ = sync_global_panel_handle(
-            &app_handle,
-            docked,
-            window_size,
-            bounds,
-            scale,
-            runtime.expanded.load(Ordering::Acquire),
-        );
-        emit_rail_window_state(&app_handle, false);
+            let _ = sync_global_panel_handle(
+                &dock_handle,
+                docked,
+                window_size,
+                bounds,
+                scale,
+                runtime.expanded.load(Ordering::Acquire),
+            );
+            emit_rail_window_state(&dock_handle, false);
+        });
     });
 }
 
@@ -1184,18 +1234,6 @@ fn sync_context_presence_event(app: &AppHandle, state: &AppState, event: u32, hw
                 hide_context_note_rail(app);
             }
         }
-    }
-}
-
-fn hide_main_note_window_as_lifecycle_action(app_handle: &AppHandle, state: &AppState) {
-    let Ok(_operation_guard) = state.native_window_operation_gate.lock() else {
-        return;
-    };
-    let Ok(generation) = begin_native_lifecycle_action(state) else {
-        return;
-    };
-    if native_lifecycle_action_is_current(state, generation) {
-        hide_main_note_window(app_handle);
     }
 }
 
@@ -1798,10 +1836,15 @@ fn list_target_windows() -> Vec<TargetWindowInfo> {
 }
 
 #[tauri::command]
-fn get_app_icon(process_name: String) -> Option<String> {
+async fn get_app_icon(process_name: String) -> Option<String> {
     #[cfg(target_os = "windows")]
     {
-        platform::windows_icons::app_icon_data_url(&process_name)
+        tauri::async_runtime::spawn_blocking(move || {
+            platform::windows_icons::app_icon_data_url(&process_name)
+        })
+        .await
+        .ok()
+        .flatten()
     }
     #[cfg(not(target_os = "windows"))]
     {
@@ -1966,6 +2009,28 @@ fn next_note_color(notes: &[SkribNote]) -> String {
         .map(|index| (index + 1) % NOTE_COLOR_ROTATION.len())
         .unwrap_or(0);
     NOTE_COLOR_ROTATION[next_index].into()
+}
+
+fn new_general_skrib(notes: &[SkribNote], timestamp_millis: u128) -> SkribNote {
+    let timestamp_seconds = (timestamp_millis / 1000) as u64;
+    SkribNote {
+        id: format!("skrib-general-{timestamp_millis}"),
+        // Empty context is deliberate: a manual thought must never inherit whichever app happens
+        // to be focused when the user presses New general Skrib.
+        target_process_name: String::new(),
+        target_title: String::new(),
+        rel_x: 0.0,
+        rel_y: 0.0,
+        width: 420.0,
+        height: 360.0,
+        text: String::new(),
+        color: next_note_color(notes),
+        collapsed: false,
+        created_at: timestamp_seconds,
+        updated_at: timestamp_seconds,
+        archived_at: None,
+        deleted_at: None,
+    }
 }
 
 fn relative_note_position(
@@ -2209,12 +2274,12 @@ fn set_active_target(
     build_overlay_payload(&app_handle, &state, false)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn get_storage_health(state: State<'_, AppState>) -> StorageHealthPayload {
     state.storage_health()
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn export_storage_diagnostics(state: State<'_, AppState>) -> Result<String, String> {
     let storage = state
         .storage
@@ -2226,7 +2291,7 @@ fn export_storage_diagnostics(state: State<'_, AppState>) -> Result<String, Stri
         .map_err(|error| error.to_string())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn upsert_skrib_note(
     app_handle: AppHandle,
     state: State<'_, AppState>,
@@ -2241,7 +2306,7 @@ fn upsert_skrib_note(
     Ok(build_mutation_payload(&app_handle, &state, false))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn update_skrib_position(
     app_handle: AppHandle,
     state: State<'_, AppState>,
@@ -2260,7 +2325,7 @@ fn update_skrib_position(
     Ok(build_mutation_payload(&app_handle, &state, false))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn update_skrib_text(
     app_handle: AppHandle,
     state: State<'_, AppState>,
@@ -2276,7 +2341,7 @@ fn update_skrib_text(
     Ok(build_mutation_payload(&app_handle, &state, false))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn update_skrib_color(
     app_handle: AppHandle,
     state: State<'_, AppState>,
@@ -2320,7 +2385,7 @@ fn get_context_rail_notes(state: State<'_, AppState>) -> Vec<SkribNote> {
     context_rail_notes_for_active_target(&state)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn get_note_preferences(
     app_handle: AppHandle,
 ) -> Result<core::preferences::NotePreferences, String> {
@@ -2332,7 +2397,7 @@ fn get_note_preferences(
     core::preferences::load(&path)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn set_note_preferences(
     app_handle: AppHandle,
     multiple_notes_per_context: bool,
@@ -2345,7 +2410,7 @@ fn set_note_preferences(
     core::preferences::save(&path, multiple_notes_per_context)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn launch_supported_target_application(process_name: String) -> Result<String, String> {
     desktop::target_launch::launch(&process_name)
 }
@@ -2565,6 +2630,64 @@ fn open_skrib_note_here(
 }
 
 #[tauri::command]
+fn create_general_skrib(
+    app_handle: AppHandle,
+    state: State<'_, AppState>,
+    caller: tauri::WebviewWindow,
+) -> Result<String, String> {
+    if caller.label() != "rail" {
+        return Err("A general Skrib can only be created from My Skribs.".into());
+    }
+    let _operation_guard = state.native_window_operation_gate.lock()?;
+    let window = app_handle
+        .get_webview_window("main")
+        .ok_or_else(|| "The note window is unavailable.".to_string())?;
+    let rail = app_handle
+        .get_webview_window("rail")
+        .ok_or_else(|| "My Skribs rail is unavailable.".to_string())?;
+    let timestamp_millis = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis();
+    let note = new_general_skrib(&state.coordinator.get_all_skribs(), timestamp_millis);
+    let note_id = note.id.clone();
+    begin_native_lifecycle_action(&state)?;
+    #[cfg(target_os = "windows")]
+    let metrics = position_detached_note_window(&window, &rail, &note)?;
+    #[cfg(not(target_os = "windows"))]
+    let metrics = {
+        let _ = (&rail, &note);
+        OverlayMetrics::default()
+    };
+    run_persisted_mutation(&state, |coordinator| {
+        coordinator
+            .upsert_skrib(note)
+            .then_some(())
+            .ok_or_else(|| "The general Skrib did not pass native validation.".to_string())
+    })?;
+    set_runtime_active_target_locked(&state, None);
+    let request = detached_open_request(note_id.clone());
+    {
+        let mut runtime = state
+            .note_window_runtime
+            .lock()
+            .map_err(|_| "The note window state is unavailable.".to_string())?;
+        runtime.record_detached_placement(&note_id, &metrics);
+        runtime.record_open_request(request.clone());
+    }
+    let payload = build_mutation_payload(&app_handle, &state, false);
+    app_handle
+        .emit("skribly://overlay-update", payload)
+        .map_err(|error| error.to_string())?;
+    app_handle
+        .emit("skribly://open-note-request", request)
+        .map_err(|error| error.to_string())?;
+    window.show().map_err(|error| error.to_string())?;
+    window.set_focus().map_err(|error| error.to_string())?;
+    Ok(note_id)
+}
+
+#[tauri::command]
 fn close_skrib_note_here(app_handle: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
     let _operation_guard = state.native_window_operation_gate.lock()?;
     let (detached, has_active_note) = state
@@ -2595,7 +2718,7 @@ fn close_skrib_note_here(app_handle: AppHandle, state: State<'_, AppState>) -> R
     Ok(())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn toggle_skrib_collapse(
     app_handle: AppHandle,
     state: State<'_, AppState>,
@@ -3096,6 +3219,42 @@ fn set_skrib_tab_bounds(
     }
 }
 
+#[tauri::command]
+fn clear_skrib_tab_bounds(
+    app_handle: AppHandle,
+    state: State<'_, AppState>,
+    note_id: String,
+) -> Result<(), String> {
+    let _operation_guard = state.native_window_operation_gate.lock()?;
+    let runtime = state
+        .note_window_runtime
+        .lock()
+        .map_err(|_| "The note window state is unavailable.")?;
+    if runtime
+        .active_note_id()
+        .is_some_and(|active| active != note_id)
+    {
+        return Ok(());
+    }
+    drop(runtime);
+    #[cfg(target_os = "windows")]
+    {
+        let window = app_handle
+            .get_webview_window("main")
+            .ok_or_else(|| "The note window is unavailable.".to_string())?;
+        let size = window.inner_size().map_err(|error| error.to_string())?;
+        if size.width < 200 || size.height < 200 {
+            return Ok(());
+        }
+        clear_native_note_tab_bounds(&window)
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = app_handle;
+        Ok(())
+    }
+}
+
 fn resize_skrib_window(
     app_handle: AppHandle,
     state: State<'_, AppState>,
@@ -3222,7 +3381,7 @@ fn lifecycle_timestamp_seconds() -> u64 {
         .max(1)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn trash_skrib_note(
     app_handle: AppHandle,
     state: State<'_, AppState>,
@@ -3239,7 +3398,7 @@ fn trash_skrib_note(
     Ok(build_mutation_payload(&app_handle, &state, false))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn archive_skrib_note(
     app_handle: AppHandle,
     state: State<'_, AppState>,
@@ -3257,7 +3416,7 @@ fn archive_skrib_note(
     Ok(build_mutation_payload(&app_handle, &state, false))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn restore_archived_skrib_note(
     app_handle: AppHandle,
     state: State<'_, AppState>,
@@ -3274,7 +3433,7 @@ fn restore_archived_skrib_note(
     Ok(build_mutation_payload(&app_handle, &state, false))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn discard_empty_skrib_note(
     app_handle: AppHandle,
     state: State<'_, AppState>,
@@ -3290,7 +3449,7 @@ fn discard_empty_skrib_note(
     Ok(build_mutation_payload(&app_handle, &state, false))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn restore_skrib_note(
     app_handle: AppHandle,
     state: State<'_, AppState>,
@@ -3306,7 +3465,7 @@ fn restore_skrib_note(
     Ok(build_mutation_payload(&app_handle, &state, false))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn permanently_delete_skrib_note(
     app_handle: AppHandle,
     state: State<'_, AppState>,
@@ -3321,7 +3480,7 @@ fn permanently_delete_skrib_note(
     Ok(build_mutation_payload(&app_handle, &state, false))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn get_all_skribs(state: State<'_, AppState>) -> Vec<SkribNote> {
     let mut skribs = state.coordinator.get_all_skribs();
     skribs.sort_by(|left, right| {
@@ -3359,30 +3518,30 @@ fn account_data_directory(app_handle: &AppHandle) -> Result<std::path::PathBuf, 
         .map_err(|error| format!("Skribli could not locate its account data directory: {error}"))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn account_session_get(app_handle: AppHandle, key: String) -> Result<Option<String>, String> {
     let directory = account_data_directory(&app_handle)?;
     account::get_session_value(&directory, key.trim())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn account_session_set(app_handle: AppHandle, key: String, value: String) -> Result<(), String> {
     let directory = account_data_directory(&app_handle)?;
     account::set_session_value(&directory, key.trim(), &value)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn account_session_remove(app_handle: AppHandle, key: String) -> Result<(), String> {
     let directory = account_data_directory(&app_handle)?;
     account::remove_session_value(&directory, key.trim())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn get_account_device_claim() -> Result<String, String> {
     account::device_claim()
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn apply_account_entitlement(token: String) -> Result<license::LicenseStatus, String> {
     let trimmed = token.trim();
     if trimmed.is_empty() || trimmed.len() > 16 * 1024 {
@@ -3392,12 +3551,23 @@ fn apply_account_entitlement(token: String) -> Result<license::LicenseStatus, St
 }
 
 #[tauri::command]
-fn clear_account_entitlement(
+async fn clear_account_entitlement(
     app_handle: AppHandle,
-    state: State<'_, AppState>,
 ) -> Result<license::LicenseStatus, String> {
-    let status = license::deactivate_global()?;
-    clear_active_target_and_hide_note(&app_handle, &state);
+    // DPAPI and durable generation replacement must not stall a native window callback.
+    let status = tauri::async_runtime::spawn_blocking(license::deactivate_global)
+        .await
+        .map_err(|_| "The local account worker is unavailable. Retry signing out.".to_string())??;
+    let ui_handle = app_handle.clone();
+    app_handle
+        .run_on_main_thread(move || {
+            let state = ui_handle.state::<AppState>();
+            clear_active_target_and_hide_note(&ui_handle, &state);
+        })
+        .map_err(|_| {
+            "The account was cleared, but the editor could not be hidden. Retry signing out."
+                .to_string()
+        })?;
     Ok(status)
 }
 
@@ -3514,6 +3684,7 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .manage(app_state)
         .invoke_handler(tauri::generate_handler![
+            acknowledge_native_transition,
             get_foreground_window,
             list_target_windows,
             get_app_icon,
@@ -3538,6 +3709,7 @@ pub fn run() {
             get_rail_window_state,
             set_context_rail_peek,
             open_skrib_note_here,
+            create_general_skrib,
             get_open_skrib_note_id,
             close_skrib_note_here,
             show_global_note_rail,
@@ -3550,6 +3722,7 @@ pub fn run() {
             set_skrib_window_dimensions,
             begin_skrib_manual_resize,
             set_skrib_tab_bounds,
+            clear_skrib_tab_bounds,
             trash_skrib_note,
             archive_skrib_note,
             discard_empty_skrib_note,
@@ -3652,33 +3825,41 @@ pub fn run() {
                             continue;
                         }
 
-                        let state_hk = app_handle_hk.state::<AppState>();
-                        let preferences = match get_note_preferences(app_handle_hk.clone()) {
+                        let transition = match desktop::native_transition::flush_active_editor(&app_handle_hk, "shortcut") {
+                            Ok(ticket) => ticket,
+                            Err(message) => { let _ = app_handle_hk.emit("skribly://hotkey-error", message); continue; }
+                        };
+                        let transaction_handle = app_handle_hk.clone();
+                        let transaction_coordinator = coordinator_hk.clone();
+                        let _ = app_handle_hk.run_on_main_thread(move || {
+                        let state_hk = transaction_handle.state::<AppState>();
+                        let preferences = match get_note_preferences(transaction_handle.clone()) {
                             Ok(value) => value,
                             Err(message) => {
-                                let _ = app_handle_hk.emit("skribly://hotkey-error", message);
-                                continue;
+                                let _ = transaction_handle.emit("skribly://hotkey-error", message);
+                                return;
                             }
                         };
                         let _operation_guard = match state_hk.native_window_operation_gate.lock() {
                             Ok(guard) => guard,
                             Err(message) => {
-                                let _ = app_handle_hk.emit("skribly://hotkey-error", message);
-                                continue;
+                                let _ = transaction_handle.emit("skribly://hotkey-error", message);
+                                return;
                             }
                         };
-                        clear_active_target_and_hide_note_locked(&app_handle_hk, &state_hk);
+                        if !transition.can_commit(&state_hk) { return; }
+                        clear_active_target_and_hide_note_locked(&transaction_handle, &state_hk);
 
                         #[cfg(target_os = "windows")]
                         let capture = match capture_foreground_target() {
                             Ok(capture) => capture,
                             Err(error) => {
                                 present_target_capture_error_locked(
-                                    &app_handle_hk,
+                                    &transaction_handle,
                                     &state_hk,
                                     error,
                                 );
-                                continue;
+                                return;
                             }
                         };
 
@@ -3687,32 +3868,32 @@ pub fn run() {
                             Ok(target) => target,
                             Err(error) => {
                                 present_target_capture_error_locked(
-                                    &app_handle_hk,
+                                    &transaction_handle,
                                     &state_hk,
                                     error,
                                 );
-                                continue;
+                                return;
                             }
                         };
 
                         #[cfg(not(target_os = "windows"))]
-                        let target = match coordinator_hk.get_active_target() {
+                        let target = match transaction_coordinator.get_active_target() {
                             Some(target) => target,
-                            None => continue,
+                            None => return,
                         };
 
-                        let Some(window) = app_handle_hk.get_webview_window("main") else {
-                            let _ = app_handle_hk.emit(
+                        let Some(window) = transaction_handle.get_webview_window("main") else {
+                            let _ = transaction_handle.emit(
                                 "skribly://hotkey-error",
                                 "The compact editor window is unavailable. Restart Skribli and try again.",
                             );
-                            continue;
+                            return;
                         };
 
                         #[cfg(target_os = "windows")]
-                        clear_target_capture_error(&app_handle_hk);
+                        clear_target_capture_error(&transaction_handle);
                         let primary = core::preferences::primary_shortcut_note(
-                            &coordinator_hk.get_all_skribs(), &target, &preferences,
+                            &transaction_coordinator.get_all_skribs(), &target, &preferences,
                         );
                         let reopening = primary.is_some();
                         set_runtime_active_target_locked(&state_hk, Some(target.clone()));
@@ -3720,8 +3901,8 @@ pub fn run() {
                         let lifecycle_generation = match begin_native_lifecycle_action(&state_hk) {
                             Ok(generation) => generation,
                             Err(message) => {
-                                let _ = app_handle_hk.emit("skribly://hotkey-error", message);
-                                continue;
+                                let _ = transaction_handle.emit("skribly://hotkey-error", message);
+                                return;
                             }
                         };
                         #[cfg(target_os = "windows")]
@@ -3732,11 +3913,11 @@ pub fn run() {
                             ) {
                                 Ok(metrics) => metrics,
                                 Err(message) => {
-                                    let _ = app_handle_hk.emit(
+                                    let _ = transaction_handle.emit(
                                         "skribly://hotkey-error",
                                         format!("Skribli could not place the compact editor safely: {message}"),
                                     );
-                                    continue;
+                                    return;
                                 }
                             };
                         #[cfg(not(target_os = "windows"))]
@@ -3764,7 +3945,7 @@ pub fn run() {
                             width: COMPACT_WINDOW_LOGICAL_WIDTH as f64,
                             height: COMPACT_WINDOW_LOGICAL_HEIGHT as f64,
                             text: String::new(),
-                            color: next_note_color(&coordinator_hk.get_all_skribs()),
+                            color: next_note_color(&transaction_coordinator.get_all_skribs()),
                             collapsed: false,
                             created_at: (timestamp / 1000) as u64,
                             updated_at: (timestamp / 1000) as u64,
@@ -3779,8 +3960,8 @@ pub fn run() {
                                     "The new note did not pass native validation.".to_string()
                                 })
                         }) {
-                            let _ = app_handle_hk.emit("skribly://storage-error", message);
-                            continue;
+                            let _ = transaction_handle.emit("skribly://storage-error", message);
+                            return;
                         }
                         #[cfg(target_os = "windows")]
                         let native_open_current = record_note_placement_if_current(
@@ -3792,7 +3973,7 @@ pub fn run() {
                             &initial_metrics,
                         )
                         .unwrap_or(false);
-                        let matching_note_count = coordinator_hk
+                        let matching_note_count = transaction_coordinator
                             .get_skribs_for_target(&target)
                             .into_iter()
                             .filter(SkribNote::is_active)
@@ -3809,14 +3990,14 @@ pub fn run() {
                                 lifecycle_generation,
                             )
                         {
-                            continue;
+                            return;
                         }
                         if let Ok(mut runtime) = state_hk.note_window_runtime.lock() {
                             runtime.record_open_request(open_request.clone());
                         }
-                        let payload = build_overlay_payload(&app_handle_hk, &state_hk, false);
-                        let _ = app_handle_hk.emit("skribly://global-shortcut", payload);
-                        let _ = app_handle_hk.emit("skribly://open-note-request", open_request);
+                        let payload = build_overlay_payload(&transaction_handle, &state_hk, false);
+                        let _ = transaction_handle.emit("skribly://global-shortcut", payload);
+                        let _ = transaction_handle.emit("skribly://open-note-request", open_request);
                         let _ = window.show();
                         let _ = window.set_focus();
                         // The editor already represents this new thought. Introduce the
@@ -3824,7 +4005,9 @@ pub fn run() {
                         if let Ok(mut suppressed) = context_rail_window_runtime().suppressed_context.lock() {
                             *suppressed = Some(target.context_fingerprint());
                         }
-                        hide_context_note_rail(&app_handle_hk);
+                        hide_context_note_rail(&transaction_handle);
+                        transition.finish(true);
+                        });
                     }
                 }
             });
@@ -4325,11 +4508,17 @@ pub fn run() {
             event: tauri::WindowEvent::Focused(false),
             ..
         } if label == "rail"
-            && rail_window_runtime().expanded.load(Ordering::Acquire)
-            && rail_window_runtime()
-                .presentation
-                .lock()
-                .is_ok_and(|p| !p.is_busy()) =>
+            && should_dismiss_global_rail(
+                rail_window_runtime().expanded.load(Ordering::Acquire),
+                rail_window_runtime()
+                    .presentation
+                    .lock()
+                    .map_or(true, |p| p.is_busy()),
+                app_handle
+                    .get_webview_window("rail")
+                    .and_then(|rail| rail.is_focused().ok())
+                    .unwrap_or(false),
+            ) =>
         {
             let _ = app_handle.emit_to("rail", "skribly://global-rail-dismiss", ());
         }
@@ -4393,10 +4582,15 @@ pub fn run() {
         } if label == "main" || label == "home" || label == "library" => {
             api.prevent_close();
             if label == "main" {
-                let state = app_handle.state::<AppState>();
-                hide_main_note_window_as_lifecycle_action(app_handle, &state);
+                desktop::native_transition::request_close(app_handle);
             } else if let Some(window) = app_handle.get_webview_window(label.as_str()) {
                 let _ = window.hide();
+            }
+        }
+        RunEvent::ExitRequested { api, .. } => {
+            if !desktop::native_transition::quit_approved() {
+                api.prevent_exit();
+                desktop::native_transition::request_quit(app_handle);
             }
         }
         RunEvent::Exit => {
@@ -4897,6 +5091,44 @@ mod tests {
     }
 
     #[test]
+    fn manual_general_notes_have_no_application_context() {
+        let existing = color_note("existing", "yellow", 1);
+        let note = new_general_skrib(&[existing], 1_760_000_000_123);
+
+        assert_eq!(note.id, "skrib-general-1760000000123");
+        assert!(note.target_process_name.is_empty());
+        assert!(note.target_title.is_empty());
+        assert_eq!(note.color, "peach");
+        assert_eq!((note.width, note.height), (420.0, 360.0));
+        assert!(!note.collapsed);
+        assert!(note.is_active());
+    }
+
+    #[test]
+    fn stale_focus_loss_does_not_close_a_focused_or_transitioning_rail() {
+        assert!(!should_dismiss_global_rail(true, true, false));
+        assert!(!should_dismiss_global_rail(true, false, true));
+        assert!(!should_dismiss_global_rail(false, false, false));
+        assert!(should_dismiss_global_rail(true, false, false));
+    }
+
+    #[test]
+    fn outside_panel_handle_cannot_steal_focus_from_the_open_rail() {
+        let config: serde_json::Value =
+            serde_json::from_str(include_str!("../tauri.conf.json")).expect("valid Tauri config");
+        let handle = config["app"]["windows"]
+            .as_array()
+            .and_then(|windows| {
+                windows
+                    .iter()
+                    .find(|window| window["label"] == "global-rail-handle")
+            })
+            .expect("global panel handle window");
+        assert_eq!(handle["focus"], false);
+        assert_eq!(handle["focusable"], false);
+    }
+
+    #[test]
     fn native_window_positions_round_trip_as_target_relative_logical_units() {
         let target = TargetWindowInfo {
             hwnd_val: 1,
@@ -5276,17 +5508,19 @@ mod tests {
 
         let (attempted_tx, attempted_rx) = std::sync::mpsc::channel();
         let second_gate = gate.clone();
-        let second_order = order.clone();
         let second = std::thread::spawn(move || {
-            attempted_tx.send(()).expect("signal second attempt");
-            let _second_guard = second_gate.lock().expect("second native transaction");
-            second_order.lock().expect("order").push("second-enter");
+            attempted_tx
+                .send(second_gate.lock().is_err())
+                .expect("signal rejected concurrent attempt");
         });
-
-        attempted_rx.recv().expect("second attempted the gate");
+        assert!(attempted_rx
+            .recv_timeout(Duration::from_millis(250))
+            .expect("contender must not block UI"));
+        second.join().expect("second transaction");
         order.lock().expect("order").push("first-commit");
         drop(first_guard);
-        second.join().expect("second transaction");
+        let _retry_guard = gate.lock().expect("retry after first commit");
+        order.lock().expect("order").push("second-enter");
 
         assert_eq!(
             *order.lock().expect("order"),

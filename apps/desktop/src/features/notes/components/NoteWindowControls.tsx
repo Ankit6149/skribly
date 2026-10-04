@@ -1,4 +1,5 @@
 import type { ResizeDirection } from '../model/noteSurfaceTypes';
+import { useState } from 'react';
 
 const RESIZE_DIRECTIONS: ResizeDirection[] = [
   'NorthWest',
@@ -18,6 +19,7 @@ export function NoteWindowControls({
   cancelConfirmationOpen,
   onFinish,
   onResize,
+  onKeyboardResize,
 }: {
   storageWritable: boolean;
   detached: boolean;
@@ -29,7 +31,9 @@ export function NoteWindowControls({
   cancelConfirmationOpen: boolean;
   onFinish: () => void;
   onResize: (direction: ResizeDirection) => void;
+  onKeyboardResize?: (key: string, largeStep: boolean) => void;
 }) {
+  const [resizeMode, setResizeMode] = useState<ResizeDirection | null>(null);
   return (
     <>
       <button
@@ -64,13 +68,30 @@ export function NoteWindowControls({
             .replace(/([A-Z])/g, ' $1')
             .trim()
             .toLowerCase()} corner`}
-          title="Drag this corner until the Skrib feels right"
+          title="Drag to resize. Keyboard: Enter, then arrows; Escape to finish."
+          aria-describedby="composer-resize-instructions"
+          aria-pressed={resizeMode === direction}
+          disabled={isFinishing || hasPendingRichOperation || hasUnsavedInk || deleteConfirming || cancelConfirmationOpen}
+          onBlur={() => setResizeMode(null)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault(); event.stopPropagation();
+              setResizeMode((active) => active === direction ? null : direction);
+            } else if (resizeMode === direction && event.key.startsWith('Arrow')) {
+              event.preventDefault(); event.stopPropagation();
+              onKeyboardResize?.(event.key, event.shiftKey);
+            } else if (resizeMode === direction && event.key === 'Escape') {
+              event.preventDefault(); event.stopPropagation(); setResizeMode(null);
+            }
+          }}
           onPointerDown={(event) => {
             event.preventDefault();
             onResize(direction);
           }}
         />
       ))}
+      <span id="composer-resize-instructions" className="sr-only">Press Enter to resize. Left and right change width; up and down change height. Hold Shift for a larger step. Escape finishes resizing.</span>
+      <span className="sr-only" role="status">{resizeMode ? 'Keyboard resize active' : ''}</span>
     </>
   );
 }

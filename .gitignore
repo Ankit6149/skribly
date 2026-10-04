@@ -17,6 +17,9 @@ artifacts/
 
 # Tauri generated
 apps/desktop/src-tauri/gen/
+apps/android/src-tauri/gen/
+*.apk
+*.aab
 
 # Environment
 .env

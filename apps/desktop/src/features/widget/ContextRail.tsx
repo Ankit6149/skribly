@@ -7,7 +7,7 @@ import './styles/widget.css';
 import {
   applicationLabel, groupNotesForRail, isActiveRailNote, isArchivedRailNote, railPillCount,
 } from './model/contextRailModel';
-import { openNoteHere, openNoteInSavedContext } from './lifecycle/openNoteContext';
+import { openNoteHere, openNoteInSavedContext, prepareNoteSwitch } from './lifecycle/openNoteContext';
 import type { OpenNoteProgress } from './lifecycle/openNoteContext';
 import { OpeningJourney } from './components/OpeningJourney';
 import { useNativeDrag } from '../../shared/hooks/useNativeDrag';
@@ -409,6 +409,25 @@ export const ContextRail: React.FC<{ contextual: boolean; previewNotes?: SkribNo
     }
   };
 
+  const createGeneralSkrib = async () => {
+    if (opening.current || contextualDock) return;
+    opening.current = true;
+    setMessage(null);
+    let created = false;
+    try {
+      await prepareNoteSwitch();
+      const noteId = await invoke<string>('create_general_skrib');
+      setActiveNoteId(noteId);
+      created = true;
+    } catch (reason) {
+      setMessage(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      opening.current = false;
+      if (dismissAfterOpening.current) dismissAfterOpening.current = false;
+      if (created) void toggleCollapsed();
+    }
+  };
+
   const selectScope = (nextScope: RailScope) => {
     setScope(nextScope); setSelectedGroupKey(null); setMenuOpen(false);
   };
@@ -457,6 +476,7 @@ export const ContextRail: React.FC<{ contextual: boolean; previewNotes?: SkribNo
         dockSide={dockSide}
         menuOpen={menuOpen}
         closing={closing}
+        {...(!contextualDock ? { onCreate: () => void createGeneralSkrib() } : {})}
         onToggleMenu={() => setMenuOpen((open) => !open)}
         onCollapse={() => void toggleCollapsed()}
       />

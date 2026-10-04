@@ -3,8 +3,10 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 use std::fs;
-use std::io::Write;
 use std::path::Path;
+use std::sync::Mutex;
+
+static SESSION_IO: Mutex<()> = Mutex::new(());
 
 const SESSION_VAULT_VERSION: u32 = 1;
 const SESSION_FILE_NAME: &str = "account-session.dpapi";
@@ -147,63 +149,61 @@ fn unprotect(_bytes: &[u8]) -> Result<Vec<u8>, String> {
     Err("Protected account sessions are currently available on Windows only.".to_string())
 }
 
-fn load_vault(app_data_dir: &Path) -> Result<SessionVault, String> {
-    let path = vault_path(app_data_dir);
-    if !path.exists() {
-        return Ok(SessionVault {
-            version: SESSION_VAULT_VERSION,
-            values: BTreeMap::new(),
-        });
-    }
-
-    let encrypted = fs::read(&path)
-        .map_err(|error| format!("The protected account session could not be read: {error}"))?;
-    let cleartext = unprotect(&encrypted)?;
-    let vault: SessionVault = serde_json::from_slice(&cleartext).map_err(|_| {
-        "The protected account session is damaged and was not overwritten.".to_string()
-    })?;
+fn decode_vault(encrypted: &[u8]) -> Result<Option<SessionVault>, String> {
+    let Ok(cleartext) = unprotect(encrypted) else {
+        return Ok(None);
+    };
+    let Ok(vault) = serde_json::from_slice::<SessionVault>(&cleartext) else {
+        return Ok(None);
+    };
     if vault.version != SESSION_VAULT_VERSION {
-        return Err(format!(
-            "Protected account session version {} is not supported.",
-            vault.version
-        ));
+        return Err(
+            "Unsupported protected account session version; existing generations were preserved."
+                .into(),
+        );
     }
-    Ok(vault)
+    if vault.values.iter().any(|(key, value)| {
+        validate_storage_key(key).is_err()
+            || value.is_empty()
+            || value.len() > MAX_SESSION_VALUE_BYTES
+    }) {
+        return Ok(None);
+    }
+    Ok(Some(vault))
+}
+
+fn load_vault(app_data_dir: &Path) -> Result<SessionVault, String> {
+    Ok(
+        crate::core::durable_state::load(&vault_path(app_data_dir), decode_vault)?.unwrap_or_else(
+            || SessionVault {
+                version: SESSION_VAULT_VERSION,
+                values: BTreeMap::new(),
+            },
+        ),
+    )
 }
 
 fn save_vault(app_data_dir: &Path, vault: &SessionVault) -> Result<(), String> {
-    fs::create_dir_all(app_data_dir)
-        .map_err(|error| format!("The account data directory could not be created: {error}"))?;
     let cleartext = serde_json::to_vec(vault)
         .map_err(|_| "The account session could not be encoded safely.".to_string())?;
     let encrypted = protect(&cleartext)?;
-    let path = vault_path(app_data_dir);
-    let temporary = path.with_extension("dpapi.tmp");
-    let mut file = fs::File::create(&temporary)
-        .map_err(|error| format!("The protected account session could not be staged: {error}"))?;
-    file.write_all(&encrypted)
-        .and_then(|_| file.sync_all())
-        .map_err(|error| format!("The protected account session could not be saved: {error}"))?;
-
-    if path.exists() {
-        let backup = path.with_extension("dpapi.bak");
-        fs::copy(&path, &backup).map_err(|error| {
-            format!("The previous protected account session could not be backed up: {error}")
-        })?;
-        fs::remove_file(&path).map_err(|error| {
-            format!("The protected account session could not be replaced: {error}")
-        })?;
-    }
-    fs::rename(&temporary, &path)
-        .map_err(|error| format!("The protected account session could not be committed: {error}"))
+    crate::core::durable_state::save(&vault_path(app_data_dir), &encrypted, |bytes| {
+        Ok(decode_vault(bytes)?.is_some())
+    })
 }
 
 pub fn get_session_value(app_data_dir: &Path, key: &str) -> Result<Option<String>, String> {
+    let _guard = SESSION_IO
+        .lock()
+        .map_err(|_| "Protected account persistence is unavailable.".to_string())?;
     validate_storage_key(key)?;
     Ok(load_vault(app_data_dir)?.values.get(key).cloned())
 }
 
 pub fn set_session_value(app_data_dir: &Path, key: &str, value: &str) -> Result<(), String> {
+    let _guard = SESSION_IO
+        .lock()
+        .map_err(|_| "Protected account persistence is unavailable.".to_string())?;
     validate_storage_key(key)?;
     if value.is_empty() || value.len() > MAX_SESSION_VALUE_BYTES {
         return Err(
@@ -216,10 +216,17 @@ pub fn set_session_value(app_data_dir: &Path, key: &str, value: &str) -> Result<
 }
 
 pub fn remove_session_value(app_data_dir: &Path, key: &str) -> Result<(), String> {
+    let _guard = SESSION_IO
+        .lock()
+        .map_err(|_| "Protected account persistence is unavailable.".to_string())?;
     validate_storage_key(key)?;
     let mut vault = load_vault(app_data_dir)?;
     if vault.values.remove(key).is_some() {
         save_vault(app_data_dir, &vault)?;
+        let path = vault_path(app_data_dir);
+        let committed = fs::read(&path)
+            .map_err(|_| "The removed session could not be verified.".to_string())?;
+        crate::core::durable_state::replace_backup(&path, &committed)?;
     }
     Ok(())
 }
@@ -328,6 +335,16 @@ mod tests {
         remove_session_value(&directory, &flow_key).expect("remove protected PKCE verifier");
         assert_eq!(
             get_session_value(&directory, &flow_key).expect("confirm verifier removal"),
+            None
+        );
+        remove_session_value(&directory, base).expect("remove session on sign-out");
+        fs::remove_file(vault_path(&directory)).expect("simulate missing primary after sign-out");
+        assert_eq!(
+            get_session_value(&directory, base).expect("recover redacted backup"),
+            None
+        );
+        assert_eq!(
+            get_session_value(&directory, &flow_key).expect("removed verifier stays absent"),
             None
         );
         fs::remove_dir_all(&directory).expect("remove protected-session test directory");

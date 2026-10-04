@@ -38,6 +38,10 @@ export const LibraryImportPanel: React.FC<LibraryImportPanelProps> = ({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successSummary, setSuccessSummary] = useState<ImportApplySummary | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const importTriggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const inertSiblings = useRef(new Map<HTMLElement, boolean>());
   const pendingPreviewRequest = useRef<string | null>(null);
   const pendingApplyRequest = useRef<string | null>(null);
   const responseTimeout = useRef<number | null>(null);
@@ -178,6 +182,41 @@ export const LibraryImportPanel: React.FC<LibraryImportPanelProps> = ({
 
   const isBusy = phase === 'reading' || phase === 'previewing' || phase === 'applying';
 
+  const closePanel = useCallback(() => {
+    if (isBusy) return;
+    setIsOpen(false);
+    resetSelectedFile();
+    window.requestAnimationFrame(() => importTriggerRef.current?.focus());
+  }, [isBusy, resetSelectedFile]);
+
+  useEffect(() => {
+    const dialog = panelRef.current;
+    if (!isOpen || !dialog) return;
+
+    const changed = inertSiblings.current;
+    let current: HTMLElement = dialog;
+    while (current.parentElement && current.parentElement !== document.body) {
+      const parent = current.parentElement;
+      for (const sibling of Array.from(parent.children)) {
+        if (sibling === current || !(sibling instanceof HTMLElement)) continue;
+        if (!changed.has(sibling)) changed.set(sibling, sibling.inert || sibling.hasAttribute('inert'));
+        sibling.inert = true;
+        sibling.setAttribute('inert', '');
+      }
+      current = parent;
+    }
+
+    (closeButtonRef.current ?? dialog).focus();
+    return () => {
+      for (const [element, wasInert] of changed) {
+        element.inert = wasInert;
+        if (wasInert) element.setAttribute('inert', '');
+        else element.removeAttribute('inert');
+      }
+      changed.clear();
+    };
+  }, [isOpen]);
+
   return (
     <div className="library-import-control">
       <input
@@ -191,6 +230,7 @@ export const LibraryImportPanel: React.FC<LibraryImportPanelProps> = ({
         }}
       />
       <button
+        ref={importTriggerRef}
         type="button"
         className="library-button secondary"
         onClick={() => {
@@ -203,7 +243,39 @@ export const LibraryImportPanel: React.FC<LibraryImportPanelProps> = ({
       </button>
 
       {isOpen && (
-        <section className="library-import-panel" aria-labelledby="library-import-title">
+        <section
+          ref={panelRef}
+          className="library-import-panel"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="library-import-title"
+          tabIndex={-1}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') {
+              event.preventDefault();
+              closePanel();
+              return;
+            }
+            if (event.key !== 'Tab') return;
+            const focusable = Array.from(panelRef.current?.querySelectorAll<HTMLElement>(
+              'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex]:not([tabindex="-1"])'
+            ) ?? []).filter((element) => !element.classList.contains('sr-only') && !element.hidden);
+            if (focusable.length === 0) {
+              event.preventDefault();
+              panelRef.current?.focus();
+              return;
+            }
+            const first = focusable[0]!;
+            const last = focusable[focusable.length - 1]!;
+            if (event.shiftKey && document.activeElement === first) {
+              event.preventDefault();
+              last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+              event.preventDefault();
+              first.focus();
+            }
+          }}
+        >
           <header>
             <div>
               <span className="library-kicker">PORTABLE LOCAL RESTORE</span>
@@ -213,18 +285,22 @@ export const LibraryImportPanel: React.FC<LibraryImportPanelProps> = ({
               </p>
             </div>
             <button
+              ref={closeButtonRef}
               type="button"
               className="library-import-close"
-              onClick={() => {
-                setIsOpen(false);
-                resetSelectedFile();
-              }}
+              onClick={closePanel}
               disabled={isBusy}
               aria-label="Close import panel"
             >
               ×
             </button>
           </header>
+
+          {phase === 'applying' && (
+            <p className="library-import-close-reason" role="status">
+              Keep this panel open while Skribli applies the verified import and confirms the local records.
+            </p>
+          )}
 
           <div className="library-import-file-row">
             <div>

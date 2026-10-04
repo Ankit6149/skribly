@@ -1,5 +1,10 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "git": {
+    "deploymentEnabled": {
+      "main": false
+    }
+  },
   "ignoreCommand": "node ../scripts/validation/vercel-ignore.mjs",
   "cleanUrls": true,
   "trailingSlash": false,

@@ -64,7 +64,7 @@ Windows/Tauri adapters -> Rust application coordination -> Rust domain/storage r
 
 ## Window and target lifecycle
 
-When the shortcut is pressed, Rust captures the foreground window before Skribli receives focus. The captured HWND and process identity are revalidated before a note request is created. Unsupported, hidden, destroyed, minimized, self, shell/system, missing-identity, invalid-bounds, changed-foreground, expired, or changed-process targets fail closed with typed user-safe errors.
+When the default `Ctrl + Shift + Space` shortcut is pressed, Rust captures the foreground window before Skribli receives focus. The captured HWND and process identity are revalidated before a note request is created. With multiple notes per context disabled, Skribli reopens the stable active contextual note or creates one if none matches; the opt-in preference permits additional notes. Unsupported, hidden, destroyed, minimized, self, shell/system, missing-identity, invalid-bounds, changed-foreground, expired, or changed-process targets fail closed with typed user-safe errors.
 
 For a supported target, the coordinator returns an explicit `created` or `reopened` request. Legacy duplicate matches are resolved deterministically. The compact editor is placed inside the selected monitor's usable work area using current DPI; no full-screen overlay coordinate system is used by the active product flow.
 
@@ -120,14 +120,15 @@ Skrib content remains local. Account and entitlement calls do not upload note te
 
 ## Current capability limits
 
-The current Windows v0 supports editable pen/highlighter/eraser strokes, approved local image/video/document attachments, local one-time and recurring reminders, a calendar/agenda, and permission-gated Windows notifications. The following capabilities remain deferred and must not be inferred from prototypes, types, or planning documents:
+The current Windows v0 supports editable pen/highlighter/eraser strokes, checklist insertion in the editor, approved local image/video/document attachments, local one-time and recurring reminders, a calendar/agenda, and permission-gated Windows notifications. The note palette has eight approved colours: yellow, peach, mint, sky, lavender, rose, aqua, and sand. The following capabilities remain deferred and must not be inferred from prototypes, types, or planning documents:
 
-- shapes, arrows, pins, labels, and checklists;
+- shapes, arrows, pins, labels, persistent checklist data models, and checklist lifecycle semantics;
 - cloud-delivered reminders;
 - native portable export/import of IndexedDB ink, attachments, and reminders;
 - multiple simultaneous native note/dot windows;
 - browser URL/DOM anchoring or a production browser bridge;
 - macOS binaries or permissions;
+- a loadable Chromium extension or production browser bridge; its workspace is typecheck-only scaffolding;
 - cloud sync, payments, collaboration, AI, OCR, mobile clients, or third-party plugins.
 
 Dormant experimental code is tracked by issue #23 and must remain outside current product claims. New capability work requires an approved domain model, permission/network declaration, migration and recovery behavior, accessibility states, deterministic tests, and an explicit release gate.

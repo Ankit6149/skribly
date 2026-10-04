@@ -3,7 +3,7 @@ import { emit, listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { SkribNote } from '../notes/model/noteTypes';
-import { deleteOrphanedRichContent } from '../notes/persistence/richContentStore';
+import { deleteRichContent } from '../notes/persistence/richContentStore';
 import { deleteRemindersForNote } from '../reminders/persistence/reminderStore';
 import { useLicenseStore } from '../licensing/state/licenseStore';
 import type { StorageHealthPayload } from '../notes/state/skribStore';
@@ -88,7 +88,8 @@ export const LibraryHost: React.FC<{
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [storageWritable, setStorageWritable] = useState(true);
+  const [storageWritable, setStorageWritable] = useState(false);
+  const [storageStatus, setStorageStatus] = useState<'loading' | 'writable' | 'readOnly' | 'error'>('loading');
   const [lifecycleError, setLifecycleError] = useState<string | null>(null);
   const [mutatingNoteId, setMutatingNoteId] = useState<string | null>(null);
   const [permanentDeleteNoteId, setPermanentDeleteNoteId] = useState<string | null>(null);
@@ -104,7 +105,7 @@ export const LibraryHost: React.FC<{
   const hasLoaded = useRef(false);
   const licenseStatus = useLicenseStore((state) => state.status);
   const licenceAllowsWrite = !licenseStatus.enforcementEnabled || licenseStatus.canWrite;
-  const canMutate = storageWritable && licenceAllowsWrite;
+  const canMutate = storageStatus === 'writable' && storageWritable && licenceAllowsWrite;
 
   const clearExportTimeout = useCallback(() => {
     if (pendingExportTimeout.current !== null) {
@@ -116,15 +117,24 @@ export const LibraryHost: React.FC<{
   const refreshNotes = useCallback(async () => {
     const generation = ++refreshGeneration.current;
     if (!hasLoaded.current) setIsLoading(true);
+    setStorageStatus('loading');
+    setStorageWritable(false);
     try {
-      const [loaded, storageHealth] = await Promise.all([
+      const [notesResult, storageResult] = await Promise.allSettled([
         invoke<SkribNote[]>('get_all_skribs'),
         invoke<StorageHealthPayload>('get_storage_health'),
       ]);
       if (generation !== refreshGeneration.current) return;
+      if (notesResult.status === 'rejected') throw notesResult.reason;
       hasLoaded.current = true;
-      setNotes(sortLibraryNotes(loaded));
-      setStorageWritable(storageHealth.writable);
+      setNotes(sortLibraryNotes(notesResult.value));
+      if (storageResult.status === 'fulfilled') {
+        setStorageWritable(storageResult.value.writable);
+        setStorageStatus(storageResult.value.writable ? 'writable' : 'readOnly');
+      } else {
+        setStorageWritable(false);
+        setStorageStatus('error');
+      }
       setLoadError(null);
     } catch (error) {
       if (generation !== refreshGeneration.current) return;
@@ -307,7 +317,7 @@ export const LibraryHost: React.FC<{
         try {
           const remainingNotes = await invoke<SkribNote[]>('get_all_skribs');
           await Promise.all([
-            deleteOrphanedRichContent(remainingNotes.map((remainingNote) => remainingNote.id)),
+            deleteRichContent(note.id, remainingNotes.map((remainingNote) => remainingNote.id)),
             deleteRemindersForNote(note.id),
           ]);
         } catch (reason) {
@@ -457,8 +467,14 @@ export const LibraryHost: React.FC<{
           Trash <span>{trashNotes.length.toLocaleString()}</span>
         </button>
         {!canMutate && (
-          <span className="library-readonly-status" role="status">
-            Read-only: notes, previews, and exports remain available
+        <span className="library-readonly-status" role="status">
+            {storageStatus === 'loading'
+              ? 'Checking storage: note actions are temporarily unavailable'
+              : storageStatus === 'error'
+                ? 'Could not verify storage: notes and exports remain available; writes are blocked'
+                : storageStatus === 'readOnly' || !licenceAllowsWrite
+                  ? 'Read-only: notes, previews, and exports remain available'
+                  : 'Storage is read-only until write access is verified'}
           </span>
         )}
       </nav>
@@ -466,6 +482,7 @@ export const LibraryHost: React.FC<{
       {lifecycleView === 'calendar' && (
         <ReminderCalendar
           notes={activeNotes}
+          canWrite={canMutate}
           onOpenNote={(noteId) => {
             if (onOpenReminderNote) {
               onOpenReminderNote(noteId);
@@ -569,7 +586,7 @@ export const LibraryHost: React.FC<{
               </button>
             </div>
           ) : (
-            <div className="library-results" role="listbox" aria-label="Matching saved notes">
+            <div className="library-results" role="group" aria-label="Matching saved notes">
               {filteredNotes.map((note) => {
                 const selected = note.id === selectedNoteId;
                 const retention = isTrashedNote(note)
@@ -578,8 +595,7 @@ export const LibraryHost: React.FC<{
                 return (
                   <button
                     type="button"
-                    role="option"
-                    aria-selected={selected}
+                    aria-pressed={selected}
                     key={note.id}
                     className={`library-note-row skrib-color-${note.color} ${selected ? 'selected' : ''}`}
                     onClick={() => setSelectedNoteId(note.id)}

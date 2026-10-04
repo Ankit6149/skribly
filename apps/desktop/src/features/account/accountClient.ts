@@ -1,3 +1,4 @@
+import { version as desktopVersion } from '../../../src-tauri/tauri.conf.json';
 import { invoke } from '@tauri-apps/api/core';
 import { emit } from '@tauri-apps/api/event';
 import { createClient, type Session, type SupabaseClient, type SupportedStorage } from '@supabase/supabase-js';
@@ -32,6 +33,25 @@ const DEFAULT_ACCOUNT_PUBLISHABLE_KEY = 'sb_publishable_bjfNO80Oxx-gjuOAl8uXEA_Y
 export const ACCOUNT_OPERATION_TIMEOUT_MS = 20_000;
 
 const browserFallbackStorage = new Map<string, string>();
+let nativeEntitlementQueue: Promise<void> = Promise.resolve();
+
+function serializeNativeEntitlementMutation<T>(operation: () => Promise<T>): Promise<T> {
+  const result = nativeEntitlementQueue.then(operation, operation);
+  nativeEntitlementQueue = result.then(() => undefined, () => undefined);
+  return result;
+}
+
+export function applyEntitlementWhenCurrent(
+  token: string,
+  isCurrent: () => boolean,
+  apply: (signedToken: string) => Promise<LicenseStatus> = (signedToken) =>
+    invoke<LicenseStatus>('apply_account_entitlement', { token: signedToken })
+): Promise<LicenseStatus> {
+  return serializeNativeEntitlementMutation(() => {
+    if (!isCurrent()) throw new Error('This account check was superseded.');
+    return apply(token);
+  });
+}
 
 function isTauriRuntime(): boolean {
   return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
@@ -76,7 +96,7 @@ export function readAccountConfiguration(): AccountConfiguration | null {
   const entitlementFunction = String(
     import.meta.env.VITE_SKRIBLY_ACCOUNT_FUNCTION || 'account-session'
   ).trim();
-  const appVersion = String(import.meta.env.VITE_SKRIBLY_APP_VERSION || '0.1.32').trim();
+  const appVersion = String(import.meta.env.VITE_SKRIBLY_APP_VERSION || desktopVersion).trim();
 
   if (
     !isHttpsUrl(supabaseUrl) ||
@@ -192,7 +212,8 @@ export function parseEntitlementPayload(value: unknown): EntitlementFunctionPayl
 
 export async function claimAccountEntitlement(
   session: Session,
-  productUpdatesOptIn: boolean
+  productUpdatesOptIn: boolean | null,
+  isCurrent: () => boolean = () => true
 ): Promise<AccountEntitlementResult> {
   const configured = getAccountClient();
   if (!configured) throw new Error('Skribli account services are not configured in this build.');
@@ -215,9 +236,8 @@ export async function claimAccountEntitlement(
   if (error) throw new Error(error.message || 'Skribli could not verify this account and device.');
 
   const payload = parseEntitlementPayload(data);
-  const status = await invoke<LicenseStatus>('apply_account_entitlement', {
-    token: payload.signedEntitlement,
-  });
+  if (!isCurrent()) throw new Error('This account check was superseded.');
+  const status = await applyEntitlementWhenCurrent(payload.signedEntitlement, isCurrent);
   await emit('skribly://license-status-request');
   return {
     status,
@@ -225,4 +245,8 @@ export async function claimAccountEntitlement(
     productUpdatesOptIn: payload.productUpdatesOptIn,
     announcements: payload.announcements,
   };
+}
+
+export function clearAccountEntitlement(): Promise<void> {
+  return serializeNativeEntitlementMutation(() => invoke('clear_account_entitlement'));
 }

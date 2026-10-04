@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, GripHorizontal, MoreHorizontal } from 'lucide-react';
+import { ChevronLeft, ChevronRight, GripHorizontal, MoreHorizontal, Plus } from 'lucide-react';
 import skribliLogo from '../../../../src-tauri/icons/128x128.png';
 
 export function WidgetHeader({
@@ -8,6 +8,7 @@ export function WidgetHeader({
   dockSide,
   menuOpen,
   closing,
+  onCreate,
   onToggleMenu,
   onCollapse,
 }: {
@@ -17,6 +18,7 @@ export function WidgetHeader({
   dockSide: 'left' | 'right';
   menuOpen: boolean;
   closing: boolean;
+  onCreate?: () => void;
   onToggleMenu: () => void;
   onCollapse: () => void;
 }) {
@@ -33,6 +35,17 @@ export function WidgetHeader({
         </span>
       </span>
       <span className="ribbon-rail-actions">
+        {!contextual && onCreate && (
+          <button
+            type="button"
+            disabled={closing}
+            onClick={onCreate}
+            aria-label="New general Skrib"
+            title="New Skrib without an app"
+          >
+            <Plus size={16} aria-hidden="true" />
+          </button>
+        )}
         {contextual && (
           <button
             type="button"

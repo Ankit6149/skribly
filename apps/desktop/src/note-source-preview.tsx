@@ -10,8 +10,8 @@ import '@fontsource/manrope/700.css';
 import '@fontsource/manrope/800.css';
 import '@fontsource/kalam/400.css';
 import '@fontsource/kalam/700.css';
-import { SkribComposer } from './features/notes/SkribComposer';
 import { useLicenseStore } from './features/licensing/state/licenseStore';
+import { SkribComposer } from './features/notes/SkribComposer';
 import { useSkribStore } from './features/notes/state/skribStore';
 import type { SkribNote } from './features/notes/model/noteTypes';
 import './styles/global.css';
@@ -27,7 +27,7 @@ import './features/notes/styles/living-paper-polish.css';
 const previewChrome = new URLSearchParams(window.location.search).get('app') === 'chrome';
 
 const note: SkribNote = {
-  id: 'source-preview-2026-09-27',
+  id: `synthetic-note-${crypto.randomUUID()}`,
   target_process_name: previewChrome ? 'chrome.exe' : 'Code.exe',
   target_title: 'Skribli — Visual Studio Code',
   rel_x: 0,
@@ -43,7 +43,10 @@ const note: SkribNote = {
 
 if (previewChrome) note.target_title = 'Google Chrome';
 
-useLicenseStore.getState().init();
+// Explicit synthetic fixture: no native or persistent account initialization.
+useLicenseStore.setState({ isReady: true, status: { ...useLicenseStore.getState().status,
+  mode: 'beta', enforcementEnabled: false, canWrite: true, deviceId: 'SYNTHETIC-PREVIEW', message: 'Synthetic preview' } });
+useSkribStore.setState({ isTauriAvailable: false, storageWritable: true });
 useSkribStore.setState({ skribs: [note], allSkribs: [note] });
 document.documentElement.dataset.skriblyWindow = 'note';
 const style = document.createElement('style');
@@ -64,4 +67,4 @@ function NoteSourcePreview() {
     : <p style={{ color: '#fff', fontFamily: 'sans-serif' }}>Sample note closed. Reload to start again.</p>;
 }
 
-ReactDOM.createRoot(document.getElementById('root')!).render(<NoteSourcePreview />);
+ReactDOM.createRoot(document.getElementById('root')!).render(<React.StrictMode><NoteSourcePreview /></React.StrictMode>);

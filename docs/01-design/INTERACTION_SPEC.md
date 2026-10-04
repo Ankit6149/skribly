@@ -26,7 +26,10 @@ If capture, identity, placement, native validation, or persistence fails, Skribl
 - The editor reports **Unsaved**, **Saving**, **Saved**, or **Save failed** truthfully.
 - A failed save keeps the exact draft visible and provides **Retry saving**.
 - The current typed-note limit is 20,000 Unicode characters.
-- The editor exposes **Type**, **Draw**, **Files**, and **Reminder** tools. Draw, Files, and Reminder request a bounded larger workspace; returning to Type restores the compact editor size.
+- The editor has one thin **Type / Draw** pill. Its labels use the normal interface font (DM Sans); typed note content and existing handwritten surfaces use Kalam. Files and reminders remain reachable through the existing attachment/tool controls.
+- Selecting text exposes bold, italic, underline, text colour and highlight controls. Formatting does not change the note's Kalam font.
+- Typing `/` inserts a literal slash and opens the command picker. Only selecting an enabled command removes that slash; dismissing the picker preserves ordinary text.
+- Clipboard images and supported PDF files can be pasted into the note as local attachments. Pending attachment writes participate in the save/close barrier.
 - Every new note rotates through yellow, peach, mint, sky, lavender, rose, aqua and sand. The colour control selects these theme pastels.
 - **Done**, **Escape**, **Ctrl + Enter**, and Close flush the latest draft before hiding the active editor.
 - The contextual indicator unfolds a horizontal note shelf. Hover or keyboard focus reveals a preview; an explicit click opens the actual note here, while a separate action returns to its app.
@@ -41,6 +44,7 @@ An empty typed draft is discarded only when the Skrib also has no saved drawing,
 - Mouse, touchpad, touch, and pen pointer input produces bounded normalized editable strokes.
 - The user can choose drawing colour and width, undo the latest stroke, or confirm a two-step clear.
 - Stroke changes are serialized into the note's local rich-content record so a slower write cannot replace a newer drawing.
+- Native shortcut switching, OS close and Quit seal the active stroke and wait for typed/rich/ink/attachment writes within one 3.5-second save budget. Failure or timeout cancels the transition and retains the draft; an acknowledgement is sent only after durable completion. Installed pen, compositor and timing acceptance remains required.
 
 ## Files
 

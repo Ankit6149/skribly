@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { emit } from '@tauri-apps/api/event';
 import {
   CalendarClock,
@@ -78,30 +78,33 @@ export const NoteReminderPanel: React.FC<NoteReminderPanelProps> = ({
   const [notificationPermission, setNotificationPermission] =
     useState<ReminderNotificationPermission | null>(null);
   const operationInProgressRef = useRef(false);
+  const refreshGeneration = useRef(0);
   const panelBusy = isScheduling || mutatingId !== null;
 
-  const reportError = (reason: unknown) => {
+  const reportError = useCallback((reason: unknown) => {
     const message = reason instanceof Error ? reason.message : String(reason);
     setError(message);
     onError?.(message);
-  };
+  }, [onError]);
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
+    const generation = ++refreshGeneration.current;
     try {
       const all = await listReminders();
+      if (generation !== refreshGeneration.current) return;
       setReminders(all.filter((reminder) => reminder.noteId === noteId));
       setError(null);
     } catch (reason) {
-      reportError(reason);
+      if (generation === refreshGeneration.current) reportError(reason);
     } finally {
-      setIsLoading(false);
+      if (generation === refreshGeneration.current) setIsLoading(false);
     }
-  };
+  }, [noteId, reportError]);
 
   useEffect(() => {
     setIsLoading(true);
     void refresh();
-  }, [noteId]);
+  }, [noteId, refresh]);
 
   const activeReminder = useMemo(
     () => reminders.find((reminder) => reminder.status === 'upcoming' || reminder.status === 'overdue'),

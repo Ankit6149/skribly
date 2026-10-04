@@ -866,22 +866,21 @@ fn write_bytes_synced(path: &Path, bytes: &[u8]) -> Result<(), StorageError> {
 
 #[cfg(target_os = "windows")]
 fn atomic_replace(source: &Path, destination: &Path) -> Result<(), StorageError> {
-    use std::os::windows::ffi::OsStrExt;
     use windows::core::PCWSTR;
     use windows::Win32::Storage::FileSystem::{
         MoveFileExW, MOVEFILE_REPLACE_EXISTING, MOVEFILE_WRITE_THROUGH,
     };
 
-    let source_wide = source
-        .as_os_str()
-        .encode_wide()
-        .chain(std::iter::once(0))
-        .collect::<Vec<_>>();
-    let destination_wide = destination
-        .as_os_str()
-        .encode_wide()
-        .chain(std::iter::once(0))
-        .collect::<Vec<_>>();
+    let source_wide = crate::core::durable_state::windows_replace_path(source)
+        .map_err(|error| io_error("normalize storage generation source", source, error))?;
+    let destination_wide =
+        crate::core::durable_state::windows_replace_path(destination).map_err(|error| {
+            io_error(
+                "normalize storage generation destination",
+                destination,
+                error,
+            )
+        })?;
 
     unsafe {
         MoveFileExW(

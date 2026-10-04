@@ -1,0 +1,7 @@
+# Tauri rewrites this manifest during bundling; keep its checkout bytes canonical.
+apps/desktop/src-tauri/Cargo.toml text eol=lf
+# Interface Lab integrity records hash the exact checkout/deployment bytes.
+site/interface-lab-v3.html text eol=lf
+site/interface-lab-v3.js text eol=lf
+site/interface-lab-v3.css text eol=lf
+site/interface-lab-assets.json text eol=lf

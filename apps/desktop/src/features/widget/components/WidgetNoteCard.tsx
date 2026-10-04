@@ -9,6 +9,10 @@ function noteTitle(note: SkribNote): string {
   return firstLine || note.target_title || applicationLabel(note.target_process_name);
 }
 
+function notePreview(note: SkribNote): string {
+  return note.text.trim().split(/\r?\n/).slice(1).join(' ').trim();
+}
+
 export function WidgetNoteCard({
   note,
   index,
@@ -33,6 +37,7 @@ export function WidgetNoteCard({
   onReturn: () => void;
 }) {
   const title = noteTitle(note);
+  const preview = notePreview(note);
   return (
     <article
       className={`skrib-ribbon skrib-color-${note.color} ${active ? 'active' : ''}`}
@@ -62,9 +67,9 @@ export function WidgetNoteCard({
               {note.text.trim().split(/\r?\n/).slice(1).join(' ')}
             </span>
           )}
-          {contextual && (
+          {contextual && preview && (
             <span className="skrib-card-preview">
-              {note.text.trim() || 'A little room for your next thought.'}
+              {preview}
             </span>
           )}
           {contextual && (

@@ -32,6 +32,30 @@ describe('Living Paper note structure', () => {
     expect(html).not.toContain('class="composer-footer"');
   });
 
+  it('keeps a general Skrib independent from whichever app is currently focused', () => {
+    const generalNote = { ...note, target_process_name: '', target_title: '' };
+    const focusedApp = {
+      hwnd_val: 42,
+      process_name: 'chrome.exe',
+      title: 'Unrelated browser tab',
+      class_name: 'Chrome_WidgetWin_1',
+      bounds: { x: 0, y: 0, width: 1200, height: 800 },
+      is_minimized: false,
+      is_focused: true,
+      dpi: 96,
+      scale_factor: 1,
+    };
+    const html = renderToStaticMarkup(
+      <SkribComposer note={generalNote} target={focusedApp} openAction="detached" />
+    );
+
+    expect(html).toContain('aria-label="View general note"');
+    expect(html).toContain('opened this general Skrib without an application context');
+    expect(html).not.toContain('class="composer-context-tab"');
+    expect(html).not.toContain('id="composer-place-detail"');
+    expect(html).not.toContain('Place: Unrelated browser tab');
+  });
+
   it.each(['created', 'reopened', 'detached'] as const)('keeps Done labelled and manual resizing available for %s notes', (openAction) => {
     const html = renderToStaticMarkup(<SkribComposer note={note} target={null} openAction={openAction} />);
     expect(html).toContain(openAction === 'detached' ? 'Done — save and close this Skrib' : 'Done — save and put this Skrib away');

@@ -71,16 +71,19 @@ struct LibraryExportResult {
 pub fn install_library_bridge<R: Runtime>(app: &App<R>) -> tauri::Result<()> {
     let app_handle = app.handle().clone();
     app.listen(LIBRARY_EXPORT_REQUEST_EVENT, move |event| {
-        let raw_payload = event.payload();
-        let result = match serde_json::from_str::<LibraryExportRequest>(raw_payload) {
-            Ok(request) => perform_export(&app_handle, request),
-            Err(_) => LibraryExportResult {
-                request_id: String::new(),
-                path: None,
-                error: Some("Skribli rejected an invalid export request.".into()),
-            },
-        };
-        let _ = app_handle.emit_to(LIBRARY_WINDOW_LABEL, LIBRARY_EXPORT_RESULT_EVENT, result);
+        let app_handle = app_handle.clone();
+        let raw_payload = event.payload().to_owned();
+        tauri::async_runtime::spawn_blocking(move || {
+            let result = match serde_json::from_str::<LibraryExportRequest>(&raw_payload) {
+                Ok(request) => perform_export(&app_handle, request),
+                Err(_) => LibraryExportResult {
+                    request_id: String::new(),
+                    path: None,
+                    error: Some("Skribli rejected an invalid export request.".into()),
+                },
+            };
+            let _ = app_handle.emit_to(LIBRARY_WINDOW_LABEL, LIBRARY_EXPORT_RESULT_EVENT, result);
+        });
     });
 
     Ok(())
