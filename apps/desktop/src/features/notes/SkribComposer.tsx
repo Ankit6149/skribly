@@ -318,7 +318,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
       }
     }).catch(() => undefined);
     return () => { live = false; };
-  }, [hasSavedContext, isTauriAvailable, note.target_process_name, target?.process_name]);
+  }, [hasSavedContext, isTauriAvailable, note.id, note.target_process_name, target?.process_name]);
   const appProcessName = target?.process_name || note.target_process_name;
   const appIconUrl = bundledAppIcon(appProcessName)
     ?? nativeAppIconUrl;

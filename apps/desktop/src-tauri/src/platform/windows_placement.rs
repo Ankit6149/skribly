@@ -1552,7 +1552,8 @@ mod tests {
                 );
                 assert_eq!(
                     tab.bottom,
-                    logical_to_physical(NOTE_SURFACE_TAB_BOTTOM_LOGICAL, scale).min(physical_height)
+                    logical_to_physical(NOTE_SURFACE_TAB_BOTTOM_LOGICAL, scale)
+                        .min(physical_height)
                 );
             }
         }
