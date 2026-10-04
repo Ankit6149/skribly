@@ -116,14 +116,14 @@ test('platform selection dispatches matching package, filename and MIME using th
   const fixture = uiFixture();
   await fixture.send();
   assert.deepEqual(fixture.fetched, ['desktop']);
-  assert.equal(fixture.downloaded[0].artifact.filename, 'Skribli_0.1.51_x64-setup.exe');
+  assert.equal(fixture.downloaded[0].artifact.filename, 'Skribli_0.1.53_x64-setup.exe');
   assert.equal(fixture.downloaded[0].artifact.mime, 'application/vnd.microsoft.portable-executable');
   assert.equal(fixture.key.value, '');
   await fixture.choose('android');
   fixture.key.value = 'synthetic-owner-download-key';
   await fixture.send();
   assert.deepEqual(fixture.fetched, ['desktop', 'android']);
-  assert.equal(fixture.downloaded[1].artifact.filename, 'Skribli_Mobile_Preview_0.0.1_arm64.apk');
+  assert.equal(fixture.downloaded[1].artifact.filename, 'Skribli_Mobile_Preview_0.0.2_arm64.apk');
   assert.equal(fixture.downloaded[1].artifact.mime, 'application/vnd.android.package-archive');
   assert.equal(fixture.decrypted[0].value, fixture.decrypted[1].value);
   assert.equal(fixture.key.value, '');
@@ -195,7 +195,7 @@ test('platform allowlist rejects arbitrary URLs before any network call', async 
     return responseFor(200);
   }, 100, 'desktop');
   await fetchEncryptedInstaller(async (url, options) => {
-    assert.equal(url, '/assets/skribli-android-preview-0.0.1-arm64.enc');
+    assert.equal(url, '/assets/skribli-android-preview-0.0.2-arm64.enc');
     assert.equal(Object.hasOwn(options, 'body'), false);
     return responseFor(200);
   }, 100, 'android');

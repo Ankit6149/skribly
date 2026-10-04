@@ -8,7 +8,7 @@ Skribli is in **private Windows owner testing**. Public installer access remains
 
 - Public installer access remains disabled; the owner download page requires a private key to decrypt its installer in the browser.
 - No public `/api/download` route is configured. The retired route is not part of the delivery contract.
-- `/v0-download` delivers the encrypted v0.1.51 private owner candidate for installed Windows testing. Its key is kept outside the repository and website.
+- `/v0-download` is prepared to deliver Windows v0.1.53 and Android v0.0.2 private owner candidates with one external key. Production publication remains tied to the matching account-backend approval and exact artifact verification.
 - The landing demonstration shows only the implemented compact editor workflow.
 - The site must not advertise floating dots, attached tabs, checklists, persistent widgets, full-screen overlays, or selective click-through as current behavior.
 - No customer journey should send visitors to the source repository or a release file.
