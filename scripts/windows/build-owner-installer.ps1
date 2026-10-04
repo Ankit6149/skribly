@@ -16,7 +16,14 @@ function Read-OwnerGitValue {
 }
 function Assert-OwnerCheckout {
     $head = [string](Read-OwnerGitValue -GitArguments @('rev-parse', 'HEAD'))
-    $dirty = @(Read-OwnerGitValue -GitArguments @('status', '--porcelain', '--untracked-files=all'))
+    # Tauri temporarily rewrites Cargo.toml while stamping bundle metadata, then
+    # restores identical bytes. On Windows, `git status` can retain a false
+    # modified entry for that touched file. Compare source content against HEAD
+    # and enumerate untracked files separately so the gate still rejects every
+    # real source change without rejecting an unchanged file timestamp.
+    $tracked = @(Read-OwnerGitValue -GitArguments @('diff', '--name-only', 'HEAD', '--'))
+    $untracked = @(Read-OwnerGitValue -GitArguments @('ls-files', '--others', '--exclude-standard'))
+    $dirty = @($tracked) + @($untracked)
     Assert-OwnerSourceIdentity -RequestedCommit $SourceCommit -CheckoutCommit $head.Trim() -DirtyPaths $dirty
 }
 function Invoke-OwnerGate {
