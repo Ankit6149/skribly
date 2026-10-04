@@ -1,17 +1,19 @@
 # Android foundation
 
-Private, local-only Android-first implementation started at the owner's request on 3 October 2026. This workspace is separate from the Windows owner candidate. It is a mobile preview, not a synced desktop companion or a production Android release.
+Private Android-first companion implementation started at the owner's request on 3 October 2026. The owner selected the full-companion direction on 4 October 2026: phone and desktop should eventually show the same Skribs and reminders. This build is the offline-first companion foundation; encrypted account sync is defined in code but is not connected to a live backend yet.
 
 ## Implemented
 
 - React + TypeScript + Vite, with a separate minimal Tauri 2 mobile shell. No second UI framework or Windows native module imports.
-- My Skribs library, text search, eight consistent paper colours, text editor, explicit Save, and reversible Trash/restore.
+- My Skribs library, text and context search, eight consistent paper colours, text editor, explicit Save, reversible Trash/restore, reminder scheduling, recurring reminder metadata, an upcoming-reminders view, and reminder completion.
 - The existing shared paper/ink tokens, DM Sans controls, Manrope headings and **Kalam note content**. Fonts are bundled, not fetched from a service.
 - Save-state feedback after an IndexedDB transaction completes; failed saves keep the draft visible. App Back prompts with Save and close, Close without saving, and Keep editing when dirty.
-- Versioned mobile text records from `packages/shared/src/mobile.ts`. This is deliberately a mobile-only contract, not the desktop record format or a complete transfer protocol.
+- Versioned platform-neutral Skrib, optional context and reminder records from `packages/shared/src/mobile.ts`. General Skribs have `context: null`; clients must not invent or render an application context for them.
+- A tested client-side AES-256-GCM envelope and ciphertext-only transport boundary in `packages/shared/src/sync.ts`. Keys and plaintext never cross the transport interface.
+- An atomic, fail-closed v1-to-v2 IndexedDB record migration. Existing preview text, colour, revision and Trash state are preserved; malformed and future records are left unchanged for recovery.
 - Atomic revision comparison/write in one readwrite transaction. Conflicting edits are rejected rather than overwriting another window's save. Corrupt/future records fail closed and remain unchanged.
 
-The app does not implement sign-in, desktop sync, external-app context/overlays, Android share intents, ink, attachments, notifications, payments, or background services. Its shared capability declaration marks these unavailable.
+The app does not yet implement account sign-in, a live encrypted-sync transport, desktop import/export adaptation, external-app context capture/overlays, Android share intents, ink, attachments, OS notification delivery, payments, or background services. Its capability declaration marks these unavailable. A saved reminder is visible and actionable inside the app, but Android will not alert outside the app until notification permission and scheduling are implemented and tested on a phone.
 
 ## Run the frontend
 
@@ -59,14 +61,16 @@ The helper requires the hash recorded after compilation and the compiled source 
 
 Final package inspection and the reproducible evidence are recorded in [private preview build report](../../docs/06-planning/ANDROID_PRIVATE_PREVIEW_2026-10-03.md). A built APK is not phone acceptance.
 
-## Data and recovery limits
+## Data, sync and recovery limits
 
 - Explicit Save is required. A draft that has not been saved can be lost when Android kills the process; browser `beforeunload` is only a browser safeguard. Android system Back, task dismissal, keyboard insets, process-death recovery and WebView storage durability need real-device implementation/testing before a beta.
-- IndexedDB is not an encrypted vault or a backup. Uninstalling/clearing app data can remove notes. There is no export/import or cloud backup in this foundation.
+- IndexedDB is not an encrypted vault or a backup. Uninstalling/clearing app data can remove Skribs. The sync cryptography and transport interface do not by themselves provide backup: device enrollment, secure key storage/recovery, account authentication, server RLS, conflict handling and deletion acceptance remain required before enabling a live service.
 - There is no permanent-delete action. Trash preserves the note text and is reversible.
-- This schema's version 1 is new storage, not a rewrite of desktop data. A future schema must have a tested migration; never reset unreadable data to an empty library.
+- Mobile preview records migrate transactionally from schema v1 to the shared v2 shape. The shared v2 shape does not rewrite desktop data. A desktop adapter and complete portable-content migration must be tested before any cross-device claim.
 - Tauri command permissions are empty and the production CSP is restrictive. Android's generated framework retains `INTERNET`; this is distinct from Tauri permissions. The preparer disables cleartext networking and excludes note storage from platform cloud backup/device transfer. OEM behavior and final merged permissions still need inspection/testing; these rules are not a data backup feature.
 
 ## Verification and next work
 
 See [execution report](../../docs/06-planning/ANDROID_FOUNDATION_EXECUTION_2026-10-03.md) for exact tests, screenshots and the remaining device acceptance plan.
+
+The current encrypted-sync boundary and review gate are documented in [the implementation proposal](../../docs/06-planning/ENCRYPTED_SYNC_IMPLEMENTATION_BOUNDARY_2026-10-04.md). No Supabase migration or production network path was applied by this slice.

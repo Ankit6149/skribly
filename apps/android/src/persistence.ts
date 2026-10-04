@@ -1,4 +1,9 @@
-import { isMobileNote, type MobileNote } from "@skribly/shared";
+import {
+  isLegacyMobileNote,
+  isMobileNote,
+  migrateLegacyMobileNote,
+  type MobileNote,
+} from "@skribly/shared";
 
 const databaseName = "skribli-android-local-v1";
 const storeName = "notes";
@@ -49,14 +54,15 @@ function database(): Promise<IDBDatabase> {
 export async function listNotes(): Promise<MobileNote[]> {
   const db = await database();
   return new Promise((resolve, reject) => {
-    const transaction = db.transaction(storeName, "readonly");
-    const request = transaction.objectStore(storeName).getAll();
+    // A readwrite transaction makes the v1 -> v2 record migration atomic. If
+    // any record is malformed or from the future, the whole transaction aborts
+    // and every stored byte remains unchanged.
+    const transaction = db.transaction(storeName, "readwrite");
+    const store = transaction.objectStore(storeName);
+    const request = store.getAll();
     let result: MobileNote[];
     request.onsuccess = () => {
-      if (
-        !Array.isArray(request.result) ||
-        !request.result.every(isMobileNote)
-      ) {
+      if (!Array.isArray(request.result)) {
         transaction.abort();
         reject(
           new Error(
@@ -65,7 +71,24 @@ export async function listNotes(): Promise<MobileNote[]> {
         );
         return;
       }
-      result = request.result;
+      const normalized: MobileNote[] = [];
+      for (const record of request.result as unknown[]) {
+        if (isMobileNote(record)) normalized.push(record);
+        else if (isLegacyMobileNote(record)) {
+          const migrated = migrateLegacyMobileNote(record);
+          normalized.push(migrated);
+          store.put(migrated);
+        } else {
+          transaction.abort();
+          reject(
+            new Error(
+              "Some local records need recovery. They have been kept unchanged.",
+            ),
+          );
+          return;
+        }
+      }
+      result = normalized;
     };
     transaction.oncomplete = () =>
       resolve(result.sort((a, b) => b.updatedAt - a.updatedAt));
@@ -96,11 +119,14 @@ export async function saveNote(
       "Could not save locally. Your draft is still open; please retry.";
     request.onsuccess = () => {
       const current: unknown = request.result;
+      const currentNote = isLegacyMobileNote(current)
+        ? migrateLegacyMobileNote(current)
+        : current;
       const matches =
         expectedRevision === null
           ? current === undefined && note.revision === 1
-          : isMobileNote(current) &&
-            current.revision === expectedRevision &&
+          : isMobileNote(currentNote) &&
+            currentNote.revision === expectedRevision &&
             note.revision === expectedRevision + 1;
       if (!matches) {
         failure =

@@ -14,7 +14,8 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 button,
-input {
+input,
+select {
   font: inherit;
 }
 button {
@@ -117,7 +118,7 @@ h1 {
 }
 .library-tabs {
   display: flex;
-  gap: 18px;
+  gap: 14px;
   border-bottom: 1px solid var(--line);
   margin: 22px 0 20px;
 }
@@ -129,6 +130,7 @@ h1 {
   font-size: 13px;
   color: var(--muted);
   border-bottom: 2px solid transparent;
+  white-space: nowrap;
 }
 .library-tabs button[aria-pressed="true"] {
   border-color: var(--ink);
@@ -200,6 +202,29 @@ h1 {
   font-size: 10px;
   color: var(--muted);
   margin-top: 3px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.note-card small.overdue {
+  color: var(--danger);
+}
+.context-label {
+  align-self: flex-start;
+  max-width: 100%;
+  padding: 3px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.card-action {
+  margin-right: 10px;
+  background: color-mix(in srgb, var(--paper) 74%, transparent);
+  border: 1px solid var(--line);
 }
 .library-footnote {
   font-size: 11px;
@@ -316,6 +341,57 @@ h1 {
   display: flex;
   flex-wrap: wrap;
 }
+.reminder-button {
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--paper-deep);
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.reminder-panel {
+  margin-top: 12px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--paper-deep);
+  padding: 16px;
+  display: grid;
+  gap: 13px;
+}
+.reminder-panel > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.reminder-panel label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.reminder-panel input,
+.reminder-panel select {
+  min-height: 44px;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--paper);
+  color: var(--ink);
+  padding: 8px 11px;
+}
+.reminder-panel p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+.text-button.danger {
+  color: var(--danger);
+}
 .colour-button {
   border: 0;
   background: transparent;
@@ -395,7 +471,8 @@ h1 {
 @media (hover: hover) {
   .round-button:not(.primary):hover,
   .text-button:hover,
-  .colour-button:hover {
+  .colour-button:hover,
+  .reminder-button:hover {
     background: var(--control-hover-accent);
   }
   .note-open:hover {
@@ -409,6 +486,12 @@ h1 {
   }
   .editor-tools {
     flex-wrap: wrap;
+  }
+  .library-tabs {
+    gap: 7px;
+  }
+  .library-tabs button {
+    font-size: 12px;
   }
   .note-paper textarea {
     padding: 20px;

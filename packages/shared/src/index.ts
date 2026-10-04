@@ -31,3 +31,4 @@ export interface ContextAnchor {
   };
 }
 export * from "./mobile";
+export * from "./sync";
