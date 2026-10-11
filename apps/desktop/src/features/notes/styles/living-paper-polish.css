@@ -857,12 +857,25 @@
   --skribli-ink:#262923; --skribli-muted:#6d7069; color:#262923;
 }
 .skrib-composer .composer-context-tab { color:var(--context-pill-ink); }
+/* White interaction circles own their ink instead of inheriting dark-note text. */
+.skrib-composer .composer-side-tools > button:is(:hover,:focus-visible,[aria-expanded='true']):not(:disabled),
+.skrib-composer .composer-intent-trigger:is(:hover,:focus-visible):not(:disabled),
+.skrib-composer .composer-intent-gateway[data-open='true'] .composer-intent-trigger,
+.skrib-composer .inline-attachment-actions :is(button,a):is(:hover,:focus-visible):not(:disabled) {
+  background:#fffdf7; color:#424242; opacity:1;
+}
 @media (max-width:360px) {
   .composer-context-title { left:68px; right:146px; font-size:12px; }
   .composer-color-popover { grid-template-columns:repeat(7,28px); --palette-columns:7; }
 }
 @media (forced-colors:active) {
   .skrib-composer { background:Canvas; color:CanvasText; }
+  .skrib-composer .composer-side-tools > button:is(:hover,:focus-visible,[aria-expanded='true']):not(:disabled),
+  .skrib-composer .composer-intent-trigger:is(:hover,:focus-visible):not(:disabled),
+  .skrib-composer .composer-intent-gateway[data-open='true'] .composer-intent-trigger,
+  .skrib-composer .inline-attachment-actions :is(button,a):is(:hover,:focus-visible):not(:disabled) {
+    background:Highlight; color:HighlightText;
+  }
   .composer-context-title,.skrib-composer .composer-side-tools > button { color:CanvasText; }
   .composer-context-tab,.skrib-composer .composer-note-menu { background:Canvas; color:CanvasText; }
   .skrib-composer .composer-context-tab { background:#fff; color:#000; border-color:#000; forced-color-adjust:none; }
