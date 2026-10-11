@@ -1,0 +1,317 @@
+{
+  "schema_version": 1,
+  "candidate_id": "v0.1.54-f70d20879b80-20261011T185837044Z-f9726829",
+  "private_test_only": true,
+  "public_release_accepted": false,
+  "created_at_utc": "2026-10-11T19:06:18.6047215Z",
+  "version": "0.1.54",
+  "product_name": "Skribli",
+  "source": {
+    "commit_sha": "f70d20879b80f3bef540781bb7ab4a13d7d0f670",
+    "tree_sha": "fdc3faddebb446ae798aa08b2f7abf2c37a6231d",
+    "clean": true,
+    "package_lock_sha256": "aed75ec315e934ccef5c014fbad8c9f9c00fa7f9f0afe41f90b77ab49615f39f"
+  },
+  "toolchain": {
+    "node": "v22.23.1",
+    "npm": "10.9.8",
+    "rustc": "rustc 1.95.0 (59807616e 2026-04-14)",
+    "cargo": "cargo 1.95.0 (f2d3ce0bd 2026-03-21)"
+  },
+  "gates": [
+    {
+      "name": "locked-dependencies",
+      "command": "npm.cmd",
+      "arguments": [
+        "ci"
+      ],
+      "exit_code": 0,
+      "started_at_utc": "2026-10-11T18:58:37.2296592Z",
+      "finished_at_utc": "2026-10-11T18:59:45.5705683Z"
+    },
+    {
+      "name": "governance:validate",
+      "command": "npm.cmd",
+      "arguments": [
+        "run",
+        "governance:validate"
+      ],
+      "exit_code": 0,
+      "started_at_utc": "2026-10-11T18:59:45.8682690Z",
+      "finished_at_utc": "2026-10-11T18:59:50.4174702Z"
+    },
+    {
+      "name": "product-truth:validate",
+      "command": "npm.cmd",
+      "arguments": [
+        "run",
+        "product-truth:validate"
+      ],
+      "exit_code": 0,
+      "started_at_utc": "2026-10-11T18:59:50.7137716Z",
+      "finished_at_utc": "2026-10-11T18:59:52.6115969Z"
+    },
+    {
+      "name": "site:validate",
+      "command": "npm.cmd",
+      "arguments": [
+        "run",
+        "site:validate"
+      ],
+      "exit_code": 0,
+      "started_at_utc": "2026-10-11T18:59:52.8594891Z",
+      "finished_at_utc": "2026-10-11T18:59:54.8925281Z"
+    },
+    {
+      "name": "private-test-artifact:validate",
+      "command": "npm.cmd",
+      "arguments": [
+        "run",
+        "private-test-artifact:validate"
+      ],
+      "exit_code": 0,
+      "started_at_utc": "2026-10-11T18:59:55.3610213Z",
+      "finished_at_utc": "2026-10-11T18:59:56.0054405Z"
+    },
+    {
+      "name": "react-runtime:validate",
+      "command": "npm.cmd",
+      "arguments": [
+        "run",
+        "react-runtime:validate"
+      ],
+      "exit_code": 0,
+      "started_at_utc": "2026-10-11T18:59:56.2849673Z",
+      "finished_at_utc": "2026-10-11T18:59:56.8088448Z"
+    },
+    {
+      "name": "desktop-theme:validate",
+      "command": "npm.cmd",
+      "arguments": [
+        "run",
+        "desktop-theme:validate"
+      ],
+      "exit_code": 0,
+      "started_at_utc": "2026-10-11T18:59:57.0430120Z",
+      "finished_at_utc": "2026-10-11T18:59:58.3789267Z"
+    },
+    {
+      "name": "compact-surface:validate",
+      "command": "npm.cmd",
+      "arguments": [
+        "run",
+        "compact-surface:validate"
+      ],
+      "exit_code": 0,
+      "started_at_utc": "2026-10-11T18:59:58.6192461Z",
+      "finished_at_utc": "2026-10-11T18:59:59.1487219Z"
+    },
+    {
+      "name": "lint",
+      "command": "npm.cmd",
+      "arguments": [
+        "run",
+        "lint"
+      ],
+      "exit_code": 0,
+      "started_at_utc": "2026-10-11T18:59:59.3952106Z",
+      "finished_at_utc": "2026-10-11T19:00:17.0189364Z"
+    },
+    {
+      "name": "typecheck",
+      "command": "npm.cmd",
+      "arguments": [
+        "run",
+        "typecheck"
+      ],
+      "exit_code": 0,
+      "started_at_utc": "2026-10-11T19:00:17.2782016Z",
+      "finished_at_utc": "2026-10-11T19:00:26.2942206Z"
+    },
+    {
+      "name": "test",
+      "command": "npm.cmd",
+      "arguments": [
+        "run",
+        "test"
+      ],
+      "exit_code": 0,
+      "started_at_utc": "2026-10-11T19:00:26.5349277Z",
+      "finished_at_utc": "2026-10-11T19:00:44.8866841Z"
+    },
+    {
+      "name": "build",
+      "command": "npm.cmd",
+      "arguments": [
+        "run",
+        "build"
+      ],
+      "exit_code": 0,
+      "started_at_utc": "2026-10-11T19:00:45.2980674Z",
+      "finished_at_utc": "2026-10-11T19:00:59.1603924Z"
+    },
+    {
+      "name": "native-format",
+      "command": "cargo",
+      "arguments": [
+        "fmt",
+        "--manifest-path",
+        "apps/desktop/src-tauri/Cargo.toml",
+        "--check"
+      ],
+      "exit_code": 0,
+      "started_at_utc": "2026-10-11T19:00:59.3840168Z",
+      "finished_at_utc": "2026-10-11T19:01:00.4379945Z"
+    },
+    {
+      "name": "native-tests",
+      "command": "cargo",
+      "arguments": [
+        "test",
+        "--manifest-path",
+        "apps/desktop/src-tauri/Cargo.toml",
+        "--",
+        "--test-threads=1"
+      ],
+      "exit_code": 0,
+      "started_at_utc": "2026-10-11T19:01:00.6636730Z",
+      "finished_at_utc": "2026-10-11T19:02:12.9234952Z"
+    },
+    {
+      "name": "release-storage-build",
+      "command": "cargo",
+      "arguments": [
+        "build",
+        "--release",
+        "--manifest-path",
+        "apps/desktop/src-tauri/Cargo.toml",
+        "--features",
+        "storage-acceptance",
+        "--bin",
+        "storage_acceptance"
+      ],
+      "exit_code": 0,
+      "started_at_utc": "2026-10-11T19:02:13.2258225Z",
+      "finished_at_utc": "2026-10-11T19:03:45.4775125Z"
+    },
+    {
+      "name": "release-storage-matrix",
+      "command": "C:\\Users\\ANKIT BHARDWAJ\\Desktop\\skrilbi\\skribli-desktop\\artifacts\\toolchain\\powershell-7.6.6\\pwsh.exe",
+      "arguments": [
+        "-NoProfile",
+        "-File",
+        "scripts/validation/storage-acceptance.ps1",
+        "-BinaryPath",
+        "apps/desktop/src-tauri/target/release/storage_acceptance.exe",
+        "-EvidencePath",
+        "C:\\Users\\ANKIT BHARDWAJ\\Desktop\\skrilbi\\skribli-desktop\\artifacts\\owner-candidates\\v0.1.54-f70d20879b80-20261011T185837044Z-f9726829\\storage-acceptance-evidence.json",
+        "-CommitSha",
+        "f70d20879b80f3bef540781bb7ab4a13d7d0f670"
+      ],
+      "exit_code": 0,
+      "started_at_utc": "2026-10-11T19:03:45.8049157Z",
+      "finished_at_utc": "2026-10-11T19:03:51.9034885Z"
+    },
+    {
+      "name": "trial-enforced-check",
+      "command": "cargo",
+      "arguments": [
+        "check",
+        "--manifest-path",
+        "apps/desktop/src-tauri/Cargo.toml"
+      ],
+      "exit_code": 0,
+      "started_at_utc": "2026-10-11T19:03:52.1371051Z",
+      "finished_at_utc": "2026-10-11T19:04:05.8479920Z"
+    },
+    {
+      "name": "owner-provenance-regressions",
+      "command": "powershell.exe",
+      "arguments": [
+        "-NoProfile",
+        "-File",
+        "scripts/windows/candidate-provenance.test.ps1"
+      ],
+      "exit_code": 0,
+      "started_at_utc": "2026-10-11T19:04:06.0943373Z",
+      "finished_at_utc": "2026-10-11T19:04:07.0012108Z"
+    },
+    {
+      "name": "windows-bundles",
+      "command": "npm.cmd",
+      "arguments": [
+        "run",
+        "tauri",
+        "--",
+        "build",
+        "--bundles",
+        "nsis,msi"
+      ],
+      "exit_code": 0,
+      "started_at_utc": "2026-10-11T19:04:07.2281967Z",
+      "finished_at_utc": "2026-10-11T19:06:14.9274375Z"
+    },
+    {
+      "name": "package-branding",
+      "command": "powershell.exe",
+      "arguments": [
+        "-NoProfile",
+        "-File",
+        "scripts/validation/verify-windows-installer-branding.ps1",
+        "-BundleRoot",
+        "C:\\Users\\ANKIT BHARDWAJ\\Desktop\\skrilbi\\skribli-desktop\\artifacts\\owner-candidates\\v0.1.54-f70d20879b80-20261011T185837044Z-f9726829\\bundles",
+        "-EvidencePath",
+        "C:\\Users\\ANKIT BHARDWAJ\\Desktop\\skrilbi\\skribli-desktop\\artifacts\\owner-candidates\\v0.1.54-f70d20879b80-20261011T185837044Z-f9726829\\branding-evidence.json"
+      ],
+      "exit_code": 0,
+      "started_at_utc": "2026-10-11T19:06:15.3900571Z",
+      "finished_at_utc": "2026-10-11T19:06:17.3016889Z"
+    }
+  ],
+  "storage_acceptance": {
+    "evidence_file": "storage-acceptance-evidence.json",
+    "sha256": "76de3060147a1bdf3ee8431a136eaf2abc153712073811d83cdd8699465902dc",
+    "synthetic_profile_only": true
+  },
+  "application": {
+    "file_name": "skribly.exe",
+    "bytes": 14041088,
+    "sha256": "3ea03414a2645b1b85f6e030592d085770631524a30d563c89aad55efe38b37b",
+    "signing": {
+      "status": "NotSigned",
+      "certificate_thumbprint": null
+    }
+  },
+  "installers": [
+    {
+      "file_name": "Skribli_0.1.54_x64-setup.exe",
+      "bytes": 3795139,
+      "sha256": "859409fc52b1eada8199bc4b4f5298bb8e501710222243acfe44d571baacab3d",
+      "signing": {
+        "status": "NotSigned",
+        "certificate_thumbprint": null
+      }
+    },
+    {
+      "file_name": "Skribli_0.1.54_x64_en-US.msi",
+      "bytes": 5050368,
+      "sha256": "ca278ca4bd40b5009f45898d7cef71a5c0992352f1148efcc9d1508c56e7ef11",
+      "signing": {
+        "status": "NotSigned",
+        "certificate_thumbprint": null
+      }
+    }
+  ],
+  "build_configuration": {
+    "trial_enforced": true,
+    "owner_public_key_sha256": "c62bf5d3194f6b9cc28d640f1c5e0a220c4c5fd033ea3fb9d1d4bb5f97c91ce7",
+    "account_function": "account-session"
+  },
+  "remaining_acceptance": [
+    "installed Windows owner runtime",
+    "install/upgrade/uninstall/data retention/rollback for these hashes",
+    "signing/trust review",
+    "owner-only distribution review",
+    "public release remains held"
+  ]
+}

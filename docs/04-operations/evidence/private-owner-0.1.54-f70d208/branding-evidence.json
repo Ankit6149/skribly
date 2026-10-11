@@ -1,0 +1,23 @@
+﻿{
+    "schema_version":  1,
+    "product_name":  "Skribli",
+    "version":  "0.1.54",
+    "canonical_icon_path":  "apps/desktop/src-tauri/icons/icon.ico",
+    "canonical_icon_sha256":  "93f924af38f85262f8027ee847f56eeca603c0e3081f443f05f3e2aefdf7b3f6",
+    "canonical_icon_pixel_reference_path":  "apps/desktop/src-tauri/icons/32x32.png",
+    "canonical_icon_pixel_sha256":  "2467697721c0b194c6c2ba69c893c11bfe19cb6b2565edd0cd36fb33669306e2",
+    "application_path":  "apps/desktop/src-tauri/target/release/skribly.exe",
+    "application_product_name":  "Skribli",
+    "application_icon_pixel_sha256":  "2467697721c0b194c6c2ba69c893c11bfe19cb6b2565edd0cd36fb33669306e2",
+    "installed_executable":  null,
+    "startup_smoke_seconds":  0,
+    "startup_smoke_status":  "not-requested",
+    "start_menu_target":  null,
+    "window_evidence":  null,
+    "nsis_installer":  "Skribli_0.1.54_x64-setup.exe",
+    "nsis_product_name":  "Skribli",
+    "nsis_file_description":  "Skribli",
+    "nsis_icon_pixel_sha256":  "2467697721c0b194c6c2ba69c893c11bfe19cb6b2565edd0cd36fb33669306e2",
+    "msi_installer":  "Skribli_0.1.54_x64_en-US.msi",
+    "tauri_branding_detected":  false
+}

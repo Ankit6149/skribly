@@ -116,7 +116,7 @@ test('platform selection dispatches matching package, filename and MIME using th
   const fixture = uiFixture();
   await fixture.send();
   assert.deepEqual(fixture.fetched, ['desktop']);
-  assert.equal(fixture.downloaded[0].artifact.filename, 'Skribli_0.1.53_x64-setup.exe');
+  assert.equal(fixture.downloaded[0].artifact.filename, 'Skribli_0.1.54_x64-setup.exe');
   assert.equal(fixture.downloaded[0].artifact.mime, 'application/vnd.microsoft.portable-executable');
   assert.equal(fixture.key.value, '');
   await fixture.choose('android');

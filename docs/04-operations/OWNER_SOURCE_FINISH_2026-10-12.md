@@ -23,3 +23,7 @@ The production owner page remains on the previously published Windows v0.1.53 an
 The existing Android APK is a debug-signed ARM64 private preview with offline notes and reminder entries. System notifications, encrypted desktop sync and real-phone acceptance remain unfinished. Source Iconify changes do not change that existing APK. No mobile framework or notification service was added. See [software and notification pros/cons](../06-planning/ANDROID_SOFTWARE_DECISION_2026-10-11.md).
 
 Next execution: package the final committed source when requested, then publish and verify its exact owner download hashes. The owner will perform the visual/runtime testing. ARC-66 stays In Progress.
+
+## Subsequent owner-authorized packaging
+
+After this source-only stopping point, the owner explicitly requested rebuilding the final installer and downloading both platforms. The [12 October platform refresh](OWNER_PLATFORM_REFRESH_2026-10-12.md) records that subsequent execution and supersedes the installer/delivery boundary above.

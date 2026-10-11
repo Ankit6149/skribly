@@ -25,7 +25,7 @@ Use this page before reading design explorations, old owner candidates, historic
 
 - [Android software and notification choices — 11 October](../06-planning/ANDROID_SOFTWARE_DECISION_2026-10-11.md)
 
-- [Windows v0.1.53 / Android v0.0.2 private owner delivery](../04-operations/OWNER_PLATFORM_REFRESH_2026-10-04.md) — the production execution section supersedes that report's earlier preparation and approval-pending sections.
+- [Windows v0.1.54 / Android v0.0.2 private owner delivery](../04-operations/OWNER_PLATFORM_REFRESH_2026-10-12.md) — exact final-source package evidence and production delivery status.
 - [Current beta refinement and owner test register](../06-planning/BETA_REFINEMENT_2026-10-07.md)
 - [11 October public release readiness and remaining gates](../06-planning/PUBLIC_RELEASE_READINESS_2026-10-11.md)
 - [11 October selected ticket panel source evidence](../01-design/evidence/ticket-panel-2026-10-11/design-qa.md)
