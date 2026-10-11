@@ -8,7 +8,7 @@ import React, {
   type ClipboardEvent,
   type FormEvent,
 } from 'react';
-import { Bold, Highlighter, List, ListChecks, ListOrdered, Paperclip, Italic, Underline, Palette, Heading2, Quote, Minus, CalendarDays, Bell, PenLine, Type, Eraser, X } from 'lucide-react';
+import { Bold, Highlighter, List, ListChecks, ListOrdered, Paperclip, Italic, Underline, Palette, Heading2, Quote, Minus, CalendarDays, Bell, PenLine, Type, Eraser, X } from '../../../ui/icons';
 import { createPortal } from 'react-dom';
 import type { SkribAttachment } from '../persistence/richContentStore';
 import { InlineAttachment, INLINE_ATTACHMENT_MIME } from './InlineAttachment';
@@ -46,6 +46,7 @@ const NO_ATTACHMENTS: SkribAttachment[] = [];
 const SAFE_ELEMENTS = new Set(['DIV', 'P', 'H2', 'BR', 'STRONG', 'B', 'EM', 'I', 'U', 'MARK', 'SPAN', 'FONT', 'BLOCKQUOTE', 'HR', 'UL', 'OL', 'LI', 'INPUT']);
 export const NOTE_TEXT_COLORS = ['#262923', '#925043', '#3f645c', '#486b8c', '#735c96'] as const;
 export const NOTE_HIGHLIGHT_COLORS = ['#f8df78', '#ffd7c4', '#cfe5d7', '#d5e5f5', '#e4d9f0'] as const;
+export const NOTE_HIGHLIGHT_INK = '#262923';
 const COLOR_NAMES = ['Ink', 'Terracotta', 'Forest', 'Blue', 'Plum'];
 const HIGHLIGHT_NAMES = ['Yellow', 'Peach', 'Mint', 'Sky', 'Lavender'];
 function safeColor(value: string, choices: readonly string[]): string | undefined {
@@ -83,7 +84,8 @@ export function sanitizeRichTextHtml(value: string, allowAttachmentReferences = 
     }
 
     const color = safeColor(node.style.color || node.getAttribute('color') || '', NOTE_TEXT_COLORS);
-    const background = safeColor(node.style.backgroundColor, NOTE_HIGHLIGHT_COLORS);
+    const background = safeColor(node.style.backgroundColor, NOTE_HIGHLIGHT_COLORS)
+      ?? (node.tagName === 'MARK' ? NOTE_HIGHLIGHT_COLORS[0] : undefined);
     const tag = node.tagName;
     if (!SAFE_ELEMENTS.has(tag)) {
       const fragment = document.createDocumentFragment();
@@ -93,7 +95,10 @@ export function sanitizeRichTextHtml(value: string, allowAttachmentReferences = 
     const normalizedTag = tag === 'B' ? 'strong' : tag === 'I' ? 'em' : tag === 'FONT' ? 'span' : tag.toLowerCase();
     const clean = document.createElement(normalizedTag);
     if (color) clean.style.color = color;
-    if (background) clean.style.backgroundColor = background;
+    if (background) {
+      clean.style.backgroundColor = background;
+      clean.dataset.noteHighlight = 'true';
+    }
     if (tag === 'INPUT') {
       clean.setAttribute('type', 'checkbox');
       clean.setAttribute('contenteditable', 'false');
@@ -127,7 +132,7 @@ function clipboardFiles(event: ClipboardEvent<HTMLDivElement>): File[] {
 }
 
 export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(function RichTextEditor(
-  { noteId, initialHtml, disabled, drawingEnabled, describedBy, onChange, onBlur, onPasteFiles, onPasteBlocked, onRequestAttachment, onRequestDraw, onRequestReminder, onHistoryChange, attachments = NO_ATTACHMENTS },
+  { noteId, initialHtml, disabled, drawingEnabled, describedBy, onChange, onBlur, onPasteFiles, onPasteBlocked, onRequestAttachment, onDeleteAttachment, onRequestDraw, onRequestReminder, onHistoryChange, attachments = NO_ATTACHMENTS },
   forwardedRef
 ) {
   const editorRef = useRef<HTMLDivElement>(null);
@@ -214,6 +219,13 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
   const emitChange = (): boolean => {
     const editor = editorRef.current;
     if (!editor) return false;
+    // A removable marker pairs highlight ink without overwriting text colors.
+    editor.querySelectorAll<HTMLElement>('[style], [data-note-highlight], mark').forEach((element) => {
+      const highlighted = safeColor(element.style.backgroundColor, NOTE_HIGHLIGHT_COLORS)
+        || (element.tagName === 'MARK' && !element.style.backgroundColor);
+      if (highlighted) element.dataset.noteHighlight = 'true';
+      else delete element.dataset.noteHighlight;
+    });
     const html = sanitizeRichTextHtml(canonicalAttachmentHtml(editor), true);
     const plainText = editorPlainText(editor);
     if (html === lastAcceptedHtml.current) return true;
@@ -632,7 +644,7 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
       {attachmentHosts.map((host) => {
         const id = host.getAttribute(ATTACHMENT_ATTRIBUTE);
         const attachment = attachments.find((item) => item.id === id);
-        return createPortal(attachment ? <InlineAttachment attachment={attachment}
+        return createPortal(attachment ? <InlineAttachment noteId={noteId} attachment={attachment}
           disabled={disabled || drawingEnabled}
           size={readAttachmentSize(host)}
           onSizeChange={(size) => {
@@ -642,6 +654,7 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
             emitChange();
           }}
           onRemoveReference={() => removeAttachment(attachment.id)}
+          onDeleteFile={onDeleteAttachment ? () => onDeleteAttachment(attachment.id) : undefined}
           onMove={(direction) => {
             if (!disabled && !drawingEnabled && editorRef.current && moveAttachmentByBlock(editorRef.current, host, direction)) emitChange();
           }} /> : <span className="inline-attachment-missing">Attachment unavailable · check the tray</span>, host, id ?? undefined);

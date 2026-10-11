@@ -30,7 +30,7 @@ If capture, identity, placement, native validation, or persistence fails, Skribl
 - Selecting text exposes bold, italic, underline, text colour and highlight controls. Formatting does not change the note's Kalam font.
 - Typing `/` inserts a literal slash and opens the command picker. Only selecting an enabled command removes that slash; dismissing the picker preserves ordinary text.
 - Clipboard images and supported PDF files can be pasted into the note as local attachments. Pending attachment writes participate in the save/close barrier.
-- Every new note rotates through yellow, peach, mint, sky, lavender, rose, aqua and sand. The colour control selects these theme pastels.
+- Every new note rotates through yellow, peach, mint, sky, lavender, rose, aqua and sand. The colour control now offers 32 named paper colours with paired foregrounds; the original eight persisted IDs remain valid and have stronger saturation.
 - **Done**, **Escape**, **Ctrl + Enter**, and Close flush the latest draft before hiding the active editor.
 - The contextual indicator unfolds a horizontal note shelf. Hover or keyboard focus reveals a preview; an explicit click opens the actual note here, while a separate action returns to its app.
 - Moving the contextual editor persists its target-relative position and clamps restoration to the target monitor's work area. Detached reading does not rewrite that saved anchor.
@@ -124,7 +124,7 @@ Import never opens an external application, guesses a new context, or uploads da
 - Every primary action is keyboard reachable with a visible focus indicator.
 - Save, recovery, loading, error, and result-count changes use appropriate live/status semantics.
 - Compact-editor, drawing, files, reminder, calendar, onboarding, All Skribs, Trash, and import surfaces provide high-contrast, forced-colour, reduced-motion, large-text, and responsive states where implemented.
-- Desktop surfaces use the website's five pastel tokens and its UI/display/font roles. Kalam is reserved for handwritten note content rather than every label or control, and every scrollable desktop surface uses the themed scrollbar tokens.
+- Desktop surfaces inherit Soft Paper Play and its UI/display/font roles. The approved desktop note-paper extension has 32 choices, and the expanded global collection uses its scoped dark ticket material. Kalam is reserved for handwritten note content rather than every label or control, and every scrollable desktop surface uses the themed scrollbar tokens.
 - Physical Windows screen-reader, text-scaling, high-contrast, and full keyboard evidence remains release-blocking under #31 and #24.
 
 ## Explicitly deferred interactions
@@ -132,3 +132,15 @@ Import never opens an external application, guesses a new context, or uploads da
 The following require separately approved architecture and acceptance work: customizable hotkeys, context re-anchor/rules, multiple simultaneous native note windows, persistent full-screen annotations, shapes/arrows, cloud-delivered reminders, portable export/import of IndexedDB ink/attachments/reminders, browser URL/DOM anchoring, macOS, cloud sync, payments, collaboration, AI, and mobile clients.
 
 No deferred interaction may restore a screen-blocking overlay or appear in current product claims merely because historical prototypes or planning documents mention it.
+
+
+## Expanded global ticket collection ? source candidate, 11 October 2026
+
+- Expanding the global collection fills its available view with a responsive ticket grid. Source browser evidence shows six columns and three rows at 1440px, and two columns with vertical scrolling at 390px. Search and application filtering remain available. This is the global collection, not the contextual writing canvas or a new persistent annotation overlay.
+- Ticket paper uses the selected note colour and its paired foreground. Titles use captured context; previews show actual note content. Open reads the saved note here; Return is a separate explicit action with the existing native target behavior.
+- The dark collection retains actual bundled/native app marks. Quiet monochrome Chrome/Code filter marks use a light, fully opaque treatment on the dark material. Filter selection and keyboard focus remain visible.
+- The note header uses a 48px app pill with a 32px app image and a separate context title. For Code, the title uses the available workspace segment; browser titles remove known app suffixes from the captured page title. This presentation helper does not read the filesystem, infer URLs, verify browser origins or rewrite raw context metadata.
+- The 32-colour picker retains the eight-colour creation rotation and original persisted IDs. Stronger colour affects paper expression; it does not change context identity, archive/restore, saving or Return semantics.
+- CSS blur has reduced-transparency and forced-colour fallbacks. Existing Windows DWM backdrop handling is retained. Browser previews, tests and builds do not establish native backdrop strength, monitor coverage, focus/light-dismissal, docking restoration, mixed-DPI behavior or installed-package acceptance. The existing private v0.1.53 installer does not contain this source candidate; ARC-66 remains In Progress and public publication remains held.
+
+See the [scoped design snapshot](DESIGN.md), [surface brief](evidence/ticket-panel-2026-10-11/BRIEF.md) and [source QA](evidence/ticket-panel-2026-10-11/design-qa.md).

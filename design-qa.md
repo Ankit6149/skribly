@@ -1,5 +1,7 @@
 # Living Paper v0.1.30 — design QA
 
+Current 11 October 2026 refinement: [professional desktop and curved-card QA](docs/01-design/evidence/professional-desktop-2026-10-11/design-qa.md) supersedes earlier side-cut and black-icon appearance. Source/browser pass verified; installed Windows acceptance remains open. The historical records below retain their original candidate boundaries.
+
 Result: **blocked — live visual acceptance deferred to owner**.
 
 Reference: owner screenshot `codex-clipboard-ba6e78d5-b006-4e37-a340-d9094d59ac06.png` and PR #203 head `a15f961`.

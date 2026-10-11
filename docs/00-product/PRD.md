@@ -23,7 +23,7 @@ The supported contextual Skrib has two coordinated local persistence parts:
 - Rust-owned typed text, colour, context, position, and lifecycle metadata in the authoritative versioned JSON store;
 - WebView-owned editable pen/highlighter/eraser strokes, approved image/video/document attachments, note text-size preferences, and repeating reminder state in local IndexedDB.
 
-Each newly created Skrib uses the default pastel unless the user selects another approved colour. The current palette has eight colours: yellow, peach, mint, sky, lavender, rose, aqua, and sand. Only one native editor can be active on screen at a time; the rail and library preserve all active, archived, and trashed records.
+New Skribs rotate through the original eight pastel colour IDs: yellow, peach, mint, sky, lavender, rose, aqua, and sand. The desktop source picker now offers 32 named colours, including more saturated versions of those eight and 24 additional choices. This owner-approved 11 October source extension is not yet in the private v0.1.53 installer. Only one native editor can be active on screen at a time; the rail and library preserve all active, archived, and trashed records.
 
 Arrows, shapes, pins, labels, screenshot pins, and richer closed page/file/folder context reconstruction require separate acceptance work. Checklist insertion is currently implemented in the editor; it is not a release claim about persistent checklist data models or checklist semantics beyond the current editor behavior.
 
@@ -38,7 +38,7 @@ The current intended flow is:
 3. Skribli captures a supported foreground context before taking focus.
 4. A compact editor opens near the target on the correct display.
 5. The user types and draws on the same canvas, selects and moves strokes, attaches an approved local file through Add, or schedules a reminder with an optional repeat rule.
-6. New notes use the default pastel, and the user can choose another of the eight approved colours.
+6. New notes use the original eight-colour creation rotation; the desktop source picker offers 32 approved colours.
 7. The application reports truthful saving/saved/error state for the Rust-owned note record and clear local feedback for rich content.
 8. Done/Close/Escape hides the editor only after the latest typed draft is durable and returns the note to My Skribs, or keeps it open with recovery when persistence fails.
 9. The rail separates Here (active screen), All (all active desktop Skribs), and Archive (completed Skribs), and omits application groups that have no notes.
@@ -107,7 +107,7 @@ The current Windows v0 includes:
 - editable pen and highlighter strokes plus an eraser, usable with mouse, touchpad, touch, or pen input;
 - approved local image, video, and document attachments with per-file/per-note limits and local previews where supported;
 - local one-time and repeating reminders, upcoming/overdue/completed/dismissed states, a linked month calendar and agenda, and Windows notifications when operating-system permission is available;
-- eight website-aligned note colours (yellow, peach, mint, sky, lavender, rose, aqua, and sand), themed scrollbars, and Kalam for handwritten note content.
+- 32 desktop source note colours with paired readable foregrounds; the original eight persisted IDs and creation rotation remain. Website/shared palette changes are outside this desktop extension. Themed scrollbars and Kalam remain for handwritten note content.
 
 The current expressive data remains local to the installed WebView profile and is not yet part of native portable JSON export/import. Only one native contextual editor can be visible at a time, alongside the single My Skribs rail. Cloud scheduling, arrows, shapes, pins, labels, screenshot capture, local revision history/cross-session undo-redo, and browser URL/DOM anchoring remain deferred. No expressive tool may reintroduce a screen-blocking global overlay.
 

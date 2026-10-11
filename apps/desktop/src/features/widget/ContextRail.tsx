@@ -4,6 +4,7 @@ import { listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import type { SkribNote } from '../notes/model/noteTypes';
 import './styles/widget.css';
+import './styles/ticket-grid.css';
 import {
   applicationLabel, groupNotesForRail, isActiveRailNote, isArchivedRailNote, railPillCount,
 } from './model/contextRailModel';
@@ -80,7 +81,7 @@ function scopeLabel(scope: RailScope): string {
 }
 
 const EMPTY_PREVIEW_NOTES: SkribNote[] = [];
-export const ContextRail: React.FC<{ contextual: boolean; previewNotes?: SkribNote[]; previewDockSide?: 'left' | 'right' }> = ({ contextual, previewNotes = EMPTY_PREVIEW_NOTES, previewDockSide = 'right' }) => {
+export const ContextRail: React.FC<{ contextual: boolean; previewNotes?: SkribNote[]; previewDockSide?: 'left' | 'right'; onPreviewOpen?: (note: SkribNote) => void }> = ({ contextual, previewNotes = EMPTY_PREVIEW_NOTES, previewDockSide = 'right', onPreviewOpen }) => {
   const previewContextual = !nativeRuntimeAvailable && typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).get('railMode') === 'context';
   const contextualDock = contextual || previewContextual;
@@ -121,7 +122,7 @@ export const ContextRail: React.FC<{ contextual: boolean; previewNotes?: SkribNo
   const visibleNotes = scope === 'archive' ? archivedNotes : scope === 'context' ? activeContextNotes : activeNotes;
   const allGroups = useMemo(() => groupNotesForRail(visibleNotes), [visibleNotes]);
   const groups = useMemo(
-    () => selectedGroupKey ? allGroups.filter((group) => group.key === selectedGroupKey) : allGroups,
+    () => selectedGroupKey !== null ? allGroups.filter((group) => group.key === selectedGroupKey) : allGroups,
     [allGroups, selectedGroupKey]
   );
   const ribbonSource = useMemo(() => groups.flatMap((group) => group.notes), [groups]);
@@ -349,6 +350,10 @@ export const ContextRail: React.FC<{ contextual: boolean; previewNotes?: SkribNo
   };
 
   const openContext = async (note: SkribNote) => {
+    if (!nativeRuntimeAvailable && onPreviewOpen) {
+      setMessage('Return to app is available in the Windows build. This preview uses sample notes.');
+      return;
+    }
     if (opening.current) return;
     opening.current = true;
     setOpeningId(note.id);
@@ -372,6 +377,7 @@ export const ContextRail: React.FC<{ contextual: boolean; previewNotes?: SkribNo
   };
 
   const openHere = async (note: SkribNote) => {
+    if (!nativeRuntimeAvailable && onPreviewOpen) { onPreviewOpen(note); return; }
     if (opening.current) return;
     opening.current = true;
     setOpeningId(note.id);
@@ -410,6 +416,11 @@ export const ContextRail: React.FC<{ contextual: boolean; previewNotes?: SkribNo
   };
 
   const createGeneralSkrib = async () => {
+    if (!nativeRuntimeAvailable && onPreviewOpen) {
+      onPreviewOpen({ id: 'synthetic-general', target_process_name: '', target_title: '', text: '',
+        color: 'yellow', rel_x: 0, rel_y: 0, width: 420, height: 360, collapsed: false, created_at: 0, updated_at: 0 });
+      return;
+    }
     if (opening.current || contextualDock) return;
     opening.current = true;
     setMessage(null);

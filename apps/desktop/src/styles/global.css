@@ -1,4 +1,5 @@
 @import "@skribly/design-system/tokens.css";
+@import "./note-colors.css";
 
 * {
   box-sizing: border-box;

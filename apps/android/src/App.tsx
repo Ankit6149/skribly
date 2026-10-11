@@ -11,7 +11,7 @@ import {
   Search,
   Trash2,
   X,
-} from "lucide-react";
+} from "./ui/icons";
 import {
   createSharedReminder,
   mobileColours,

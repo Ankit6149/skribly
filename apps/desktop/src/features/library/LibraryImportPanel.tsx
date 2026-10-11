@@ -282,6 +282,7 @@ export const LibraryImportPanel: React.FC<LibraryImportPanelProps> = ({
               <h2 id="library-import-title">Preview import</h2>
               <p>
                 Skribli validates the complete file locally. Nothing changes until you apply the preview.
+                {' '}JSON imports restore note text and metadata, not ink, attached files or reminders.
               </p>
             </div>
             <button

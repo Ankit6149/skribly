@@ -1,5 +1,5 @@
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
-import { Eraser, Highlighter, MousePointer2, PenLine, Redo2, Trash2, Undo2, X } from 'lucide-react';
+import { Eraser, Highlighter, MousePointer2, PenLine, Redo2, Trash2, Undo2, X } from '../../../ui/icons';
 import {
   countInkPoints,
   createInkStroke,

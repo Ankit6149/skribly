@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { emit } from '@tauri-apps/api/event';
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, FileText, Image, Paperclip, Play, X } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, FileText, Image, Paperclip, Play, X } from '../../../ui/icons';
+import { INLINE_ATTACHMENT_MIME } from './InlineAttachment';
 import {
   addFilesToNote,
   createAttachmentObjectUrl,
@@ -308,7 +309,7 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
         {hiddenPicker}
         {confirmRemoveId && <div ref={deleteDialogRef} className="attachment-delete-confirmation" role="alertdialog" aria-modal="false" onKeyDown={(event) => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); setConfirmRemoveId(null); } }} aria-label="Delete attached file" aria-describedby={`attachment-delete-detail-${noteId}`}>
           <strong>Delete this attached file?</strong>
-          <p id={`attachment-delete-detail-${noteId}`}>?{attachments.find((item) => item.id === confirmRemoveId)?.name}? will be removed from this note and its saved attachments.</p>
+          <p id={`attachment-delete-detail-${noteId}`}>“{attachments.find((item) => item.id === confirmRemoveId)?.name}” will be removed from this note and its saved attachments.</p>
           <div><button type="button" disabled={panelBusy} onClick={() => setConfirmRemoveId(null)}>Keep file</button>
             <button type="button" className="danger" disabled={disabled || panelBusy} onClick={() => void remove(confirmRemoveId, true)}>Delete file</button></div>
         </div>}
@@ -327,7 +328,7 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
             >
               <span className="attachment-drawer-icon" aria-hidden="true"><Paperclip size={15} /></span>
               <span className="attachment-drawer-copy">
-                <strong>{attachmentTypes}</strong>
+                <strong>{attachments.length} saved {attachments.length === 1 ? 'file' : 'files'}</strong>
                 <small>{compactExpanded ? 'Hide the collection' : 'View all attachments'}</small>
               </span>
               {compactExpanded
@@ -341,7 +342,7 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
             >
               <div className="attachment-media-grid">
             {onPlaceInline ? attachments.map((attachment) => (
-              <article key={attachment.id} className="attachment-tray-item">
+              <article key={attachment.id} className={`attachment-tray-item attachment-tray-${attachment.kind}`}>
                 <div className="attachment-tray-thumbnail">
                   {(attachment.kind === 'image' || attachment.kind === 'ink') && urls[attachment.id]
                     ? <img src={urls[attachment.id]} alt={attachment.name} />
@@ -352,7 +353,7 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
                 <button type="button" className="attachment-tray-remove"
                   disabled={disabled || panelBusy}
                   aria-label={`Remove ${attachment.name} from note`}
-                  title="Delete attached file ? confirmation required"
+                  title="Delete attached file — confirmation required"
                   onClick={() => setConfirmRemoveId(attachment.id)}>
                   <X size={12} aria-hidden="true" />
                 </button>
@@ -360,7 +361,11 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
                 <div className="attachment-object-actions">
                   <button type="button" disabled={disabled || panelBusy} onClick={() => {
                     if (!onPlaceInline([attachment])) reportError('Could not place this file in the note. Select a writing position and try again.');
-                  }} title="Place at your writing cursor">Place in note</button>
+                  }} draggable={!disabled && !panelBusy} onDragStart={(event) => {
+                    if (disabled || panelBusy) { event.preventDefault(); return; }
+                    event.dataTransfer.setData(INLINE_ATTACHMENT_MIME, JSON.stringify({ noteId, attachmentId: attachment.id }));
+                    event.dataTransfer.effectAllowed = 'move';
+                  }} title="Click to insert at the writing cursor, or drag to a writing position">Place in note</button>
                   {urls[attachment.id] && <a href={urls[attachment.id]} download={attachment.name} aria-label={`Save a copy of ${attachment.name}`}>Save copy</a>}
                 </div>
               </article>

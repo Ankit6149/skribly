@@ -17,7 +17,7 @@ export function isArchivedRailNote(note: SkribNote): boolean {
 
 export function applicationLabel(processName: string): string {
   const base = processName.replace(/\.exe$/iu, '').replace(/[-_]+/gu, ' ').trim();
-  if (!base) return 'Application';
+  if (!base) return 'General';
   return base.replace(/\b\p{L}/gu, (character) => character.toUpperCase());
 }
 

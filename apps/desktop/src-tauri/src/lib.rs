@@ -30,13 +30,16 @@ use desktop::rail_presentation::reveal_width;
 use desktop::rail_state::{
     clamp_rail_position_to_bounds, context_arrival_matches, context_rail_window_runtime,
     detached_note_rail_label, nearest_rail_edge_position, rail_dock_side,
-    rail_position_after_size_change, rail_position_for_side_and_y, rail_window_runtime,
-    RailDockBounds, RailDockSide, RailWindowRuntime, RailWindowState,
-    CONTEXT_RAIL_COLLAPSED_HEIGHT, CONTEXT_RAIL_COLLAPSED_WIDTH, CONTEXT_RAIL_EDGE_MARGIN_LOGICAL,
-    CONTEXT_RAIL_PEEK_HEIGHT, CONTEXT_RAIL_PEEK_WIDTH, GLOBAL_RAIL_COLLAPSED_HEIGHT,
-    GLOBAL_RAIL_COLLAPSED_WIDTH, GLOBAL_RAIL_EDGE_MARGIN_LOGICAL, RAIL_DOCK_DEBOUNCE,
-    RAIL_EXPANDED_FALLBACK_HEIGHT, RAIL_EXPANDED_WIDTH,
+    rail_position_for_side_and_y, rail_window_runtime, RailDockBounds, RailDockSide,
+    RailWindowRuntime, RailWindowState, CONTEXT_RAIL_COLLAPSED_HEIGHT,
+    CONTEXT_RAIL_COLLAPSED_WIDTH, CONTEXT_RAIL_EDGE_MARGIN_LOGICAL, CONTEXT_RAIL_PEEK_HEIGHT,
+    CONTEXT_RAIL_PEEK_WIDTH, GLOBAL_RAIL_COLLAPSED_HEIGHT, GLOBAL_RAIL_COLLAPSED_WIDTH,
+    GLOBAL_RAIL_EDGE_MARGIN_LOGICAL, RAIL_DOCK_DEBOUNCE, RAIL_EXPANDED_FALLBACK_HEIGHT,
+    RAIL_EXPANDED_WIDTH,
 };
+
+#[cfg(test)]
+use desktop::rail_state::rail_position_after_size_change;
 
 #[cfg(target_os = "windows")]
 use platform::windows::{
@@ -220,32 +223,38 @@ fn size_and_dock_rail(
     } else {
         previous_position.map_or(work_area.position.y, |position| position.y)
     };
-    let position = match (had_docked_position, previous_position, previous_size) {
-        (true, Some(position), Some(size)) => rail_position_after_size_change(
-            PhysicalPosition::new(position.x, preferred_y),
-            size,
-            next_size,
-            bounds,
-            margin,
-        ),
-        _ => rail_position_for_side_and_y(
-            RailDockSide::Right,
-            if expanded {
-                work_area.position.y
-            } else {
-                work_area.position.y.saturating_add(
-                    (work_area.size.height as i32 - next_size.height as i32).max(0) / 2,
-                )
-            },
-            next_size,
-            bounds,
-            margin,
-        ),
+    // A full-width panel has the same left/right position. Keep the launcher's
+    // original side rather than trying to infer it from the expanded geometry.
+    let dock_side = if rail_window_runtime().expanded.load(Ordering::Acquire) {
+        if rail_window_runtime().docked_left.load(Ordering::Acquire) {
+            RailDockSide::Left
+        } else {
+            RailDockSide::Right
+        }
+    } else if let (true, Some(position), Some(size)) =
+        (had_docked_position, previous_position, previous_size)
+    {
+        rail_dock_side(position, size, bounds, margin)
+    } else {
+        RailDockSide::Right
     };
-    rail_window_runtime().docked_left.store(
-        rail_dock_side(position, next_size, bounds, margin) == RailDockSide::Left,
-        Ordering::Release,
+    let position = rail_position_for_side_and_y(
+        dock_side,
+        if had_docked_position || expanded {
+            preferred_y
+        } else {
+            work_area
+                .position
+                .y
+                .saturating_add((work_area.size.height as i32 - next_size.height as i32).max(0) / 2)
+        },
+        next_size,
+        bounds,
+        margin,
     );
+    rail_window_runtime()
+        .docked_left
+        .store(dock_side == RailDockSide::Left, Ordering::Release);
     // Record BEFORE WM_SIZE/WM_MOVE, and change both bounds in one native transaction.
     rail_window_runtime().record_programmatic_position(position);
     #[cfg(target_os = "windows")]
@@ -296,7 +305,11 @@ fn global_rail_physical_size(
     scale: f64,
     bounds: RailDockBounds,
 ) -> PhysicalSize<u32> {
-    let width = (logical_width * scale).round().max(0.0) as u32;
+    let width = if expanded {
+        bounds.width.max(0) as u32
+    } else {
+        (logical_width * scale).round().max(0.0) as u32
+    };
     let height = if expanded {
         bounds.height.max(0) as u32
     } else {
@@ -4697,7 +4710,7 @@ mod tests {
         let compact = global_rail_physical_size(false, 28.0, 80.0, 1.25, bounds);
         let panel = global_rail_physical_size(true, 388.0, 430.0, 1.25, bounds);
         assert_eq!(compact, PhysicalSize::new(35, 100));
-        assert_eq!(panel, PhysicalSize::new(485, 876));
+        assert_eq!(panel, PhysicalSize::new(1600, 876));
 
         let widget = PhysicalPosition::new(-1600, 540);
         let opened = rail_position_after_size_change(widget, compact, panel, bounds, 0);

@@ -102,7 +102,6 @@ export const LibraryHost: React.FC<{
   const pendingExportTimeout = useRef<number | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const refreshGeneration = useRef(0);
-  const hasLoaded = useRef(false);
   const licenseStatus = useLicenseStore((state) => state.status);
   const licenceAllowsWrite = !licenseStatus.enforcementEnabled || licenseStatus.canWrite;
   const canMutate = storageStatus === 'writable' && storageWritable && licenceAllowsWrite;
@@ -116,7 +115,7 @@ export const LibraryHost: React.FC<{
 
   const refreshNotes = useCallback(async () => {
     const generation = ++refreshGeneration.current;
-    if (!hasLoaded.current) setIsLoading(true);
+    setIsLoading(true);
     setStorageStatus('loading');
     setStorageWritable(false);
     try {
@@ -126,7 +125,6 @@ export const LibraryHost: React.FC<{
       ]);
       if (generation !== refreshGeneration.current) return;
       if (notesResult.status === 'rejected') throw notesResult.reason;
-      hasLoaded.current = true;
       setNotes(sortLibraryNotes(notesResult.value));
       if (storageResult.status === 'fulfilled') {
         setStorageWritable(storageResult.value.writable);
@@ -139,6 +137,7 @@ export const LibraryHost: React.FC<{
     } catch (error) {
       if (generation !== refreshGeneration.current) return;
       const message = error instanceof Error ? error.message : String(error);
+      setStorageStatus('error');
       setLoadError(`Skribli could not read the local note library: ${message}`);
     } finally {
       if (generation === refreshGeneration.current) setIsLoading(false);
@@ -402,6 +401,7 @@ export const LibraryHost: React.FC<{
           <span className="library-kicker">{mode === 'find' ? 'RETRIEVE, DON’T ORGANISE' : 'WHAT IS COMING BACK'}</span>
           <h1 id="library-title">{mode === 'find' ? 'Find' : 'Reminders'}</h1>
           <p>{mode === 'find' ? 'Search any local Skrib, read it in place, then open it here or return toward its saved context.' : 'See when a thought returns and open the Skrib it belongs to.'}</p>
+          <p>JSON export includes note text and metadata. Ink, attached files and reminders are not included; it is not a complete backup.</p>
         </div>
         <div className="library-topbar-actions">
           <button
@@ -456,7 +456,7 @@ export const LibraryHost: React.FC<{
           className={lifecycleView === 'archive' ? 'active' : ''}
           onClick={() => setLifecycleView('archive')}
         >
-          Past <span>{archivedNotes.length.toLocaleString()}</span>
+          Archive <span>{archivedNotes.length.toLocaleString()}</span>
         </button>
         <button
           type="button"
@@ -506,7 +506,7 @@ export const LibraryHost: React.FC<{
             type="search"
             value={query}
             autoFocus={active}
-            placeholder={`Search ${lifecycleView === 'trash' ? 'Trash' : lifecycleView === 'archive' ? 'Past' : 'thoughts'}, application, or context…`}
+            placeholder={`Search ${lifecycleView === 'trash' ? 'Trash' : lifecycleView === 'archive' ? 'Archive' : 'thoughts'}, application, or context…`}
             onChange={(event) => setQuery(event.target.value)}
           />
           <kbd>/</kbd>
@@ -568,7 +568,7 @@ export const LibraryHost: React.FC<{
             </div>
           ) : notesInView.length === 0 ? (
             <div className="library-state">
-              <strong>{lifecycleView === 'trash' ? 'Trash is empty' : lifecycleView === 'archive' ? 'Nothing in Past yet' : 'No saved Skribs yet'}</strong>
+              <strong>{lifecycleView === 'trash' ? 'Trash is empty' : lifecycleView === 'archive' ? 'Archive is empty' : 'No saved Skribs yet'}</strong>
               <span>
                 {lifecycleView === 'trash'
                   ? 'Notes moved to Trash remain recoverable here for 30 days.'

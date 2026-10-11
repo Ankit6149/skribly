@@ -2,7 +2,7 @@
 
 **Put a Skrib where the thought belongs.**
 
-> **Status — private Windows product development.** Public downloads remain disabled while native lifecycle, data/recovery, accessibility, installer, signing, and exact Windows runtime gates remain open. The current private owner candidate is **v0.1.51**.
+> **Status — private Windows product development.** Public downloads remain disabled while native lifecycle, data/recovery, accessibility, installer, signing, and exact Windows runtime gates remain open. The current private owner candidate is **v0.1.53**. Android **v0.0.2** is a separate private ARM64 preview; installed Windows and real-phone acceptance remain open.
 
 Skribli is a local-first contextual annotation application for Windows. The current desktop app uses **Tauri 2 + Rust + React + TypeScript**. Skrib content remains on the device; verified account/trial/entitlement state is handled separately from note content.
 
@@ -17,7 +17,7 @@ Skribli is a local-first contextual annotation application for Windows. The curr
 | Current architecture | [docs/02-engineering/ARCHITECTURE.md](docs/02-engineering/ARCHITECTURE.md) |
 | Product decisions | [docs/06-planning/DECISION_LOG.md](docs/06-planning/DECISION_LOG.md) |
 | Repository governance | [docs/06-planning/REPOSITORY_GOVERNANCE.md](docs/06-planning/REPOSITORY_GOVERNANCE.md) |
-| Current private owner candidate | [docs/04-operations/OWNER_CANDIDATE_V0.1.51.md](docs/04-operations/OWNER_CANDIDATE_V0.1.51.md) |
+| Current private owner delivery and exact package identity | [docs/04-operations/OWNER_PLATFORM_REFRESH_2026-10-04.md](docs/04-operations/OWNER_PLATFORM_REFRESH_2026-10-04.md) |
 
 ## Repository map
 

@@ -70,7 +70,7 @@ const historicalOverlayGate = await read(
 
 const requiredReadmeClaims = [
   '**Status — private Windows product development.**',
-  'current private owner candidate is **v0.1.51**',
+  'current private owner candidate is **v0.1.53**',
   '[docs/README.md](docs/README.md)',
   '[docs/current/README.md](docs/current/README.md)',
   'Structural cleanup must not hide product-behavior changes inside file moves.',

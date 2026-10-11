@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { NOTE_COLORS } from '../model/noteColors';
 import {
   classifyAttachment,
   createMemoryRichContentPersistence,
@@ -20,6 +21,17 @@ function deferred() {
   });
   return { promise, resolve };
 }
+
+it('retains every expanded palette colour in recovery after repository reopening', async () => {
+  for (const color of NOTE_COLORS) {
+    const persistence = createMemoryRichContentPersistence();
+    const first = createRichContentRepository(persistence);
+    const baseline = { text: 'Saved text', color, rich: await first.get('palette-note'), reminders: [] };
+    await first.retainDiscardRecovery('palette-note', { version: 1, baseline, current: baseline });
+    const reopened = createRichContentRepository(persistence);
+    expect((await reopened.get('palette-note')).discardRecovery?.baseline.color).toBe(color);
+  }
+});
 
 it('retains inline attachment positions across repository reopening and queued text updates', async () => {
   const persistence = createMemoryRichContentPersistence();
