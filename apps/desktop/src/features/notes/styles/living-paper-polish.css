@@ -834,6 +834,10 @@
 @media (max-width: 360px) { .composer-mode-pill { left: calc(50% - 24px); } }
 /* Larger app pill and automatic folder/page title, with stronger paper colours. */
 .skrib-composer { background:var(--note-paper); color:var(--note-foreground); }
+.skrib-composer .composer-textarea:empty::before,
+.skrib-composer .composer-textarea::placeholder {
+  color:color-mix(in srgb,var(--note-foreground) 60%,transparent);
+}
 .composer-paper-top { min-height:66px; flex-basis:66px; }
 .composer-context-tab { width:48px; max-width:48px; height:48px; min-height:48px; padding:12px; background:var(--context-pill-paper); border-color:color-mix(in srgb,var(--context-pill-ink) 35%,var(--context-pill-paper)); }
 .composer-context-app-icon { width:24px; height:24px; opacity:1; filter:var(--context-pill-icon-filter); }
@@ -857,6 +861,9 @@
   --skribli-ink:#262923; --skribli-muted:#6d7069; color:#262923;
 }
 .skrib-composer .composer-context-tab { color:var(--context-pill-ink); }
+.skrib-composer .composer-side-tools .composer-cancel-session:is(:hover,:focus-visible) {
+  background:#fffdf7; color:#424242;
+}
 /* Keep the original tray colors; only the tool icons use dark ink. */
 .skrib-composer .ink-editor-toolbar .ink-icon-tool { color:#424242; }
 .skrib-composer .composer-place-detail {
@@ -875,6 +882,11 @@
 }
 @media (forced-colors:active) {
   .skrib-composer { background:Canvas; color:CanvasText; }
+  .skrib-composer .composer-textarea:empty::before,
+  .skrib-composer .composer-textarea::placeholder { color:GrayText; }
+  .skrib-composer .composer-side-tools .composer-cancel-session:is(:hover,:focus-visible) {
+    background:Highlight; color:HighlightText;
+  }
   .skrib-composer .ink-editor-toolbar .ink-icon-tool { color:CanvasText; }
   .skrib-composer .composer-place-detail {
     --skribli-ink:CanvasText; --skribli-muted:CanvasText; color:CanvasText;

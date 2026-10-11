@@ -11,3 +11,13 @@ Card gradients, app-filter backgrounds and panel control colors remain unchanged
 Five opaque highlight fills pair with #262923 ink, with a fine underline for similar light papers. The removable highlight marker preserves formatting and prior text colors; sanitization recreates it only for approved fills. Descendant text shares the highlight ink. Unit checks verify every fill exceeds 7:1 contrast and saved/reopened markup retains the marker. Browser interaction selected real editor text, applied Mint on indigo, and verified computed fill rgb(207,229,215) and ink rgb(38,41,35). Changing that note to saturated orange retained the highlighted text and the same paired colors. [Dark-note screenshot](dark-note-highlight-iconify.png) shows the actual composer with the ChatGPT mark and readable highlight.
 
 The browser source preview required restarting Vite after removing Lucide; its stale dependency optimizer referenced the removed package. Fresh loading from the actual 127.0.0.1 server restored rendering. These browser checks do not establish installed native blur, docking, OS focus, notification delivery or release acceptance.
+
+## 12 October follow-up — white circle contrast
+
+Note action circles now use opaque warm white with soft charcoal `#424242` on hover, keyboard focus and expanded state. This prevents dark-note foregrounds from creating white icons on white circles. The indigo source preview verified the More action in an actual hovered/expanded state: background `rgb(255,253,247)`, button and SVG ink `rgb(66,66,66)`. Card backgrounds remain unchanged. Forced-colors states use Highlight/HighlightText. Screenshot: [white-circle-dark-icon.png](white-circle-dark-icon.png). This is source UI proof, not installed native acceptance.
+
+## Final owner refinements — 12 October
+
+The owner requested preserving the original draw tray surface. Its original background and selected-tool fills are restored; only tool SVG ink is changed to soft charcoal. The icon-pill hover details use dark text. Plain Fluent plus and cross replace their circled glyphs, with an additional 0.75px round stroke for weight. The cross retains white-circle hover feedback. Empty-editor placeholder ink now derives from the note foreground at 60% opacity, making it pale on dark papers and dark on light papers; typed text colors are unchanged.
+
+Earlier draw-tray screenshot shows an interim white tray and is historical, not proof of the final tray color. At the owner's request, no further browser interactions or new test runs were performed for these final refinements. Installed owner verification remains open.
