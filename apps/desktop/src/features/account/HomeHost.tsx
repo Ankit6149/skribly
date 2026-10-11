@@ -16,7 +16,7 @@ import {
   Settings,
   ShieldCheck,
   UserRound,
-} from 'lucide-react';
+} from '../../ui/icons';
 import skriblyMarkUrl from '../../../../../assets/branding/skribly-app-icon.svg?url';
 import type { SkribNote } from '../notes/model/noteTypes';
 import type { StorageHealthPayload } from '../notes/state/skribStore';

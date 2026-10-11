@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { emit } from '@tauri-apps/api/event';
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, FileText, Image, Paperclip, Play, X } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, FileText, Image, Paperclip, Play, X } from '../../../ui/icons';
 import { INLINE_ATTACHMENT_MIME } from './InlineAttachment';
 import {
   addFilesToNote,

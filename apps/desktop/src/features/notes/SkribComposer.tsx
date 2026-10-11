@@ -17,7 +17,7 @@ import {
   Plus,
   Paperclip,
   ListChecks,
-} from 'lucide-react';
+} from '../../ui/icons';
 import type { SkribNote } from './model/noteTypes';
 import { NOTE_COLOR_GROUPS, noteColorStyle, type NoteColor } from './model/noteColors';
 import { contextDisplayTitle } from './model/contextDisplayTitle';

@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, GripHorizontal, MoreHorizontal, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, GripHorizontal, MoreHorizontal, Plus } from '../../../ui/icons';
 import skribliLogo from '../../../../src-tauri/icons/128x128.png';
 
 export function WidgetHeader({

@@ -1,5 +1,5 @@
 import { useEffect, useState, type CSSProperties, type Ref } from 'react';
-import { GENERIC_APP_ICON } from '../bundledAppIcon';
+import { BundledAppMark } from './BundledAppMark';
 import type { NoteColor } from '../model/noteColors';
 import { chooseContextPillColor, previousContextPillColor, rememberContextPillColor } from '../model/contextPillColors';
 
@@ -56,17 +56,7 @@ export function NotePlaceHeader({
             onFocus={() => onPlaceDetailOpen(true)}
             onBlur={() => onPlaceDetailOpen(false)}
           >
-            {appIconUrl ? (
-              <img
-                className="composer-context-app-icon"
-                src={appIconUrl}
-                alt=""
-                aria-hidden="true"
-                data-tauri-drag-region
-              />
-            ) : (
-              <img className="composer-context-app-icon" src={GENERIC_APP_ICON} alt="" aria-hidden="true" data-tauri-drag-region />
-            )}
+            <BundledAppMark className="composer-context-app-icon" src={appIconUrl} />
           </div>
         )}
         {hasSavedContext && <strong className="composer-context-title" title={contextLabel} data-tauri-drag-region>{contextLabel}</strong>}

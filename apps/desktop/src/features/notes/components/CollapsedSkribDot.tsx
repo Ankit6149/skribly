@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { X } from 'lucide-react';
+import { X } from '../../../ui/icons';
 import type { SkribNote } from '../model/noteTypes';
 import { useSkribStore } from '../state/skribStore';
 import { useNativeDrag } from '../../../shared/hooks/useNativeDrag';

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, ArrowRight, Download, FileText, GripVertical, MoreHorizontal, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Download, FileText, GripVertical, MoreHorizontal, X } from '../../../ui/icons';
 import { createAttachmentObjectUrl, revokeAttachmentObjectUrl, formatAttachmentSize, type SkribAttachment } from '../persistence/richContentStore';
 import type { InlineAttachmentSize } from '../model/inlineAttachmentModel';
 

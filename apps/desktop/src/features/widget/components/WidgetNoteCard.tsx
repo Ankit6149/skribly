@@ -1,5 +1,5 @@
 import type React from 'react';
-import { LoaderCircle, MapPinned } from 'lucide-react';
+import { LoaderCircle, MapPinned } from '../../../ui/icons';
 import type { SkribNote } from '../../notes/model/noteTypes';
 import { noteColorStyle } from '../../notes/model/noteColors';
 import { contextDisplayTitle } from '../../notes/model/contextDisplayTitle';

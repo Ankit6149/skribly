@@ -8,7 +8,7 @@ import React, {
   type ClipboardEvent,
   type FormEvent,
 } from 'react';
-import { Bold, Highlighter, List, ListChecks, ListOrdered, Paperclip, Italic, Underline, Palette, Heading2, Quote, Minus, CalendarDays, Bell, PenLine, Type, Eraser, X } from 'lucide-react';
+import { Bold, Highlighter, List, ListChecks, ListOrdered, Paperclip, Italic, Underline, Palette, Heading2, Quote, Minus, CalendarDays, Bell, PenLine, Type, Eraser, X } from '../../../ui/icons';
 import { createPortal } from 'react-dom';
 import type { SkribAttachment } from '../persistence/richContentStore';
 import { InlineAttachment, INLINE_ATTACHMENT_MIME } from './InlineAttachment';
