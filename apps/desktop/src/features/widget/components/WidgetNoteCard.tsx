@@ -26,7 +26,7 @@ export function WidgetNoteCard({
         aria-label={`${archived ? 'Restore' : 'Open'} ${title}`}
         title={archived ? 'Return this Skrib to your active notes' : 'Open this Skrib here'}>
         <span className="skrib-ribbon-mark" aria-hidden="true">
-          <WidgetContextIcon processName={note.target_process_name ?? ''} iconUrl={iconUrl} />
+          <WidgetContextIcon processName={note.target_process_name ?? ''} contextTitle={note.target_title} iconUrl={iconUrl} />
         </span>
         <span className="skrib-ribbon-copy">
           <strong title={title}>{title}</strong>

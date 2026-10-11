@@ -10,6 +10,8 @@ export function NotePlaceHeader({
   contextLabel,
   contextFullAppLabel,
   appIconUrl,
+  processName = '',
+  contextTitle = '',
   isNewNote,
   hasSavedContext,
   placeDetailOpen,
@@ -21,6 +23,8 @@ export function NotePlaceHeader({
   contextLabel: string;
   contextFullAppLabel: string;
   appIconUrl: string | null;
+  processName?: string;
+  contextTitle?: string;
   isNewNote: boolean;
   hasSavedContext: boolean;
   placeDetailOpen: boolean;
@@ -56,7 +60,7 @@ export function NotePlaceHeader({
             onFocus={() => onPlaceDetailOpen(true)}
             onBlur={() => onPlaceDetailOpen(false)}
           >
-            <BundledAppMark className="composer-context-app-icon" src={appIconUrl} />
+            <BundledAppMark className="composer-context-app-icon" src={appIconUrl} processName={processName} contextTitle={contextTitle} />
           </div>
         )}
         {hasSavedContext && <strong className="composer-context-title" title={contextLabel} data-tauri-drag-region>{contextLabel}</strong>}
