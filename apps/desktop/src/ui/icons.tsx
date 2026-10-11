@@ -45,7 +45,7 @@ import glyph41 from '@iconify-icons/solar/pallete-2-bold';
 import glyph42 from '@iconify-icons/solar/paperclip-bold';
 import glyph43 from '@iconify-icons/solar/pen-bold';
 import glyph44 from '@iconify-icons/solar/play-bold';
-import glyph45 from '@iconify-icons/solar/add-circle-bold';
+import commandIcons from './command-icons.json';
 import glyph46 from '@iconify-icons/solar/quote-bold';
 import glyph47 from '@iconify-icons/solar/undo-right-bold';
 import glyph48 from '@iconify-icons/solar/repeat-bold';
@@ -59,7 +59,7 @@ import glyph55 from '@iconify-icons/solar/text-bold';
 import glyph56 from '@iconify-icons/solar/text-underline-bold';
 import glyph57 from '@iconify-icons/solar/undo-left-bold';
 import glyph58 from '@iconify-icons/solar/user-rounded-bold';
-import glyph59 from '@iconify-icons/solar/close-circle-bold';
+
 
 // Offline Iconify Solar Bold. Individual imports keep unused glyphs out of builds.
 // Solar by 480 Design, CC BY 4.0: https://icon-sets.iconify.design/solar/
@@ -119,7 +119,7 @@ export const Palette = glyph(glyph41);
 export const Paperclip = glyph(glyph42);
 export const PenLine = glyph(glyph43);
 export const Play = glyph(glyph44);
-export const Plus = glyph(glyph45);
+export const Plus = glyph({ ...commandIcons.icons['add-24-filled'], width: 24, height: 24 });
 export const Quote = glyph(glyph46);
 export const Redo2 = glyph(glyph47);
 export const Repeat2 = glyph(glyph48);
@@ -133,4 +133,4 @@ export const Type = glyph(glyph55);
 export const Underline = glyph(glyph56);
 export const Undo2 = glyph(glyph57);
 export const UserRound = glyph(glyph58);
-export const X = glyph(glyph59);
+export const X = glyph({ ...commandIcons.icons['dismiss-24-filled'], width: 24, height: 24 });
