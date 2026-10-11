@@ -1,8 +1,12 @@
-import type React from 'react';
-import { AppWindow } from 'lucide-react';
+import { useEffect, useState, type CSSProperties, type Ref } from 'react';
+import { GENERIC_APP_ICON } from '../bundledAppIcon';
+import type { NoteColor } from '../model/noteColors';
+import { chooseContextPillColor, previousContextPillColor, rememberContextPillColor } from '../model/contextPillColors';
 
 export function NotePlaceHeader({
   contextTabRef,
+  noteId,
+  noteColor,
   contextLabel,
   contextFullAppLabel,
   appIconUrl,
@@ -11,7 +15,9 @@ export function NotePlaceHeader({
   placeDetailOpen,
   onPlaceDetailOpen,
 }: {
-  contextTabRef: React.Ref<HTMLDivElement>;
+  contextTabRef: Ref<HTMLDivElement>;
+  noteId: string;
+  noteColor: NoteColor;
   contextLabel: string;
   contextFullAppLabel: string;
   appIconUrl: string | null;
@@ -20,6 +26,18 @@ export function NotePlaceHeader({
   placeDetailOpen: boolean;
   onPlaceDetailOpen: (open: boolean) => void;
 }) {
+  const [choice, setChoice] = useState(() => ({
+    noteId, noteColor, pill: chooseContextPillColor(noteColor, previousContextPillColor(noteId)),
+  }));
+  if (choice.noteId !== noteId || choice.noteColor !== noteColor) {
+    setChoice({ noteId, noteColor, pill: chooseContextPillColor(noteColor, choice.noteId === noteId ? choice.pill.id : previousContextPillColor(noteId)) });
+  }
+  useEffect(() => { rememberContextPillColor(choice.noteId, choice.pill.id); }, [choice]);
+  const pillStyle = {
+    '--context-pill-paper': choice.pill.background,
+    '--context-pill-ink': choice.pill.foreground,
+    '--context-pill-icon-filter': choice.pill.iconFilter,
+  } as CSSProperties;
   return (
     <>
       <header className="composer-paper-top" data-tauri-drag-region>
@@ -27,6 +45,8 @@ export function NotePlaceHeader({
           <div
             ref={contextTabRef}
             className="composer-context-tab"
+            style={pillStyle}
+            data-pill-color={choice.pill.id}
             data-tauri-drag-region
             tabIndex={0}
             aria-label={`Place: ${contextLabel}`}
@@ -45,10 +65,11 @@ export function NotePlaceHeader({
                 data-tauri-drag-region
               />
             ) : (
-              <AppWindow size={20} strokeWidth={1.8} aria-hidden="true" data-tauri-drag-region />
+              <img className="composer-context-app-icon" src={GENERIC_APP_ICON} alt="" aria-hidden="true" data-tauri-drag-region />
             )}
           </div>
         )}
+        {hasSavedContext && <strong className="composer-context-title" title={contextLabel} data-tauri-drag-region>{contextLabel}</strong>}
         <span id="composer-open-state" className="sr-only">
           {hasSavedContext
             ? isNewNote

@@ -1,0 +1,1284 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-11T15:19:22.540508+00:00",
+  "title": "Design System: Skribli - Soft Paper Play, curved card extension",
+  "extensions": {
+    "colorMeta": {
+      "paper": {
+        "role": "neutral",
+        "displayName": "Paper",
+        "tonalRamp": [
+          "oklch(15% 0.0082 91.48)",
+          "oklch(26% 0.0082 91.48)",
+          "oklch(38% 0.0082 91.48)",
+          "oklch(49% 0.0082 91.48)",
+          "oklch(61% 0.0082 91.48)",
+          "oklch(72% 0.0082 91.48)",
+          "oklch(84% 0.0082 91.48)",
+          "oklch(95% 0.0082 91.48)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "tonalRamp": [
+          "oklch(15% 0.0116 128.94)",
+          "oklch(26% 0.0116 128.94)",
+          "oklch(38% 0.0116 128.94)",
+          "oklch(49% 0.0116 128.94)",
+          "oklch(61% 0.0116 128.94)",
+          "oklch(72% 0.0116 128.94)",
+          "oklch(84% 0.0116 128.94)",
+          "oklch(95% 0.0116 128.94)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Muted",
+        "tonalRamp": [
+          "oklch(15% 0.0113 125.83)",
+          "oklch(26% 0.0113 125.83)",
+          "oklch(38% 0.0113 125.83)",
+          "oklch(49% 0.0113 125.83)",
+          "oklch(61% 0.0113 125.83)",
+          "oklch(72% 0.0113 125.83)",
+          "oklch(84% 0.0113 125.83)",
+          "oklch(95% 0.0113 125.83)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "olive": {
+        "role": "secondary",
+        "displayName": "Olive",
+        "tonalRamp": [
+          "oklch(15% 0.0502 140.90)",
+          "oklch(26% 0.0502 140.90)",
+          "oklch(38% 0.0502 140.90)",
+          "oklch(49% 0.0502 140.90)",
+          "oklch(61% 0.0502 140.90)",
+          "oklch(72% 0.0502 140.90)",
+          "oklch(84% 0.0502 140.90)",
+          "oklch(95% 0.0502 140.90)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "panel": {
+        "role": "neutral",
+        "displayName": "Panel",
+        "purpose": "Scoped translucent collection material; use panel-solid for the authored reduced-transparency fallback."
+      },
+      "panel-solid": {
+        "role": "neutral",
+        "displayName": "Panel Solid",
+        "tonalRamp": [
+          "oklch(15% 0.0164 196.26)",
+          "oklch(26% 0.0164 196.26)",
+          "oklch(38% 0.0164 196.26)",
+          "oklch(49% 0.0164 196.26)",
+          "oklch(61% 0.0164 196.26)",
+          "oklch(72% 0.0164 196.26)",
+          "oklch(84% 0.0164 196.26)",
+          "oklch(95% 0.0164 196.26)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "panel-ink": {
+        "role": "neutral",
+        "displayName": "Panel Ink",
+        "tonalRamp": [
+          "oklch(15% 0.0172 99.59)",
+          "oklch(26% 0.0172 99.59)",
+          "oklch(38% 0.0172 99.59)",
+          "oklch(49% 0.0172 99.59)",
+          "oklch(61% 0.0172 99.59)",
+          "oklch(72% 0.0172 99.59)",
+          "oklch(84% 0.0172 99.59)",
+          "oklch(95% 0.0172 99.59)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "panel-muted": {
+        "role": "neutral",
+        "displayName": "Panel Muted",
+        "tonalRamp": [
+          "oklch(15% 0.0241 125.22)",
+          "oklch(26% 0.0241 125.22)",
+          "oklch(38% 0.0241 125.22)",
+          "oklch(49% 0.0241 125.22)",
+          "oklch(61% 0.0241 125.22)",
+          "oklch(72% 0.0241 125.22)",
+          "oklch(84% 0.0241 125.22)",
+          "oklch(95% 0.0241 125.22)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "panel-label": {
+        "role": "neutral",
+        "displayName": "Panel Label",
+        "tonalRamp": [
+          "oklch(15% 0.0266 113.83)",
+          "oklch(26% 0.0266 113.83)",
+          "oklch(38% 0.0266 113.83)",
+          "oklch(49% 0.0266 113.83)",
+          "oklch(61% 0.0266 113.83)",
+          "oklch(72% 0.0266 113.83)",
+          "oklch(84% 0.0266 113.83)",
+          "oklch(95% 0.0266 113.83)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "panel-accent": {
+        "role": "secondary",
+        "displayName": "Panel Accent",
+        "tonalRamp": [
+          "oklch(15% 0.1732 116.65)",
+          "oklch(26% 0.1732 116.65)",
+          "oklch(38% 0.1732 116.65)",
+          "oklch(49% 0.1732 116.65)",
+          "oklch(61% 0.1732 116.65)",
+          "oklch(72% 0.1732 116.65)",
+          "oklch(84% 0.1732 116.65)",
+          "oklch(95% 0.1732 116.65)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "note-yellow": {
+        "role": "primary",
+        "displayName": "Note Yellow",
+        "tonalRamp": [
+          "oklch(15% 0.1513 98.11)",
+          "oklch(26% 0.1513 98.11)",
+          "oklch(38% 0.1513 98.11)",
+          "oklch(49% 0.1513 98.11)",
+          "oklch(61% 0.1513 98.11)",
+          "oklch(72% 0.1513 98.11)",
+          "oklch(84% 0.1513 98.11)",
+          "oklch(95% 0.1513 98.11)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "ink-yellow": {
+        "role": "neutral",
+        "displayName": "Ink Yellow",
+        "tonalRamp": [
+          "oklch(15% 0.0084 153.20)",
+          "oklch(26% 0.0084 153.20)",
+          "oklch(38% 0.0084 153.20)",
+          "oklch(49% 0.0084 153.20)",
+          "oklch(61% 0.0084 153.20)",
+          "oklch(72% 0.0084 153.20)",
+          "oklch(84% 0.0084 153.20)",
+          "oklch(95% 0.0084 153.20)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "note-peach": {
+        "role": "primary",
+        "displayName": "Note Peach",
+        "tonalRamp": [
+          "oklch(15% 0.0976 48.15)",
+          "oklch(26% 0.0976 48.15)",
+          "oklch(38% 0.0976 48.15)",
+          "oklch(49% 0.0976 48.15)",
+          "oklch(61% 0.0976 48.15)",
+          "oklch(72% 0.0976 48.15)",
+          "oklch(84% 0.0976 48.15)",
+          "oklch(95% 0.0976 48.15)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "ink-peach": {
+        "role": "neutral",
+        "displayName": "Ink Peach",
+        "tonalRamp": [
+          "oklch(15% 0.0084 153.20)",
+          "oklch(26% 0.0084 153.20)",
+          "oklch(38% 0.0084 153.20)",
+          "oklch(49% 0.0084 153.20)",
+          "oklch(61% 0.0084 153.20)",
+          "oklch(72% 0.0084 153.20)",
+          "oklch(84% 0.0084 153.20)",
+          "oklch(95% 0.0084 153.20)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "note-mint": {
+        "role": "primary",
+        "displayName": "Note Mint",
+        "tonalRamp": [
+          "oklch(15% 0.0794 151.85)",
+          "oklch(26% 0.0794 151.85)",
+          "oklch(38% 0.0794 151.85)",
+          "oklch(49% 0.0794 151.85)",
+          "oklch(61% 0.0794 151.85)",
+          "oklch(72% 0.0794 151.85)",
+          "oklch(84% 0.0794 151.85)",
+          "oklch(95% 0.0794 151.85)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "ink-mint": {
+        "role": "neutral",
+        "displayName": "Ink Mint",
+        "tonalRamp": [
+          "oklch(15% 0.0084 153.20)",
+          "oklch(26% 0.0084 153.20)",
+          "oklch(38% 0.0084 153.20)",
+          "oklch(49% 0.0084 153.20)",
+          "oklch(61% 0.0084 153.20)",
+          "oklch(72% 0.0084 153.20)",
+          "oklch(84% 0.0084 153.20)",
+          "oklch(95% 0.0084 153.20)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "note-sky": {
+        "role": "primary",
+        "displayName": "Note Sky",
+        "tonalRamp": [
+          "oklch(15% 0.0720 257.64)",
+          "oklch(26% 0.0720 257.64)",
+          "oklch(38% 0.0720 257.64)",
+          "oklch(49% 0.0720 257.64)",
+          "oklch(61% 0.0720 257.64)",
+          "oklch(72% 0.0720 257.64)",
+          "oklch(84% 0.0720 257.64)",
+          "oklch(95% 0.0720 257.64)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "ink-sky": {
+        "role": "neutral",
+        "displayName": "Ink Sky",
+        "tonalRamp": [
+          "oklch(15% 0.0084 153.20)",
+          "oklch(26% 0.0084 153.20)",
+          "oklch(38% 0.0084 153.20)",
+          "oklch(49% 0.0084 153.20)",
+          "oklch(61% 0.0084 153.20)",
+          "oklch(72% 0.0084 153.20)",
+          "oklch(84% 0.0084 153.20)",
+          "oklch(95% 0.0084 153.20)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "note-lavender": {
+        "role": "primary",
+        "displayName": "Note Lavender",
+        "tonalRamp": [
+          "oklch(15% 0.0985 301.72)",
+          "oklch(26% 0.0985 301.72)",
+          "oklch(38% 0.0985 301.72)",
+          "oklch(49% 0.0985 301.72)",
+          "oklch(61% 0.0985 301.72)",
+          "oklch(72% 0.0985 301.72)",
+          "oklch(84% 0.0985 301.72)",
+          "oklch(95% 0.0985 301.72)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "ink-lavender": {
+        "role": "neutral",
+        "displayName": "Ink Lavender",
+        "tonalRamp": [
+          "oklch(15% 0.0084 153.20)",
+          "oklch(26% 0.0084 153.20)",
+          "oklch(38% 0.0084 153.20)",
+          "oklch(49% 0.0084 153.20)",
+          "oklch(61% 0.0084 153.20)",
+          "oklch(72% 0.0084 153.20)",
+          "oklch(84% 0.0084 153.20)",
+          "oklch(95% 0.0084 153.20)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "note-rose": {
+        "role": "primary",
+        "displayName": "Note Rose",
+        "tonalRamp": [
+          "oklch(15% 0.0932 0.46)",
+          "oklch(26% 0.0932 0.46)",
+          "oklch(38% 0.0932 0.46)",
+          "oklch(49% 0.0932 0.46)",
+          "oklch(61% 0.0932 0.46)",
+          "oklch(72% 0.0932 0.46)",
+          "oklch(84% 0.0932 0.46)",
+          "oklch(95% 0.0932 0.46)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "ink-rose": {
+        "role": "neutral",
+        "displayName": "Ink Rose",
+        "tonalRamp": [
+          "oklch(15% 0.0084 153.20)",
+          "oklch(26% 0.0084 153.20)",
+          "oklch(38% 0.0084 153.20)",
+          "oklch(49% 0.0084 153.20)",
+          "oklch(61% 0.0084 153.20)",
+          "oklch(72% 0.0084 153.20)",
+          "oklch(84% 0.0084 153.20)",
+          "oklch(95% 0.0084 153.20)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "note-aqua": {
+        "role": "primary",
+        "displayName": "Note Aqua",
+        "tonalRamp": [
+          "oklch(15% 0.0727 183.84)",
+          "oklch(26% 0.0727 183.84)",
+          "oklch(38% 0.0727 183.84)",
+          "oklch(49% 0.0727 183.84)",
+          "oklch(61% 0.0727 183.84)",
+          "oklch(72% 0.0727 183.84)",
+          "oklch(84% 0.0727 183.84)",
+          "oklch(95% 0.0727 183.84)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "ink-aqua": {
+        "role": "neutral",
+        "displayName": "Ink Aqua",
+        "tonalRamp": [
+          "oklch(15% 0.0084 153.20)",
+          "oklch(26% 0.0084 153.20)",
+          "oklch(38% 0.0084 153.20)",
+          "oklch(49% 0.0084 153.20)",
+          "oklch(61% 0.0084 153.20)",
+          "oklch(72% 0.0084 153.20)",
+          "oklch(84% 0.0084 153.20)",
+          "oklch(95% 0.0084 153.20)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "note-sand": {
+        "role": "primary",
+        "displayName": "Note Sand",
+        "tonalRamp": [
+          "oklch(15% 0.0788 75.24)",
+          "oklch(26% 0.0788 75.24)",
+          "oklch(38% 0.0788 75.24)",
+          "oklch(49% 0.0788 75.24)",
+          "oklch(61% 0.0788 75.24)",
+          "oklch(72% 0.0788 75.24)",
+          "oklch(84% 0.0788 75.24)",
+          "oklch(95% 0.0788 75.24)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "ink-sand": {
+        "role": "neutral",
+        "displayName": "Ink Sand",
+        "tonalRamp": [
+          "oklch(15% 0.0084 153.20)",
+          "oklch(26% 0.0084 153.20)",
+          "oklch(38% 0.0084 153.20)",
+          "oklch(49% 0.0084 153.20)",
+          "oklch(61% 0.0084 153.20)",
+          "oklch(72% 0.0084 153.20)",
+          "oklch(84% 0.0084 153.20)",
+          "oklch(95% 0.0084 153.20)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "note-green": {
+        "role": "primary",
+        "displayName": "Note Green",
+        "tonalRamp": [
+          "oklch(15% 0.1856 146.87)",
+          "oklch(26% 0.1856 146.87)",
+          "oklch(38% 0.1856 146.87)",
+          "oklch(49% 0.1856 146.87)",
+          "oklch(61% 0.1856 146.87)",
+          "oklch(72% 0.1856 146.87)",
+          "oklch(84% 0.1856 146.87)",
+          "oklch(95% 0.1856 146.87)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "ink-green": {
+        "role": "neutral",
+        "displayName": "Ink Green",
+        "tonalRamp": [
+          "oklch(15% 0.0252 146.89)",
+          "oklch(26% 0.0252 146.89)",
+          "oklch(38% 0.0252 146.89)",
+          "oklch(49% 0.0252 146.89)",
+          "oklch(61% 0.0252 146.89)",
+          "oklch(72% 0.0252 146.89)",
+          "oklch(84% 0.0252 146.89)",
+          "oklch(95% 0.0252 146.89)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "note-orange": {
+        "role": "primary",
+        "displayName": "Note Orange",
+        "tonalRamp": [
+          "oklch(15% 0.1891 42.06)",
+          "oklch(26% 0.1891 42.06)",
+          "oklch(38% 0.1891 42.06)",
+          "oklch(49% 0.1891 42.06)",
+          "oklch(61% 0.1891 42.06)",
+          "oklch(72% 0.1891 42.06)",
+          "oklch(84% 0.1891 42.06)",
+          "oklch(95% 0.1891 42.06)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "ink-orange": {
+        "role": "neutral",
+        "displayName": "Ink Orange",
+        "tonalRamp": [
+          "oklch(15% 0.0168 107.76)",
+          "oklch(26% 0.0168 107.76)",
+          "oklch(38% 0.0168 107.76)",
+          "oklch(49% 0.0168 107.76)",
+          "oklch(61% 0.0168 107.76)",
+          "oklch(72% 0.0168 107.76)",
+          "oklch(84% 0.0168 107.76)",
+          "oklch(95% 0.0168 107.76)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "note-lime": {
+        "role": "primary",
+        "displayName": "Note Lime",
+        "tonalRamp": [
+          "oklch(15% 0.1914 118.99)",
+          "oklch(26% 0.1914 118.99)",
+          "oklch(38% 0.1914 118.99)",
+          "oklch(49% 0.1914 118.99)",
+          "oklch(61% 0.1914 118.99)",
+          "oklch(72% 0.1914 118.99)",
+          "oklch(84% 0.1914 118.99)",
+          "oklch(95% 0.1914 118.99)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "ink-lime": {
+        "role": "neutral",
+        "displayName": "Ink Lime",
+        "tonalRamp": [
+          "oklch(15% 0.0210 133.14)",
+          "oklch(26% 0.0210 133.14)",
+          "oklch(38% 0.0210 133.14)",
+          "oklch(49% 0.0210 133.14)",
+          "oklch(61% 0.0210 133.14)",
+          "oklch(72% 0.0210 133.14)",
+          "oklch(84% 0.0210 133.14)",
+          "oklch(95% 0.0210 133.14)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "note-olive": {
+        "role": "primary",
+        "displayName": "Note Olive",
+        "tonalRamp": [
+          "oklch(15% 0.1018 119.58)",
+          "oklch(26% 0.1018 119.58)",
+          "oklch(38% 0.1018 119.58)",
+          "oklch(49% 0.1018 119.58)",
+          "oklch(61% 0.1018 119.58)",
+          "oklch(72% 0.1018 119.58)",
+          "oklch(84% 0.1018 119.58)",
+          "oklch(95% 0.1018 119.58)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "ink-olive": {
+        "role": "neutral",
+        "displayName": "Ink Olive",
+        "tonalRamp": [
+          "oklch(15% 0.0237 134.54)",
+          "oklch(26% 0.0237 134.54)",
+          "oklch(38% 0.0237 134.54)",
+          "oklch(49% 0.0237 134.54)",
+          "oklch(61% 0.0237 134.54)",
+          "oklch(72% 0.0237 134.54)",
+          "oklch(84% 0.0237 134.54)",
+          "oklch(95% 0.0237 134.54)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "note-charcoal": {
+        "role": "primary",
+        "displayName": "Note Charcoal",
+        "tonalRamp": [
+          "oklch(15% 0.0132 126.17)",
+          "oklch(26% 0.0132 126.17)",
+          "oklch(38% 0.0132 126.17)",
+          "oklch(49% 0.0132 126.17)",
+          "oklch(61% 0.0132 126.17)",
+          "oklch(72% 0.0132 126.17)",
+          "oklch(84% 0.0132 126.17)",
+          "oklch(95% 0.0132 126.17)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "ink-charcoal": {
+        "role": "neutral",
+        "displayName": "Ink Charcoal",
+        "tonalRamp": [
+          "oklch(15% 0.0703 113.75)",
+          "oklch(26% 0.0703 113.75)",
+          "oklch(38% 0.0703 113.75)",
+          "oklch(49% 0.0703 113.75)",
+          "oklch(61% 0.0703 113.75)",
+          "oklch(72% 0.0703 113.75)",
+          "oklch(84% 0.0703 113.75)",
+          "oklch(95% 0.0703 113.75)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "note-cobalt": {
+        "role": "primary",
+        "displayName": "Note Cobalt",
+        "tonalRamp": [
+          "oklch(15% 0.1635 270.12)",
+          "oklch(26% 0.1635 270.12)",
+          "oklch(38% 0.1635 270.12)",
+          "oklch(49% 0.1635 270.12)",
+          "oklch(61% 0.1635 270.12)",
+          "oklch(72% 0.1635 270.12)",
+          "oklch(84% 0.1635 270.12)",
+          "oklch(95% 0.1635 270.12)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "ink-cobalt": {
+        "role": "neutral",
+        "displayName": "Ink Cobalt",
+        "tonalRamp": [
+          "oklch(15% 0.0322 262.44)",
+          "oklch(26% 0.0322 262.44)",
+          "oklch(38% 0.0322 262.44)",
+          "oklch(49% 0.0322 262.44)",
+          "oklch(61% 0.0322 262.44)",
+          "oklch(72% 0.0322 262.44)",
+          "oklch(84% 0.0322 262.44)",
+          "oklch(95% 0.0322 262.44)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "note-cream": {
+        "role": "primary",
+        "displayName": "Note Cream",
+        "tonalRamp": [
+          "oklch(15% 0.0640 104.68)",
+          "oklch(26% 0.0640 104.68)",
+          "oklch(38% 0.0640 104.68)",
+          "oklch(49% 0.0640 104.68)",
+          "oklch(61% 0.0640 104.68)",
+          "oklch(72% 0.0640 104.68)",
+          "oklch(84% 0.0640 104.68)",
+          "oklch(95% 0.0640 104.68)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "ink-cream": {
+        "role": "neutral",
+        "displayName": "Ink Cream",
+        "tonalRamp": [
+          "oklch(15% 0.0084 153.20)",
+          "oklch(26% 0.0084 153.20)",
+          "oklch(38% 0.0084 153.20)",
+          "oklch(49% 0.0084 153.20)",
+          "oklch(61% 0.0084 153.20)",
+          "oklch(72% 0.0084 153.20)",
+          "oklch(84% 0.0084 153.20)",
+          "oklch(95% 0.0084 153.20)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "note-red": {
+        "role": "primary",
+        "displayName": "Note Red",
+        "tonalRamp": [
+          "oklch(15% 0.2238 26.23)",
+          "oklch(26% 0.2238 26.23)",
+          "oklch(38% 0.2238 26.23)",
+          "oklch(49% 0.2238 26.23)",
+          "oklch(61% 0.2238 26.23)",
+          "oklch(72% 0.2238 26.23)",
+          "oklch(84% 0.2238 26.23)",
+          "oklch(95% 0.2238 26.23)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "ink-red": {
+        "role": "neutral",
+        "displayName": "Ink Red",
+        "tonalRamp": [
+          "oklch(15% 0.0121 27.72)",
+          "oklch(26% 0.0121 27.72)",
+          "oklch(38% 0.0121 27.72)",
+          "oklch(49% 0.0121 27.72)",
+          "oklch(61% 0.0121 27.72)",
+          "oklch(72% 0.0121 27.72)",
+          "oklch(84% 0.0121 27.72)",
+          "oklch(95% 0.0121 27.72)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "note-stone": {
+        "role": "primary",
+        "displayName": "Note Stone",
+        "tonalRamp": [
+          "oklch(15% 0.0233 98.68)",
+          "oklch(26% 0.0233 98.68)",
+          "oklch(38% 0.0233 98.68)",
+          "oklch(49% 0.0233 98.68)",
+          "oklch(61% 0.0233 98.68)",
+          "oklch(72% 0.0233 98.68)",
+          "oklch(84% 0.0233 98.68)",
+          "oklch(95% 0.0233 98.68)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "ink-stone": {
+        "role": "neutral",
+        "displayName": "Ink Stone",
+        "tonalRamp": [
+          "oklch(15% 0.0084 153.20)",
+          "oklch(26% 0.0084 153.20)",
+          "oklch(38% 0.0084 153.20)",
+          "oklch(49% 0.0084 153.20)",
+          "oklch(61% 0.0084 153.20)",
+          "oklch(72% 0.0084 153.20)",
+          "oklch(84% 0.0084 153.20)",
+          "oklch(95% 0.0084 153.20)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "note-wine": {
+        "role": "primary",
+        "displayName": "Note Wine",
+        "tonalRamp": [
+          "oklch(15% 0.1331 16.57)",
+          "oklch(26% 0.1331 16.57)",
+          "oklch(38% 0.1331 16.57)",
+          "oklch(49% 0.1331 16.57)",
+          "oklch(61% 0.1331 16.57)",
+          "oklch(72% 0.1331 16.57)",
+          "oklch(84% 0.1331 16.57)",
+          "oklch(95% 0.1331 16.57)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "ink-wine": {
+        "role": "neutral",
+        "displayName": "Ink Wine",
+        "tonalRamp": [
+          "oklch(15% 0.0355 79.69)",
+          "oklch(26% 0.0355 79.69)",
+          "oklch(38% 0.0355 79.69)",
+          "oklch(49% 0.0355 79.69)",
+          "oklch(61% 0.0355 79.69)",
+          "oklch(72% 0.0355 79.69)",
+          "oklch(84% 0.0355 79.69)",
+          "oklch(95% 0.0355 79.69)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "note-black": {
+        "role": "primary",
+        "displayName": "Note Black",
+        "tonalRamp": [
+          "oklch(15% 0.0040 128.64)",
+          "oklch(26% 0.0040 128.64)",
+          "oklch(38% 0.0040 128.64)",
+          "oklch(49% 0.0040 128.64)",
+          "oklch(61% 0.0040 128.64)",
+          "oklch(72% 0.0040 128.64)",
+          "oklch(84% 0.0040 128.64)",
+          "oklch(95% 0.0040 128.64)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "ink-black": {
+        "role": "neutral",
+        "displayName": "Ink Black",
+        "tonalRamp": [
+          "oklch(15% 0.0279 111.35)",
+          "oklch(26% 0.0279 111.35)",
+          "oklch(38% 0.0279 111.35)",
+          "oklch(49% 0.0279 111.35)",
+          "oklch(61% 0.0279 111.35)",
+          "oklch(72% 0.0279 111.35)",
+          "oklch(84% 0.0279 111.35)",
+          "oklch(95% 0.0279 111.35)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "note-coral": {
+        "role": "primary",
+        "displayName": "Note Coral",
+        "tonalRamp": [
+          "oklch(15% 0.1555 31.88)",
+          "oklch(26% 0.1555 31.88)",
+          "oklch(38% 0.1555 31.88)",
+          "oklch(49% 0.1555 31.88)",
+          "oklch(61% 0.1555 31.88)",
+          "oklch(72% 0.1555 31.88)",
+          "oklch(84% 0.1555 31.88)",
+          "oklch(95% 0.1555 31.88)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "ink-coral": {
+        "role": "neutral",
+        "displayName": "Ink Coral",
+        "tonalRamp": [
+          "oklch(15% 0.0084 153.20)",
+          "oklch(26% 0.0084 153.20)",
+          "oklch(38% 0.0084 153.20)",
+          "oklch(49% 0.0084 153.20)",
+          "oklch(61% 0.0084 153.20)",
+          "oklch(72% 0.0084 153.20)",
+          "oklch(84% 0.0084 153.20)",
+          "oklch(95% 0.0084 153.20)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "note-lemon": {
+        "role": "primary",
+        "displayName": "Note Lemon",
+        "tonalRamp": [
+          "oklch(15% 0.1654 100.08)",
+          "oklch(26% 0.1654 100.08)",
+          "oklch(38% 0.1654 100.08)",
+          "oklch(49% 0.1654 100.08)",
+          "oklch(61% 0.1654 100.08)",
+          "oklch(72% 0.1654 100.08)",
+          "oklch(84% 0.1654 100.08)",
+          "oklch(95% 0.1654 100.08)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "ink-lemon": {
+        "role": "neutral",
+        "displayName": "Ink Lemon",
+        "tonalRamp": [
+          "oklch(15% 0.0084 153.20)",
+          "oklch(26% 0.0084 153.20)",
+          "oklch(38% 0.0084 153.20)",
+          "oklch(49% 0.0084 153.20)",
+          "oklch(61% 0.0084 153.20)",
+          "oklch(72% 0.0084 153.20)",
+          "oklch(84% 0.0084 153.20)",
+          "oklch(95% 0.0084 153.20)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "note-amber": {
+        "role": "primary",
+        "displayName": "Note Amber",
+        "tonalRamp": [
+          "oklch(15% 0.1425 77.59)",
+          "oklch(26% 0.1425 77.59)",
+          "oklch(38% 0.1425 77.59)",
+          "oklch(49% 0.1425 77.59)",
+          "oklch(61% 0.1425 77.59)",
+          "oklch(72% 0.1425 77.59)",
+          "oklch(84% 0.1425 77.59)",
+          "oklch(95% 0.1425 77.59)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "ink-amber": {
+        "role": "neutral",
+        "displayName": "Ink Amber",
+        "tonalRamp": [
+          "oklch(15% 0.0084 153.20)",
+          "oklch(26% 0.0084 153.20)",
+          "oklch(38% 0.0084 153.20)",
+          "oklch(49% 0.0084 153.20)",
+          "oklch(61% 0.0084 153.20)",
+          "oklch(72% 0.0084 153.20)",
+          "oklch(84% 0.0084 153.20)",
+          "oklch(95% 0.0084 153.20)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "note-apricot": {
+        "role": "primary",
+        "displayName": "Note Apricot",
+        "tonalRamp": [
+          "oklch(15% 0.1252 63.82)",
+          "oklch(26% 0.1252 63.82)",
+          "oklch(38% 0.1252 63.82)",
+          "oklch(49% 0.1252 63.82)",
+          "oklch(61% 0.1252 63.82)",
+          "oklch(72% 0.1252 63.82)",
+          "oklch(84% 0.1252 63.82)",
+          "oklch(95% 0.1252 63.82)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "ink-apricot": {
+        "role": "neutral",
+        "displayName": "Ink Apricot",
+        "tonalRamp": [
+          "oklch(15% 0.0084 153.20)",
+          "oklch(26% 0.0084 153.20)",
+          "oklch(38% 0.0084 153.20)",
+          "oklch(49% 0.0084 153.20)",
+          "oklch(61% 0.0084 153.20)",
+          "oklch(72% 0.0084 153.20)",
+          "oklch(84% 0.0084 153.20)",
+          "oklch(95% 0.0084 153.20)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "note-sage": {
+        "role": "primary",
+        "displayName": "Note Sage",
+        "tonalRamp": [
+          "oklch(15% 0.1025 119.45)",
+          "oklch(26% 0.1025 119.45)",
+          "oklch(38% 0.1025 119.45)",
+          "oklch(49% 0.1025 119.45)",
+          "oklch(61% 0.1025 119.45)",
+          "oklch(72% 0.1025 119.45)",
+          "oklch(84% 0.1025 119.45)",
+          "oklch(95% 0.1025 119.45)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "ink-sage": {
+        "role": "neutral",
+        "displayName": "Ink Sage",
+        "tonalRamp": [
+          "oklch(15% 0.0084 153.20)",
+          "oklch(26% 0.0084 153.20)",
+          "oklch(38% 0.0084 153.20)",
+          "oklch(49% 0.0084 153.20)",
+          "oklch(61% 0.0084 153.20)",
+          "oklch(72% 0.0084 153.20)",
+          "oklch(84% 0.0084 153.20)",
+          "oklch(95% 0.0084 153.20)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "note-teal": {
+        "role": "primary",
+        "displayName": "Note Teal",
+        "tonalRamp": [
+          "oklch(15% 0.1098 186.85)",
+          "oklch(26% 0.1098 186.85)",
+          "oklch(38% 0.1098 186.85)",
+          "oklch(49% 0.1098 186.85)",
+          "oklch(61% 0.1098 186.85)",
+          "oklch(72% 0.1098 186.85)",
+          "oklch(84% 0.1098 186.85)",
+          "oklch(95% 0.1098 186.85)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "ink-teal": {
+        "role": "neutral",
+        "displayName": "Ink Teal",
+        "tonalRamp": [
+          "oklch(15% 0.0253 186.98)",
+          "oklch(26% 0.0253 186.98)",
+          "oklch(38% 0.0253 186.98)",
+          "oklch(49% 0.0253 186.98)",
+          "oklch(61% 0.0253 186.98)",
+          "oklch(72% 0.0253 186.98)",
+          "oklch(84% 0.0253 186.98)",
+          "oklch(95% 0.0253 186.98)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "note-turquoise": {
+        "role": "primary",
+        "displayName": "Note Turquoise",
+        "tonalRamp": [
+          "oklch(15% 0.1175 191.69)",
+          "oklch(26% 0.1175 191.69)",
+          "oklch(38% 0.1175 191.69)",
+          "oklch(49% 0.1175 191.69)",
+          "oklch(61% 0.1175 191.69)",
+          "oklch(72% 0.1175 191.69)",
+          "oklch(84% 0.1175 191.69)",
+          "oklch(95% 0.1175 191.69)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "ink-turquoise": {
+        "role": "neutral",
+        "displayName": "Ink Turquoise",
+        "tonalRamp": [
+          "oklch(15% 0.0253 186.98)",
+          "oklch(26% 0.0253 186.98)",
+          "oklch(38% 0.0253 186.98)",
+          "oklch(49% 0.0253 186.98)",
+          "oklch(61% 0.0253 186.98)",
+          "oklch(72% 0.0253 186.98)",
+          "oklch(84% 0.0253 186.98)",
+          "oklch(95% 0.0253 186.98)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "note-azure": {
+        "role": "primary",
+        "displayName": "Note Azure",
+        "tonalRamp": [
+          "oklch(15% 0.1075 249.02)",
+          "oklch(26% 0.1075 249.02)",
+          "oklch(38% 0.1075 249.02)",
+          "oklch(49% 0.1075 249.02)",
+          "oklch(61% 0.1075 249.02)",
+          "oklch(72% 0.1075 249.02)",
+          "oklch(84% 0.1075 249.02)",
+          "oklch(95% 0.1075 249.02)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "ink-azure": {
+        "role": "neutral",
+        "displayName": "Ink Azure",
+        "tonalRamp": [
+          "oklch(15% 0.0330 258.29)",
+          "oklch(26% 0.0330 258.29)",
+          "oklch(38% 0.0330 258.29)",
+          "oklch(49% 0.0330 258.29)",
+          "oklch(61% 0.0330 258.29)",
+          "oklch(72% 0.0330 258.29)",
+          "oklch(84% 0.0330 258.29)",
+          "oklch(95% 0.0330 258.29)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "note-periwinkle": {
+        "role": "primary",
+        "displayName": "Note Periwinkle",
+        "tonalRamp": [
+          "oklch(15% 0.1176 282.60)",
+          "oklch(26% 0.1176 282.60)",
+          "oklch(38% 0.1176 282.60)",
+          "oklch(49% 0.1176 282.60)",
+          "oklch(61% 0.1176 282.60)",
+          "oklch(72% 0.1176 282.60)",
+          "oklch(84% 0.1176 282.60)",
+          "oklch(95% 0.1176 282.60)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "ink-periwinkle": {
+        "role": "neutral",
+        "displayName": "Ink Periwinkle",
+        "tonalRamp": [
+          "oklch(15% 0.0408 282.45)",
+          "oklch(26% 0.0408 282.45)",
+          "oklch(38% 0.0408 282.45)",
+          "oklch(49% 0.0408 282.45)",
+          "oklch(61% 0.0408 282.45)",
+          "oklch(72% 0.0408 282.45)",
+          "oklch(84% 0.0408 282.45)",
+          "oklch(95% 0.0408 282.45)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "note-orchid": {
+        "role": "primary",
+        "displayName": "Note Orchid",
+        "tonalRamp": [
+          "oklch(15% 0.1197 316.81)",
+          "oklch(26% 0.1197 316.81)",
+          "oklch(38% 0.1197 316.81)",
+          "oklch(49% 0.1197 316.81)",
+          "oklch(61% 0.1197 316.81)",
+          "oklch(72% 0.1197 316.81)",
+          "oklch(84% 0.1197 316.81)",
+          "oklch(95% 0.1197 316.81)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "ink-orchid": {
+        "role": "neutral",
+        "displayName": "Ink Orchid",
+        "tonalRamp": [
+          "oklch(15% 0.0343 314.93)",
+          "oklch(26% 0.0343 314.93)",
+          "oklch(38% 0.0343 314.93)",
+          "oklch(49% 0.0343 314.93)",
+          "oklch(61% 0.0343 314.93)",
+          "oklch(72% 0.0343 314.93)",
+          "oklch(84% 0.0343 314.93)",
+          "oklch(95% 0.0343 314.93)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "note-pink": {
+        "role": "primary",
+        "displayName": "Note Pink",
+        "tonalRamp": [
+          "oklch(15% 0.1438 346.87)",
+          "oklch(26% 0.1438 346.87)",
+          "oklch(38% 0.1438 346.87)",
+          "oklch(49% 0.1438 346.87)",
+          "oklch(61% 0.1438 346.87)",
+          "oklch(72% 0.1438 346.87)",
+          "oklch(84% 0.1438 346.87)",
+          "oklch(95% 0.1438 346.87)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "ink-pink": {
+        "role": "neutral",
+        "displayName": "Ink Pink",
+        "tonalRamp": [
+          "oklch(15% 0.0254 329.48)",
+          "oklch(26% 0.0254 329.48)",
+          "oklch(38% 0.0254 329.48)",
+          "oklch(49% 0.0254 329.48)",
+          "oklch(61% 0.0254 329.48)",
+          "oklch(72% 0.0254 329.48)",
+          "oklch(84% 0.0254 329.48)",
+          "oklch(95% 0.0254 329.48)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "note-ruby": {
+        "role": "primary",
+        "displayName": "Note Ruby",
+        "tonalRamp": [
+          "oklch(15% 0.1582 7.00)",
+          "oklch(26% 0.1582 7.00)",
+          "oklch(38% 0.1582 7.00)",
+          "oklch(49% 0.1582 7.00)",
+          "oklch(61% 0.1582 7.00)",
+          "oklch(72% 0.1582 7.00)",
+          "oklch(84% 0.1582 7.00)",
+          "oklch(95% 0.1582 7.00)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "ink-ruby": {
+        "role": "neutral",
+        "displayName": "Ink Ruby",
+        "tonalRamp": [
+          "oklch(15% 0.0355 79.69)",
+          "oklch(26% 0.0355 79.69)",
+          "oklch(38% 0.0355 79.69)",
+          "oklch(49% 0.0355 79.69)",
+          "oklch(61% 0.0355 79.69)",
+          "oklch(72% 0.0355 79.69)",
+          "oklch(84% 0.0355 79.69)",
+          "oklch(95% 0.0355 79.69)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "note-indigo": {
+        "role": "primary",
+        "displayName": "Note Indigo",
+        "tonalRamp": [
+          "oklch(15% 0.1313 276.45)",
+          "oklch(26% 0.1313 276.45)",
+          "oklch(38% 0.1313 276.45)",
+          "oklch(49% 0.1313 276.45)",
+          "oklch(61% 0.1313 276.45)",
+          "oklch(72% 0.1313 276.45)",
+          "oklch(84% 0.1313 276.45)",
+          "oklch(95% 0.1313 276.45)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      },
+      "ink-indigo": {
+        "role": "neutral",
+        "displayName": "Ink Indigo",
+        "tonalRamp": [
+          "oklch(15% 0.0240 99.11)",
+          "oklch(26% 0.0240 99.11)",
+          "oklch(38% 0.0240 99.11)",
+          "oklch(49% 0.0240 99.11)",
+          "oklch(61% 0.0240 99.11)",
+          "oklch(72% 0.0240 99.11)",
+          "oklch(84% 0.0240 99.11)",
+          "oklch(95% 0.0240 99.11)"
+        ],
+        "rampPurpose": "Synthesized OKLCH preview only; not authored production states."
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Ticket title",
+        "purpose": "Scoped collection headings."
+      },
+      "body": {
+        "displayName": "Ticket preview",
+        "purpose": "Readable note summary."
+      },
+      "title": {
+        "displayName": "Captured context",
+        "purpose": "Separate single-line editor context."
+      },
+      "label": {
+        "displayName": "Action label",
+        "purpose": "Small collection actions."
+      },
+      "handwriting": {
+        "displayName": "Note writing",
+        "purpose": "Inherited content font, not interface controls."
+      }
+    },
+    "shadows": [
+      {
+        "name": "editor-paper",
+        "value": "inset 0 1px 0 rgb(255 255 255 / 28%), 0 12px 28px rgb(38 41 35 / 11%)",
+        "purpose": "Inherited contextual paper depth."
+      },
+      {
+        "name": "ticket",
+        "value": "none",
+        "purpose": "Flat collection cards, including hover."
+      }
+    ],
+    "motion": [
+      {
+        "name": "control-transition",
+        "value": "140ms ease",
+        "purpose": "Inherited editor feedback; removed with reduced motion."
+      },
+      {
+        "name": "ticket-motion",
+        "value": "none",
+        "purpose": "No collection hover lift or entrance animation."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "five-columns",
+        "value": "1200px"
+      },
+      {
+        "name": "four-columns",
+        "value": "1000px"
+      },
+      {
+        "name": "three-columns",
+        "value": "760px"
+      },
+      {
+        "name": "two-columns",
+        "value": "520px"
+      },
+      {
+        "name": "compact-editor",
+        "value": "360px"
+      }
+    ],
+    "material": [
+      {
+        "name": "collection-blur",
+        "value": "blur(32px)",
+        "purpose": "Scoped CSS frosted material; Windows compositor acceptance pending."
+      }
+    ],
+    "sourceManifest": "docs/01-design/DESIGN.md",
+    "scope": "Expanded global collection and desktop note-paper extension; inherits Soft Paper Play elsewhere."
+  },
+  "components": [
+    {
+      "name": "Ticket card",
+      "kind": "card",
+      "refersTo": "ticket",
+      "description": "Smooth-sided context card with a broader bottom-right curve and note-derived tonal wash. Solid padded Supericons sit in light note-derived circles; Open and Return remain separate. Inline sample icon is documentation only.",
+      "html": "<article class=\"ds-ticket\"><button class=\"ds-ticket-read\"><strong>Database</strong><span>Remember the migration details.</span><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" aria-hidden=\"true\"><path d=\"M5 3h10l4 4v14H5zM15 3v5h4M8 12h8M8 16h6\"/></svg><em>Open</em></button><button class=\"ds-ticket-return\">Return ?</button></article>",
+      "css": ".ds-ticket { position:relative; width:210px; height:228px; border-radius:20px 20px 44px 20px; color:var(--note-foreground,#171b18); background:linear-gradient(145deg,color-mix(in srgb,var(--note-paper,#f9df5b) 92%,white),var(--note-paper,#f9df5b) 65%); mask:none; } .ds-ticket-read { position:absolute; inset:0; width:100%; padding:18px; text-align:left; border:0; border-radius:inherit; color:inherit; background:transparent; cursor:pointer; } .ds-ticket-read strong { display:block; font:700 21px/1.2 var(--font-display,Manrope,sans-serif); letter-spacing:-.025em; } .ds-ticket-read span { display:block; margin-top:10px; font:500 14px/1.4 var(--font-ui,\"DM Sans\",sans-serif); } .ds-ticket-read svg { position:absolute; left:18px; bottom:20px; width:24px; height:24px; padding:12px; box-sizing:content-box; border-radius:50%; background:color-mix(in srgb,var(--note-paper,#f9df5b) 25%,white); color:#424242; } .ds-ticket-read em { position:absolute; right:79px; bottom:25px; border:1px solid currentColor; border-radius:999px; padding:4px 8px; font:600 11px/1.1 var(--font-ui,\"DM Sans\",sans-serif); } .ds-ticket-read:focus-visible { outline:3px solid currentColor; outline-offset:-5px; } .ds-ticket-return { position:absolute; right:14px; bottom:17px; width:62px; height:38px; border:0; border-radius:999px; background:transparent; color:inherit; font:600 11px/1 var(--font-ui,\"DM Sans\",sans-serif); cursor:pointer; } .ds-ticket-return:hover { background:color-mix(in srgb,currentColor 12%,transparent); } .ds-ticket-return:focus-visible { outline:2px solid currentColor; outline-offset:-2px; } .ds-ticket::after { content:\"\"; position:absolute; right:0; bottom:0; width:36px; height:36px; border-radius:36px 0 0 0; background:color-mix(in srgb,var(--note-paper,#f9df5b) 90%,var(--note-foreground,#171b18)); pointer-events:none; }"
+    },
+    {
+      "name": "Done",
+      "kind": "button",
+      "refersTo": "put-away",
+      "description": "Flush and hide the contextual note; inherits its paired paper and foreground.",
+      "html": "<button class=\"ds-done\">Done</button>",
+      "css": ".ds-done { height:36px; padding:0 16px; border:1px solid rgb(38 41 35 / 14%); border-radius:999px; background:var(--note-foreground,#171b18); color:var(--note-paper,#f9df5b); font:700 12px/1 var(--font-ui,\"DM Sans\",sans-serif); cursor:pointer; transition:transform 140ms ease; } .ds-done:hover { transform:translateY(-1px); } .ds-done:active { transform:scale(.96); } .ds-done:focus-visible { outline:2px solid var(--olive,#536a4f); outline-offset:2px; } @media(prefers-reduced-motion:reduce) { .ds-done { transition:none; } }"
+    },
+    {
+      "name": "Collection search",
+      "kind": "input",
+      "refersTo": "panel-search",
+      "description": "Pale rounded search field on the scoped light frosted material.",
+      "html": "<label class=\"ds-search\"><input aria-label=\"Search Skribs\" placeholder=\"Search Skribs\"></label>",
+      "css": ".ds-search { display:block; width:250px; min-height:38px; padding:0 14px; border-radius:999px; background:rgb(255 253 247 / 80%); color:#4f574c; } .ds-search input { width:100%; min-height:38px; border:0; background:transparent; color:#262923; font:400 14px var(--font-ui,\"DM Sans\",sans-serif); } .ds-search input::placeholder { color:#52594e; opacity:1; } .ds-search:focus-within { outline:2px solid #4b643d; outline-offset:4px; } .ds-search input:focus-visible { outline:none; }"
+    },
+    {
+      "name": "Application filters",
+      "kind": "nav",
+      "refersTo": "application-filter",
+      "description": "Solid soft-charcoal application marks, visible app names and inline counts. Note-derived pale fills, keyboard focus and horizontal scrolling at narrow widths.",
+      "html": "<nav class=\"ds-filters\" aria-label=\"Applications\"><button aria-pressed=\"true\">All apps</button><button aria-pressed=\"false\">Code</button></nav>",
+      "css": ".ds-filters { display:flex; gap:8px; overflow-x:auto; padding:4px 0; background:#f8f7f2; } .ds-filters button { flex:0 0 auto; height:38px; padding:8px 12px; border:0; border-radius:12px; color:#424242; background:color-mix(in srgb,var(--note-paper,#e7ddb6) 14%,#f8f7f2); font:500 13px var(--font-ui,\"DM Sans\",sans-serif); cursor:pointer; } .ds-filters button[aria-pressed=true] { background:color-mix(in srgb,var(--note-paper,#e7ddb6) 35%,#f8f7f2); } .ds-filters button:focus-visible { outline:2px solid #4b643d; outline-offset:2px; }"
+    },
+    {
+      "name": "Palette swatch",
+      "kind": "chip",
+      "refersTo": "palette-swatch",
+      "description": "Named paper choice with a paired foreground and selected indicator.",
+      "html": "<button class=\"ds-swatch\" aria-label=\"Yellow\" aria-pressed=\"true\">?</button>",
+      "css": ".ds-swatch { width:28px; height:28px; padding:0; border:1px solid rgb(38 41 35 / 18%); border-radius:50%; background:var(--note-paper,#f9df5b); color:var(--note-foreground,#171b18); cursor:pointer; } .ds-swatch:hover { outline:1px solid currentColor; outline-offset:1px; } .ds-swatch:focus-visible { outline:2px solid var(--olive,#536a4f); outline-offset:2px; }"
+    },
+    {
+      "name": "Note application pill",
+      "kind": "custom",
+      "refersTo": "app-pill",
+      "description": "48px light colourful application pill with a padded 24px soft #424242 solid Supericons mark. Pick light shared-palette accents (luminance >=0.45), excluding the note colour, similar hues and the prior pill. All 32 note papers have multiple options; dark icon/paired ink contrast >=4.5:1. Thin ink outline distinguishes light-on-light surfaces. Random on opening or paper change, stable while writing. Known-app Supericons precede Windows logos. Inline placeholder is documentation only.",
+      "html": "<span class=\"ds-app-pill\" aria-label=\"Application identity\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.65\" aria-hidden=\"true\"><path d=\"M5 3h10l4 4v14H5zM15 3v5h4M8 12h8M8 16h6\"/></svg></span>",
+      "css": ".ds-app-pill { display:grid; place-items:center; width:48px; height:48px; padding:12px; box-sizing:border-box; border:1px solid color-mix(in srgb,var(--context-pill-ink,#171b18) 35%,var(--context-pill-paper,#ffb792)); border-radius:999px; background:var(--context-pill-paper,#ffb792); color:var(--context-pill-ink,#171b18); } .ds-app-pill svg { width:24px; height:24px; }"
+    },
+    {
+      "name": "Type / Draw",
+      "kind": "custom",
+      "refersTo": "editing-mode",
+      "description": "Inherited quiet editing-mode pill, with interface typography.",
+      "html": "<div class=\"ds-modes\"><button aria-pressed=\"true\">Type</button><button aria-pressed=\"false\">Draw</button></div>",
+      "css": ".ds-modes { display:inline-flex; gap:2px; padding:2px; border:1px solid rgb(38 41 35 / 12%); border-radius:999px; background:color-mix(in srgb,var(--paper,#fffdf7) 68%,transparent); } .ds-modes button { min-width:54px; min-height:24px; padding:0 9px; border:0; border-radius:999px; color:#262923; background:transparent; font:600 11px/1 var(--font-ui,\"DM Sans\",sans-serif); cursor:pointer; } .ds-modes button[aria-pressed=true] { background:var(--paper,#fffdf7); box-shadow:0 1px 3px rgb(38 41 35 / 8%); } .ds-modes button:hover { background:color-mix(in srgb,var(--paper,#fffdf7) 86%,transparent); } .ds-modes button:focus-visible { outline:2px solid var(--olive,#536a4f); outline-offset:1px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Soft Paper Play",
+    "overview": "Soft Paper Play remains the incumbent product identity: warm paper, dark ink, quiet functional chrome and handwriting inside the note. The owner-selected ticket collection extends that world with stronger paper colours, smooth-sided cards with a bottom-right curve and a light frosted collection surface. It does not replace the light Home, library or contextual editing identity.\n\nThis snapshot records source implementation on 11 October 2026. Palette selections are durable across desktop note surfaces; curved geometry and light material apply only to the expanded global collection. Browser evidence uses synthetic notes. Installed Windows acceptance and publication remain open.",
+    "keyCharacteristics": [
+      "Tactile note paper with explicit paired foregrounds.",
+      "Crisp functional type; Kalam remains note content.",
+      "Note-derived tonal cards inside the scoped light collection; soft elevation for the editor.",
+      "Application identity and captured context stay separate."
+    ],
+    "rules": [
+      {
+        "name": "The Paired Paper Rule",
+        "body": "A `note-<id>` paper always uses the matching `ink-<id>` foreground. Palette-pair contrast checks require at least 4.5:1; they do not establish contrast for every mixed hover, popover or logo treatment.",
+        "section": "colors"
+      },
+      {
+        "name": "The Functional Type Rule",
+        "body": "Use interface type for actions and context identity; reserve Kalam for note content and existing handwritten accents.",
+        "section": "typography"
+      },
+      {
+        "name": "The Scoped Material Rule",
+        "body": "Dark frosted material belongs to the expanded global collection. Preserve warm paper and soft elevation elsewhere unless separately approved.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do inherit Soft Paper Play outside the scoped collection.",
+      "Do apply each note paper together with its paired foreground.",
+      "Do keep 32 picker choices while preserving the original eight persisted IDs and eight-colour creation rotation.",
+      "Do use captured context only for presentation; retain raw native matching and Return metadata.",
+      "Do preserve visible keyboard focus and opaque/system-colour fallbacks."
+    ],
+    "donts": [
+      "Don't apply the dark collection material to every product surface.",
+      "Don't substitute pale universal text on light papers or dark universal text on dark papers.",
+      "Don't turn a cleaned title into a URL, verified origin or reconstructed folder path.",
+      "Don't infer Windows blur, focus, docking or mixed-DPI acceptance from browser screenshots."
+    ]
+  }
+}

@@ -1,4 +1,5 @@
 use crate::core::models::SkribNote;
+use crate::core::note_colors::is_valid_note_color;
 use crate::desktop::library::{
     current_time_millis, sort_notes_for_library, write_library_export,
     LibraryExportContentCoverage, LibraryExportEnvelope, LibraryExportScope,
@@ -27,9 +28,6 @@ const MAX_NOTE_CHARACTERS: usize = 20_000;
 const MAX_GEOMETRY_COORDINATE: f64 = 1_000_000.0;
 const MAX_GEOMETRY_DIMENSION: f64 = 100_000.0;
 const MAX_CONFLICT_DETAILS: usize = 50;
-const ALLOWED_NOTE_COLORS: [&str; 8] = [
-    "yellow", "peach", "mint", "sky", "lavender", "rose", "aqua", "sand",
-];
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -584,7 +582,7 @@ fn validate_portable_note(note: &PortableSkribNote) -> Result<(), String> {
             note.id
         ));
     }
-    if !ALLOWED_NOTE_COLORS.contains(&note.color.as_str()) {
+    if !is_valid_note_color(&note.color) {
         return Err(format!(
             "Imported note '{}' uses an unsupported colour.",
             note.id
@@ -773,6 +771,17 @@ mod tests {
         .expect("valid export should parse");
         assert_eq!(lifecycle_counts(&parsed.notes), (1, 1));
         assert_eq!(parsed.schema_version, 1);
+    }
+
+    #[test]
+    fn expanded_palette_round_trips_through_portable_export_and_import() {
+        for color in crate::core::note_colors::NOTE_COLORS {
+            let mut fixture = note("colour", "Saved thought", None);
+            fixture.color = color.into();
+            let parsed =
+                parse_import(&export_json(vec![fixture])).expect("palette colour should import");
+            assert_eq!(parsed.notes[0].color, color);
+        }
     }
 
     #[test]

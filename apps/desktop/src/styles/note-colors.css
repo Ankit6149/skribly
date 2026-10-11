@@ -1,0 +1,48 @@
+/* Desktop note colours. Existing IDs remain valid; no stored records are rewritten. */
+:root {
+  --yellow: #f9df5b;
+  --peach: #ffb792;
+  --mint: #a9dfb6;
+  --sky: #a8c7f4;
+  --lavender: #c6acf0;
+  --rose: #f5a9bf;
+  --aqua: #96ddd2;
+  --sand: #e6c18e;
+}
+.skrib-color-yellow { --note-paper: #f9df5b; --note-foreground: #171b18; --skribli-paper: #f9df5b; --ribbon-tint: #f9df5b; }
+.skrib-color-peach { --note-paper: #ffb792; --note-foreground: #171b18; --skribli-paper: #ffb792; --ribbon-tint: #ffb792; }
+.skrib-color-mint { --note-paper: #a9dfb6; --note-foreground: #171b18; --skribli-paper: #a9dfb6; --ribbon-tint: #a9dfb6; }
+.skrib-color-sky { --note-paper: #a8c7f4; --note-foreground: #171b18; --skribli-paper: #a8c7f4; --ribbon-tint: #a8c7f4; }
+.skrib-color-lavender { --note-paper: #c6acf0; --note-foreground: #171b18; --skribli-paper: #c6acf0; --ribbon-tint: #c6acf0; }
+.skrib-color-rose { --note-paper: #f5a9bf; --note-foreground: #171b18; --skribli-paper: #f5a9bf; --ribbon-tint: #f5a9bf; }
+.skrib-color-aqua { --note-paper: #96ddd2; --note-foreground: #171b18; --skribli-paper: #96ddd2; --ribbon-tint: #96ddd2; }
+.skrib-color-sand { --note-paper: #e6c18e; --note-foreground: #171b18; --skribli-paper: #e6c18e; --ribbon-tint: #e6c18e; }
+.skrib-color-green { --note-paper: #1cac43; --note-foreground: #101b11; --skribli-paper: #1cac43; --ribbon-tint: #1cac43; }
+.skrib-color-orange { --note-paper: #fa6c2b; --note-foreground: #191910; --skribli-paper: #fa6c2b; --ribbon-tint: #fa6c2b; }
+.skrib-color-lime { --note-paper: #d8f64a; --note-foreground: #161c12; --skribli-paper: #d8f64a; --ribbon-tint: #d8f64a; }
+.skrib-color-olive { --note-paper: #96a75c; --note-foreground: #11180d; --skribli-paper: #96a75c; --ribbon-tint: #96a75c; }
+.skrib-color-charcoal { --note-paper: #292c25; --note-foreground: #edf4be; --skribli-paper: #292c25; --ribbon-tint: #292c25; }
+.skrib-color-cobalt { --note-paper: #637fea; --note-foreground: #111928; --skribli-paper: #637fea; --ribbon-tint: #637fea; }
+.skrib-color-cream { --note-paper: #e7e4b3; --note-foreground: #171b18; --skribli-paper: #e7e4b3; --ribbon-tint: #e7e4b3; }
+.skrib-color-red { --note-paper: #ee3033; --note-foreground: #17100f; --skribli-paper: #ee3033; --ribbon-tint: #ee3033; }
+.skrib-color-stone { --note-paper: #d3d0bf; --note-foreground: #171b18; --skribli-paper: #d3d0bf; --ribbon-tint: #d3d0bf; }
+.skrib-color-wine { --note-paper: #8c2937; --note-foreground: #fff0d8; --skribli-paper: #8c2937; --ribbon-tint: #8c2937; }
+.skrib-color-black { --note-paper: #20211f; --note-foreground: #e9ebd6; --skribli-paper: #20211f; --ribbon-tint: #20211f; }
+.skrib-color-coral { --note-paper: #ff836c; --note-foreground: #171b18; --skribli-paper: #ff836c; --ribbon-tint: #ff836c; }
+.skrib-color-lemon { --note-paper: #ffe750; --note-foreground: #171b18; --skribli-paper: #ffe750; --ribbon-tint: #ffe750; }
+.skrib-color-amber { --note-paper: #ffbf53; --note-foreground: #171b18; --skribli-paper: #ffbf53; --ribbon-tint: #ffbf53; }
+.skrib-color-apricot { --note-paper: #ffb46b; --note-foreground: #171b18; --skribli-paper: #ffb46b; --ribbon-tint: #ffb46b; }
+.skrib-color-sage { --note-paper: #bbcd80; --note-foreground: #171b18; --skribli-paper: #bbcd80; --ribbon-tint: #bbcd80; }
+.skrib-color-teal { --note-paper: #49c5ba; --note-foreground: #102321; --skribli-paper: #49c5ba; --ribbon-tint: #49c5ba; }
+.skrib-color-turquoise { --note-paper: #53dcd7; --note-foreground: #102321; --skribli-paper: #53dcd7; --ribbon-tint: #53dcd7; }
+.skrib-color-azure { --note-paper: #79b6f2; --note-foreground: #111b2a; --skribli-paper: #79b6f2; --ribbon-tint: #79b6f2; }
+.skrib-color-periwinkle { --note-paper: #a0a1f3; --note-foreground: #17172c; --skribli-paper: #a0a1f3; --ribbon-tint: #a0a1f3; }
+.skrib-color-orchid { --note-paper: #d29be6; --note-foreground: #211626; --skribli-paper: #d29be6; --ribbon-tint: #d29be6; }
+.skrib-color-pink { --note-paper: #ff95cf; --note-foreground: #211620; --skribli-paper: #ff95cf; --ribbon-tint: #ff95cf; }
+.skrib-color-ruby { --note-paper: #a52c51; --note-foreground: #fff0d8; --skribli-paper: #a52c51; --ribbon-tint: #a52c51; }
+.skrib-color-indigo { --note-paper: #3c4192; --note-foreground: #f4f1df; --skribli-paper: #3c4192; --ribbon-tint: #3c4192; }
+[class*='skrib-color-'] {
+  --skribli-paper-deep: color-mix(in srgb, var(--note-paper) 78%, #262923);
+}
+.color-swatch[class*='skrib-color-'] { background: var(--note-paper); color: var(--note-foreground); }
+

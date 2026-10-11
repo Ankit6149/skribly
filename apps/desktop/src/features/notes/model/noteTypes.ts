@@ -1,3 +1,5 @@
+import type { NoteColor } from './noteColors';
+
 export interface SkribNote {
   id: string;
   target_process_name: string;
@@ -7,7 +9,7 @@ export interface SkribNote {
   width: number;
   height: number;
   text: string;
-  color: 'yellow' | 'peach' | 'mint' | 'sky' | 'lavender' | 'rose' | 'aqua' | 'sand';
+  color: NoteColor;
   collapsed: boolean;
   created_at: number;
   updated_at: number;

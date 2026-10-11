@@ -1,14 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, ArrowRight, Download, FileText, MoreHorizontal, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Download, FileText, GripVertical, MoreHorizontal, X } from 'lucide-react';
 import { createAttachmentObjectUrl, revokeAttachmentObjectUrl, formatAttachmentSize, type SkribAttachment } from '../persistence/richContentStore';
 import type { InlineAttachmentSize } from '../model/inlineAttachmentModel';
 
 export const INLINE_ATTACHMENT_MIME = 'application/x-skribli-attachment';
 
-export function InlineAttachment({ attachment, disabled, size, onSizeChange, onMove, onRemoveReference }: {
+export function InlineAttachment({ noteId, attachment, disabled, size, onSizeChange, onMove, onRemoveReference, onDeleteFile }: {
+  noteId: string;
   attachment: SkribAttachment; disabled: boolean; size: InlineAttachmentSize;
   onSizeChange: (size: InlineAttachmentSize) => void;
   onMove: (direction: -1 | 1) => void; onRemoveReference: () => void;
+  onDeleteFile?: (() => void) | undefined;
 }) {
   const [url, setUrl] = useState<string | null>(null);
   const [actionsOpen, setActionsOpen] = useState(false);
@@ -29,6 +31,15 @@ export function InlineAttachment({ attachment, disabled, size, onSizeChange, onM
             ? <video src={url} controls preload="metadata" aria-label={attachment.name} />
             : <FileText size={28} aria-hidden="true" />}
       </span>
+      <button type="button" className="inline-attachment-drag" disabled={disabled} draggable={!disabled}
+        aria-label={`Drag ${attachment.name} to another writing position`} title="Drag to move · use Options to move with the keyboard"
+        onDragStart={(event) => {
+          if (disabled) { event.preventDefault(); return; }
+          event.dataTransfer.setData(INLINE_ATTACHMENT_MIME, JSON.stringify({ noteId, attachmentId: attachment.id }));
+          event.dataTransfer.effectAllowed = 'move';
+        }}>
+        <GripVertical size={15} aria-hidden="true" />
+      </button>
       <button type="button" className="inline-attachment-more" disabled={disabled}
         aria-label={`Options for ${attachment.name}`} aria-expanded={actionsOpen}
         title="Attachment options" onClick={() => setActionsOpen((open) => !open)}>
@@ -43,6 +54,8 @@ export function InlineAttachment({ attachment, disabled, size, onSizeChange, onM
       <span className="inline-attachment-name" title={attachment.name}>{attachment.name}</span>
       <span className="inline-attachment-meta">{attachment.name.split('.').pop()?.toUpperCase()} · {formatAttachmentSize(attachment.size)}</span>
       {actionsOpen && <span className="inline-attachment-popover" role="group" aria-label={`Options for ${attachment.name}`}>
+        <span className="inline-attachment-meta">Remove from text keeps the saved file. Delete file removes both after confirmation.</span>
+        {onDeleteFile && <button type="button" disabled={disabled} onClick={onDeleteFile}>Delete saved file…</button>}
         {(attachment.kind === 'image' || attachment.kind === 'ink') && <span className="inline-attachment-sizes" role="group" aria-label="Image size">
           {(['small', 'medium', 'large'] as const).map((option) => <button key={option} type="button"
             disabled={disabled} aria-label={`${option} image`} aria-pressed={size === option}

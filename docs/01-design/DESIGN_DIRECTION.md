@@ -39,3 +39,12 @@ Collapse/restore and the drawing workspace use only short functional state chang
 - Notes must remain readable at different DPI scales.
 - Keyboard focus, forced colours, reduced motion, and larger text must remain legible without changing the brand language.
 - Dark mode may be added later; the approved initial direction is light Soft Paper Play.
+
+
+## Approved scoped extension ? 11 October 2026
+
+The expanded global collection now uses the owner-selected saturated ticket treatment: rounded tickets with semicircular side cutouts over a dark frosted view, bold captured-context titles, readable note previews and actual application marks. This extends Soft Paper Play on that surface; the light Home/library and compact contextual-note identity remain inherited. Full-view collection expansion does not authorize persistent full-screen annotations or a desktop-sized writing overlay.
+
+Desktop note paper now has 32 named picker choices with paired foregrounds. The original eight persisted IDs remain valid and gain stronger saturation; creation still rotates those eight. The contextual editor has a 48px app pill with a 32px app image and a separate display title derived from captured context. Raw native titles remain unchanged for matching and Return.
+
+The token-bearing [DESIGN.md](DESIGN.md) and [Impeccable sidecar](../../.impeccable/design.json) record this scoped extension. The [surface brief](evidence/ticket-panel-2026-10-11/BRIEF.md), [source QA](evidence/ticket-panel-2026-10-11/design-qa.md) and [documentation record](evidence/ticket-panel-2026-10-11/DOCUMENTATION.md) preserve its evidence and open acceptance boundary. Browser screenshots are source previews with synthetic data; Windows compositor, monitor coverage, focus, docking and mixed-DPI acceptance remain pending.

@@ -1,0 +1,38 @@
+pub(crate) const NOTE_COLORS: [&str; 32] = [
+    "yellow",
+    "peach",
+    "mint",
+    "sky",
+    "lavender",
+    "rose",
+    "aqua",
+    "sand",
+    "green",
+    "orange",
+    "lime",
+    "olive",
+    "charcoal",
+    "cobalt",
+    "cream",
+    "red",
+    "stone",
+    "wine",
+    "black",
+    "coral",
+    "lemon",
+    "amber",
+    "apricot",
+    "sage",
+    "teal",
+    "turquoise",
+    "azure",
+    "periwinkle",
+    "orchid",
+    "pink",
+    "ruby",
+    "indigo",
+];
+
+pub(crate) fn is_valid_note_color(color: &str) -> bool {
+    NOTE_COLORS.contains(&color)
+}

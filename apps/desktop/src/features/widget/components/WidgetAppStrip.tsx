@@ -1,4 +1,6 @@
-import { StickyNote } from 'lucide-react';
+import type { CSSProperties } from 'react';
+import { noteColorStyle } from '../../notes/model/noteColors';
+import { GENERIC_APP_ICON } from '../../notes/bundledAppIcon';
 import type { NoteGroup } from '../model/contextRailModel';
 import { WidgetContextIcon } from './WidgetContextIcon';
 
@@ -27,7 +29,7 @@ export function WidgetAppStrip({
         aria-label="Show all apps"
         title="Every app in this view"
       >
-        <StickyNote size={14} aria-hidden="true" />
+        <img className="ribbon-app-icon flat-app-icon" src={GENERIC_APP_ICON} alt="" aria-hidden="true" />
         <span className="rail-app-label">All apps</span>
         <span>{visibleNoteCount}</span>
       </button>
@@ -37,6 +39,7 @@ export function WidgetAppStrip({
           <button
             type="button"
             key={group.key}
+            style={noteColorStyle(group.notes[0]!.color) as CSSProperties}
             className={selectedGroupKey === group.key ? 'active' : ''}
             aria-pressed={selectedGroupKey === group.key}
             onClick={() => onSelect(group.key)}
@@ -47,6 +50,7 @@ export function WidgetAppStrip({
               processName={processName}
               iconUrl={appIcons[processName.toLowerCase()]}
             />
+            <span className="rail-app-label">{group.label}</span>
             <span>{group.notes.length}</span>
           </button>
         );

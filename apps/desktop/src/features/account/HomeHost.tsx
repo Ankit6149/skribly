@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
+import { AppAppearancePreferences } from '../settings/AppAppearancePreferences';
 import { emit, listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -302,12 +303,21 @@ export const WorkspaceSidebar: React.FC<{
   );
 };
 
-export const ReadySurface: React.FC<{ onNavigate: (destination: WorkspaceDestination) => void }> = ({ onNavigate }) => {
+export const ReadySurface: React.FC<{
+  onNavigate: (destination: WorkspaceDestination) => void;
+  previewStatus?: { activeCount: number; writable: boolean };
+  onPreviewHide?: () => void;
+}> = ({ onNavigate, previewStatus, onPreviewHide }) => {
   const { entitlement, announcements } = useAccountStore();
   const [activeCount, setActiveCount] = useState<number | null>(null);
   const [storageCheck, setStorageCheck] = useState<'loading' | 'healthy' | 'readOnly' | 'error'>('loading');
 
   const refreshStatus = useCallback(async () => {
+    if (previewStatus) {
+      setActiveCount(previewStatus.activeCount);
+      setStorageCheck(previewStatus.writable ? 'healthy' : 'readOnly');
+      return;
+    }
     setStorageCheck('loading');
     const [notesResult, storageResult] = await Promise.allSettled([
       invoke<SkribNote[]>('get_all_skribs'),
@@ -323,7 +333,7 @@ export const ReadySurface: React.FC<{ onNavigate: (destination: WorkspaceDestina
     } else {
       setStorageCheck('error');
     }
-  }, []);
+  }, [previewStatus]);
 
   useEffect(() => {
     void refreshStatus();
@@ -332,11 +342,9 @@ export const ReadySurface: React.FC<{ onNavigate: (destination: WorkspaceDestina
   return (
     <main className="home-main desktop-ready-surface">
       <div className="desktop-ready-copy">
-        <span className="account-kicker">SKRIBLI IS READY</span>
         <h1>Leave the window. Keep the thought.</h1>
         <p>
-          The main app should stay out of the way. Focus the app where the thought belongs, then use
-          the global shortcut.
+          Keep a thought with the app it belongs to. Focus that app and use the shortcut below.
         </p>
 
         <div className="desktop-shortcut-line" aria-label="Control plus Shift plus Space">
@@ -348,7 +356,7 @@ export const ReadySurface: React.FC<{ onNavigate: (destination: WorkspaceDestina
             className="account-primary"
             type="button"
             disabled={entitlement ? !entitlement.canWrite : true}
-            onClick={() => void getCurrentWindow().hide()}
+            onClick={() => onPreviewHide ? onPreviewHide() : void getCurrentWindow().hide()}
           >
             {entitlement?.canWrite ? 'Hide Skribli and return to work' : 'Writing is unavailable'}
           </button>
@@ -359,7 +367,6 @@ export const ReadySurface: React.FC<{ onNavigate: (destination: WorkspaceDestina
       </div>
 
       <aside className="desktop-ready-status" aria-label="Skribli status">
-        <span className="account-kicker">RIGHT NOW</span>
         <h2>{storageCheck === 'loading'
           ? 'Checking local data.'
           : storageCheck === 'error'
@@ -369,7 +376,7 @@ export const ReadySurface: React.FC<{ onNavigate: (destination: WorkspaceDestina
               : 'Your local Skribs are ready.'}</h2>
         <div className="desktop-status-row">
           <strong>{activeCount == null ? 'Local Skribs' : `${activeCount} active Skrib${activeCount === 1 ? '' : 's'}`}</strong>
-          <span>Use Find only when context is not enough.</span>
+          <span>Search by thought, application or saved context.</span>
         </div>
         <div className="desktop-status-row">
           <strong>{storageCheck === 'loading'
@@ -534,6 +541,7 @@ export const SettingsSurface: React.FC<{
                 <kbd>Ctrl + Shift + Space</kbd>
               </div>
               <NotePreferences />
+              <AppAppearancePreferences />
               <div className="desktop-setting-row">
                 <div><strong>Main window</strong><span>Closing or hiding the window does not quit the background process.</span></div>
                 <button className="account-secondary" type="button" onClick={() => void getCurrentWindow().hide()}>Hide now</button>
@@ -590,7 +598,7 @@ export const SettingsSurface: React.FC<{
               </div>
 
               <div className="desktop-setting-row">
-                <div><strong>Export note records</strong><span>Create a portable local JSON export of the native note records.</span></div>
+                <div><strong>Export note records</strong><span>Export note text and metadata as JSON. Ink, attached files and reminders are not included; this is not a complete backup.</span></div>
                 <button className="account-secondary" type="button" onClick={() => void exportAll()} disabled={exporting}>
                   {exporting ? 'Exporting…' : 'Export'}
                 </button>
@@ -600,8 +608,8 @@ export const SettingsSurface: React.FC<{
                 <LibraryImportPanel canApply={canApplyImport} onApplied={() => void refreshStorage()} />
               </div>
               <div className="desktop-setting-row">
-                <div><strong>Past</strong><span>Completed or archived Skribs remain restorable.</span></div>
-                <button className="account-secondary" type="button" onClick={() => onOpenFindView('archive')}>Open Past</button>
+                <div><strong>Archive</strong><span>Completed or archived Skribs remain restorable.</span></div>
+                <button className="account-secondary" type="button" onClick={() => onOpenFindView('archive')}>Open Archive</button>
               </div>
               <div className="desktop-setting-row">
                 <div><strong>Trash</strong><span>Recently removed Skribs remain recoverable before permanent deletion.</span></div>

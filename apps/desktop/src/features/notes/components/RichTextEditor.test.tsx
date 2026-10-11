@@ -1,11 +1,34 @@
 // @vitest-environment jsdom
 import React, { act, createRef } from 'react';
+import configSource from '../../../../src-tauri/tauri.conf.json?raw';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { RichTextEditor, sanitizeRichTextHtml, type RichTextEditorHandle } from './RichTextEditor';
+import { NOTE_HIGHLIGHT_COLORS, NOTE_HIGHLIGHT_INK, RichTextEditor, sanitizeRichTextHtml, type RichTextEditorHandle } from './RichTextEditor';
 import type { SkribAttachment } from '../persistence/richContentStore';
 
 const attachment: SkribAttachment = { id: 'attachment-1', name: 'reference.png', kind: 'image', mimeType: 'image/png', size: 4, createdAt: 1, blob: new Blob(['test']) };
+
+describe('highlights on colored paper', () => {
+  it('preserves paired highlights when saved text is reopened, without trusting arbitrary markers', () => {
+    for (const color of NOTE_HIGHLIGHT_COLORS) {
+      const saved = sanitizeRichTextHtml(`<span style="background-color:${color}"><strong>Readable</strong><span style="color:#735c96"> nested text</span></span>`);
+      expect(saved).toContain('data-note-highlight="true"');
+      expect(sanitizeRichTextHtml(saved)).toBe(saved);
+      expect(saved).toContain('<strong>Readable</strong>');
+    }
+    expect(sanitizeRichTextHtml('<span data-note-highlight="true" style="background-color:transparent">Plain</span>')).not.toContain('data-note-highlight');
+  });
+  it('pairs every offered fill with ink above the normal-text contrast threshold', () => {
+    const luminance = (hex: string) => {
+      const channels = hex.slice(1).match(/../g)!.map((part) => parseInt(part, 16) / 255)
+        .map((value) => value <= .04045 ? value / 12.92 : ((value + .055) / 1.055) ** 2.4);
+      return channels[0]! * .2126 + channels[1]! * .7152 + channels[2]! * .0722;
+    };
+    for (const fill of NOTE_HIGHLIGHT_COLORS) {
+      expect((luminance(fill) + .05) / (luminance(NOTE_HIGHLIGHT_INK) + .05)).toBeGreaterThanOrEqual(7);
+    }
+  });
+});
 let container: HTMLDivElement;
 let root: Root;
 beforeEach(() => {
@@ -18,6 +41,31 @@ beforeEach(() => {
 afterEach(async () => { await act(async () => root.unmount()); container.remove(); Reflect.deleteProperty(document, 'execCommand'); vi.restoreAllMocks(); });
 
 describe('inline attachment editing', () => {
+  it('lets the Windows note WebView deliver HTML drag and drop instead of intercepting it natively', () => {
+    const config = JSON.parse(configSource);
+    expect(config.app.windows.find((window: { label: string }) => window.label === 'main').dragDropEnabled).toBe(false);
+  });
+  it('starts a note-scoped drag and exposes confirmed file deletion separately from removing its placement', async () => {
+    const onDeleteAttachment = vi.fn();
+    await act(async () => root.render(<RichTextEditor noteId="n" initialHtml='<p><span data-skrib-attachment="attachment-1" contenteditable="false"></span></p>'
+      attachments={[attachment]} disabled={false} drawingEnabled={false} describedBy="status" onChange={() => true}
+      onDeleteAttachment={onDeleteAttachment} onBlur={() => undefined} onPasteFiles={() => undefined} />));
+    const grip = container.querySelector('.inline-attachment-drag') as HTMLButtonElement;
+    expect(grip.draggable).toBe(true);
+    const setData = vi.fn();
+    const transfer = { setData, effectAllowed: '' };
+    const drag = new Event('dragstart', { bubbles: true });
+    Object.defineProperty(drag, 'dataTransfer', { value: transfer });
+    await act(async () => grip.dispatchEvent(drag));
+    expect(setData).toHaveBeenCalledWith('application/x-skribli-attachment', JSON.stringify({ noteId: 'n', attachmentId: 'attachment-1' }));
+    expect(transfer.effectAllowed).toBe('move');
+    await act(async () => (container.querySelector('.inline-attachment-more') as HTMLButtonElement).click());
+    const deletion = Array.from(container.querySelectorAll('button')).find((button) => button.textContent === 'Delete saved file…')!;
+    await act(async () => deletion.click());
+    expect(onDeleteAttachment).toHaveBeenCalledWith('attachment-1');
+    expect(container.querySelector('[data-skrib-attachment]')).not.toBeNull();
+  });
+
   it('preserves restored control focus after re-enabling and focuses a different note', async () => {
     vi.useFakeTimers();
     const opener = document.createElement('button');
