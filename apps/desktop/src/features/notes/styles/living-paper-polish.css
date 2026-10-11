@@ -857,6 +857,16 @@
   --skribli-ink:#262923; --skribli-muted:#6d7069; color:#262923;
 }
 .skrib-composer .composer-context-tab { color:var(--context-pill-ink); }
+/* Drawing tools use their own light tray, independent of the note's text ink. */
+.skrib-composer .ink-editor-toolbar {
+  --skribli-ink:#424242; --skribli-muted:#62645f;
+  background:#fffdf7; color:#424242;
+}
+.skrib-composer .ink-editor-toolbar .ink-icon-tool { color:#424242; }
+.skrib-composer .ink-editor-toolbar .ink-icon-tool.active {
+  background:color-mix(in srgb,var(--note-paper) 20%,#fffdf7);
+  color:#424242; border-color:#424242;
+}
 /* White interaction circles own their ink instead of inheriting dark-note text. */
 .skrib-composer .composer-side-tools > button:is(:hover,:focus-visible,[aria-expanded='true']):not(:disabled),
 .skrib-composer .composer-intent-trigger:is(:hover,:focus-visible):not(:disabled),
@@ -870,6 +880,11 @@
 }
 @media (forced-colors:active) {
   .skrib-composer { background:Canvas; color:CanvasText; }
+  .skrib-composer .ink-editor-toolbar { background:Canvas; color:CanvasText; }
+  .skrib-composer .ink-editor-toolbar .ink-icon-tool { color:CanvasText; }
+  .skrib-composer .ink-editor-toolbar .ink-icon-tool.active {
+    background:Canvas; color:CanvasText; border-color:Highlight;
+  }
   .skrib-composer .composer-side-tools > button:is(:hover,:focus-visible,[aria-expanded='true']):not(:disabled),
   .skrib-composer .composer-intent-trigger:is(:hover,:focus-visible):not(:disabled),
   .skrib-composer .composer-intent-gateway[data-open='true'] .composer-intent-trigger,
