@@ -17,3 +17,7 @@ Both packages were locally encrypted and decrypted byte-for-byte using the actua
 ## Remaining acceptance
 
 Owner installation and real-phone testing remain pending. Windows blur, focus, DPI/multi-monitor, startup, persistence and installation/upgrade/uninstallation/rollback require installed-binary acceptance. Signing and public release remain open. ARC-66 remains In Progress; this private package is not a public release.
+
+## Production execution and live verification
+
+The authorized private owner delivery is now live. Vercel deployment `dpl_EjBEASausF2ZXR7CPPHYo9DmSPxn` is READY and aliased to `skribly-desktop.vercel.app`. Prepared website commit: `8415618f0dbdbf5bc9c09046c89a0a4b6f5439db`, pushed to the ARC-66 branch. Live HTML, download implementation, encrypted Windows/Android assets and both binary icon fonts match the prepared local bytes. The production downloads decrypt locally with the same new owner key to the exact final NSIS and certified Android SHA-256 identities above. See [live verification](evidence/private-owner-0.1.54-f70d208/live-download-verification.json). The key was not transmitted to Vercel or committed. This completed publication supersedes the preparation-pending sentence above. Installed owner acceptance remains pending.
