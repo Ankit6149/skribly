@@ -2,9 +2,11 @@ import { invoke } from '@tauri-apps/api/core';
 import { useEffect, useState } from 'react';
 import type { SkribNote } from '../notes/model/noteTypes';
 import { readAppAppearance, saveAppAppearance, useAppAppearance } from './appAppearance';
+import { NOTE_FONTS, saveNoteFont, useNoteFont, type NoteFontId } from './noteFonts';
 
 export function AppAppearancePreferences() {
   const preferences = useAppAppearance();
+  const noteFont = useNoteFont();
   const [apps, setApps] = useState<string[]>([]);
   const [selected, setSelected] = useState('');
   const [message, setMessage] = useState('');
@@ -20,9 +22,17 @@ export function AppAppearancePreferences() {
     try { saveAppAppearance(next); setMessage('Appearance saved on this PC.'); }
     catch { setMessage('Appearance could not save. Your previous choice is unchanged.'); }
   };
-  return <section className="app-logo-settings" aria-labelledby="app-appearance-title">
+  return <><section className="note-font-settings" aria-labelledby="note-font-title">
+    <h3 id="note-font-title">Note font</h3>
+    <p>Choose how your notes read. Kalam is the default. This choice applies to notes on this PC.</p>
+    <label>Font<select aria-label="Note font" value={noteFont.id} onChange={(event) => {
+      try { saveNoteFont(event.target.value as NoteFontId); setMessage('Note font saved on this PC.'); }
+      catch { setMessage('The font could not save. Your previous choice is unchanged.'); }
+    }}>{NOTE_FONTS.map((font) => <option key={font.id} value={font.id}>{font.label}</option>)}</select></label>
+    <p className="note-font-preview" style={{ fontFamily: noteFont.family }}>A thought worth keeping. Aa 123</p>
+  </section><section className="app-logo-settings" aria-labelledby="app-appearance-title">
     <h3 id="app-appearance-title">App logos</h3>
-    <p>Supericons supplies familiar app marks, with Windows icons for other apps. Choose quieter fallback logos or a custom image for an app with Skribs.</p>
+    <p>Iconify supplies familiar app marks, with Windows icons for other apps. Choose quieter fallback logos or a custom image for an app with Skribs.</p>
     <label className="account-consent"><input type="checkbox" checked={preferences.quietIcons}
       onChange={(event) => save({ ...preferences, quietIcons: event.target.checked })} />
       <span>Use quiet monochrome logos in the widget</span></label>
@@ -53,5 +63,5 @@ export function AppAppearancePreferences() {
       }}>Use automatic logo</button>
     </div>
     {message && <p role="status">{message}</p>}
-  </section>;
+  </section></>;
 }

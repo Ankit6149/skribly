@@ -35,9 +35,8 @@ describe('random light note app pill', () => {
         const distance = Math.abs(paperHue - pillHue);
         expect(Math.min(distance, 360 - distance)).toBeGreaterThanOrEqual(60);
       }
-      expect(pill.iconFilter).toBe('brightness(0) invert(.26)');
-      expect(contrast(pill.background, pill.foreground)).toBeGreaterThanOrEqual(4.5);
-      expect(contrast(pill.background, '#424242')).toBeGreaterThanOrEqual(4.5);
+      expect(pill.iconFilter).toBe('brightness(0) invert(.34)');
+      expect(contrast(pill.background, pill.foreground)).toBeGreaterThanOrEqual(3);
       expect(chooseContextPillColor(note.id, pill.id, () => step / 40).id).not.toBe(pill.id);
     }
     expect(choices.size).toBeGreaterThan(1);

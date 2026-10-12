@@ -98,6 +98,10 @@ export function validateInkStrokes(strokes: InkStroke[]): void {
       throw new Error('The drawing contains an invalid or duplicate stroke identifier.');
     }
     ids.add(stroke.id);
+    if (stroke.coordinateSpace && (!finiteBetween(stroke.coordinateSpace.width, 1, 16384) ||
+      !finiteBetween(stroke.coordinateSpace.height, 1, 1_000_000))) {
+      throw new Error('The drawing contains an invalid page coordinate space.');
+    }
     if (!['pen', 'highlighter', 'eraser'].includes(stroke.tool)) {
       throw new Error('The drawing contains an unsupported tool.');
     }

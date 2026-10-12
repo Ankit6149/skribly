@@ -53,6 +53,9 @@ import type { OpenNoteAction } from './lifecycle/noteLifecycle';
 import { bundledAppIcon } from './bundledAppIcon';
 import { applicationLabel } from '../widget/model/contextRailModel';
 import { InkCanvas, type InkCanvasHandle } from './components/InkCanvas';
+import { NotePage } from './components/NotePage';
+import { useNoteFont } from '../settings/noteFonts';
+import { usePressFeedback } from '../../ui/usePressFeedback';
 import { saveBeforeNativeDeadline } from './lifecycle/nativeSaveDeadline';
 import type { InkPersistenceState } from './persistence/inkPersistenceCoordinator';
 import { NoteAttachmentPanel } from './components/NoteAttachmentPanel';
@@ -1274,6 +1277,8 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
     deleteConfirmation === 'confirming'
       ? 'composer-delete-warning'
       : 'composer-open-state composer-save-status composer-character-count';
+  const noteFont = useNoteFont();
+  usePressFeedback();
   const isNewNote = openAction === 'created';
   const menuVisible = noteMenuOpen;
 
@@ -1282,7 +1287,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
       <section
         ref={paperRef}
         className={`skrib-composer skrib-color-${note.color}`}
-        style={noteColorStyle(note.color)}
+        style={{ ...noteColorStyle(note.color), '--font-hand': noteFont.family, '--skribli-note-font': noteFont.family } as React.CSSProperties}
         data-resizing={isResizing}
         data-surface-size={surfaceSize}
         aria-label={
@@ -1439,7 +1444,8 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
           </div>
         )}
 
-        <div className="composer-mode-pill" role="group" aria-label="Note editing mode">
+        <div className="composer-mode-pill" data-mode={drawingEnabled ? 'draw' : 'type'} role="group" aria-label="Note editing mode">
+          <span className="composer-mode-indicator" aria-hidden="true" />
           <button type="button" aria-pressed={!drawingEnabled} disabled={!canWrite || isFinishing || isInkLoading || isResizing}
             onClick={() => { if (drawingEnabled) void openRoomyTool('draw'); }}><Type size={15} aria-hidden="true" /><span>Type</span></button>
           <button type="button" aria-pressed={drawingEnabled} disabled={!canWrite || isFinishing || isInkLoading || isResizing}
@@ -1524,13 +1530,22 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
         )}
 
         <div className="composer-unified-workspace">
-          <div
-            className={`composer-unified-canvas ${drawingEnabled ? 'drawing' : 'typing'}`}
-            data-text-size={textSize}
-          >
+          <NotePage key={note.id} drawing={drawingEnabled} textSize={textSize} strokes={inkStrokes}
+            renderInk={(offset, scroll, extend) => !isInkLoading && (
+              <div className={`composer-ink-layer ${drawingEnabled ? 'active' : ''}`}>
+                <InkCanvas key={note.id} ref={inkCanvasRef} variant="overlay"
+                  pageOffset={offset} onPageScroll={scroll} onExtendPage={extend}
+                  onFinishDrawing={() => void openRoomyTool('draw')}
+                  initialStrokes={inkStrokes}
+                  disabled={!canWrite || isFinishing || deleteConfirmation === 'confirming'}
+                  onChange={persistInk} onSavePreview={saveInkPreview}
+                  onBusyChange={handleInkBusy} onPersistenceStateChange={handleInkPersistenceState} />
+              </div>
+            )}>
             <RichTextEditor
               ref={richTextEditorRef}
               noteId={note.id}
+              noteColor={note.color}
               initialHtml={richTextHtml}
               attachments={inlineAttachments}
               disabled={!canWrite || isInkLoading || isFinishing || cancelConfirmationOpen}
@@ -1567,23 +1582,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
                 });
               }}
             />
-            {!isInkLoading && (
-              <div className={`composer-ink-layer ${drawingEnabled ? 'active' : ''}`}>
-                <InkCanvas
-                  key={note.id}
-                  ref={inkCanvasRef}
-                  variant="overlay"
-                  onFinishDrawing={() => void openRoomyTool('draw')}
-                  initialStrokes={inkStrokes}
-                  disabled={!canWrite || isFinishing || deleteConfirmation === 'confirming'}
-                  onChange={persistInk}
-                  onSavePreview={saveInkPreview}
-                  onBusyChange={handleInkBusy}
-                  onPersistenceStateChange={handleInkPersistenceState}
-                />
-              </div>
-            )}
-          </div>
+          </NotePage>
 
           <NoteAttachmentPanel
             noteId={note.id}

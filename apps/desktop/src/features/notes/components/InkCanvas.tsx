@@ -1,5 +1,5 @@
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
-import { Eraser, Highlighter, MousePointer2, PenLine, Redo2, Trash2, Undo2, X } from '../../../ui/icons';
+import { Eraser, Hand, Highlighter, MousePointer2, PenLine, Redo2, Trash2, Undo2, X } from '../../../ui/icons';
 import {
   countInkPoints,
   createInkStroke,
@@ -17,6 +17,7 @@ import {
   InkPersistenceCoordinator,
   type InkPersistenceState,
 } from '../persistence/inkPersistenceCoordinator';
+import { INK_PAGE_HEIGHT, strokeInViewport } from '../model/inkPage';
 
 export type { InkPersistenceState } from '../persistence/inkPersistenceCoordinator';
 
@@ -34,6 +35,9 @@ export interface InkCanvasProps {
   onPersistenceStateChange?: (state: InkPersistenceState) => void;
   onFinishDrawing?: () => void;
   variant?: 'panel' | 'overlay';
+  pageOffset?: number;
+  onPageScroll?: (delta: number) => void;
+  onExtendPage?: () => void;
 }
 
 const PEN_COLORS = [
@@ -104,6 +108,9 @@ export const InkCanvas = forwardRef<InkCanvasHandle, InkCanvasProps>(({
   onPersistenceStateChange,
   onFinishDrawing,
   variant = 'panel',
+  pageOffset = 0,
+  onPageScroll,
+  onExtendPage,
 }, ref) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const activeStrokeRef = useRef<InkStroke | null>(null);
@@ -124,7 +131,9 @@ export const InkCanvas = forwardRef<InkCanvasHandle, InkCanvasProps>(({
     () => persistenceCoordinator.getSnapshot().strokes
   );
   const [tool, setTool] = useState<InkTool>('pen');
-  const [interactionMode, setInteractionMode] = useState<'select' | 'draw'>('draw');
+  const [interactionMode, setInteractionMode] = useState<'select' | 'draw' | 'pan'>('draw');
+  const panYRef = useRef<number | null>(null);
+  const legacySpaceRef = useRef<{ width: number; height: number } | null>(null);
   const [selectedStrokeId, setSelectedStrokeId] = useState<string | null>(null);
   const [color, setColor] = useState<string>(PEN_COLORS[0].value);
   const [width, setWidth] = useState(4);
@@ -169,8 +178,11 @@ export const InkCanvas = forwardRef<InkCanvasHandle, InkCanvasProps>(({
     const context = canvas?.getContext('2d');
     if (!canvas || !context) return;
     context.clearRect(0, 0, canvas.width, canvas.height);
-    nextStrokes.forEach((stroke) => drawStroke(context, canvas, stroke));
-  }, []);
+    nextStrokes.forEach((stroke) => drawStroke(context, canvas, strokeInViewport(
+      stroke.coordinateSpace ? stroke : { ...stroke, coordinateSpace: legacySpaceRef.current ?? { width: canvas.clientWidth || 1, height: canvas.clientHeight || 1 } },
+      { width: canvas.clientWidth || 1, height: canvas.clientHeight || 1, top: pageOffset }
+    )));
+  }, [pageOffset]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -178,6 +190,7 @@ export const InkCanvas = forwardRef<InkCanvasHandle, InkCanvasProps>(({
     if (!canvas || !frame) return;
     const resize = () => {
       const bounds = frame.getBoundingClientRect();
+      if (!legacySpaceRef.current && bounds.width > 0 && bounds.height > 0) legacySpaceRef.current = { width: bounds.width, height: bounds.height };
       const pixelRatio = Math.min(2, window.devicePixelRatio || 1);
       const width = Math.max(1, Math.round(bounds.width * pixelRatio));
       const height = Math.max(1, Math.round(bounds.height * pixelRatio));
@@ -237,7 +250,9 @@ export const InkCanvas = forwardRef<InkCanvasHandle, InkCanvasProps>(({
       redoHistoryRef.current = [];
       setHistoryRevision((value) => value + 1);
     }
-    void persist(nextStrokes);
+    // Adopt legacy viewport coordinates only when the user actually edits ink.
+    void persist(nextStrokes.map((stroke) => stroke.coordinateSpace || !legacySpaceRef.current ? stroke
+      : { ...stroke, coordinateSpace: { ...legacySpaceRef.current } }));
   }, [persist, persistenceCoordinator]);
 
   useImperativeHandle(ref, () => ({
@@ -267,12 +282,21 @@ export const InkCanvas = forwardRef<InkCanvasHandle, InkCanvasProps>(({
     event.preventDefault();
     event.currentTarget.focus({ preventScroll: true });
     const currentStrokes = persistenceCoordinator.getSnapshot().strokes;
+    if (interactionMode === 'pan') {
+      activePointerRef.current = event.pointerId;
+      panYRef.current = event.clientY;
+      event.currentTarget.setPointerCapture(event.pointerId);
+      return;
+    }
     if (interactionMode === 'select') {
       const rect = event.currentTarget.getBoundingClientRect();
       const x = (event.clientX - rect.left) / rect.width;
       const y = (event.clientY - rect.top) / rect.height;
       const threshold = Math.max(0.012, 12 / Math.max(1, Math.min(rect.width, rect.height)));
-      const selected = findTopInkStroke(currentStrokes, x, y, threshold);
+      const selectedView = findTopInkStroke(currentStrokes.map((stroke) => strokeInViewport(
+        stroke.coordinateSpace ? stroke : { ...stroke, coordinateSpace: legacySpaceRef.current ?? { width: rect.width, height: rect.height } },
+        { width: rect.width, height: rect.height, top: pageOffset })), x, y, threshold);
+      const selected = currentStrokes.find((stroke) => stroke.id === selectedView?.id);
       setSelectedStrokeId(selected?.id ?? null);
       if (selected) {
         activePointerRef.current = event.pointerId;
@@ -295,10 +319,12 @@ export const InkCanvas = forwardRef<InkCanvasHandle, InkCanvasProps>(({
       return;
     }
 
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const space = onPageScroll ? { width: Math.max(1, bounds.width), height: INK_PAGE_HEIGHT } : undefined;
     const point = normalizeInkPoint(
       event.clientX,
       event.clientY,
-      event.currentTarget.getBoundingClientRect(),
+      space ? { left: bounds.left, top: bounds.top - pageOffset, ...space } : bounds,
       event.pressure
     );
     activeStrokeRef.current = createInkStroke(
@@ -308,6 +334,7 @@ export const InkCanvas = forwardRef<InkCanvasHandle, InkCanvasProps>(({
       tool === 'eraser' ? Math.max(14, width * 3) : width,
       point
     );
+    if (space) activeStrokeRef.current.coordinateSpace = space;
     activePointerRef.current = event.pointerId;
     event.currentTarget.setPointerCapture(event.pointerId);
     setClearPending(false);
@@ -316,13 +343,20 @@ export const InkCanvas = forwardRef<InkCanvasHandle, InkCanvasProps>(({
 
   const handlePointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => {
     if (transitionQuiescedRef.current || activePointerRef.current !== event.pointerId) return;
+    if (interactionMode === 'pan' && panYRef.current !== null) {
+      onPageScroll?.(panYRef.current - event.clientY);
+      panYRef.current = event.clientY;
+      return;
+    }
     const selection = selectionDragRef.current;
     if (selection && interactionMode === 'select' && !disabled) {
       const rect = event.currentTarget.getBoundingClientRect();
       const x = (event.clientX - rect.left) / rect.width;
       const y = (event.clientY - rect.top) / rect.height;
-      const deltaX = x - selection.startX;
-      const deltaY = y - selection.startY;
+      const selected = persistenceCoordinator.getSnapshot().strokes.find((stroke) => stroke.id === selection.strokeId);
+      const space = selected?.coordinateSpace ?? legacySpaceRef.current ?? rect;
+      const deltaX = (x - selection.startX) * rect.width / space.width;
+      const deltaY = (y - selection.startY) * rect.height / space.height;
       selection.preview = persistenceCoordinator.getSnapshot().strokes.map((stroke) =>
         stroke.id === selection.strokeId
           ? {
@@ -344,7 +378,9 @@ export const InkCanvas = forwardRef<InkCanvasHandle, InkCanvasProps>(({
       setError('This drawing has reached its safe local size limit.');
       return;
     }
-    const rect = event.currentTarget.getBoundingClientRect();
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const rect = activeStroke.coordinateSpace
+      ? { left: bounds.left, top: bounds.top - pageOffset, ...activeStroke.coordinateSpace } : bounds;
     const coalesced = event.nativeEvent.getCoalescedEvents?.();
     const samples = coalesced?.length ? coalesced : [event.nativeEvent];
     const remainingPoints = MAX_INK_POINTS - countInkPoints(currentStrokes);
@@ -352,7 +388,7 @@ export const InkCanvas = forwardRef<InkCanvasHandle, InkCanvasProps>(({
       if (activeStroke.points.length >= Math.min(MAX_INK_STROKE_POINTS, remainingPoints)) break;
       const point = normalizeInkPoint(sample.clientX, sample.clientY, rect, sample.pressure);
       const previous = activeStroke.points.at(-1);
-      if (!previous || Math.hypot(point.x - previous.x, point.y - previous.y) >= 0.001) {
+      if (!previous || Math.hypot((point.x - previous.x) * rect.width, (point.y - previous.y) * rect.height) >= .5) {
         activeStroke.points.push(point);
       }
     }
@@ -362,6 +398,7 @@ export const InkCanvas = forwardRef<InkCanvasHandle, InkCanvasProps>(({
   const finishStroke = (event: React.PointerEvent<HTMLCanvasElement>) => {
     if (activePointerRef.current !== event.pointerId) return;
     activePointerRef.current = null;
+    panYRef.current = null;
     const selection = selectionDragRef.current;
     selectionDragRef.current = null;
     const activeStroke = activeStrokeRef.current;
@@ -451,6 +488,13 @@ export const InkCanvas = forwardRef<InkCanvasHandle, InkCanvasProps>(({
             <span className="ink-tool-label">Finish drawing</span>
           </button>
         )}
+        {onPageScroll && <button type="button" className={`ink-icon-tool ${interactionMode === 'pan' ? 'active' : ''}`}
+          aria-label="Scroll page with hand tool" aria-pressed={interactionMode === 'pan'} title="Hand tool · drag to scroll without drawing"
+          disabled={disabled} onClick={() => { setInteractionMode('pan'); setSelectedStrokeId(null); }}>
+          <Hand size={14} aria-hidden="true" /><span>Scroll</span>
+        </button>}
+        {onExtendPage && <button type="button" className="ink-icon-tool ink-page-extend" aria-label="Add blank drawing space"
+          title="Add blank drawing space below the text" disabled={disabled} onClick={onExtendPage}>More space</button>}
         <button
           type="button"
           className={`ink-icon-tool ${interactionMode === 'select' ? 'active' : ''}`}
@@ -580,6 +624,11 @@ export const InkCanvas = forwardRef<InkCanvasHandle, InkCanvasProps>(({
           className="ink-canvas"
           tabIndex={disabled ? -1 : 0}
           data-interaction={interactionMode}
+          onWheel={(event) => {
+            if (!onPageScroll || activePointerRef.current !== null) return;
+            event.preventDefault();
+            onPageScroll(event.deltaY * (event.deltaMode === 1 ? 20 : event.deltaMode === 2 ? event.currentTarget.clientHeight : 1));
+          }}
           data-selected-stroke={selectedStrokeId ?? undefined}
           aria-label="Draw with a mouse, touchpad, touch screen, or pen"
           onPointerDown={handlePointerDown}
@@ -590,6 +639,10 @@ export const InkCanvas = forwardRef<InkCanvasHandle, InkCanvasProps>(({
             if (activeStrokeRef.current || selectionDragRef.current) finishStroke(event);
           }}
           onKeyDown={(event) => {
+            if (onPageScroll && ['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown'].includes(event.key) && !selectedStrokeId) {
+              event.preventDefault(); onPageScroll((event.key.endsWith('Up') ? -1 : 1) * (event.key.startsWith('Page') ? event.currentTarget.clientHeight * .8 : 48));
+              return;
+            }
             if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
               event.preventDefault();
               if (event.shiftKey) redo();

@@ -3,6 +3,7 @@ import React, {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useMemo,
   useRef,
   useState,
   type ClipboardEvent,
@@ -12,6 +13,8 @@ import { Bold, Highlighter, List, ListChecks, ListOrdered, Paperclip, Italic, Un
 import { createPortal } from 'react-dom';
 import type { SkribAttachment } from '../persistence/richContentStore';
 import { InlineAttachment, INLINE_ATTACHMENT_MIME } from './InlineAttachment';
+import { HIGHLIGHT_TONES, LEGACY_HIGHLIGHT_COLORS, noteHighlightPalette } from '../model/noteHighlights';
+import type { NoteColor } from '../model/noteColors';
 import { ATTACHMENT_ATTRIBUTE, ATTACHMENT_SIZE_ATTRIBUTE, ATTACHMENT_SELECTOR, canonicalAttachmentHtml, createAttachmentReference, editorPlainText, moveAttachmentByBlock, readAttachmentDrag, readAttachmentSize } from '../model/inlineAttachmentModel';
 
 export interface RichTextEditorHandle {
@@ -24,6 +27,7 @@ export interface RichTextEditorHandle {
 }
 
 interface RichTextEditorProps {
+  noteColor?: NoteColor;
   noteId: string;
   initialHtml: string;
   disabled: boolean;
@@ -45,7 +49,7 @@ const NO_ATTACHMENTS: SkribAttachment[] = [];
 
 const SAFE_ELEMENTS = new Set(['DIV', 'P', 'H2', 'BR', 'STRONG', 'B', 'EM', 'I', 'U', 'MARK', 'SPAN', 'FONT', 'BLOCKQUOTE', 'HR', 'UL', 'OL', 'LI', 'INPUT']);
 export const NOTE_TEXT_COLORS = ['#262923', '#925043', '#3f645c', '#486b8c', '#735c96'] as const;
-export const NOTE_HIGHLIGHT_COLORS = ['#f8df78', '#ffd7c4', '#cfe5d7', '#d5e5f5', '#e4d9f0'] as const;
+export const NOTE_HIGHLIGHT_COLORS = LEGACY_HIGHLIGHT_COLORS;
 export const NOTE_HIGHLIGHT_INK = '#262923';
 const COLOR_NAMES = ['Ink', 'Terracotta', 'Forest', 'Blue', 'Plum'];
 const HIGHLIGHT_NAMES = ['Yellow', 'Peach', 'Mint', 'Sky', 'Lavender'];
@@ -98,6 +102,7 @@ export function sanitizeRichTextHtml(value: string, allowAttachmentReferences = 
     if (background) {
       clean.style.backgroundColor = background;
       clean.dataset.noteHighlight = 'true';
+      clean.dataset.highlightTone = HIGHLIGHT_TONES[NOTE_HIGHLIGHT_COLORS.indexOf(background as typeof NOTE_HIGHLIGHT_COLORS[number])];
     }
     if (tag === 'INPUT') {
       clean.setAttribute('type', 'checkbox');
@@ -132,10 +137,14 @@ function clipboardFiles(event: ClipboardEvent<HTMLDivElement>): File[] {
 }
 
 export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(function RichTextEditor(
-  { noteId, initialHtml, disabled, drawingEnabled, describedBy, onChange, onBlur, onPasteFiles, onPasteBlocked, onRequestAttachment, onDeleteAttachment, onRequestDraw, onRequestReminder, onHistoryChange, attachments = NO_ATTACHMENTS },
+  { noteColor = 'peach', noteId, initialHtml, disabled, drawingEnabled, describedBy, onChange, onBlur, onPasteFiles, onPasteBlocked, onRequestAttachment, onDeleteAttachment, onRequestDraw, onRequestReminder, onHistoryChange, attachments = NO_ATTACHMENTS },
   forwardedRef
 ) {
   const editorRef = useRef<HTMLDivElement>(null);
+  const highlights = useMemo(() => noteHighlightPalette(noteColor), [noteColor]);
+  const highlightStyle = Object.fromEntries(highlights.flatMap((entry) => [
+    [`--highlight-${entry.tone}`, entry.fill], [`--highlight-${entry.tone}-ink`, entry.ink],
+  ])) as React.CSSProperties;
   const formatBarRef = useRef<HTMLDivElement>(null);
   const [formatPalette, setFormatPalette] = useState<'text' | 'highlight' | null>(null);
   const lastAcceptedHtml = useRef(initialHtml);
@@ -223,8 +232,11 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
     editor.querySelectorAll<HTMLElement>('[style], [data-note-highlight], mark').forEach((element) => {
       const highlighted = safeColor(element.style.backgroundColor, NOTE_HIGHLIGHT_COLORS)
         || (element.tagName === 'MARK' && !element.style.backgroundColor);
-      if (highlighted) element.dataset.noteHighlight = 'true';
-      else delete element.dataset.noteHighlight;
+      if (highlighted) {
+        element.dataset.noteHighlight = 'true';
+        const background = safeColor(element.style.backgroundColor, NOTE_HIGHLIGHT_COLORS) ?? NOTE_HIGHLIGHT_COLORS[0];
+        element.dataset.highlightTone = HIGHLIGHT_TONES[NOTE_HIGHLIGHT_COLORS.indexOf(background as typeof NOTE_HIGHLIGHT_COLORS[number])];
+      } else { delete element.dataset.noteHighlight; delete element.dataset.highlightTone; }
     });
     const html = sanitizeRichTextHtml(canonicalAttachmentHtml(editor), true);
     const plainText = editorPlainText(editor);
@@ -493,7 +505,7 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
   };
 
   return (
-    <div className="composer-rich-editor-shell">
+    <div className="composer-rich-editor-shell" style={highlightStyle}>
       {formatBarVisible && !disabled && !drawingEnabled && (
         <div ref={formatBarRef} className="composer-format-bar" style={formatBarAnchor} role="group" aria-label="Selected text tools"
           onKeyDown={(event) => { if (event.key === 'Escape') { event.preventDefault(); setFormatPalette(null); restoreSelection(); setFormatBarVisible(false); } }}>
@@ -515,9 +527,9 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
           <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('removeFormat')} aria-label="Clear text formatting" title="Clear formatting"><Eraser size={15} aria-hidden="true" /></button>
           {formatPalette && <div className="composer-format-swatches" role="group" aria-label={formatPalette === 'text' ? 'Text colors' : 'Highlight colors'}>
             {(formatPalette === 'text' ? NOTE_TEXT_COLORS : NOTE_HIGHLIGHT_COLORS).map((color, index) => <button key={color} type="button"
-              style={{ '--format-swatch': color } as React.CSSProperties} className="composer-format-swatch"
+              style={{ '--format-swatch': formatPalette === 'highlight' ? highlights[index]!.fill : color } as React.CSSProperties} className="composer-format-swatch"
               aria-label={`${formatPalette === 'text' ? COLOR_NAMES[index] : HIGHLIGHT_NAMES[index]} ${formatPalette === 'text' ? 'text' : 'highlight'}`}
-              title={formatPalette === 'text' ? COLOR_NAMES[index] : HIGHLIGHT_NAMES[index]}
+              title={formatPalette === 'text' ? COLOR_NAMES[index] : `${HIGHLIGHT_NAMES[index]} · ${highlights[index]!.textContrast.toFixed(1)}:1 text contrast`}
               onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand(formatPalette === 'text' ? 'foreColor' : 'hiliteColor', color)} />)}
             {formatPalette === 'highlight' && <button type="button" aria-label="Remove highlight" title="Remove highlight"
               onMouseDown={(event) => event.preventDefault()} onClick={() => runCommand('hiliteColor', 'transparent')}><X size={14} aria-hidden="true" /></button>}
