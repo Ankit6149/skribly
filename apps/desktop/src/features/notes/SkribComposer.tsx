@@ -1588,6 +1588,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
             noteId={note.id}
             refreshRequest={attachmentRefresh}
             compact
+            attachmentsInNote
             pickerRequest={attachmentPickerRequest}
             openDrawerRequest={attachmentDrawerRequest}
             filesRequest={pastedFilesRequest}

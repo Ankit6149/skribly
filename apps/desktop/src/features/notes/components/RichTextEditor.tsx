@@ -15,12 +15,12 @@ import type { SkribAttachment } from '../persistence/richContentStore';
 import { InlineAttachment, INLINE_ATTACHMENT_MIME } from './InlineAttachment';
 import { HIGHLIGHT_TONES, LEGACY_HIGHLIGHT_COLORS, noteHighlightPalette } from '../model/noteHighlights';
 import type { NoteColor } from '../model/noteColors';
-import { ATTACHMENT_ATTRIBUTE, ATTACHMENT_SIZE_ATTRIBUTE, ATTACHMENT_SELECTOR, canonicalAttachmentHtml, createAttachmentReference, editorPlainText, moveAttachmentByBlock, readAttachmentDrag, readAttachmentSize } from '../model/inlineAttachmentModel';
+import { ATTACHMENT_ATTRIBUTE, ATTACHMENT_ROTATION_ATTRIBUTE, ATTACHMENT_SIZE_ATTRIBUTE, ATTACHMENT_SELECTOR, canonicalAttachmentHtml, createAttachmentReference, editorPlainText, moveAttachmentByBlock, readAttachmentDrag, readAttachmentRotation, readAttachmentSize, type InlineAttachmentLayout } from '../model/inlineAttachmentModel';
 
 export interface RichTextEditorHandle {
   flush: () => void;
   insertChecklist: () => void;
-  insertAttachments: (attachments: SkribAttachment[]) => boolean;
+  insertAttachments: (attachments: SkribAttachment[], layout?: InlineAttachmentLayout) => boolean;
   removeAttachment: (id: string) => void;
   undo: () => void;
   redo: () => void;
@@ -84,7 +84,7 @@ export function sanitizeRichTextHtml(value: string, allowAttachmentReferences = 
     if (!(node instanceof HTMLElement)) return null;
 
     if (node.hasAttribute(ATTACHMENT_ATTRIBUTE)) {
-      return allowAttachmentReferences ? createAttachmentReference(node.getAttribute(ATTACHMENT_ATTRIBUTE) ?? '', readAttachmentSize(node)) : null;
+      return allowAttachmentReferences ? createAttachmentReference(node.getAttribute(ATTACHMENT_ATTRIBUTE) ?? '', readAttachmentSize(node), readAttachmentRotation(node)) : null;
     }
 
     const color = safeColor(node.style.color || node.getAttribute('color') || '', NOTE_TEXT_COLORS);
@@ -165,10 +165,10 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
   const future = useRef<string[]>([]);
   const notifyHistory = useCallback(() => onHistoryChange?.(past.current.length > 0, future.current.length > 0), [onHistoryChange]);
 
-  const refreshAttachmentHosts = () => {
+  const refreshAttachmentHosts = (force = false) => {
     const nodes = Array.from(editorRef.current?.querySelectorAll<HTMLElement>(ATTACHMENT_SELECTOR) ?? []);
     nodes.forEach((node) => { node.className = 'inline-attachment'; });
-    setAttachmentHosts((previous) => previous.length === nodes.length && previous.every((node, index) => node === nodes[index]) ? previous : nodes);
+    setAttachmentHosts((previous) => !force && previous.length === nodes.length && previous.every((node, index) => node === nodes[index]) ? previous : nodes);
   };
 
   useEffect(() => {
@@ -329,7 +329,7 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
     }
   };
 
-  const insertAttachments = (items: SkribAttachment[]): boolean => {
+  const insertAttachments = (items: SkribAttachment[], layout?: InlineAttachmentLayout): boolean => {
     const editor = editorRef.current;
     if (!editor || disabled || drawingEnabled || items.length === 0) return false;
     restoreSelection();
@@ -343,6 +343,14 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
       if (existing?.contains(range.startContainer)) { placed++; continue; }
       const node = existing ?? createAttachmentReference(item.id);
       if (!node) continue;
+      if (layout?.size) {
+        if (layout.size === 'small') node.removeAttribute(ATTACHMENT_SIZE_ATTRIBUTE);
+        else node.setAttribute(ATTACHMENT_SIZE_ATTRIBUTE, layout.size);
+      }
+      if (layout?.rotation !== undefined) {
+        if (layout.rotation === 0) node.removeAttribute(ATTACHMENT_ROTATION_ATTRIBUTE);
+        else node.setAttribute(ATTACHMENT_ROTATION_ATTRIBUTE, String(layout.rotation));
+      }
       range.insertNode(node);
       placed++;
       range.setStartAfter(node);
@@ -659,11 +667,20 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
         return createPortal(attachment ? <InlineAttachment noteId={noteId} attachment={attachment}
           disabled={disabled || drawingEnabled}
           size={readAttachmentSize(host)}
+          rotation={readAttachmentRotation(host)}
+          onRotationChange={(rotation) => {
+            if (disabled || drawingEnabled) return;
+            if (rotation === 0) host.removeAttribute(ATTACHMENT_ROTATION_ATTRIBUTE);
+            else host.setAttribute(ATTACHMENT_ROTATION_ATTRIBUTE, String(rotation));
+            emitChange();
+            refreshAttachmentHosts(true);
+          }}
           onSizeChange={(size) => {
             if (disabled || drawingEnabled) return;
             if (size === 'small') host.removeAttribute(ATTACHMENT_SIZE_ATTRIBUTE);
             else host.setAttribute(ATTACHMENT_SIZE_ATTRIBUTE, size);
             emitChange();
+            refreshAttachmentHosts(true);
           }}
           onRemoveReference={() => removeAttachment(attachment.id)}
           onDeleteFile={onDeleteAttachment ? () => onDeleteAttachment(attachment.id) : undefined}
@@ -671,6 +688,17 @@ export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorPro
             if (!disabled && !drawingEnabled && editorRef.current && moveAttachmentByBlock(editorRef.current, host, direction)) emitChange();
           }} /> : <span className="inline-attachment-missing">Attachment unavailable · check the tray</span>, host, id ?? undefined);
       })}
+      {attachments.filter((attachment) =>
+        !attachmentHosts.some((host) => host.getAttribute(ATTACHMENT_ATTRIBUTE) === attachment.id)).map((attachment) => (
+          <span key={attachment.id} className="inline-attachment inline-attachment-unplaced">
+            <InlineAttachment noteId={noteId} attachment={attachment} disabled={disabled || drawingEnabled}
+              size="small" rotation={0}
+              onSizeChange={(size) => { insertAttachments([attachment], { size }); }}
+              onRotationChange={(rotation) => { insertAttachments([attachment], { rotation }); }}
+              onPlace={() => { insertAttachments([attachment]); }}
+              onDeleteFile={onDeleteAttachment ? () => onDeleteAttachment(attachment.id) : undefined} />
+          </span>
+        ))}
     </div>
   );
 });

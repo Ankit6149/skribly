@@ -1,6 +1,8 @@
 export const ATTACHMENT_ATTRIBUTE = 'data-skrib-attachment';
 export const ATTACHMENT_SIZE_ATTRIBUTE = 'data-skrib-attachment-size';
+export const ATTACHMENT_ROTATION_ATTRIBUTE = 'data-skrib-attachment-rotation';
 export type InlineAttachmentSize = 'small' | 'medium' | 'large';
+export interface InlineAttachmentLayout { size?: InlineAttachmentSize; rotation?: number }
 export const ATTACHMENT_SELECTOR = `[${ATTACHMENT_ATTRIBUTE}]`;
 const SAFE_ATTACHMENT_ID = /^[a-zA-Z0-9_-]{1,180}$/;
 
@@ -9,11 +11,18 @@ export function readAttachmentSize(node: Element): InlineAttachmentSize {
   return size === 'medium' || size === 'large' ? size : 'small';
 }
 
-export function createAttachmentReference(id: string, size: InlineAttachmentSize = 'small'): HTMLSpanElement | null {
+export function readAttachmentRotation(node: Element): number {
+  const raw = node.getAttribute(ATTACHMENT_ROTATION_ATTRIBUTE);
+  const value = raw === null ? 0 : Number(raw);
+  return Number.isInteger(value) && value >= -180 && value <= 180 ? value : 0;
+}
+
+export function createAttachmentReference(id: string, size: InlineAttachmentSize = 'small', rotation = 0): HTMLSpanElement | null {
   if (!SAFE_ATTACHMENT_ID.test(id)) return null;
   const node = document.createElement('span');
   node.setAttribute(ATTACHMENT_ATTRIBUTE, id);
   if (size !== 'small') node.setAttribute(ATTACHMENT_SIZE_ATTRIBUTE, size);
+  if (Number.isInteger(rotation) && rotation !== 0 && Math.abs(rotation) <= 180) node.setAttribute(ATTACHMENT_ROTATION_ATTRIBUTE, String(rotation));
   node.setAttribute('contenteditable', 'false');
   return node;
 }
@@ -22,7 +31,7 @@ export function createAttachmentReference(id: string, size: InlineAttachmentSize
 export function canonicalAttachmentHtml(editor: HTMLElement): string {
   const clone = editor.cloneNode(true) as HTMLElement;
   clone.querySelectorAll(ATTACHMENT_SELECTOR).forEach((node) => {
-    const reference = createAttachmentReference(node.getAttribute(ATTACHMENT_ATTRIBUTE) ?? '', readAttachmentSize(node));
+    const reference = createAttachmentReference(node.getAttribute(ATTACHMENT_ATTRIBUTE) ?? '', readAttachmentSize(node), readAttachmentRotation(node));
     if (reference) node.replaceWith(reference);
     else node.remove();
   });

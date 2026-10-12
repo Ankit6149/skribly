@@ -313,7 +313,58 @@ describe('inline attachment editing', () => {
     await act(async () => (container.querySelector(`[aria-label="Remove ${name} from text"]`) as HTMLButtonElement).click());
     expect(onDeleteAttachment).not.toHaveBeenCalled();
     expect(container.querySelector('[data-skrib-attachment]')).toBeNull();
-    expect(container.querySelector(`[aria-label="Options for ${name}"]`)).toBeNull();
+    expect(container.querySelector(`[role="textbox"] [aria-label="Options for ${name}"]`)).toBeNull();
+    expect(container.querySelector(`.inline-attachment-unplaced [aria-label="Options for ${name}"]`)).not.toBeNull();
+  });
+  it('shows existing images and files as small in-note cards without changing text on read', async () => {
+    const onChange = vi.fn(() => true);
+    const file = { ...attachment, id: 'file-1', name: 'brief.pdf', kind: 'document' as const, mimeType: 'application/pdf' };
+    await act(async () => root.render(<RichTextEditor noteId="n" initialHtml='<p>Keep this thought.</p>'
+      attachments={[attachment, file]} disabled={false} drawingEnabled={false} describedBy="status"
+      onChange={onChange} onBlur={() => undefined} onPasteFiles={() => undefined} />));
+    expect(container.querySelectorAll('.inline-attachment-unplaced .inline-attachment-card')).toHaveLength(2);
+    expect(container.querySelectorAll('.inline-attachment-object[data-size="small"]')).toHaveLength(2);
+    expect(container.querySelector('[role="textbox"]')?.textContent).toBe('Keep this thought.');
+    expect(onChange).not.toHaveBeenCalled();
+  });
+  it('saves image and file size/rotation through moving, undo and reopening without duplicating cards', async () => {
+    const ref = createRef<RichTextEditorHandle>();
+    const onChange = vi.fn((_html: string, _plain: string) => true);
+    const file = { ...attachment, id: 'file-1', name: 'brief.pdf', kind: 'document' as const, mimeType: 'application/pdf' };
+    const render = (html: string) => root.render(<RichTextEditor ref={ref} noteId="n" initialHtml={html}
+      attachments={[attachment, file]} disabled={false} drawingEnabled={false} describedBy="status"
+      onChange={onChange} onBlur={() => undefined} onPasteFiles={() => undefined} />);
+    await act(async () => render('<p>Thought</p>'));
+    await act(async () => { ref.current!.insertAttachments([attachment], { size: 'medium', rotation: 35 }); });
+    await act(async () => { ref.current!.insertAttachments([file], { size: 'large', rotation: -15 }); });
+    expect(container.querySelectorAll('.inline-attachment-card')).toHaveLength(2);
+    expect(container.querySelector('.inline-attachment-unplaced')).toBeNull();
+    const html = onChange.mock.calls.at(-1)![0];
+    expect(html).toContain('data-skrib-attachment-rotation="35"');
+    expect(html).toContain('data-skrib-attachment-rotation="-15"');
+    expect(html).not.toContain('blob:');
+    expect(onChange.mock.calls.at(-1)![1]).toBe('Thought');
+    await act(async () => ref.current!.undo());
+    expect(container.querySelector('[data-skrib-attachment="file-1"]')).toBeNull();
+    await act(async () => ref.current!.redo());
+    await act(async () => render(html));
+    const image = container.querySelector('[data-skrib-attachment="attachment-1"]')!;
+    const savedFile = container.querySelector('[data-skrib-attachment="file-1"]')!;
+    expect(image.getAttribute('data-skrib-attachment-size')).toBe('medium');
+    expect(savedFile.getAttribute('data-skrib-attachment-size')).toBe('large');
+    expect(image.querySelector<HTMLElement>('.inline-attachment-object')!.style.getPropertyValue('--attachment-angle')).toBe('35deg');
+    await act(async () => (container.querySelector('[aria-label="Options for reference.png"]') as HTMLButtonElement).click());
+    const slider = container.querySelector('[aria-label="Rotate reference.png"]') as HTMLInputElement;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(slider, '60');
+      slider.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    expect(image.querySelector<HTMLElement>('.inline-attachment-object')!.style.getPropertyValue('--attachment-angle')).toBe('60deg');
+    await act(async () => (container.querySelector('[aria-label="small image"]') as HTMLButtonElement).click());
+    expect(image.querySelector('.inline-attachment-object')!.getAttribute('data-size')).toBe('small');
+    await act(async () => (container.querySelector('[aria-label="Move reference.png earlier"]') as HTMLButtonElement).click());
+    expect(container.querySelectorAll('[data-skrib-attachment="attachment-1"]')).toHaveLength(1);
+    expect(container.querySelector('[data-skrib-attachment="attachment-1"]')!.getAttribute('data-skrib-attachment-rotation')).toBe('60');
   });
   it('removes an empty image paragraph without adding a newline to the note', async () => {
     const ref = createRef<RichTextEditorHandle>();
