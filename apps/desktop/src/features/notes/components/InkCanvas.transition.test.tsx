@@ -36,6 +36,11 @@ describe('drawing native transition preparation', () => {
       await act(async () => (host.querySelector('[aria-label="Scroll page with hand tool"]') as HTMLButtonElement).click());
       await act(async () => { pointer(canvas,'pointerdown',20); pointer(canvas,'pointerup',20); });
       expect(saved).toHaveLength(1);
+      scroll.mockClear();
+      await act(async () => { pointer(canvas,'pointerdown',20); pointer(canvas,'lostpointercapture',20); });
+      await act(async () => canvas.dispatchEvent(new WheelEvent('wheel',{ bubbles:true,deltaY:80 })));
+      expect(scroll).toHaveBeenCalledWith(80);
+      expect(saved).toHaveLength(1);
     } finally { await act(async () => root.unmount()); }
   });
   it('commits an active pointer stroke and blocks more input synchronously until release', async () => {

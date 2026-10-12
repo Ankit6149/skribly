@@ -266,6 +266,7 @@ export const InkCanvas = forwardRef<InkCanvasHandle, InkCanvasProps>(({
       selectionDragRef.current = null;
       activeStrokeRef.current = null;
       activePointerRef.current = null;
+      panYRef.current = null;
       if (pointer !== null && canvasRef.current?.hasPointerCapture(pointer)) {
         canvasRef.current.releasePointerCapture(pointer);
       }
@@ -636,7 +637,7 @@ export const InkCanvas = forwardRef<InkCanvasHandle, InkCanvasProps>(({
           onPointerUp={finishStroke}
           onPointerCancel={finishStroke}
           onLostPointerCapture={(event) => {
-            if (activeStrokeRef.current || selectionDragRef.current) finishStroke(event);
+            if (activePointerRef.current === event.pointerId) finishStroke(event);
           }}
           onKeyDown={(event) => {
             if (onPageScroll && ['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown'].includes(event.key) && !selectedStrokeId) {

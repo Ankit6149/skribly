@@ -961,6 +961,8 @@
 @media (prefers-reduced-motion:reduce) { .composer-mode-pill .composer-mode-indicator { transition:none; } }
 @media (forced-colors:active) {
   .skrib-composer .composer-put-away-fold,.composer-mode-indicator { background:Highlight; color:HighlightText; }
+  .composer-mode-pill button { color:ButtonText; }
+  .composer-mode-pill button[aria-pressed='true'] { color:HighlightText; }
   .skrib-composer .composer-context-tab svg,.skrib-composer .composer-side-tools > button,.skrib-composer .ink-editor-toolbar .ink-icon-tool { color:ButtonText; }
   .composer-textarea [data-highlight-tone],.composer-textarea [data-highlight-tone] * { background:Highlight !important; color:HighlightText !important; -webkit-text-fill-color:HighlightText; }
 }
