@@ -16,6 +16,7 @@ interface NoteAttachmentPanelProps {
   noteId: string;
   disabled?: boolean;
   compact?: boolean;
+  attachmentsInNote?: boolean;
   pickerRequest?: number;
   refreshRequest?: number;
   openDrawerRequest?: number;
@@ -57,6 +58,7 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
   noteId,
   disabled = false,
   compact = false,
+  attachmentsInNote = false,
   pickerRequest = 0,
   refreshRequest = 0,
   openDrawerRequest = 0,
@@ -304,6 +306,7 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
         className="note-attachment-strip"
         data-empty={attachments.length === 0 && !isLoading}
         data-expanded={compactExpanded}
+        data-in-note={attachmentsInNote && !compactExpanded && !confirmRemoveId && !error && !isLoading}
         aria-label="Attached files"
       >
         {hiddenPicker}
@@ -317,7 +320,7 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
           <span className="attachment-strip-status" role="status">Reading attachments…</span>
         ) : attachments.length > 0 ? (
           <>
-            <button
+            {(!attachmentsInNote || compactExpanded) && <button
               type="button"
               className="attachment-drawer-handle"
               aria-label={`${compactExpanded ? 'Hide' : 'View'} all attachments · ${attachmentTypes}`}
@@ -334,7 +337,7 @@ export const NoteAttachmentPanel: React.FC<NoteAttachmentPanelProps> = ({
               {compactExpanded
                 ? <ChevronDown size={17} aria-hidden="true" />
                 : <ChevronUp size={17} aria-hidden="true" />}
-            </button>
+            </button>}
             <div
               id={drawerId}
               className="attachment-drawer-content"

@@ -13,7 +13,7 @@ export function NotePage({ drawing, textSize, strokes, children, renderInk }: {
   const [extraSpace, setExtraSpace] = useState(180);
   const inkHeight = useMemo(() => inkPageExtent(strokes), [strokes]);
   useEffect(() => {
-    const text = contentRef.current?.querySelector<HTMLElement>('.composer-textarea');
+    const text = contentRef.current?.querySelector<HTMLElement>('.composer-rich-editor-shell');
     if (!text) return;
     const measure = () => setTextHeight(Math.ceil(text.getBoundingClientRect().height));
     measure();

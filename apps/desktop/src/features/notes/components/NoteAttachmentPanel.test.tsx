@@ -30,6 +30,19 @@ beforeEach(() => {
 afterEach(async () => { await act(async () => root.unmount()); container.remove(); });
 
 describe('attachment collection', () => {
+  it('hides the separate footer for in-note cards while keeping picker and explicit collection access', async () => {
+    const place = vi.fn(() => true);
+    await act(async () => root.render(<NoteAttachmentPanel noteId="test-note" compact attachmentsInNote onPlaceInline={place} />));
+    await act(async () => root.render(<NoteAttachmentPanel noteId="test-note" compact attachmentsInNote onPlaceInline={place}
+      filesRequest={{ id: 50, files: [new File(['test'], 'photo.png', { type: 'image/png' })] }} />));
+    expect(place).toHaveBeenCalled();
+    expect(container.querySelector('.attachment-drawer-handle')).toBeNull();
+    expect(container.querySelector('.note-attachment-strip')?.getAttribute('data-in-note')).toBe('true');
+    expect(container.querySelector('input[type="file"]')).not.toBeNull();
+    await act(async () => root.render(<NoteAttachmentPanel noteId="test-note" compact attachmentsInNote onPlaceInline={place} openDrawerRequest={1} />));
+    expect(container.querySelector('.note-attachment-strip')?.getAttribute('data-expanded')).toBe('true');
+    expect(container.querySelector('.attachment-drawer-handle')).not.toBeNull();
+  });
   it('settles a failed queued request so its parent can release the reservation', async () => {
     const settled = vi.fn(); const error = vi.fn();
     vi.mocked(addFilesToNote).mockRejectedValueOnce(new Error('Synthetic disk failure'));

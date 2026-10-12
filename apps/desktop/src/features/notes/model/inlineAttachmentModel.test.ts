@@ -33,6 +33,21 @@ describe('inline attachment references', () => {
     editor.innerHTML = '<p>Keep this thought.</p><p><span data-skrib-attachment="attachment-1" data-skrib-attachment-size="medium"></span></p>';
     expect(editorPlainText(editor)).toBe('Keep this thought.');
   });
+  it('retains safe rotation with size and identity, stripping invalid angles and live markup', () => {
+    const editor = document.createElement('div');
+    editor.innerHTML = '<p>Thought</p><span data-skrib-attachment="attachment-1" data-skrib-attachment-size="large" data-skrib-attachment-rotation="-45"><img src="blob:private"><button>Rotate</button></span>';
+    const saved = canonicalAttachmentHtml(editor);
+    expect(saved).toContain('data-skrib-attachment-rotation="-45"');
+    expect(saved).toContain('data-skrib-attachment-size="large"');
+    expect(saved).not.toContain('blob:');
+    expect(saved).not.toContain('<button');
+    expect(sanitizeRichTextHtml(saved, true)).toBe(saved);
+    expect(editorPlainText(editor)).toBe('Thought');
+    for (const angle of ['181', '-181', 'NaN', 'Infinity', '2.5', 'rotate(20deg)', '']) {
+      expect(sanitizeRichTextHtml(`<span data-skrib-attachment="attachment-1" data-skrib-attachment-rotation="${angle}"></span>`, true))
+        .not.toContain('data-skrib-attachment-rotation');
+    }
+  });
   it('accepts only a known attachment dragged within its own note', () => {
     const allowed = new Set(['attachment-1']);
     expect(readAttachmentDrag('{', 'note-1', allowed)).toBeNull();
