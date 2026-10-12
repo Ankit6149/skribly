@@ -839,7 +839,7 @@
   color:color-mix(in srgb,var(--note-foreground) 60%,transparent);
 }
 .composer-paper-top { min-height:66px; flex-basis:66px; }
-.composer-context-tab { width:48px; max-width:48px; height:48px; min-height:48px; padding:12px; background:var(--context-pill-paper); border-color:color-mix(in srgb,var(--context-pill-ink) 35%,var(--context-pill-paper)); }
+.composer-context-tab { width:48px; max-width:48px; height:48px; min-height:48px; padding:12px; background:var(--context-pill-paper); border:0; box-shadow:none; }
 .composer-context-app-icon { width:24px; height:24px; opacity:1; filter:var(--context-pill-icon-filter); }
 .composer-context-tab > svg { width:24px; height:24px; }
 .composer-context-title {
@@ -854,8 +854,8 @@
 .composer-color-popover .color-swatch { width:28px; height:28px; color:var(--note-foreground); background:var(--note-paper); }
 .composer-color-group { grid-column:1/-1; display:grid; grid-template-columns:repeat(var(--palette-columns,8),28px); gap:6px; }
 .composer-color-group-label { grid-column:1/-1; font:600 11px/1.4 var(--font-ui); padding-top:3px; color:#262923; }
-.skrib-composer .composer-put-away-fold { background:var(--note-foreground); color:var(--note-paper); }
-.skrib-composer .composer-put-away-fold:hover:not(:disabled) { background:var(--note-foreground); color:var(--note-paper); }
+.skrib-composer .composer-put-away-fold { background:#52694e; color:#fff; }
+.skrib-composer .composer-put-away-fold:hover:not(:disabled) { background:#52694e; color:#fff; }
 .skrib-composer .composer-side-tools > button { color:var(--note-foreground); }
 .skrib-composer :is(.composer-note-menu,.composer-mode-pill,.composer-intent-trigger,.composer-format-bar,.composer-intent-tray,.composer-color-popover,.composer-reminder-window,.attachment-delete-confirmation,.inline-attachment-actions) {
   --skribli-ink:#262923; --skribli-muted:#6d7069; color:#262923;
@@ -920,4 +920,49 @@
     background:Highlight !important; color:HighlightText !important;
     -webkit-text-fill-color:HighlightText; box-shadow:none;
   }
+}
+
+/* October owner refinements: one shared page, readable highlights and quiet feedback. */
+.composer-page .composer-page-scroll { position:absolute; inset:0; overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin; }
+.composer-page-content { position:relative; min-height:100%; }
+.composer-page .composer-rich-editor-shell { position:relative; inset:auto; height:auto; min-height:0; }
+.composer-page :is(.composer-rich-editor-shell .composer-textarea,.composer-unified-canvas.drawing .composer-textarea) {
+  position:relative; inset:auto; width:100%; height:auto; min-height:150px; max-height:none;
+  padding:14px 24px 54px; overflow:visible; transition:none; font-family:var(--skribli-note-font);
+}
+.composer-page.drawing .composer-rich-editor-shell .composer-textarea { padding:14px 24px 54px; }
+.composer-page .ink-canvas[data-interaction='pan'] { cursor:grab; }
+.composer-page .ink-canvas[data-interaction='pan']:active { cursor:grabbing; }
+.composer-page .ink-page-extend { font:600 10px/1 var(--font-ui); white-space:nowrap; }
+.composer-mode-pill { gap:0; }
+.composer-mode-pill button { position:relative; z-index:1; flex:1 1 50%; }
+.composer-mode-pill .composer-mode-indicator {
+  position:absolute; inset:2px auto 2px 2px; width:calc((100% - 4px) / 2); border-radius:inherit;
+  background:var(--paper); box-shadow:0 1px 3px rgb(38 41 35 / 8%);
+  transition:translate 220ms cubic-bezier(.16,1,.3,1);
+}
+.composer-mode-pill[data-mode='draw'] .composer-mode-indicator { translate:100% 0; }
+.composer-mode-pill button[aria-pressed='true'],.composer-mode-pill button:hover:not(:disabled) { background:transparent; box-shadow:none; }
+.skrib-composer .composer-context-app-icon { filter:brightness(0) invert(.34); }
+.skrib-composer .composer-context-tab svg { color:#575b54; }
+.skrib-composer .composer-side-tools > button { color:color-mix(in srgb,var(--note-foreground) 82%,var(--note-paper)); }
+.skrib-composer .ink-editor-toolbar .ink-icon-tool,.composer-format-bar button,.composer-mode-pill button { color:#575b54; }
+.skrib-composer .ink-editor-toolbar .ink-icon-tool.active { color:#fffdf7; }
+.note-font-settings select { display:block; min-height:40px; width:min(100%,360px); margin-top:8px; }
+.note-font-preview { font-size:22px; line-height:1.6; overflow-wrap:anywhere; }
+.composer-textarea [data-note-highlight='true'] { box-shadow:none; }
+.composer-textarea [data-highlight-tone='yellow'] { --highlight-fill:var(--highlight-yellow,#f8df78); --highlight-ink:var(--highlight-yellow-ink,#262923); }
+.composer-textarea [data-highlight-tone='peach'] { --highlight-fill:var(--highlight-peach,#ffd7c4); --highlight-ink:var(--highlight-peach-ink,#262923); }
+.composer-textarea [data-highlight-tone='mint'] { --highlight-fill:var(--highlight-mint,#cfe5d7); --highlight-ink:var(--highlight-mint-ink,#262923); }
+.composer-textarea [data-highlight-tone='sky'] { --highlight-fill:var(--highlight-sky,#d5e5f5); --highlight-ink:var(--highlight-sky-ink,#262923); }
+.composer-textarea [data-highlight-tone='lavender'] { --highlight-fill:var(--highlight-lavender,#e4d9f0); --highlight-ink:var(--highlight-lavender-ink,#262923); }
+.composer-textarea [data-highlight-tone] { background-color:var(--highlight-fill) !important; }
+.composer-textarea [data-highlight-tone],.composer-textarea [data-highlight-tone] * { color:var(--highlight-ink) !important; -webkit-text-fill-color:var(--highlight-ink); }
+@media (prefers-reduced-motion:reduce) { .composer-mode-pill .composer-mode-indicator { transition:none; } }
+@media (forced-colors:active) {
+  .skrib-composer .composer-put-away-fold,.composer-mode-indicator { background:Highlight; color:HighlightText; }
+  .composer-mode-pill button { color:ButtonText; }
+  .composer-mode-pill button[aria-pressed='true'] { color:HighlightText; }
+  .skrib-composer .composer-context-tab svg,.skrib-composer .composer-side-tools > button,.skrib-composer .ink-editor-toolbar .ink-icon-tool { color:ButtonText; }
+  .composer-textarea [data-highlight-tone],.composer-textarea [data-highlight-tone] * { background:Highlight !important; color:HighlightText !important; -webkit-text-fill-color:HighlightText; }
 }

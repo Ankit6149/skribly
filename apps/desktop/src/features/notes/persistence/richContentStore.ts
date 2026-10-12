@@ -17,6 +17,7 @@ export interface InkStroke {
   color: string;
   width: number;
   points: InkPoint[];
+  coordinateSpace?: { width: number; height: number };
 }
 
 export interface SkribInkDocument {
@@ -294,7 +295,13 @@ export function validateInkDocument(strokes: ReadonlyArray<InkStroke>, updatedAt
       }
       return { x: point.x, y: point.y, pressure: point.pressure };
     });
-    return { id: stroke.id, tool: stroke.tool, color: stroke.color, width: stroke.width, points };
+    const coordinateSpace = stroke.coordinateSpace;
+    if (coordinateSpace && (!Number.isFinite(coordinateSpace.width) || !Number.isFinite(coordinateSpace.height) ||
+      coordinateSpace.width < 1 || coordinateSpace.width > 16384 || coordinateSpace.height < 1 || coordinateSpace.height > 1_000_000)) {
+      throw new Error('Drawing coordinate space is outside the safe page bounds.');
+    }
+    return { id: stroke.id, tool: stroke.tool, color: stroke.color, width: stroke.width, points,
+      ...(coordinateSpace ? { coordinateSpace: { ...coordinateSpace } } : {}) };
   });
 
   return { version: 1, strokes: validated, updatedAt };

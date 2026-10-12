@@ -22,6 +22,27 @@ beforeEach(() => {
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 describe('drawing native transition preparation', () => {
+  it('stores long-page ink in document coordinates and scrolls without changing strokes', async () => {
+    const host = document.createElement('div'); const root = createRoot(host);
+    const saved: InkStroke[][] = []; const scroll = vi.fn();
+    try {
+      await act(async () => root.render(<InkCanvas pageOffset={800} onPageScroll={scroll} onChange={(strokes) => { saved.push(strokes); }} />));
+      const canvas = host.querySelector('canvas')!;
+      await act(async () => { pointer(canvas,'pointerdown',20); pointer(canvas,'pointerup',20); });
+      expect(saved[0]![0]!.coordinateSpace).toEqual({ width:100,height:1_000_000 });
+      expect(saved[0]![0]!.points[0]!.y * 1_000_000).toBe(840);
+      await act(async () => canvas.dispatchEvent(new WheelEvent('wheel',{ bubbles:true,deltaY:120 })));
+      expect(scroll).toHaveBeenCalledWith(120);
+      await act(async () => (host.querySelector('[aria-label="Scroll page with hand tool"]') as HTMLButtonElement).click());
+      await act(async () => { pointer(canvas,'pointerdown',20); pointer(canvas,'pointerup',20); });
+      expect(saved).toHaveLength(1);
+      scroll.mockClear();
+      await act(async () => { pointer(canvas,'pointerdown',20); pointer(canvas,'lostpointercapture',20); });
+      await act(async () => canvas.dispatchEvent(new WheelEvent('wheel',{ bubbles:true,deltaY:80 })));
+      expect(scroll).toHaveBeenCalledWith(80);
+      expect(saved).toHaveLength(1);
+    } finally { await act(async () => root.unmount()); }
+  });
   it('commits an active pointer stroke and blocks more input synchronously until release', async () => {
     const host = document.createElement('div'); document.body.append(host);
     const root = createRoot(host); const ref = createRef<InkCanvasHandle>();

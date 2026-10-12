@@ -59,6 +59,7 @@ import glyph55 from '@iconify-icons/solar/text-bold';
 import glyph56 from '@iconify-icons/solar/text-underline-bold';
 import glyph57 from '@iconify-icons/solar/undo-left-bold';
 import glyph58 from '@iconify-icons/solar/user-rounded-bold';
+import handGlyph from '@iconify-icons/solar/hand-stars-bold';
 
 
 // Offline Iconify Solar Bold. Individual imports keep unused glyphs out of builds.
@@ -71,6 +72,7 @@ function glyph(data: typeof glyph0) {
   };
 }
 export const Archive = glyph(glyph0);
+export const Hand = glyph(handGlyph);
 export const ArchiveRestore = glyph(glyph1);
 export const ArrowLeft = glyph(glyph2);
 export const ArrowRight = glyph(glyph3);

@@ -34,7 +34,7 @@ export function chooseContextPillColor(noteColor: NoteColor, previous?: ContextP
   });
   // Every paper has multiple light, distinct-hue choices (covered by palette tests).
   const chosen = candidates[Math.floor(random() * candidates.length)] ?? candidates[0]!;
-  return { ...chosen, iconFilter: 'brightness(0) invert(.26)' };
+  return { ...chosen, foreground: '#575b54', iconFilter: 'brightness(0) invert(.34)' };
 }
 
 // Transient appearance only; never modify a saved note's selected paper colour.

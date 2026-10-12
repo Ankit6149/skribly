@@ -1,5 +1,6 @@
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { useEffect } from 'react';
+import { usePressFeedback } from '../ui/usePressFeedback';
 import { useLicenseStore } from '../features/licensing/state/licenseStore';
 import { ContextWidgetWindow } from '../windows/context-widget/ContextWidgetWindow';
 import { HomeWindow } from '../windows/home/HomeWindow';
@@ -9,6 +10,7 @@ import { GlobalWidgetWindow } from '../windows/widget/GlobalWidgetWindow';
 import { classifyWindow, resolveWindowLabel } from './windowRouter';
 
 export function App() {
+  usePressFeedback();
   const initWriteStatus = useLicenseStore((state) => state.init);
   const windowLabel = resolveWindowLabel({
     nativeLabel: getCurrentWindow().label,
