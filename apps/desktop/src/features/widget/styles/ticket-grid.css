@@ -1,0 +1,187 @@
+/* Owner-selected ticket grid. Geometry is CSS; known app marks use bundled Supericons. */
+.context-rail.expanded.global-shelf {
+  container-type:inline-size; --ticket-columns:6; --ticket-gap:12px;
+  width:100%; height:100%; padding:28px 32px 20px; gap:18px;
+  color:#262923; background:rgb(248 247 242 / 82%); border:0; border-radius:0; box-shadow:none;
+  backdrop-filter:blur(32px); -webkit-backdrop-filter:blur(32px);
+}
+.context-rail.expanded.global-shelf:is(.dock-left,.dock-right) { border:0; box-shadow:none; }
+.context-rail.expanded.global-shelf .ribbon-rail-head { min-height:40px; padding:0; }
+.context-rail.expanded.global-shelf .ribbon-rail-brand { gap:9px; }
+.context-rail.expanded.global-shelf .ribbon-rail-brand img { width:24px; height:24px; }
+.context-rail.expanded.global-shelf .ribbon-rail-brand strong { font:700 26px/1.2 var(--font-display); letter-spacing:-.02em; color:inherit; }
+.context-rail.expanded.global-shelf .ribbon-rail-brand small { display:none; }
+.context-rail.expanded.global-shelf .ribbon-rail-actions button { color:inherit; background:transparent; }
+.context-rail.expanded.global-shelf .ribbon-rail-actions button:hover { background:transparent; }
+.context-rail.expanded.global-shelf .global-shelf-scopes { gap:20px; border:0; min-height:32px; }
+.context-rail.expanded.global-shelf .global-shelf-scopes button { height:32px; padding-bottom:6px; font-size:14px; color:#4f574c; }
+.context-rail.expanded.global-shelf .global-shelf-scopes button[aria-pressed='true'] { color:#262923; }
+.context-rail.expanded.global-shelf .global-shelf-scopes button[aria-pressed='true']::after { background:#262923; }
+.context-rail.expanded.global-shelf .global-shelf-search {
+  position:absolute; top:29px; right:126px; width:min(280px,28vw); min-height:38px;
+  padding:0 14px; border:0; border-radius:999px; background:rgb(255 253 247 / 80%); color:#4f574c;
+}
+.context-rail.expanded.global-shelf .global-shelf-search:focus-within { box-shadow:none; outline:2px solid #4b643d; outline-offset:4px; }
+.context-rail.expanded.global-shelf .global-shelf-search input { color:#262923; font-size:14px; }
+.context-rail.expanded.global-shelf .global-shelf-search input::placeholder { color:#52594e; opacity:1; }
+.context-rail.expanded.global-shelf .ribbon-context-strip { margin:0; padding:4px 0; gap:8px; height:48px; min-height:48px; flex-shrink:0; }
+.context-rail.expanded.global-shelf .ribbon-context-strip button {
+  display:flex; align-items:center; gap:8px; flex:0 0 auto; width:auto; min-width:32px; height:38px; padding:8px 12px;
+  color:#424242; border-radius:12px; background:color-mix(in srgb,var(--note-paper,#e7ddb6) 14%,#f8f7f2); border:0; box-shadow:none;
+}
+.context-rail.expanded.global-shelf .ribbon-context-strip button.active { background:color-mix(in srgb,var(--note-paper,#e7ddb6) 35%,#f8f7f2); color:#424242; }
+.context-rail.expanded.global-shelf .ribbon-context-strip button:hover { background:color-mix(in srgb,var(--note-paper,#e7ddb6) 14%,#f8f7f2); }
+.context-rail.expanded.global-shelf .ribbon-context-strip button.active:hover { background:color-mix(in srgb,var(--note-paper,#e7ddb6) 35%,#f8f7f2); }
+.context-rail.expanded.global-shelf .global-shelf-scopes button:hover { color:#4f574c; }
+.context-rail.expanded.global-shelf .global-shelf-scopes button[aria-pressed='true']:hover { color:#262923; }
+.context-rail.expanded.global-shelf .ribbon-context-strip button > span {
+  position:static; min-width:0; height:auto; padding:0; border-radius:0; background:transparent; color:inherit; box-shadow:none; font:500 12px/1 var(--font-ui);
+}
+.context-rail.expanded.global-shelf .ribbon-context-strip button > span:last-child { display:inline-block; font-size:11px; font-variant-numeric:tabular-nums; }
+.context-rail.expanded.global-shelf .ribbon-context-strip .rail-app-label { display:inline; font-size:13px; white-space:nowrap; color:inherit; }
+.context-rail.expanded.global-shelf .ribbon-context-strip .ribbon-app-icon { width:18px; height:18px; }
+.context-rail.expanded.global-shelf .ribbon-context-strip :is(.quiet-app-icon,.flat-app-icon) { filter:brightness(0) invert(.26); opacity:1; }
+.context-rail.expanded.global-shelf .ribbon-fan {
+  display:grid; grid-template-columns:repeat(var(--ticket-columns),minmax(0,1fr)); gap:var(--ticket-gap); align-content:start; align-items:start;
+  grid-auto-rows:calc((100cqw - 12px - (var(--ticket-columns) - 1) * var(--ticket-gap)) / var(--ticket-columns) / .92);
+  padding:4px 1px 12px; overflow-y:auto; overflow-x:hidden; min-height:0;
+}
+.context-rail.expanded.global-shelf .skrib-ribbon {
+  position:relative; display:block; width:100%; height:100%; min-height:0; max-height:none; aspect-ratio:auto; flex:none;
+  --card-soft-paper:color-mix(in srgb,var(--note-paper) 92%,white);
+  margin:0; border:0; border-radius:20px 20px 44px 20px;
+  background:linear-gradient(145deg,var(--card-soft-paper),var(--note-paper) 65%); color:var(--note-foreground);
+  box-shadow:none; transform:none; animation:none;
+  mask:none; overflow:hidden;
+}
+.context-rail.expanded.global-shelf .skrib-ribbon::after {
+  content:''; position:absolute; right:0; bottom:0; width:36px; height:36px; border-radius:36px 0 0 0;
+  background:color-mix(in srgb,var(--note-paper) 90%,var(--note-foreground)); pointer-events:none;
+}
+.context-rail.expanded.global-shelf .skrib-ribbon:is(:hover,:focus-within) { height:100%; max-height:none; transform:none; box-shadow:none; background:linear-gradient(145deg,var(--card-soft-paper),var(--note-paper) 65%); color:var(--note-foreground); }
+.context-rail.expanded.global-shelf .skrib-ribbon-read {
+  position:absolute; inset:0; width:100%; height:100%; padding:18px; display:block; text-align:left;
+  border-radius:inherit; color:inherit; outline-offset:-5px;
+}
+.context-rail.expanded.global-shelf .skrib-ribbon-read:focus-visible { outline:3px solid currentColor; box-shadow:none; }
+.context-rail.expanded.global-shelf .skrib-ribbon-copy { position:absolute; left:18px; right:18px; top:18px; display:block; }
+.context-rail.expanded.global-shelf .skrib-ribbon-copy strong {
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+  font:700 clamp(16px,1.4vw,21px)/1.2 var(--font-display); letter-spacing:-.025em;
+  max-width:100%; overflow:hidden; white-space:normal; color:inherit;
+}
+.context-rail.expanded.global-shelf .skrib-ribbon-copy small { display:none; }
+.context-rail.expanded.global-shelf .global-note-preview {
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; margin-top:12px;
+  font:400 13px/1.55 var(--font-ui); color:inherit; white-space:normal;
+}
+.context-rail.expanded.global-shelf .skrib-ribbon-mark {
+  position:absolute; left:18px; bottom:20px; display:grid; place-items:center; width:48px; height:48px;
+  margin:0; padding:12px; background:color-mix(in srgb,var(--note-paper) 25%,white); border-radius:50%; color:#424242;
+}
+.context-rail.expanded.global-shelf .skrib-ribbon-mark :is(.ribbon-app-icon,svg) { width:24px; height:24px; opacity:1; }
+.context-rail.expanded.global-shelf .skrib-ribbon-mark :is(.quiet-app-icon,.flat-app-icon) { filter:brightness(0) invert(.26); }
+.context-rail.expanded.global-shelf .ticket-open-label {
+  position:absolute; bottom:25px; right:18px; padding:4px 8px; border:1px solid currentColor;
+  border-radius:999px; font:600 11px/1.1 var(--font-ui); color:inherit;
+}
+.context-rail.expanded.global-shelf .skrib-ribbon:has(.skrib-ribbon-return) .ticket-open-label { right:79px; }
+.context-rail.expanded.global-shelf .skrib-ribbon-return {
+  position:absolute; right:14px; bottom:17px; width:62px; height:38px; min-height:38px; display:flex;
+  align-items:center; justify-content:center; gap:4px; padding:0; border:0; border-radius:999px;
+  background:transparent; color:inherit; font:600 11px/1 var(--font-ui); opacity:1;
+}
+.context-rail.expanded.global-shelf .skrib-ribbon-return svg { width:13px; height:13px; }
+.context-rail.expanded.global-shelf .skrib-ribbon-return:is(:hover,:focus-visible) { background:transparent; }
+.context-rail.expanded.global-shelf .skrib-ribbon-return:focus-visible { outline:2px solid currentColor; outline-offset:-2px; }
+.context-rail.expanded.global-shelf :is(.skrib-color-charcoal,.skrib-color-wine,.skrib-color-black,.skrib-color-ruby,.skrib-color-indigo) {
+  --card-soft-paper:color-mix(in srgb,var(--note-paper) 92%,black);
+}
+.context-rail.expanded.global-shelf .global-shelf-footer { min-height:18px; padding-top:0; border:0; color:#52594e; font-size:12px; }
+.context-rail.expanded.global-shelf :is(.ribbon-empty,.ribbon-message) { grid-column:1 / -1; background:transparent; color:#262923; min-height:80px; font-size:16px; }
+.context-rail.expanded.global-shelf .ribbon-fan::-webkit-scrollbar-thumb { background:#788474; }
+.context-rail.expanded.global-shelf :is(.global-shelf-scopes button,.ribbon-rail-actions button,.ribbon-context-strip button):focus-visible { outline:2px solid #4b643d; outline-offset:2px; }
+.context-rail.expanded.global-shelf .rail-opening-spinner { position:absolute; right:18px; top:18px; }
+@media (max-width:1200px) { .context-rail.expanded.global-shelf { --ticket-columns:5; } }
+@media (max-width:1000px) { .context-rail.expanded.global-shelf { --ticket-columns:4; } }
+@media (max-width:760px) {
+  .context-rail.expanded.global-shelf { padding:16px; --ticket-columns:3; --ticket-gap:8px; }
+  .context-rail.expanded.global-shelf .global-shelf-search { top:17px; right:104px; width:min(180px,28vw); }
+  .context-rail.expanded.global-shelf .skrib-ribbon-read { padding:14px; }
+  .context-rail.expanded.global-shelf .skrib-ribbon-copy { left:14px; right:14px; top:14px; }
+  .context-rail.expanded.global-shelf .skrib-ribbon-copy strong { font-size:17px; }
+  .context-rail.expanded.global-shelf .global-note-preview { font-size:13px; }
+}
+@media (max-width:520px) {
+  .context-rail.expanded.global-shelf .ribbon-context-strip { flex-wrap:nowrap; gap:6px; }
+  .context-rail.expanded.global-shelf .ribbon-context-strip button { font-size:11px; min-height:36px; }
+  .context-rail.expanded.global-shelf { --ticket-columns:2; }
+  .context-rail.expanded.global-shelf .global-shelf-search { position:static; width:100%; min-height:36px; }
+  .context-rail.expanded.global-shelf .skrib-ribbon-mark { left:14px; bottom:13px; width:40px; height:40px; padding:10px; }
+  .context-rail.expanded.global-shelf .skrib-ribbon-mark :is(.ribbon-app-icon,svg) { width:20px; height:20px; }
+  .context-rail.expanded.global-shelf .ticket-open-label { display:none; }
+  .context-rail.expanded.global-shelf .skrib-ribbon-return { right:10px; bottom:11px; }
+  .context-rail.expanded.global-shelf .global-note-preview { -webkit-line-clamp:1; }
+}
+@media (prefers-reduced-transparency:reduce) { .context-rail.expanded.global-shelf { background:#f8f7f2; backdrop-filter:none; } }
+@media (forced-colors:active) {
+  .context-rail.expanded.global-shelf { background:Canvas; color:CanvasText; backdrop-filter:none; }
+  .context-rail.expanded.global-shelf .skrib-ribbon { mask:none; background:Canvas; color:CanvasText; border:1px solid CanvasText; }
+  .context-rail.expanded.global-shelf .skrib-ribbon::after { display:none; }
+  .context-rail.expanded.global-shelf .ribbon-context-strip button { background:Canvas; color:CanvasText; }
+  .context-rail.expanded.global-shelf .ribbon-context-strip button.active { outline:2px solid Highlight; outline-offset:-2px; }
+  .context-rail.expanded.global-shelf :is(.skrib-ribbon-read,.skrib-ribbon-return,.global-shelf-scopes button,.global-shelf-search input,.ribbon-empty,.ribbon-message,.global-shelf-footer) { color:CanvasText; }
+}
+
+/* The in-app pill opens a native 460 x 250 surface: two miniature cards,
+   with additional notes scrolling inside it rather than covering the app. */
+.context-rail.expanded.context-list {
+  width:100%; height:100%; margin:0; padding:12px; gap:8px;
+  border:0; border-radius:20px; color:#262923;
+  background:rgb(248 247 242 / 82%); backdrop-filter:blur(32px);
+  -webkit-backdrop-filter:blur(32px);
+}
+.context-rail.expanded.context-list .ribbon-rail-head { min-height:32px; height:32px; padding:0; }
+.context-rail.expanded.context-list .ribbon-rail-brand strong { font:700 15px/1.2 var(--font-display); }
+.context-rail.expanded.context-list .ribbon-rail-brand small { display:none; }
+.context-rail.expanded.context-list .ribbon-rail-actions button,
+.context-rail.expanded.context-list .ribbon-rail-actions button:hover { background:transparent; color:inherit; }
+.context-rail.expanded.context-list .ribbon-fan {
+  display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); grid-auto-rows:174px;
+  gap:8px; align-content:start; min-height:0; padding:0 2px 2px 0; overflow-y:auto;
+}
+.context-rail.expanded.context-list .skrib-ribbon,
+.context-rail.expanded.context-list .skrib-ribbon:is(:hover,:focus-within) {
+  --card-soft-paper:color-mix(in srgb,var(--note-paper) 92%,white);
+  position:relative; display:block; width:100%; min-height:0; height:174px;
+  flex:none; margin:0; border:0; border-radius:16px 16px 34px 16px; mask:none;
+  overflow:hidden; transform:none; box-shadow:none; animation:none;
+  color:var(--note-foreground); background:linear-gradient(145deg,var(--card-soft-paper),var(--note-paper) 65%);
+}
+.context-rail.expanded.context-list .skrib-ribbon:is(.skrib-color-charcoal,.skrib-color-wine,.skrib-color-black,.skrib-color-ruby,.skrib-color-indigo) {
+  --card-soft-paper:color-mix(in srgb,var(--note-paper) 92%,black);
+}
+.context-rail.expanded.context-list .skrib-ribbon::after {
+  content:''; position:absolute; right:0; bottom:0; width:28px; height:28px;
+  border-radius:28px 0 0 0; background:color-mix(in srgb,var(--note-paper) 90%,var(--note-foreground)); pointer-events:none;
+}
+.context-rail.expanded.context-list .skrib-ribbon-read { position:absolute; inset:0; display:block; padding:12px; width:100%; height:100%; color:inherit; background:transparent; }
+.context-rail.expanded.context-list .skrib-ribbon-copy { position:absolute; top:12px; left:12px; right:12px; display:block; }
+.context-rail.expanded.context-list .skrib-ribbon-copy strong { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; white-space:normal; font:700 14px/1.3 var(--font-display); color:inherit; }
+.context-rail.expanded.context-list .skrib-ribbon-copy small { display:block; margin-top:7px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:inherit; font:400 11px/1.4 var(--font-ui); }
+.context-rail.expanded.context-list .skrib-card-preview { display:none; }
+.context-rail.expanded.context-list .skrib-card-open { display:block; position:absolute; top:116px; left:46px; color:inherit; font:600 10px/1.2 var(--font-ui); white-space:nowrap; }
+.context-rail.expanded.context-list .skrib-ribbon-mark { position:absolute; left:12px; bottom:12px; display:grid; place-items:center; width:36px; height:36px; padding:9px; margin:0; border-radius:50%; color:#424242; background:color-mix(in srgb,var(--note-paper) 25%,white); }
+.context-rail.expanded.context-list .skrib-ribbon-mark :is(.ribbon-app-icon,svg) { width:18px; height:18px; }
+.context-rail.expanded.context-list .skrib-ribbon-mark :is(.quiet-app-icon,.flat-app-icon) { filter:brightness(0) invert(.26); opacity:1; }
+.context-rail.expanded.context-list .skrib-ribbon-return,
+.context-rail.expanded.context-list .skrib-ribbon-return:hover { position:absolute; right:6px; bottom:8px; width:36px; height:36px; min-height:36px; border:0 !important; border-radius:50%; color:inherit; background:transparent; opacity:1; }
+.context-rail.expanded.context-list :is(.skrib-ribbon-read,.skrib-ribbon-return):focus-visible { outline:2px solid currentColor; outline-offset:-4px; }
+.context-rail.expanded.context-list :is(.ribbon-empty,.ribbon-message) { grid-column:1 / -1; color:inherit; }
+@media (prefers-reduced-transparency:reduce) { .context-rail.expanded.context-list { background:#f8f7f2; backdrop-filter:none; } }
+@media (forced-colors:active) {
+  .context-rail.expanded.context-list { background:Canvas; color:CanvasText; }
+  .context-rail.expanded.context-list .skrib-ribbon,
+  .context-rail.expanded.context-list .skrib-ribbon:is(:hover,:focus-within) { background:Canvas; color:CanvasText; border:1px solid CanvasText; }
+  .context-rail.expanded.context-list .skrib-ribbon::after { display:none; }
+}

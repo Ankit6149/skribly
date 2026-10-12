@@ -205,15 +205,16 @@ if (
   railWindow.height !== 80 ||
   railWindow.minWidth !== 28 ||
   railWindow.minHeight !== 50 ||
-  railWindow.maxWidth !== 388 ||
+  railWindow.maxWidth !== undefined ||
   railWindow.maxHeight !== undefined ||
   !nativeEntry.includes('global_rail_physical_size(expanded, logical_width, logical_height, scale, bounds)') ||
   !nativeEntry.includes('bounds.height.max(0) as u32') ||
+  !nativeEntry.includes('bounds.width.max(0) as u32') ||
   !nativeEntry.includes('DWMSBT_TRANSIENTWINDOW') ||
   !nativeEntry.includes('DWMSBT_AUTO') ||
   nativeEntry.includes('rail.set_effects(None)')
 ) {
-  failures.push('The global edge widget must keep its visible default backdrop while the open panel uses full work-area height and native Acrylic.');
+  failures.push('The global widget must preserve its compact backdrop while the open ticket panel fills the work area with native Acrylic.');
 }
 
 if (

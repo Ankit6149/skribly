@@ -1,0 +1,59 @@
+{
+  "checked_at_utc": "2026-10-11T19:11:30.588Z",
+  "deployment_id": "dpl_EjBEASausF2ZXR7CPPHYo9DmSPxn",
+  "production_url": "https://skribly-desktop.vercel.app/v0-download",
+  "website_commit": "8415618f0dbdbf5bc9c09046c89a0a4b6f5439db",
+  "windows_source": "f70d20879b80f3bef540781bb7ab4a13d7d0f670",
+  "windows_version": "0.1.54",
+  "android_version": "0.0.2",
+  "one_key_both_platforms": true,
+  "key_not_uploaded": true,
+  "records": [
+    {
+      "path": "/v0-download",
+      "http": 200,
+      "bytes": 3080,
+      "sha256": "610c6ec50b83c1da251b76a6c19e4893f5a8fbbceb57328b13097073ab1635a3",
+      "matches_local": true
+    },
+    {
+      "path": "/v0-download-core.mjs",
+      "http": 200,
+      "bytes": 3994,
+      "sha256": "2e58baefe63ab4503578064c2d0a1ab38c796869f6cff2b89cca5a22f3e01747",
+      "matches_local": true
+    },
+    {
+      "path": "/assets/skribli-v0-windows.enc",
+      "http": 200,
+      "bytes": 3795191,
+      "sha256": "9658b5f9432fbb7336840a0ccd237bdf5dd9b204e2164237ab41a37b2bc26a55",
+      "matches_local": true,
+      "decrypted_bytes": 3795139,
+      "decrypted_sha256": "859409fc52b1eada8199bc4b4f5298bb8e501710222243acfe44d571baacab3d"
+    },
+    {
+      "path": "/assets/skribli-android-preview-0.0.2-arm64.enc",
+      "http": 200,
+      "bytes": 26098893,
+      "sha256": "5a1fb7c4a000a8e2c51ae43234abca5d30304567c455c6b5f68304ff1e76ec2c",
+      "matches_local": true,
+      "decrypted_bytes": 26098841,
+      "decrypted_sha256": "23f542276ecb9694d641a30e61db46821160fe0193cf459067d9d887df447dce"
+    },
+    {
+      "path": "/assets/phosphor/fill/Phosphor-Fill.woff2",
+      "http": 200,
+      "bytes": 131744,
+      "sha256": "660bd6045c0e0d9756cddb8ba2ece3aad855df7d4a170ef23f7b1c0bf511c430",
+      "matches_local": true
+    },
+    {
+      "path": "/assets/phosphor/regular/Phosphor.woff2",
+      "http": 200,
+      "bytes": 147380,
+      "sha256": "c2ea45ea05ff5c7df1936770c104725f2a68f43fd343f35f3da23a30b27de32a",
+      "matches_local": true
+    }
+  ]
+}

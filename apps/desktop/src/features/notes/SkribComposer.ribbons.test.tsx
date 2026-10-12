@@ -121,7 +121,7 @@ describe('note icon ribbons', () => {
     expect(container.querySelector('.composer-side-tools [aria-label="Set a reminder"]')).not.toBeNull();
     const palette = container.querySelector('[aria-label="Paper colour"]')!;
     await act(async () => (palette as HTMLButtonElement).click());
-    expect(container.querySelectorAll('.composer-color-popover button')).toHaveLength(8);
+    expect(container.querySelectorAll('.composer-color-popover button')).toHaveLength(32);
     await act(async () => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })));
     expect(container.querySelector('.composer-color-popover')).toBeNull();
     expect(document.activeElement).toBe(palette);

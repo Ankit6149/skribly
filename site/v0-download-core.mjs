@@ -4,10 +4,10 @@ const MINIMUM_PACKAGE_BYTES = 53;
 export const OWNER_ARTIFACTS = Object.freeze({
   desktop: Object.freeze({
     path: '/assets/skribli-v0-windows.enc',
-    filename: 'Skribli_0.1.53_x64-setup.exe',
+    filename: 'Skribli_0.1.54_x64-setup.exe',
     mime: 'application/vnd.microsoft.portable-executable',
     label: 'Windows installer',
-    description: 'Windows · x64 · v0.1.53 private owner test',
+    description: 'Windows · x64 · v0.1.54 private owner test',
     ready: true,
     next: 'Open the .exe on your Windows PC to install Skribli.',
   }),
@@ -16,7 +16,7 @@ export const OWNER_ARTIFACTS = Object.freeze({
     filename: 'Skribli_Mobile_Preview_0.0.2_arm64.apk',
     mime: 'application/vnd.android.package-archive',
     label: 'Android preview APK',
-    description: 'Android 7+ · ARM64 · v0.0.2 private preview. Skribs and reminders work offline; encrypted desktop sync is not connected yet.',
+    description: 'Android 7+ · ARM64 · v0.0.2 private preview. Offline notes and reminder entries. System notifications and encrypted desktop sync are not connected yet.',
     ready: true,
     next: 'Open the .apk on your Android phone. This is a private preview; save notes explicitly.',
   }),

@@ -1,5 +1,5 @@
 import React from 'react';
-import { LoaderCircle, MapPinCheckInside } from 'lucide-react';
+import { LoaderCircle, MapPinCheckInside } from '../../../ui/icons';
 import skriblyLogo from '../../../../src-tauri/icons/128x128.png';
 import type { OpenNoteProgress } from '../lifecycle/openNoteContext';
 

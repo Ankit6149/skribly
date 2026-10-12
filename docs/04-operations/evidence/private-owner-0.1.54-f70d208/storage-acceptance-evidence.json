@@ -1,0 +1,379 @@
+{
+  "schemaVersion": 1,
+  "generatedAtUtc": "2026-10-11T19:03:51.7891412Z",
+  "commitSha": "f70d20879b80f3bef540781bb7ab4a13d7d0f670",
+  "githubRunId": null,
+  "githubRunAttempt": null,
+  "runnerName": null,
+  "runnerOs": null,
+  "windowsVersion": "Microsoft Windows NT 10.0.26300.0",
+  "powershellVersion": "7.6.6",
+  "buildMode": "release",
+  "binaryPath": "C:\\Users\\ANKIT BHARDWAJ\\Desktop\\skrilbi\\skribli-desktop\\apps\\desktop\\src-tauri\\target\\release\\storage_acceptance.exe",
+  "binarySha256": "E0B055DF9A0B924A711C6270B5459946D32E26B7B7ECBCFE9A6049347AE408FC",
+  "tauriIdentifier": "app.skribly.desktop",
+  "appDataRoot": "C:\\Users\\ANKIT BHARDWAJ\\Desktop\\skrilbi\\skribli-desktop\\artifacts\\owner-candidates\\v0.1.54-f70d20879b80-20261011T185837044Z-f9726829\\synthetic-app-data\\app.skribly.desktop",
+  "acceptanceRoot": "C:\\Users\\ANKIT BHARDWAJ\\Desktop\\skrilbi\\skribli-desktop\\artifacts\\owner-candidates\\v0.1.54-f70d20879b80-20261011T185837044Z-f9726829\\synthetic-app-data\\app.skribly.desktop\\storage-acceptance\\f70d20879b80f3bef540781bb7ab4a13d7d0f670",
+  "scenarioCount": 15,
+  "allPassed": true,
+  "scenarios": [
+    {
+      "name": "real-app-data-directory-semantics",
+      "passed": true,
+      "details": {
+        "appDataRoot": "C:\\Users\\ANKIT BHARDWAJ\\Desktop\\skrilbi\\skribli-desktop\\artifacts\\owner-candidates\\v0.1.54-f70d20879b80-20261011T185837044Z-f9726829\\synthetic-app-data\\app.skribly.desktop",
+        "acceptanceRoot": "C:\\Users\\ANKIT BHARDWAJ\\Desktop\\skrilbi\\skribli-desktop\\artifacts\\owner-candidates\\v0.1.54-f70d20879b80-20261011T185837044Z-f9726829\\synthetic-app-data\\app.skribly.desktop\\storage-acceptance\\f70d20879b80f3bef540781bb7ab4a13d7d0f670",
+        "identifier": "app.skribly.desktop"
+      }
+    },
+    {
+      "name": "forced-process-termination-afterTemporarySync",
+      "passed": true,
+      "details": {
+        "termination": {
+          "stage": "afterTemporarySync",
+          "pid": 20428,
+          "forcedExit": true,
+          "exitCode": -1,
+          "readyMarker": "C:\\Users\\ANKIT BHARDWAJ\\Desktop\\skrilbi\\skribli-desktop\\artifacts\\owner-candidates\\v0.1.54-f70d20879b80-20261011T185837044Z-f9726829\\synthetic-app-data\\app.skribly.desktop\\storage-acceptance\\f70d20879b80f3bef540781bb7ab4a13d7d0f670\\kill-afterTemporarySync\\afterTemporarySync.ready.json"
+        },
+        "verification": {
+          "blockedReason": null,
+          "command": "verify",
+          "marker": "recovered-afterTemporarySync",
+          "notice": {
+            "backupDirectory": "C:\\Users\\ANKIT BHARDWAJ\\Desktop\\skrilbi\\skribli-desktop\\artifacts\\owner-candidates\\v0.1.54-f70d20879b80-20261011T185837044Z-f9726829\\synthetic-app-data\\app.skribly.desktop\\storage-acceptance\\f70d20879b80f3bef540781bb7ab4a13d7d0f670\\kill-afterTemporarySync",
+            "message": "Skribli recovered local Skribs from the temporary recovery file and restored the primary database.",
+            "migratedFromSchema": null,
+            "quarantinedFiles": [],
+            "revision": 4,
+            "source": "temporary"
+          },
+          "path": "C:\\Users\\ANKIT BHARDWAJ\\Desktop\\skrilbi\\skribli-desktop\\artifacts\\owner-candidates\\v0.1.54-f70d20879b80-20261011T185837044Z-f9726829\\synthetic-app-data\\app.skribly.desktop\\storage-acceptance\\f70d20879b80f3bef540781bb7ab4a13d7d0f670\\kill-afterTemporarySync\\skribs.json",
+          "revision": 4,
+          "writable": true
+        }
+      }
+    },
+    {
+      "name": "forced-process-termination-afterBackupRotation",
+      "passed": true,
+      "details": {
+        "termination": {
+          "stage": "afterBackupRotation",
+          "pid": 13780,
+          "forcedExit": true,
+          "exitCode": -1,
+          "readyMarker": "C:\\Users\\ANKIT BHARDWAJ\\Desktop\\skrilbi\\skribli-desktop\\artifacts\\owner-candidates\\v0.1.54-f70d20879b80-20261011T185837044Z-f9726829\\synthetic-app-data\\app.skribly.desktop\\storage-acceptance\\f70d20879b80f3bef540781bb7ab4a13d7d0f670\\kill-afterBackupRotation\\afterBackupRotation.ready.json"
+        },
+        "verification": {
+          "blockedReason": null,
+          "command": "verify",
+          "marker": "recovered-afterBackupRotation",
+          "notice": {
+            "backupDirectory": "C:\\Users\\ANKIT BHARDWAJ\\Desktop\\skrilbi\\skribli-desktop\\artifacts\\owner-candidates\\v0.1.54-f70d20879b80-20261011T185837044Z-f9726829\\synthetic-app-data\\app.skribly.desktop\\storage-acceptance\\f70d20879b80f3bef540781bb7ab4a13d7d0f670\\kill-afterBackupRotation",
+            "message": "Skribli recovered local Skribs from the temporary recovery file and restored the primary database.",
+            "migratedFromSchema": null,
+            "quarantinedFiles": [],
+            "revision": 4,
+            "source": "temporary"
+          },
+          "path": "C:\\Users\\ANKIT BHARDWAJ\\Desktop\\skrilbi\\skribli-desktop\\artifacts\\owner-candidates\\v0.1.54-f70d20879b80-20261011T185837044Z-f9726829\\synthetic-app-data\\app.skribly.desktop\\storage-acceptance\\f70d20879b80f3bef540781bb7ab4a13d7d0f670\\kill-afterBackupRotation\\skribs.json",
+          "revision": 4,
+          "writable": true
+        }
+      }
+    },
+    {
+      "name": "forced-process-termination-beforePrimaryReplace",
+      "passed": true,
+      "details": {
+        "termination": {
+          "stage": "beforePrimaryReplace",
+          "pid": 24356,
+          "forcedExit": true,
+          "exitCode": -1,
+          "readyMarker": "C:\\Users\\ANKIT BHARDWAJ\\Desktop\\skrilbi\\skribli-desktop\\artifacts\\owner-candidates\\v0.1.54-f70d20879b80-20261011T185837044Z-f9726829\\synthetic-app-data\\app.skribly.desktop\\storage-acceptance\\f70d20879b80f3bef540781bb7ab4a13d7d0f670\\kill-beforePrimaryReplace\\beforePrimaryReplace.ready.json"
+        },
+        "verification": {
+          "blockedReason": null,
+          "command": "verify",
+          "marker": "recovered-beforePrimaryReplace",
+          "notice": {
+            "backupDirectory": "C:\\Users\\ANKIT BHARDWAJ\\Desktop\\skrilbi\\skribli-desktop\\artifacts\\owner-candidates\\v0.1.54-f70d20879b80-20261011T185837044Z-f9726829\\synthetic-app-data\\app.skribly.desktop\\storage-acceptance\\f70d20879b80f3bef540781bb7ab4a13d7d0f670\\kill-beforePrimaryReplace",
+            "message": "Skribli recovered local Skribs from the temporary recovery file and restored the primary database.",
+            "migratedFromSchema": null,
+            "quarantinedFiles": [],
+            "revision": 4,
+            "source": "temporary"
+          },
+          "path": "C:\\Users\\ANKIT BHARDWAJ\\Desktop\\skrilbi\\skribli-desktop\\artifacts\\owner-candidates\\v0.1.54-f70d20879b80-20261011T185837044Z-f9726829\\synthetic-app-data\\app.skribly.desktop\\storage-acceptance\\f70d20879b80f3bef540781bb7ab4a13d7d0f670\\kill-beforePrimaryReplace\\skribs.json",
+          "revision": 4,
+          "writable": true
+        }
+      }
+    },
+    {
+      "name": "forced-process-termination-afterPrimaryReplace",
+      "passed": true,
+      "details": {
+        "termination": {
+          "stage": "afterPrimaryReplace",
+          "pid": 28456,
+          "forcedExit": true,
+          "exitCode": -1,
+          "readyMarker": "C:\\Users\\ANKIT BHARDWAJ\\Desktop\\skrilbi\\skribli-desktop\\artifacts\\owner-candidates\\v0.1.54-f70d20879b80-20261011T185837044Z-f9726829\\synthetic-app-data\\app.skribly.desktop\\storage-acceptance\\f70d20879b80f3bef540781bb7ab4a13d7d0f670\\kill-afterPrimaryReplace\\afterPrimaryReplace.ready.json"
+        },
+        "verification": {
+          "blockedReason": null,
+          "command": "verify",
+          "marker": "recovered-afterPrimaryReplace",
+          "notice": null,
+          "path": "C:\\Users\\ANKIT BHARDWAJ\\Desktop\\skrilbi\\skribli-desktop\\artifacts\\owner-candidates\\v0.1.54-f70d20879b80-20261011T185837044Z-f9726829\\synthetic-app-data\\app.skribly.desktop\\storage-acceptance\\f70d20879b80f3bef540781bb7ab4a13d7d0f670\\kill-afterPrimaryReplace\\skribs.json",
+          "revision": 4,
+          "writable": true
+        }
+      }
+    },
+    {
+      "name": "forced-process-termination-during-partial-temporary-write",
+      "passed": true,
+      "details": {
+        "termination": {
+          "forcedExit": true,
+          "exitCode": -1,
+          "readyMarker": "C:\\Users\\ANKIT BHARDWAJ\\Desktop\\skrilbi\\skribli-desktop\\artifacts\\owner-candidates\\v0.1.54-f70d20879b80-20261011T185837044Z-f9726829\\synthetic-app-data\\app.skribly.desktop\\storage-acceptance\\f70d20879b80f3bef540781bb7ab4a13d7d0f670\\partial-temporary\\partial-temp.ready.json"
+        },
+        "verification": {
+          "blockedReason": null,
+          "command": "verify",
+          "marker": "generation-3",
+          "notice": {
+            "backupDirectory": "C:\\Users\\ANKIT BHARDWAJ\\Desktop\\skrilbi\\skribli-desktop\\artifacts\\owner-candidates\\v0.1.54-f70d20879b80-20261011T185837044Z-f9726829\\synthetic-app-data\\app.skribly.desktop\\storage-acceptance\\f70d20879b80f3bef540781bb7ab4a13d7d0f670\\partial-temporary",
+            "message": "Skribli verified the primary database and preserved damaged recovery files. Damaged files were preserved in quarantine.",
+            "migratedFromSchema": null,
+            "quarantinedFiles": [
+              "skribs.json.tmp.corrupt.1791745429184.40.0"
+            ],
+            "revision": 3,
+            "source": "primary"
+          },
+          "path": "C:\\Users\\ANKIT BHARDWAJ\\Desktop\\skrilbi\\skribli-desktop\\artifacts\\owner-candidates\\v0.1.54-f70d20879b80-20261011T185837044Z-f9726829\\synthetic-app-data\\app.skribly.desktop\\storage-acceptance\\f70d20879b80f3bef540781bb7ab4a13d7d0f670\\partial-temporary\\skribs.json",
+          "revision": 3,
+          "writable": true
+        }
+      }
+    },
+    {
+      "name": "primary-and-backup1-corrupt-recovers-backup2",
+      "passed": true,
+      "details": {
+        "verification": {
+          "blockedReason": null,
+          "command": "verify",
+          "marker": "generation-1",
+          "notice": {
+            "backupDirectory": "C:\\Users\\ANKIT BHARDWAJ\\Desktop\\skrilbi\\skribli-desktop\\artifacts\\owner-candidates\\v0.1.54-f70d20879b80-20261011T185837044Z-f9726829\\synthetic-app-data\\app.skribly.desktop\\storage-acceptance\\f70d20879b80f3bef540781bb7ab4a13d7d0f670\\backup2-recovery",
+            "message": "Skribli recovered local Skribs from the older backup and restored the primary database. Damaged files were preserved in quarantine.",
+            "migratedFromSchema": null,
+            "quarantinedFiles": [
+              "skribs.json.corrupt.1791745429384.50.0",
+              "skribs.json.bak.1.corrupt.1791745429384.30.1"
+            ],
+            "revision": 1,
+            "source": "backup2"
+          },
+          "path": "C:\\Users\\ANKIT BHARDWAJ\\Desktop\\skrilbi\\skribli-desktop\\artifacts\\owner-candidates\\v0.1.54-f70d20879b80-20261011T185837044Z-f9726829\\synthetic-app-data\\app.skribly.desktop\\storage-acceptance\\f70d20879b80f3bef540781bb7ab4a13d7d0f670\\backup2-recovery\\skribs.json",
+          "revision": 1,
+          "writable": true
+        }
+      }
+    },
+    {
+      "name": "corrupt-only-storage-fails-closed-across-restarts",
+      "passed": true,
+      "details": {
+        "firstLaunch": {
+          "exitCode": 0,
+          "output": [
+            "{\"command\":\"expect-load-failure\",\"error\":\"Local Skrib recovery found storage files but none were valid: Local Skrib data is damaged in skribs.json: invalid JSON: key must be a string at line 1 column 2. Damaged files were preserved in place for recovery.\",\"path\":\"C:\\\\Users\\\\ANKIT BHARDWAJ\\\\Desktop\\\\skrilbi\\\\skribli-desktop\\\\artifacts\\\\owner-candidates\\\\v0.1.54-f70d20879b80-20261011T185837044Z-f9726829\\\\synthetic-app-data\\\\app.skribly.desktop\\\\storage-acceptance\\\\f70d20879b80f3bef540781bb7ab4a13d7d0f670\\\\corrupt-only\\\\skribs.json\",\"writable\":false}"
+          ]
+        },
+        "secondLaunch": {
+          "exitCode": 0,
+          "output": [
+            "{\"command\":\"expect-load-failure\",\"error\":\"Local Skrib recovery found storage files but none were valid: Local Skrib data is damaged in skribs.json: invalid JSON: key must be a string at line 1 column 2. Damaged files were preserved in place for recovery.\",\"path\":\"C:\\\\Users\\\\ANKIT BHARDWAJ\\\\Desktop\\\\skrilbi\\\\skribli-desktop\\\\artifacts\\\\owner-candidates\\\\v0.1.54-f70d20879b80-20261011T185837044Z-f9726829\\\\synthetic-app-data\\\\app.skribly.desktop\\\\storage-acceptance\\\\f70d20879b80f3bef540781bb7ab4a13d7d0f670\\\\corrupt-only\\\\skribs.json\",\"writable\":false}"
+          ]
+        },
+        "preserved": true
+      }
+    },
+    {
+      "name": "future-schema-is-preserved-and-blocks-downgrade-writes",
+      "passed": true,
+      "details": {
+        "verification": {
+          "blockedReason": "A newer unsupported storage generation was preserved and writes are blocked: Local Skrib data uses unsupported schema version 99 in skribs.json; the file was preserved and writes are blocked",
+          "command": "verify",
+          "marker": "generation-2",
+          "notice": {
+            "backupDirectory": "C:\\Users\\ANKIT BHARDWAJ\\Desktop\\skrilbi\\skribli-desktop\\artifacts\\owner-candidates\\v0.1.54-f70d20879b80-20261011T185837044Z-f9726829\\synthetic-app-data\\app.skribly.desktop\\storage-acceptance\\f70d20879b80f3bef540781bb7ab4a13d7d0f670\\future-schema",
+            "message": "Skribli opened verified notes from the latest backup in read-only recovery mode. A newer unsupported storage generation was preserved and writes are blocked: Local Skrib data uses unsupported schema version 99 in skribs.json; the file was preserved and writes are blocked",
+            "migratedFromSchema": null,
+            "quarantinedFiles": [],
+            "revision": 2,
+            "source": "backup1"
+          },
+          "path": "C:\\Users\\ANKIT BHARDWAJ\\Desktop\\skrilbi\\skribli-desktop\\artifacts\\owner-candidates\\v0.1.54-f70d20879b80-20261011T185837044Z-f9726829\\synthetic-app-data\\app.skribly.desktop\\storage-acceptance\\f70d20879b80f3bef540781bb7ab4a13d7d0f670\\future-schema\\skribs.json",
+          "revision": 2,
+          "writable": false
+        },
+        "saveFailure": {
+          "exitCode": 1,
+          "output": [
+            "{\"error\":\"Local Skrib writes are blocked to protect existing data: A newer unsupported storage generation was preserved and writes are blocked: Local Skrib data uses unsupported schema version 99 in skribs.json; the file was preserved and writes are blocked\",\"ok\":false,\"pid\":27068}"
+          ]
+        },
+        "futurePrimarySha256": "544BFE7398FFA59D180389A6BCB5A42660CD17E22441F466FAD8C55A8DE210CF"
+      }
+    },
+    {
+      "name": "temporary-file-creation-denied-is-surfaced",
+      "passed": true,
+      "details": {
+        "identity": "LAPTOP-KL6L86M9\\ANKIT BHARDWAJ",
+        "failure": {
+          "exitCode": 1,
+          "output": [
+            "{\"error\":\"open durable temporary generation failed for skribs.json.tmp: Access is denied. (os error 5)\",\"ok\":false,\"pid\":24544}"
+          ]
+        },
+        "verification": {
+          "blockedReason": null,
+          "command": "verify",
+          "marker": "generation-3",
+          "notice": null,
+          "path": "C:\\Users\\ANKIT BHARDWAJ\\Desktop\\skrilbi\\skribli-desktop\\artifacts\\owner-candidates\\v0.1.54-f70d20879b80-20261011T185837044Z-f9726829\\synthetic-app-data\\app.skribly.desktop\\storage-acceptance\\f70d20879b80f3bef540781bb7ab4a13d7d0f670\\temporary-denied\\skribs.json",
+          "revision": 3,
+          "writable": true
+        }
+      }
+    },
+    {
+      "name": "directory-permission-denial-is-surfaced",
+      "passed": true,
+      "details": {
+        "identity": "LAPTOP-KL6L86M9\\ANKIT BHARDWAJ",
+        "failure": {
+          "exitCode": 1,
+          "output": [
+            "{\"error\":\"open durable temporary generation failed for skribs.json.tmp: Access is denied. (os error 5)\",\"ok\":false,\"pid\":15664}"
+          ]
+        },
+        "verification": {
+          "blockedReason": null,
+          "command": "verify",
+          "marker": "generation-3",
+          "notice": null,
+          "path": "C:\\Users\\ANKIT BHARDWAJ\\Desktop\\skrilbi\\skribli-desktop\\artifacts\\owner-candidates\\v0.1.54-f70d20879b80-20261011T185837044Z-f9726829\\synthetic-app-data\\app.skribly.desktop\\storage-acceptance\\f70d20879b80f3bef540781bb7ab4a13d7d0f670\\permission-denied\\skribs.json",
+          "revision": 3,
+          "writable": true
+        }
+      }
+    },
+    {
+      "name": "primary-replacement-lock-is-surfaced-and-recovers-temporary",
+      "passed": true,
+      "details": {
+        "failure": {
+          "exitCode": 1,
+          "output": [
+            "{\"error\":\"atomically replace storage generation failed for skribs.json: Access is denied. (0x80070005)\",\"ok\":false,\"pid\":14860}"
+          ]
+        },
+        "verification": {
+          "blockedReason": null,
+          "command": "verify",
+          "marker": "recovered-after-primary-lock",
+          "notice": {
+            "backupDirectory": "C:\\Users\\ANKIT BHARDWAJ\\Desktop\\skrilbi\\skribli-desktop\\artifacts\\owner-candidates\\v0.1.54-f70d20879b80-20261011T185837044Z-f9726829\\synthetic-app-data\\app.skribly.desktop\\storage-acceptance\\f70d20879b80f3bef540781bb7ab4a13d7d0f670\\primary-lock",
+            "message": "Skribli recovered local Skribs from the temporary recovery file and restored the primary database.",
+            "migratedFromSchema": null,
+            "quarantinedFiles": [],
+            "revision": 4,
+            "source": "temporary"
+          },
+          "path": "C:\\Users\\ANKIT BHARDWAJ\\Desktop\\skrilbi\\skribli-desktop\\artifacts\\owner-candidates\\v0.1.54-f70d20879b80-20261011T185837044Z-f9726829\\synthetic-app-data\\app.skribly.desktop\\storage-acceptance\\f70d20879b80f3bef540781bb7ab4a13d7d0f670\\primary-lock\\skribs.json",
+          "revision": 4,
+          "writable": true
+        }
+      }
+    },
+    {
+      "name": "backup-lock-is-surfaced-and-recovers-temporary",
+      "passed": true,
+      "details": {
+        "failure": {
+          "exitCode": 1,
+          "output": [
+            "{\"error\":\"atomically replace storage generation failed for skribs.json.bak.1: Access is denied. (0x80070005)\",\"ok\":false,\"pid\":27592}"
+          ]
+        },
+        "verification": {
+          "blockedReason": null,
+          "command": "verify",
+          "marker": "recovered-after-backup-lock",
+          "notice": {
+            "backupDirectory": "C:\\Users\\ANKIT BHARDWAJ\\Desktop\\skrilbi\\skribli-desktop\\artifacts\\owner-candidates\\v0.1.54-f70d20879b80-20261011T185837044Z-f9726829\\synthetic-app-data\\app.skribly.desktop\\storage-acceptance\\f70d20879b80f3bef540781bb7ab4a13d7d0f670\\backup-lock",
+            "message": "Skribli recovered local Skribs from the temporary recovery file and restored the primary database.",
+            "migratedFromSchema": null,
+            "quarantinedFiles": [],
+            "revision": 4,
+            "source": "temporary"
+          },
+          "path": "C:\\Users\\ANKIT BHARDWAJ\\Desktop\\skrilbi\\skribli-desktop\\artifacts\\owner-candidates\\v0.1.54-f70d20879b80-20261011T185837044Z-f9726829\\synthetic-app-data\\app.skribly.desktop\\storage-acceptance\\f70d20879b80f3bef540781bb7ab4a13d7d0f670\\backup-lock\\skribs.json",
+          "revision": 4,
+          "writable": true
+        }
+      }
+    },
+    {
+      "name": "read-only-primary-replacement-failure-is-surfaced",
+      "passed": true,
+      "details": {
+        "failure": {
+          "exitCode": 1,
+          "output": [
+            "{\"error\":\"atomically replace storage generation failed for skribs.json: Access is denied. (0x80070005)\",\"ok\":false,\"pid\":3296}"
+          ]
+        },
+        "verification": {
+          "blockedReason": null,
+          "command": "verify",
+          "marker": "read-only-attempt",
+          "notice": {
+            "backupDirectory": "C:\\Users\\ANKIT BHARDWAJ\\Desktop\\skrilbi\\skribli-desktop\\artifacts\\owner-candidates\\v0.1.54-f70d20879b80-20261011T185837044Z-f9726829\\synthetic-app-data\\app.skribly.desktop\\storage-acceptance\\f70d20879b80f3bef540781bb7ab4a13d7d0f670\\read-only-primary",
+            "message": "Skribli recovered local Skribs from the temporary recovery file and restored the primary database.",
+            "migratedFromSchema": null,
+            "quarantinedFiles": [],
+            "revision": 4,
+            "source": "temporary"
+          },
+          "path": "C:\\Users\\ANKIT BHARDWAJ\\Desktop\\skrilbi\\skribli-desktop\\artifacts\\owner-candidates\\v0.1.54-f70d20879b80-20261011T185837044Z-f9726829\\synthetic-app-data\\app.skribly.desktop\\storage-acceptance\\f70d20879b80f3bef540781bb7ab4a13d7d0f670\\read-only-primary\\skribs.json",
+          "revision": 4,
+          "writable": true
+        }
+      }
+    },
+    {
+      "name": "metadata-only-diagnostics-exclude-note-content",
+      "passed": true,
+      "details": {
+        "diagnosticsPath": "C:\\Users\\ANKIT BHARDWAJ\\Desktop\\skrilbi\\skribli-desktop\\artifacts\\owner-candidates\\v0.1.54-f70d20879b80-20261011T185837044Z-f9726829\\synthetic-app-data\\app.skribly.desktop\\storage-acceptance\\f70d20879b80f3bef540781bb7ab4a13d7d0f670\\diagnostics\\skribli-storage-diagnostics-1791745431757.json",
+        "diagnosticsSha256": "4F1182309F596E23F47016E3EAEC24C62389B5C0CB37DD60A76F5EA33D43890D",
+        "contentFree": true
+      }
+    }
+  ],
+  "linkedFrontendFailureTest": "apps/desktop/src/stores/storageFailureMessages.test.ts"
+}

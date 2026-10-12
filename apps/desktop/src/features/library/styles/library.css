@@ -1198,12 +1198,14 @@
   max-width: 700px;
   padding: 20px 22px;
   border-radius: 10px 10px 22px 10px;
-  background: var(--yellow);
+  background: var(--note-paper, var(--yellow));
+  color: var(--note-foreground, var(--library-ink));
   background-image: none;
   box-shadow: 0 9px 24px rgb(38 41 35 / 7%);
 }
 
 .desktop-app-v2 .library-note-paper p {
+  color: var(--note-foreground, var(--library-ink));
   font-size: clamp(14px, 1.45vw, 17px) !important;
   line-height: 1.55 !important;
 }
@@ -1293,7 +1295,7 @@
 
 .desktop-app-v2 .reminder-calendar-layout {
   padding-top: 0;
-  grid-template-columns: minmax(0, 1.18fr) 280px;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 1fr);
   gap: 0;
   border-top: 1px solid var(--library-line);
 }
@@ -1331,7 +1333,7 @@
 }
 
 .desktop-app-v2 .reminder-days {
-  grid-template-rows: repeat(6, minmax(40px, 1fr));
+  grid-template-rows: repeat(6, minmax(44px, 1fr));
 }
 
 @media (max-width: 840px) {
@@ -1340,8 +1342,30 @@
   }
 
   .desktop-app-v2 .reminder-calendar-layout {
-    grid-template-columns: minmax(0, 1fr) 235px;
+    grid-template-columns: minmax(0, 1fr);
   }
+
+  .desktop-app-v2 .reminder-month-grid {
+    order: 1;
+    padding: 18px 0;
+    border-left: 0;
+    border-bottom: 1px solid var(--library-line);
+  }
+
+  .desktop-app-v2 .reminder-day-agenda {
+    order: 2;
+    padding: 18px 0;
+  }
+}
+
+@container workspace (max-width: 760px) {
+  .desktop-app-v2 .reminder-calendar-layout { grid-template-columns: minmax(0, 1fr); }
+  .desktop-app-v2 .reminder-month-grid { order: 1; padding: 18px 0; border-left: 0; border-bottom: 1px solid var(--library-line); }
+  .desktop-app-v2 .reminder-day-agenda { order: 2; padding: 18px 0; }
+  .desktop-app-v2 .reminder-calendar-header { flex-wrap: wrap; gap: 12px; }
+  .desktop-app-v2 .library-workspace { grid-template-columns: minmax(180px, .8fr) minmax(0, 1fr); }
+  .desktop-app-v2 .library-detail-header { flex-wrap: wrap; gap: 12px; }
+  .desktop-app-v2 .library-detail-actions { flex-wrap: wrap; }
 }
 
 @media (max-width: 620px) {

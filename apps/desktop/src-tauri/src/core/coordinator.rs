@@ -1,5 +1,6 @@
 use crate::core::license;
 use crate::core::models::{HitTestRect, SkribNote, TargetWindowInfo};
+use crate::core::note_colors::is_valid_note_color;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -7,9 +8,6 @@ pub const MAX_NOTE_CHARACTERS: usize = 20_000;
 const MAX_NOTE_ID_CHARACTERS: usize = 256;
 const MAX_GEOMETRY_COORDINATE: f64 = 1_000_000.0;
 const MAX_GEOMETRY_DIMENSION: f64 = 100_000.0;
-const ALLOWED_NOTE_COLORS: [&str; 8] = [
-    "yellow", "peach", "mint", "sky", "lavender", "rose", "aqua", "sand",
-];
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum MatchResult {
@@ -41,10 +39,6 @@ fn is_valid_note_id(id: &str) -> bool {
 
 fn is_valid_note_text(text: &str) -> bool {
     text.chars().count() <= MAX_NOTE_CHARACTERS
-}
-
-fn is_valid_note_color(color: &str) -> bool {
-    ALLOWED_NOTE_COLORS.contains(&color)
 }
 
 fn is_valid_note_geometry(rel_x: f64, rel_y: f64, width: f64, height: f64) -> bool {

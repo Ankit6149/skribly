@@ -14,6 +14,7 @@ import { useLicenseStore } from './features/licensing/state/licenseStore';
 import { SkribComposer } from './features/notes/SkribComposer';
 import { useSkribStore } from './features/notes/state/skribStore';
 import type { SkribNote } from './features/notes/model/noteTypes';
+import { isNoteColor } from './features/notes/model/noteColors';
 import './styles/global.css';
 import './styles/accessibility.css';
 import './features/notes/styles/note-experience.css';
@@ -24,12 +25,14 @@ import './styles/startup-recovery.css';
 import './styles/website-theme.css';
 import './features/notes/styles/living-paper-polish.css';
 
-const previewChrome = new URLSearchParams(window.location.search).get('app') === 'chrome';
+const previewOptions = new URLSearchParams(window.location.search);
+const previewChrome = previewOptions.get('app') === 'chrome';
 
 const note: SkribNote = {
   id: `synthetic-note-${crypto.randomUUID()}`,
-  target_process_name: previewChrome ? 'chrome.exe' : 'Code.exe',
-  target_title: 'Skribli — Visual Studio Code',
+  target_process_name: previewChrome ? 'chrome.exe' : previewOptions.get('app') === 'general' ? ''
+    : previewOptions.get('app') === 'explorer' ? 'explorer.exe' : 'Code.exe',
+  target_title: 'SkribComposer.tsx — skribli-desktop — Visual Studio Code',
   rel_x: 0,
   rel_y: 0,
   width: 520,
@@ -41,7 +44,11 @@ const note: SkribNote = {
   updated_at: 0,
 };
 
-if (previewChrome) note.target_title = 'Google Chrome';
+if (previewChrome) note.target_title = 'Skribli · GitHub - Google Chrome';
+if (previewOptions.has('title')) note.target_title = previewOptions.get('title')!.slice(0,4096);
+if (previewOptions.has('text')) note.text = previewOptions.get('text')!.slice(0,20000);
+const previewColor = previewOptions.get('color');
+if (isNoteColor(previewColor)) note.color = previewColor;
 
 // Explicit synthetic fixture: no native or persistent account initialization.
 useLicenseStore.setState({ isReady: true, status: { ...useLicenseStore.getState().status,

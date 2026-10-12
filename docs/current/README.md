@@ -23,7 +23,14 @@ Use this page before reading design explorations, old owner candidates, historic
 
 ## Current release status
 
-- [v0.1.51 private owner candidate](../04-operations/OWNER_CANDIDATE_V0.1.51.md)
+- [Android software and notification choices — 11 October](../06-planning/ANDROID_SOFTWARE_DECISION_2026-10-11.md)
+
+- [Windows v0.1.54 / Android v0.0.2 private owner delivery](../04-operations/OWNER_PLATFORM_REFRESH_2026-10-12.md) — exact final-source package evidence and production delivery status.
+- [Current beta refinement and owner test register](../06-planning/BETA_REFINEMENT_2026-10-07.md)
+- [11 October public release readiness and remaining gates](../06-planning/PUBLIC_RELEASE_READINESS_2026-10-11.md)
+- [11 October selected ticket panel source evidence](../01-design/evidence/ticket-panel-2026-10-11/design-qa.md)
+- [11 October professional desktop and curved-card refinement](../01-design/evidence/professional-desktop-2026-10-11/design-qa.md)
+- [Android-first toolchain inventory and next work](../06-planning/ANDROID_TOOLCHAIN_STATUS_2026-10-11.md)
 - [Widget surface/motion evidence and remaining gaps](../04-operations/WIDGET_SURFACE_MOTION_2026-10-02.md)
 - [Widget visual refinement](../04-operations/WIDGET_VISUAL_POLISH_2026-10-02.md)
 - [Private Windows acceptance](../04-operations/PRIVATE_WINDOWS_TEST_ACCEPTANCE.md)

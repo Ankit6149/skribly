@@ -598,21 +598,13 @@
 .attachment-drawer-handle:focus-visible { outline-offset: 1px; border-radius: 999px; }
 
 /* Compact app identity: the full app name remains in the accessible label and hover detail. */
-.skrib-composer.skrib-color-yellow { --context-pill-paper: var(--lavender); }
-.skrib-composer.skrib-color-peach { --context-pill-paper: var(--sky); }
-.skrib-composer.skrib-color-mint { --context-pill-paper: var(--sand); }
-.skrib-composer.skrib-color-sky { --context-pill-paper: var(--peach); }
-.skrib-composer.skrib-color-lavender { --context-pill-paper: var(--yellow); }
-.skrib-composer.skrib-color-rose { --context-pill-paper: var(--mint); }
-.skrib-composer.skrib-color-aqua { --context-pill-paper: var(--sand); }
-.skrib-composer.skrib-color-sand { --context-pill-paper: var(--aqua); }
 .composer-context-tab {
-  top: 0;
-  left: -16px;
-  width: 40px;
-  max-width: 40px;
-  height: 52px;
-  min-height: 52px;
+  top: 10px;
+  left: 10px;
+  width: 32px;
+  max-width: 32px;
+  height: 32px;
+  min-height: 32px;
   padding: 6px;
   display: grid;
   place-items: center;
@@ -638,7 +630,7 @@
   position: absolute; top: 50%; left: 50%; display: block;
   width: 20px; height: 20px; transform: translate(-50%, -50%);
 }
-.composer-place-detail { top: 60px; }
+.composer-place-detail { top: 48px; left: 10px; }
 
 /* Equal writing margins, including when the note is narrow. */
 .composer-rich-editor-shell .composer-textarea,
@@ -787,6 +779,35 @@
 .inline-attachment-document .inline-attachment-name { margin: 0; align-self: end; color: var(--skribli-ink); font-size: 11px; }
 .inline-attachment-document .inline-attachment-more { top: 6px; right: 5px; }
 .inline-attachment-document .inline-attachment-remove { top: 34px; right: 6px; }
+
+/* Media remains a paper object; movement is taught with an explicit grip. */
+.inline-attachment-drag {
+  position: absolute; top: 8px; left: 8px; z-index: 4;
+  width: 28px; height: 28px; display: grid; place-items: center;
+  padding: 0; border: 1px solid rgb(38 41 35 / 12%); border-radius: 7px;
+  background: var(--paper); color: var(--ink); cursor: grab;
+}
+.inline-attachment-drag:active { cursor: grabbing; }
+.inline-attachment-drag:disabled { cursor: default; opacity: .4; }
+.inline-attachment-drag:focus-visible { outline: 2px solid var(--olive); outline-offset: 2px; }
+.inline-attachment-image .inline-attachment-preview,
+.inline-attachment-ink .inline-attachment-preview {
+  padding: 7px 7px 18px; border-radius: 3px;
+  box-shadow: 0 3px 9px rgb(38 41 35 / 10%);
+}
+.note-attachment-strip[data-expanded='true'] {
+  width: min(320px, calc(100% - 44px)); border-radius: 12px;
+}
+.note-attachment-strip[data-expanded='true'] .attachment-media-grid {
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px;
+}
+.note-attachment-strip[data-expanded='true'] .attachment-tray-item {
+  min-width: 0; padding: 7px; border: 1px solid rgb(38 41 35 / 10%);
+  border-radius: 8px; background: var(--paper);
+}
+.note-attachment-strip[data-expanded='true'] .attachment-tray-thumbnail { height: 84px; }
+.attachment-tray-image .attachment-tray-thumbnail { padding: 4px 4px 12px; background: white; border-radius: 2px; }
+.attachment-tray-document .attachment-tray-thumbnail { background: var(--paper-deep); border-radius: 6px; }
 .inline-attachment-remove, .inline-attachment-more { width: 24px; height: 24px; }
 .inline-attachment-popover { z-index: 41; background: var(--paper); border: 1px solid rgb(38 41 35 / 13%); }
 .attachment-delete-confirmation { position: relative; z-index: 42; margin: 6px 0; padding: 12px; border: 1px solid rgb(38 41 35 / 16%); border-radius: 12px; background: var(--paper); font: 500 11px/1.5 var(--skribli-ui-font); box-shadow: 0 4px 12px rgb(38 41 35 / 10%); }
@@ -811,3 +832,92 @@
 .composer-save-indicator { bottom: 52px; left: 50%; right: auto; transform: translateX(-50%); width: max-content; max-width: calc(100% - 32px); font-size: 10px; pointer-events: none; }
 
 @media (max-width: 360px) { .composer-mode-pill { left: calc(50% - 24px); } }
+/* Larger app pill and automatic folder/page title, with stronger paper colours. */
+.skrib-composer { background:var(--note-paper); color:var(--note-foreground); }
+.skrib-composer .composer-textarea:empty::before,
+.skrib-composer .composer-textarea::placeholder {
+  color:color-mix(in srgb,var(--note-foreground) 60%,transparent);
+}
+.composer-paper-top { min-height:66px; flex-basis:66px; }
+.composer-context-tab { width:48px; max-width:48px; height:48px; min-height:48px; padding:12px; background:var(--context-pill-paper); border-color:color-mix(in srgb,var(--context-pill-ink) 35%,var(--context-pill-paper)); }
+.composer-context-app-icon { width:24px; height:24px; opacity:1; filter:var(--context-pill-icon-filter); }
+.composer-context-tab > svg { width:24px; height:24px; }
+.composer-context-title {
+  position:absolute; top:25px; left:70px; right:154px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;
+  font:700 14px/1.3 var(--font-ui); color:var(--note-foreground); pointer-events:none;
+}
+.composer-place-detail { top:66px; }
+.composer-color-popover {
+  display:grid; grid-template-columns:repeat(8,28px); gap:6px; width:max-content;
+  max-width:calc(100% - 28px); max-height:calc(100% - 90px); overflow-y:auto; overflow-x:hidden; padding:10px;
+}
+.composer-color-popover .color-swatch { width:28px; height:28px; color:var(--note-foreground); background:var(--note-paper); }
+.composer-color-group { grid-column:1/-1; display:grid; grid-template-columns:repeat(var(--palette-columns,8),28px); gap:6px; }
+.composer-color-group-label { grid-column:1/-1; font:600 11px/1.4 var(--font-ui); padding-top:3px; color:#262923; }
+.skrib-composer .composer-put-away-fold { background:var(--note-foreground); color:var(--note-paper); }
+.skrib-composer .composer-put-away-fold:hover:not(:disabled) { background:var(--note-foreground); color:var(--note-paper); }
+.skrib-composer .composer-side-tools > button { color:var(--note-foreground); }
+.skrib-composer :is(.composer-note-menu,.composer-mode-pill,.composer-intent-trigger,.composer-format-bar,.composer-intent-tray,.composer-color-popover,.composer-reminder-window,.attachment-delete-confirmation,.inline-attachment-actions) {
+  --skribli-ink:#262923; --skribli-muted:#6d7069; color:#262923;
+}
+.skrib-composer .composer-context-tab { color:var(--context-pill-ink); }
+.skrib-composer .composer-side-tools .composer-cancel-session:is(:hover,:focus-visible) {
+  background:#fffdf7; color:#424242;
+}
+/* Keep the original tray colors; only the tool icons use dark ink. */
+.skrib-composer .ink-editor-toolbar .ink-icon-tool { color:#424242; }
+.skrib-composer .composer-place-detail {
+  --skribli-ink:#424242; --skribli-muted:#424242; color:#424242;
+}
+/* White interaction circles own their ink instead of inheriting dark-note text. */
+.skrib-composer .composer-side-tools > button:is(:hover,:focus-visible,[aria-expanded='true']):not(:disabled),
+.skrib-composer .composer-intent-trigger:is(:hover,:focus-visible):not(:disabled),
+.skrib-composer .composer-intent-gateway[data-open='true'] .composer-intent-trigger,
+.skrib-composer .inline-attachment-actions :is(button,a):is(:hover,:focus-visible):not(:disabled) {
+  background:#fffdf7; color:#424242; opacity:1;
+}
+@media (max-width:360px) {
+  .composer-context-title { left:68px; right:146px; font-size:12px; }
+  .composer-color-popover { grid-template-columns:repeat(7,28px); --palette-columns:7; }
+}
+@media (forced-colors:active) {
+  .skrib-composer { background:Canvas; color:CanvasText; }
+  .skrib-composer .composer-textarea:empty::before,
+  .skrib-composer .composer-textarea::placeholder { color:GrayText; }
+  .skrib-composer .composer-side-tools .composer-cancel-session:is(:hover,:focus-visible) {
+    background:Highlight; color:HighlightText;
+  }
+  .skrib-composer .ink-editor-toolbar .ink-icon-tool { color:CanvasText; }
+  .skrib-composer .composer-place-detail {
+    --skribli-ink:CanvasText; --skribli-muted:CanvasText; color:CanvasText;
+  }
+  .skrib-composer .composer-side-tools > button:is(:hover,:focus-visible,[aria-expanded='true']):not(:disabled),
+  .skrib-composer .composer-intent-trigger:is(:hover,:focus-visible):not(:disabled),
+  .skrib-composer .composer-intent-gateway[data-open='true'] .composer-intent-trigger,
+  .skrib-composer .inline-attachment-actions :is(button,a):is(:hover,:focus-visible):not(:disabled) {
+    background:Highlight; color:HighlightText;
+  }
+  .composer-context-title,.skrib-composer .composer-side-tools > button { color:CanvasText; }
+  .composer-context-tab,.skrib-composer .composer-note-menu { background:Canvas; color:CanvasText; }
+  .skrib-composer .composer-context-tab { background:#fff; color:#000; border-color:#000; forced-color-adjust:none; }
+  .composer-context-app-icon { filter:brightness(0); }
+}
+/* Opaque highlighter fills always carry their own ink, even on dark paper.
+   The fine underline keeps pale-on-pale highlights distinguishable. */
+.composer-textarea [data-note-highlight='true'],
+.composer-textarea [data-note-highlight='true'] * {
+  color:#262923 !important;
+  -webkit-text-fill-color:#262923;
+}
+.composer-textarea [data-note-highlight='true'] {
+  box-shadow:inset 0 -1px #26292366;
+  box-decoration-break:clone;
+  -webkit-box-decoration-break:clone;
+}
+@media (forced-colors:active) {
+  .composer-textarea [data-note-highlight='true'],
+  .composer-textarea [data-note-highlight='true'] * {
+    background:Highlight !important; color:HighlightText !important;
+    -webkit-text-fill-color:HighlightText; box-shadow:none;
+  }
+}

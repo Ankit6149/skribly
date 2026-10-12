@@ -7,7 +7,7 @@ import {
   ChevronRight,
   Clock3,
   Repeat2,
-} from 'lucide-react';
+} from '../../../ui/icons';
 import {
   ensureReminderNotificationPermission,
   type ReminderNotificationPermission,

@@ -1,4 +1,4 @@
-import { ArchiveRestore, MapPin, Search, StickyNote } from 'lucide-react';
+import { ArchiveRestore, MapPin, Search, StickyNote } from '../../../ui/icons';
 import type { RailScope } from '../model/railTypes';
 
 export function GlobalWidgetControls({

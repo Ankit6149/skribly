@@ -36,11 +36,11 @@ const NOTE_SURFACE_LOGICAL_RADIUS: i32 = 20;
 const NOTE_SURFACE_BOTTOM_RIGHT_LOGICAL_RADIUS: i32 = 38;
 const NOTE_SURFACE_PAPER_LEFT_LOGICAL: i32 = 17;
 const NOTE_SURFACE_PAPER_INSET_LOGICAL: i32 = 3;
-// Initial mask before the DOM reports bounds: paper inset + border + attached 40x52px pill.
-const NOTE_SURFACE_TAB_LEFT_LOGICAL: i32 = 2;
-const NOTE_SURFACE_TAB_RIGHT_LOGICAL: i32 = 42;
-const NOTE_SURFACE_TAB_TOP_LOGICAL: i32 = 3;
-const NOTE_SURFACE_TAB_BOTTOM_LOGICAL: i32 = 55;
+// Initial mask before DOM bounds arrive: the app pill sits inside the paper header.
+const NOTE_SURFACE_TAB_LEFT_LOGICAL: i32 = 28;
+const NOTE_SURFACE_TAB_RIGHT_LOGICAL: i32 = 60;
+const NOTE_SURFACE_TAB_TOP_LOGICAL: i32 = 13;
+const NOTE_SURFACE_TAB_BOTTOM_LOGICAL: i32 = 45;
 // Keep a one-pixel allowance only on curves; straight transparent fringe must be outside the HWND region.
 const NOTE_SURFACE_NATIVE_CURVE_ALLOWANCE_LOGICAL: i32 = 1;
 const COLLAPSED_NOTE_MAIN_REGION_LOGICAL_DIAMETER: i32 = 40;
@@ -1457,7 +1457,7 @@ mod tests {
         assert!(!note.circular);
         assert!(note.badge.is_none());
         let tab = note.tab.as_ref().expect("note place tab region");
-        assert_eq!((tab.left, tab.top, tab.right, tab.bottom), (2, 3, 42, 55));
+        assert_eq!((tab.left, tab.top, tab.right, tab.bottom), (28, 13, 60, 45));
 
         let dot = calculate_native_surface_region(44, 44, 1.0, NativeNoteSurface::Dot)
             .expect("dot region");

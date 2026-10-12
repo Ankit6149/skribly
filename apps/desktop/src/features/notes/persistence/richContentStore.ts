@@ -1,4 +1,5 @@
 import type { NoteDiscardRecovery } from '../lifecycle/discardRecovery';
+import { isNoteColor } from '../model/noteColors';
 import { hasMeaningfulRichText } from '../model/richTextPresence';
 
 export type SkribAttachmentKind = 'image' | 'video' | 'document' | 'ink';
@@ -480,7 +481,7 @@ export function validateDiscardRecovery(value: unknown, noteId: string): NoteDis
   if (!record(value) || value.version !== 1) return fail();
   for (const snapshot of [value.current, value.baseline]) {
     if (!record(snapshot) || typeof snapshot.text !== 'string' || [...snapshot.text].length > 20_000 ||
-      !['yellow', 'peach', 'mint', 'sky', 'lavender', 'rose', 'aqua', 'sand'].includes(String(snapshot.color)) ||
+      !isNoteColor(snapshot.color) ||
       !record(snapshot.rich) || snapshot.rich.noteId !== noteId || !Array.isArray(snapshot.rich.attachments) ||
       snapshot.rich.attachments.length > MAX_NOTE_ATTACHMENTS || !Array.isArray(snapshot.reminders) || snapshot.reminders.length > 1000) return fail();
     for (const attachment of snapshot.rich.attachments) {

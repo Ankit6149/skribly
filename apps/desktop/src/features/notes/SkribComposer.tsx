@@ -17,8 +17,10 @@ import {
   Plus,
   Paperclip,
   ListChecks,
-} from 'lucide-react';
+} from '../../ui/icons';
 import type { SkribNote } from './model/noteTypes';
+import { NOTE_COLOR_GROUPS, noteColorStyle, type NoteColor } from './model/noteColors';
+import { contextDisplayTitle } from './model/contextDisplayTitle';
 import type { OverlayMetrics, TargetWindowInfo } from '../../shared/native/windowTypes';
 import {
   addInkToNote,
@@ -82,7 +84,6 @@ import {
 
 type ComposerPanel = 'reminder' | null;
 
-const NOTE_COLORS = ['yellow', 'peach', 'mint', 'sky', 'lavender', 'rose', 'aqua', 'sand'] as const;
 const NOTE_TEXT_SIZES: SkribTextSize[] = ['small', 'medium', 'large'];
 
 interface SkribComposerProps {
@@ -157,6 +158,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
   const sessionSnapshot = useRef<NoteSessionSnapshot | null>(null);
   const [attachmentPickerRequest, setAttachmentPickerRequest] = useState(0);
   const [attachmentDrawerRequest, setAttachmentDrawerRequest] = useState(0);
+  const [attachmentRemoveRequest, setAttachmentRemoveRequest] = useState<{ id: string; nonce: number } | null>(null);
   const [pastedFilesRequest, setPastedFilesRequest] = useState<{ id: number; noteId: string; files: File[] } | null>(null);
   const clipboardRequestSequence = useRef(0);
   const clipboardReservation = useRef<{ id: number; noteId: string } | null>(null);
@@ -296,9 +298,9 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
   );
 
   const contextLabel = useMemo(() => {
-    if (!target) return note.target_title || note.target_process_name || 'General Skrib';
-    return target.title || target.process_name;
-  }, [note.target_process_name, note.target_title, target]);
+    if (!hasSavedContext) return 'General Skrib';
+    return contextDisplayTitle(note.target_title || target?.title || '', note.target_process_name || target?.process_name || '');
+  }, [hasSavedContext, note.target_process_name, note.target_title, target]);
   const contextTabLabel = applicationLabel(target?.process_name || note.target_process_name || '');
 
   useEffect(() => {
@@ -1108,7 +1110,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
     } finally { resizeInProgress.current = false; setIsResizing(false); }
   };
 
-  const handleColorChange = async (color: (typeof NOTE_COLORS)[number]) => {
+  const handleColorChange = async (color: NoteColor) => {
     if (!canWrite || color === note.color) {
       setColorPickerOpen(false);
       return;
@@ -1280,6 +1282,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
       <section
         ref={paperRef}
         className={`skrib-composer skrib-color-${note.color}`}
+        style={noteColorStyle(note.color)}
         data-resizing={isResizing}
         data-surface-size={surfaceSize}
         aria-label={
@@ -1297,10 +1300,14 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
         }
       >
         <NotePlaceHeader
+          noteId={note.id}
+          noteColor={note.color}
           contextTabRef={contextTabRef}
           contextLabel={contextLabel}
           contextFullAppLabel={contextFullAppLabel}
           appIconUrl={appIconUrl}
+          processName={appProcessName}
+          contextTitle={note.target_title}
           isNewNote={isNewNote}
           hasSavedContext={hasSavedContext}
           placeDetailOpen={placeDetailOpen}
@@ -1500,13 +1507,18 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
 
         {colorPickerOpen && (
           <div id="composer-paper-palette" className="composer-color-popover" role="group" aria-label="Note color">
-            {NOTE_COLORS.map((color) => (
-              <button key={color} type="button"
-                className={`color-swatch skrib-color-${color} ${note.color === color ? 'active' : ''}`}
-                aria-label={`${color} note`} aria-pressed={note.color === color}
-                disabled={!canWrite || isFinishing || hasPendingRichOperation || hasUnsavedInk}
-                title={`${color} paper`} onClick={() => void handleColorChange(color)}
-              >{note.color === color && <Check size={14} aria-hidden="true" />}</button>
+            {NOTE_COLOR_GROUPS.map((group) => (
+              <div key={group.label} className="composer-color-group" role="group" aria-label={`${group.label} colors`}>
+                <span className="composer-color-group-label">{group.label}</span>
+                {group.colors.map((color) => (
+                  <button key={color} type="button"
+                    className={`color-swatch skrib-color-${color} ${note.color === color ? 'active' : ''}`}
+                    aria-label={`${color} note`} aria-pressed={note.color === color}
+                    disabled={!canWrite || isFinishing || hasPendingRichOperation || hasUnsavedInk}
+                    title={`${color} paper`} onClick={() => void handleColorChange(color)}
+                  >{note.color === color && <Check size={14} aria-hidden="true" />}</button>
+                ))}
+              </div>
             ))}
           </div>
         )}
@@ -1525,6 +1537,9 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
               drawingEnabled={drawingEnabled}
               describedBy={textareaDescription}
               onChange={handleRichTextChange}
+              onDeleteAttachment={canWrite && !isFinishing && !drawingEnabled
+                ? (id) => setAttachmentRemoveRequest((previous) => ({ id, nonce: (previous?.nonce ?? 0) + 1 }))
+                : undefined}
               onPasteBlocked={reportBlockedPaste}
               onPasteFiles={(files) => {
                 if (!canWrite || operationInProgress.current || nativeTransitionRequest.current || clipboardReservation.current ||
@@ -1577,6 +1592,7 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
             pickerRequest={attachmentPickerRequest}
             openDrawerRequest={attachmentDrawerRequest}
             filesRequest={pastedFilesRequest}
+            removeRequest={attachmentRemoveRequest}
             onFilesRequestSettled={settleClipboardRequest}
             disabled={!canWrite || isInkLoading || isFinishing || drawingEnabled || deleteConfirmation === 'confirming'}
             onError={setComposerError}
