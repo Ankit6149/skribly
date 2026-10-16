@@ -1,14 +1,16 @@
 # Contributing to Skribli
 
-Skribli is an independently developed proprietary product in active production development. The source is publicly visible, but it is not open source. See [`NOTICE.md`](NOTICE.md).
+Skribli is an open-core product in active development. Community code is MPL-2.0 under the exact boundary in [LICENSING.md](LICENSING.md). Commercial areas remain proprietary. Source availability and public binary acceptance are separate.
 
 ## Participation model
 
 - Bug reports, reproducible technical findings, and focused product feedback are welcome through GitHub issues.
 - Do not post credentials, licence keys, private user data, exploit details, or sensitive logs in public issues.
-- External pull requests are accepted only when explicitly invited by the repository owner.
-- An invited contribution may require separate written contributor terms before merge.
-- Opening an issue or pull request does not grant permission to reuse Skribli source or assets elsewhere.
+- Community bug-fix and documentation pull requests are welcome. Discuss architectural, product and large feature changes with the maintainer before implementation.
+- Contribute covered work under MPL-2.0 and certify your right to submit it using [Developer Certificate of Origin 1.1](https://developercertificate.org/). Sign each commit with `git commit -s`. The sign-off is a rights certification, not copyright assignment or permission for arbitrary relicensing.
+- Do not submit proprietary/employer/customer code or unlicensed assets. Identify copied or AI-assisted material and its provenance; the contributor remains responsible for review and rights.
+- Contributions to retained commercial areas require an explicit invitation and appropriate separate terms. Community sign-off is not permission to relicense someone else's work.
+- Follow [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md); official branding is governed separately by [TRADEMARKS.md](TRADEMARKS.md).
 
 ## Working rules
 

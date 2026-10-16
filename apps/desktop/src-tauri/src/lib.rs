@@ -3525,6 +3525,9 @@ fn set_hit_test_rects(state: State<'_, AppState>, rects: Vec<HitTestRect>) {
 }
 
 fn account_data_directory(app_handle: &AppHandle) -> Result<std::path::PathBuf, String> {
+    if license::is_community_build() {
+        return Err("Account services are not available in Community.".to_string());
+    }
     app_handle
         .path()
         .app_data_dir()
@@ -3551,6 +3554,9 @@ fn account_session_remove(app_handle: AppHandle, key: String) -> Result<(), Stri
 
 #[tauri::command(async)]
 fn get_account_device_claim() -> Result<String, String> {
+    if license::is_community_build() {
+        return Err("Community does not create an account device claim.".to_string());
+    }
     account::device_claim()
 }
 

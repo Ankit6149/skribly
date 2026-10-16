@@ -28,6 +28,9 @@ jobs:
       - name: Validate current product claims
         run: node scripts/validation/validate-product-truth.mjs
 
+      - name: Validate licence inventory tooling
+        run: node --test scripts/licensing/inventory.test.mjs
+
       - name: Validate Vercel ignored build policy
         run: node --test scripts/validation/vercel-ignore.test.mjs
 
@@ -124,6 +127,12 @@ jobs:
 
       - name: Run Windows cargo tests
         run: cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml -- --test-threads=1
+
+      - name: Run Community native tests
+        run: cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml --features community -- --test-threads=1
+
+      - name: Validate Community edition boundary
+        run: npm run community:validate
 
       - name: Check restricted configuration compiles
         env:

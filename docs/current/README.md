@@ -4,6 +4,8 @@ Use this page before reading design explorations, old owner candidates, historic
 
 ## Current product
 
+- [Open-core Community / Pro / Team / Organization charter](../00-product/OPEN_CORE_CHARTER.md)
+- [Community build and source licensing](../../COMMUNITY.md)
 - [Product vision](../00-product/PRODUCT_VISION.md)
 - [Product requirements](../00-product/PRD.md)
 - [Current Windows interaction specification](../01-design/INTERACTION_SPEC.md)
@@ -19,6 +21,7 @@ Use this page before reading design explorations, old owner candidates, historic
 
 ## Current audit repairs
 
+- [17 October open-core foundation and release register](../06-planning/OPEN_CORE_EXECUTION_2026-10-17.md)
 - [16 October full UX principle review and unreleased changes](../01-design/UX_PRINCIPLES_REVIEW_2026-10-16.md)
 - [13 October note editing fix register (unreleased source)](../06-planning/NOTE_EDITING_FIXES_2026-10-13.md)
 - [3 October repair execution and remaining acceptance](../06-planning/AUDIT_REPAIR_EXECUTION_2026-10-03.md)
@@ -41,6 +44,7 @@ The owner candidate is not a public release. Installed Windows acceptance, signi
 
 ## Accepted architecture decisions
 
+- [ADR-0005 — Community and commercial edition boundaries](../02-engineering/ADR-0005-community-commercial-editions.md)
 - [ADR-0001 — hardened JSON storage](../02-engineering/ADR-0001-hardened-json-storage.md)
 - [ADR-0002 — note-open lifecycle](../02-engineering/ADR-0002-canonical-note-open-lifecycle.md)
 - [ADR-0003 — reversible Trash](../02-engineering/ADR-0003-reversible-trash-lifecycle.md)

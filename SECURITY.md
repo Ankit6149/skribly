@@ -10,7 +10,7 @@ Skribli is in active production development and no public installer is currently
 
 - No screen recording in v1.
 - No capture of typed content outside Skribli.
-- Verified cloud account/trial/entitlement metadata is used for access control; Skrib content is not cloud-synced or uploaded as part of that account flow.
+- In the account-enabled edition, verified cloud account/trial/entitlement metadata is used for access control; Skrib content is not cloud-synced or uploaded as part of that account flow. Community local writing has no account/trial requirement and grants no hosted-service entitlement; its native identity and independent profile are described in COMMUNITY.md.
 - Network access is limited to approved account/entitlement, update, activation, or support flows; normal note content remains device-local.
 - Application data remains in the user's local application-data directory by default.
 - Browser-extension communication, if implemented later, must be local, authenticated, origin-limited, and permission-minimal.

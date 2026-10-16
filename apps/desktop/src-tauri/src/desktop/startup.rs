@@ -21,7 +21,11 @@ pub fn register_launch_at_login() -> Result<(), String> {
     use winreg::RegKey;
 
     const RUN_KEY: &str = r"Software\Microsoft\Windows\CurrentVersion\Run";
-    const VALUE_NAME: &str = "Skribli";
+    const VALUE_NAME: &str = if cfg!(feature = "community") {
+        "Skribli Community"
+    } else {
+        "Skribli"
+    };
 
     let executable = std::env::current_exe()
         .map_err(|error| format!("Windows could not locate the Skribli executable: {error}"))?;

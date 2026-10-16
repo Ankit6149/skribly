@@ -1,5 +1,9 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useLicenseStore } from './licenseStore';
+
+const events=vi.hoisted(()=>({emit:vi.fn(async()=>undefined)}));
+vi.mock('@tauri-apps/api/event',()=>({emit:events.emit,listen:vi.fn(async()=>()=>undefined)}));
+afterEach(()=>{vi.unstubAllGlobals();events.emit.mockReset();});
 
 const betaStatus = {
   mode: 'beta' as const,
@@ -34,6 +38,15 @@ describe('licenseStore', () => {
     await useLicenseStore.getState().activate('   ');
     expect(useLicenseStore.getState().isActivating).toBe(false);
     expect(useLicenseStore.getState().errorMessage).toBe('Paste the licence key before activating.');
+  });
+
+  it('keeps an unresolved native edition unresolved when requesting status fails',async()=>{
+    vi.stubGlobal('window',{__TAURI_INTERNALS__:{}});
+    useLicenseStore.setState({hasNativeStatus:false});
+    events.emit.mockRejectedValueOnce(new Error('Native bridge unavailable'));
+    await expect(useLicenseStore.getState().refresh()).resolves.toBeUndefined();
+    expect(useLicenseStore.getState().hasNativeStatus).toBe(false);
+    expect(useLicenseStore.getState().errorMessage).toBe('Native bridge unavailable');
   });
 
   it('clears activation errors explicitly', () => {

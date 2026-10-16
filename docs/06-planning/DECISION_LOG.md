@@ -2,6 +2,9 @@
 
 | Date | Decision | Status |
 |---|---|---|
+| 2026-10-17 | Open-core Community source uses the scoped MPL-2.0 map; commercial backend/delivery and future proprietary Pro features remain separate. Owner confirmed original-work ownership. | Accepted source direction; public binary/sales gates remain |
+| 2026-10-17 | Community local writing requires no account/trial; explicit native feature/config, independent profile and no automatic migration. Default account-enabled configuration retained. | Source foundation; installed acceptance pending |
+| 2026-10-17 | Team/Organization work must separate personal content, tenant membership, service entitlement and account-administration roles; no implicit personal-note upload. | Architecture requirement; features not implemented |
 | 2026-07-20 | Product name is Skribli | Current |
 | 2026-07-20 | A contextual annotation is called a Skrib | Current |
 | 2026-07-20 | Windows and macOS were initially considered first-class targets | Superseded |

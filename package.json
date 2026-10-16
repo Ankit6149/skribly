@@ -8,6 +8,10 @@
     "extensions/*"
   ],
   "scripts": {
+    "community:dev": "node scripts/community/desktop.mjs dev",
+    "community:build": "node scripts/community/desktop.mjs build",
+    "community:validate": "node scripts/validation/validate-community-edition.mjs",
+    "licenses:inventory": "node scripts/licensing/inventory.mjs",
     "dev": "npm --workspace @skribly/desktop run dev",
     "tauri": "npm --workspace @skribly/desktop run tauri --",
     "build": "npm run build --workspaces --if-present",
