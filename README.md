@@ -50,7 +50,7 @@ The current Windows build includes:
 - local versioned note persistence with recovery;
 - reversible Trash and Archive;
 - native portable JSON export/import for note text/metadata;
-- verified account/trial/entitlement enforcement for write access.
+- verified account/trial/entitlement enforcement for write access in the account-enabled configuration; an explicit Community build provides local writing without an account.
 
 Current portable JSON does **not** include IndexedDB ink, attachment blobs or reminders. Browser URL/DOM anchoring, macOS, cloud sync, collaboration, AI and public commerce remain deferred/not released.
 
@@ -81,7 +81,9 @@ These checks do not replace installed-Windows acceptance. Native focus, transpar
 
 ## Repository and licence status
 
-This repository is publicly visible for development and issue tracking, but Skribli is proprietary software and is **not open source**. Public access does not grant permission to copy, deploy, redistribute or build another product from its source or assets. See [NOTICE.md](NOTICE.md).
+Skribli is an **open-core product**. The identified Community source is licensed under **MPL-2.0**; commercial backend, website and delivery areas remain proprietary. See [LICENSING.md](LICENSING.md), [NOTICE.md](NOTICE.md) and [third-party notices](THIRD_PARTY_NOTICES.md) for the exact file-level boundary. Future Pro, team and organization capabilities are planned separately.
+
+Start with [Community development](COMMUNITY.md) for the explicit no-account desktop build. The default desktop configuration retains the existing account/trial behavior. Community has a separate application identity and data profile; it does not automatically migrate the private owner's data. Source licensing does not make the current private installers public releases.
 
 ## Distribution status
 

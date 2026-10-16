@@ -41,6 +41,7 @@ fn bind_license_path(
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum LicenseMode {
+    Community,
     Beta,
     AccountRequired,
     Trial,
@@ -107,10 +108,32 @@ enum EntitlementType {
 }
 
 pub fn enforcement_enabled() -> bool {
+    if is_community_build() {
+        return false;
+    }
     matches!(
         option_env!("SKRIBLY_TRIAL_ENFORCED"),
         Some("1") | Some("true") | Some("TRUE")
     )
+}
+
+pub const fn is_community_build() -> bool {
+    cfg!(feature = "community")
+}
+
+fn community_status() -> LicenseStatus {
+    LicenseStatus {
+        mode: LicenseMode::Community,
+        enforcement_enabled: false,
+        can_write: true,
+        trial_days_total: 0,
+        trial_days_remaining: 0,
+        trial_expires_at: None,
+        device_id: String::new(),
+        licensed_email: None,
+        updates_until: None,
+        message: "Community · local notes without an account.".to_string(),
+    }
 }
 
 fn beta_status(device_id: String) -> LicenseStatus {
@@ -404,6 +427,9 @@ fn status_for_record(record: &LicenseRecord, enforced: bool, now: u64) -> Licens
 }
 
 pub fn current_status(path: &Path) -> Result<LicenseStatus, String> {
+    if is_community_build() {
+        return Ok(community_status());
+    }
     let _guard = LICENSE_IO
         .lock()
         .map_err(|_| "Licence persistence is unavailable.".to_string())?;
@@ -445,6 +471,9 @@ pub fn require_write_access(path: &Path) -> Result<LicenseStatus, String> {
 }
 
 pub fn activate(path: &Path, token: &str) -> Result<LicenseStatus, String> {
+    if is_community_build() {
+        return Err("Community does not use account activation.".to_string());
+    }
     let _guard = LICENSE_IO
         .lock()
         .map_err(|_| "Licence persistence is unavailable.".to_string())?;
@@ -458,6 +487,9 @@ pub fn activate(path: &Path, token: &str) -> Result<LicenseStatus, String> {
 }
 
 pub fn deactivate(path: &Path) -> Result<LicenseStatus, String> {
+    if is_community_build() {
+        return Err("Community does not use account activation.".to_string());
+    }
     let _guard = LICENSE_IO
         .lock()
         .map_err(|_| "Licence persistence is unavailable.".to_string())?;
@@ -473,11 +505,17 @@ pub fn deactivate(path: &Path) -> Result<LicenseStatus, String> {
 }
 
 pub fn initialize_from_skrib_path(skrib_path: &Path) -> Result<LicenseStatus, String> {
+    if is_community_build() {
+        return Ok(community_status());
+    }
     let path = skrib_path.with_file_name("license.json");
     current_status(bind_license_path(&LICENSE_PATH, path)?)
 }
 
 pub fn current_global_status() -> Result<LicenseStatus, String> {
+    if is_community_build() {
+        return Ok(community_status());
+    }
     if !enforcement_enabled() {
         return Ok(beta_status("SKR-BETA".to_string()));
     }
@@ -488,6 +526,9 @@ pub fn current_global_status() -> Result<LicenseStatus, String> {
 }
 
 pub fn require_global_write_access() -> Result<LicenseStatus, String> {
+    if is_community_build() {
+        return Ok(community_status());
+    }
     if !enforcement_enabled() {
         return Ok(beta_status("SKR-BETA".to_string()));
     }
@@ -633,6 +674,7 @@ mod tests {
             .expect_err("a second storage location must fail closed");
         assert!(error.contains("already initialized at a different path"));
     }
+    #[cfg(not(feature = "community"))]
     #[test]
     fn parallel_status_reads_preserve_a_valid_record_and_do_not_rewrite_identical_generations() {
         let directory =
@@ -659,5 +701,44 @@ mod tests {
             .activation_token
             .is_none());
         fs::remove_dir_all(directory).unwrap();
+    }
+}
+
+#[cfg(all(test, feature = "community"))]
+mod community_tests {
+    use super::*;
+    #[test]
+    fn community_does_not_create_licence_or_device_state() {
+        let folder =
+            std::env::temp_dir().join(format!("skribli-community-empty-{}", std::process::id()));
+        assert!(!folder.exists());
+        let status = initialize_from_skrib_path(&folder.join("skribs.json")).unwrap();
+        assert_eq!(status.mode, LicenseMode::Community);
+        assert!(status.can_write);
+        assert!(!status.enforcement_enabled);
+        assert!(status.device_id.is_empty());
+        assert!(status.licensed_email.is_none());
+        assert_eq!(status.trial_days_total, 0);
+        assert!(!folder.exists());
+        assert_eq!(
+            require_global_write_access().unwrap().mode,
+            LicenseMode::Community
+        );
+    }
+    #[test]
+    fn community_never_reads_or_changes_a_commercial_licence() {
+        let folder =
+            std::env::temp_dir().join(format!("skribli-community-preserve-{}", std::process::id()));
+        fs::create_dir_all(&folder).unwrap();
+        let path = folder.join("license.json");
+        let bytes = b"synthetic commercial state, intentionally not parseable";
+        fs::write(&path, bytes).unwrap();
+        assert_eq!(current_status(&path).unwrap().mode, LicenseMode::Community);
+        assert!(activate(&path, "invalid token").is_err());
+        assert!(deactivate(&path).is_err());
+        assert_eq!(fs::read(&path).unwrap(), bytes);
+        assert_eq!(fs::read_dir(&folder).unwrap().count(), 1);
+        fs::remove_file(path).unwrap();
+        fs::remove_dir(folder).unwrap();
     }
 }

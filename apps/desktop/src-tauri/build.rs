@@ -2,6 +2,13 @@ fn main() {
     println!("cargo:rerun-if-env-changed=SKRIBLY_TRIAL_ENFORCED");
     println!("cargo:rerun-if-env-changed=SKRIBLY_LICENSE_PUBLIC_KEY");
 
+    let community = std::env::var_os("CARGO_FEATURE_COMMUNITY").is_some();
+    let enforced = matches!(
+        std::env::var("SKRIBLY_TRIAL_ENFORCED").as_deref(),
+        Ok("1" | "true" | "TRUE")
+    );
+    assert!(!(community && enforced), "Community builds cannot enable commercial trial enforcement. Build each edition separately.");
+
     if matches!(
         std::env::var("SKRIBLY_TRIAL_ENFORCED").as_deref(),
         Ok("1" | "true" | "TRUE")

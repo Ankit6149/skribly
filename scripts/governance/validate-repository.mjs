@@ -16,6 +16,12 @@ const requiredFiles = [
   ".github/dependabot.yml",
   "CONTRIBUTING.md",
   "NOTICE.md",
+  "LICENSE",
+  "LICENSING.md",
+  "licensing-map.json",
+  "THIRD_PARTY_NOTICES.md",
+  "COMMUNITY.md",
+  "CODE_OF_CONDUCT.md",
   "SECURITY.md",
   "docs/06-planning/REPOSITORY_GOVERNANCE.md",
 ];
@@ -43,9 +49,17 @@ for (const relativePath of requiredFiles) {
 
 if (await exists("NOTICE.md")) {
   const notice = (await read("NOTICE.md")).toLowerCase();
-  if (!notice.includes("publicly visible") || !notice.includes("not") || !notice.includes("open source")) {
-    failures.push("NOTICE.md must state that the publicly visible repository is not open source.");
+  if (!notice.includes("open-core") || !notice.includes("proprietary") || !notice.includes("licensing-map.json")) {
+    failures.push("NOTICE.md must identify the Community grant and retained proprietary areas.");
   }
+}
+
+if (await exists('licensing-map.json')) {
+  const map = JSON.parse(await read('licensing-map.json'));
+  if (map.communityLicense !== 'MPL-2.0' || !map.retainedProprietaryRoots.includes('supabase/') || !map.retainedProprietaryRoots.includes('site/')) failures.push('The Community licensing map must preserve the explicit commercial boundary.');
+  for (const file of map.communityFiles) if (!(await exists(file))) failures.push(`Community licence map refers to a missing file: ${file}`);
+  for (const override of map.thirdPartyOverrides) for (const file of override.paths) if (!(await exists(file))) failures.push(`Third-party licence override refers to a missing file: ${file}`);
+  if (!(await read('LICENSE')).startsWith('Mozilla Public License Version 2.0')) failures.push('LICENSE must contain the standard MPL-2.0 text.');
 }
 
 if (await exists("CONTRIBUTING.md")) {

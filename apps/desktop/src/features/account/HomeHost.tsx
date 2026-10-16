@@ -21,6 +21,7 @@ import skriblyMarkUrl from '../../../../../assets/branding/skribly-app-icon.svg?
 import type { SkribNote } from '../notes/model/noteTypes';
 import type { StorageHealthPayload } from '../notes/state/skribStore';
 import { useAccountStore } from './state/accountStore';
+import { useWorkspaceAccess } from './useWorkspaceAccess';
 import { useLicenseStore } from '../licensing/state/licenseStore';
 import {
   completeOnboarding,
@@ -244,9 +245,10 @@ export const WorkspaceSidebar: React.FC<{
   onNavigate: (destination: WorkspaceDestination) => void;
   onShowGuide: () => void;
 }> = ({ active, onNavigate, onShowGuide }) => {
-  const { email, entitlement } = useAccountStore();
+  const { email, entitlement, isCommunity } = useWorkspaceAccess();
 
   const entitlementLabel = useMemo(() => {
+    if (isCommunity) return 'Local · no account required';
     if (!entitlement) return 'Account verified';
     if (entitlement.mode === 'trial') {
       return `${entitlement.trialDaysRemaining} trial day${entitlement.trialDaysRemaining === 1 ? '' : 's'} left`;
@@ -254,7 +256,7 @@ export const WorkspaceSidebar: React.FC<{
     if (entitlement.mode === 'expired') return 'Read and export available';
     if (entitlement.mode === 'licensed') return 'Personal licence active';
     return entitlement.message;
-  }, [entitlement]);
+  }, [entitlement, isCommunity]);
 
   return (
     <aside className="home-sidebar desktop-app-sidebar" aria-label="Skribli navigation">
@@ -295,7 +297,7 @@ export const WorkspaceSidebar: React.FC<{
           {(email?.trim().charAt(0) || 'S').toUpperCase()}
         </span>
         <div>
-          <strong>{email || 'Skribli account'}</strong>
+          <strong>{isCommunity ? 'Community' : email || 'Skribli account'}</strong>
           <small>{entitlementLabel}</small>
         </div>
       </div>
@@ -308,7 +310,7 @@ export const ReadySurface: React.FC<{
   previewStatus?: { activeCount: number; writable: boolean };
   onPreviewHide?: () => void;
 }> = ({ onNavigate, previewStatus, onPreviewHide }) => {
-  const { entitlement, announcements } = useAccountStore();
+  const { entitlement, announcements } = useWorkspaceAccess();
   const [activeCount, setActiveCount] = useState<number | null>(null);
   const [storageCheck, setStorageCheck] = useState<'loading' | 'healthy' | 'readOnly' | 'error'>('loading');
 
@@ -417,7 +419,8 @@ export const SettingsSurface: React.FC<{
     entitlement,
     productUpdatesOptIn,
     signOut,
-  } = useAccountStore();
+    isCommunity,
+  } = useWorkspaceAccess();
   const licenseStatus = useLicenseStore((state) => state.status);
   const [section, setSection] = useState<SettingsSection>('general');
   const [storage, setStorage] = useState<StorageHealthPayload | null>(null);
@@ -507,7 +510,7 @@ export const SettingsSurface: React.FC<{
       <header className="desktop-section-header">
         <div>
           <h1>Settings</h1>
-          <p>Make Skribli feel right for you. Manage your notes, privacy and account.</p>
+          <p>{isCommunity ? 'Make Skribli feel right for you. Manage your local notes and privacy.' : 'Make Skribli feel right for you. Manage your notes, privacy and account.'}</p>
         </div>
       </header>
 
@@ -522,7 +525,7 @@ export const SettingsSurface: React.FC<{
               onClick={() => setSection(id)}
             >
               <Icon size={15} aria-hidden="true" />
-              <span>{label}</span>
+              <span>{isCommunity && id === 'account' ? 'Edition' : label}</span>
             </button>
           ))}
         </nav>
@@ -617,7 +620,13 @@ export const SettingsSurface: React.FC<{
             </>
           )}
 
-          {section === 'account' && (
+          {section === 'account' && isCommunity ? (
+            <div className="desktop-settings-heading">
+              <h2>Skribli Community</h2>
+              <p>Write and keep notes on this PC without an account or a trial. Your content stays local.</p>
+              <p>Pro, team and organization services are planned separately and are not enabled in this build.</p>
+            </div>
+          ) : section === 'account' && (
             <>
               <div className="desktop-settings-heading">
                 <span className="account-kicker">ACCOUNT & DEVICE</span>
@@ -646,7 +655,7 @@ export const SettingsSurface: React.FC<{
                 <p>Support information stays here instead of occupying the daily workspace.</p>
               </div>
               <div className="desktop-setting-row">
-                <div><strong>Product status</strong><span>The current owner build is connected to local-first storage and account entitlement.</span></div>
+                <div><strong>Product status</strong><span>{isCommunity ? 'Community development build. Local notes are available without account services.' : 'The current owner build is connected to local-first storage and account entitlement.'}</span></div>
                 <span className="desktop-setting-status">Ready</span>
               </div>
               <div className="desktop-setting-row">
@@ -662,7 +671,9 @@ export const SettingsSurface: React.FC<{
 };
 
 export const HomeHost: React.FC = () => {
-  const { phase, init, retry, message } = useAccountStore();
+  const { phase, init, retry, message, isCommunity, nativeReady, workspaceReady } = useWorkspaceAccess();
+  const nativeError = useLicenseStore((state) => state.errorMessage);
+  const refreshNative = useLicenseStore((state) => state.refresh);
   const [guideVisible, setGuideVisible] = useState(false);
   const [accountRecoveryVisible, setAccountRecoveryVisible] = useState(false);
   const [workspace, setWorkspace] = useState<WorkspaceDestination>('ready');
@@ -693,8 +704,9 @@ export const HomeHost: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    if (!nativeReady || isCommunity) return;
     void init();
-  }, [init]);
+  }, [init, nativeReady, isCommunity]);
 
   useEffect(() => {
     if (phase === 'ready') setAccountRecoveryVisible(false);
@@ -719,9 +731,9 @@ export const HomeHost: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (phase !== 'ready' || typeof window === 'undefined') return;
+    if (!workspaceReady || typeof window === 'undefined') return;
     if (readOnboardingStatus(window.localStorage) !== 'completed') setGuideVisible(true);
-  }, [phase]);
+  }, [workspaceReady]);
 
   const navigate = (destination: WorkspaceDestination) => {
     setGuideVisible(false);
@@ -747,7 +759,7 @@ export const HomeHost: React.FC = () => {
 
   return (
     <>
-      {phase === 'ready' && <ReminderNotificationMonitor />}
+      {workspaceReady && <ReminderNotificationMonitor />}
       {
           <div className="desktop-workspace-shell desktop-app-v2">
             <WorkspaceSidebar
@@ -756,7 +768,13 @@ export const HomeHost: React.FC = () => {
               onShowGuide={() => setGuideVisible(true)}
             />
             <div className="desktop-workspace-content">
-              {phase !== 'ready' && (
+              {!nativeReady && (
+                <div className="account-local-access-notice" role={nativeError ? 'alert' : 'status'}>
+                  <span>{nativeError ? 'Desktop access could not be checked. Local Find and export remain available.' : 'Checking desktop access. Local Find and export remain available.'}</span>
+                  {nativeError && <button className="account-secondary" type="button" onClick={() => void refreshNative()}>Retry desktop check</button>}
+                </div>
+              )}
+              {nativeReady && !isCommunity && phase !== 'ready' && (
                 <div className="account-local-access-notice" role="status">
                   <span>
                     {phase === 'loading' || phase === 'claiming'

@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "effectiveDate": "2026-10-17",
+  "communityLicense": "MPL-2.0",
+  "communitySourceRoots": ["apps/desktop/", "apps/android/", "packages/", "extensions/chromium/", "scripts/community/", "scripts/licensing/", "scripts/validation/", ".github/"],
+  "communityFiles": ["README.md", "COMMUNITY.md", "CONTRIBUTING.md", "CODE_OF_CONDUCT.md", "AGENTS.md", "package.json", "package-lock.json", "tsconfig.base.json", "eslint.config.mjs", ".editorconfig", ".gitattributes", ".gitignore", ".npmrc", ".nvmrc", "licensing-map.json", "assets/branding/skribly-app-icon.svg"],
+  "retainedProprietaryRoots": ["supabase/", "site/", "scripts/license/", "scripts/packaging/", "scripts/windows/", "docs/", "assets/design/", "assets/marketing/", "assets/icons/"],
+  "thirdPartyOverrides": [
+    {"paths": ["apps/desktop/src/assets/supericons/googlechrome.svg", "apps/desktop/src/assets/supericons/firefox.svg", "apps/desktop/src/assets/site-icons.json"], "license": "CC0-1.0", "source": "https://github.com/simple-icons/simple-icons"},
+    {"paths": ["apps/desktop/src/assets/supericons/vscode.svg", "apps/desktop/src/assets/supericons/folder_fill.svg", "apps/desktop/src/assets/supericons/document_fill.svg"], "license": "Apache-2.0", "source": "https://github.com/Richard9394/MingCute"},
+    {"paths": ["apps/desktop/src/ui/command-icons.json", "apps/desktop/src/ui/FLUENT_LICENSE.txt", "apps/android/src/ui/command-icons.json", "apps/android/src/ui/FLUENT_LICENSE.txt"], "license": "MIT", "source": "https://github.com/microsoft/fluentui-system-icons"}
+  ]
+}

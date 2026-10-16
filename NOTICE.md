@@ -1,11 +1,11 @@
-# Proprietary source notice
+# Skribli licensing notice
 
-Copyright © 2026 Ankit Bhardwaj. All rights reserved.
+Copyright © 2026 Ankit Bhardwaj and the respective contributors.
 
-This repository is publicly visible for product development, issue tracking, and limited technical review. Public visibility does **not** make Skribli open source and does not grant permission to use the source code in another product.
+Skribli is an open-core product. The Community software areas identified in [LICENSING.md](LICENSING.md) and [licensing-map.json](licensing-map.json) are licensed under the unmodified Mozilla Public License 2.0 in [LICENSE](LICENSE). This grant applies to the identified files in the revision carrying this notice and subsequent covered contributions; it does not retroactively relicense every historical revision.
 
-Except for rights necessarily granted to GitHub under its platform terms, no licence is granted to copy, modify, distribute, sublicense, sell, host, deploy, or create derivative works from this repository or its design assets without prior written permission from the copyright owner.
+The commercial backend, website, private-delivery/activation tooling, historical design/research material and other areas outside that map remain proprietary unless a file states otherwise. Public visibility of those areas does not grant permission to copy, modify, distribute, sublicense, sell, host, deploy or create derivative works without written permission from the relevant owner. The MPL grant for covered software is not restricted by this reservation.
 
-External code contributions are accepted only when explicitly invited and may require separate written contributor terms before they are merged.
+Third-party dependencies and incorporated assets retain their original licences and notices. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). This notice does not claim ownership of upstream work.
 
-Third-party dependencies and assets remain governed by their own licences. Their notices and obligations must be reviewed and included before every public release.
+Software copyright permissions do not grant Skribli trademark rights or imply official endorsement. See [TRADEMARKS.md](TRADEMARKS.md). Public source availability is separate from accepted signed installers, supported platforms, paid services and public release readiness.

@@ -1,11 +1,12 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { validateDesktopStylePrecedence } from './desktop-css-order.mjs';
 
 const root = resolve(import.meta.dirname, '..', '..');
 const read = (path) => readFileSync(resolve(root, path), 'utf8');
 const desktopManifest = JSON.parse(read('apps/desktop/package.json'));
-const website = read('site/styles.css');
+// Community source distributions do not require the separately licensed website.
+const website = existsSync(resolve(root,'site/styles.css')) ? read('site/styles.css') : null;
 const tokens = read('packages/design-system/src/tokens.css');
 const theme = read('apps/desktop/src/styles/website-theme.css');
 const globalStyles = read('apps/desktop/src/styles/global.css');
@@ -43,7 +44,7 @@ const requiredTokens = [
 
 for (const marker of requiredTokens) {
   if (!tokens.includes(marker)) throw new Error(`Desktop design tokens are missing ${marker}.`);
-  if (marker.startsWith('--') && !marker.startsWith('--font-') && !website.includes(marker)) {
+  if (website && marker.startsWith('--') && !marker.startsWith('--font-') && !website.includes(marker)) {
     throw new Error(`Desktop token ${marker} has drifted from the website palette.`);
   }
 }
