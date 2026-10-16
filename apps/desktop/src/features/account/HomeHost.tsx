@@ -506,9 +506,8 @@ export const SettingsSurface: React.FC<{
     <main className="desktop-settings">
       <header className="desktop-section-header">
         <div>
-          <span className="account-kicker">CONTROL SKRIBLI</span>
           <h1>Settings</h1>
-          <p>Low-frequency controls, recovery and account details live here—not in the note or daily workflow.</p>
+          <p>Make Skribli feel right for you. Manage your notes, privacy and account.</p>
         </div>
       </header>
 
@@ -532,9 +531,8 @@ export const SettingsSurface: React.FC<{
           {section === 'general' && (
             <>
               <div className="desktop-settings-heading">
-                <span className="account-kicker">GENERAL</span>
                 <h2>Everyday behavior</h2>
-                <p>Keep only the controls that affect how you enter and leave Skribli.</p>
+                <p>Choose how you capture, write and return to your thoughts.</p>
               </div>
               <div className="desktop-setting-row">
                 <div><strong>Global shortcut</strong><span>Creates a contextual Skrib from the app you are using.</span></div>

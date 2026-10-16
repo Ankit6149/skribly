@@ -836,7 +836,7 @@
 .skrib-composer { background:var(--note-paper); color:var(--note-foreground); }
 .skrib-composer .composer-textarea:empty::before,
 .skrib-composer .composer-textarea::placeholder {
-  color:color-mix(in srgb,var(--note-foreground) 60%,transparent);
+  color:var(--note-placeholder,var(--note-foreground)); opacity:1;
 }
 .composer-paper-top { min-height:66px; flex-basis:66px; }
 .composer-context-tab { width:48px; max-width:48px; height:48px; min-height:48px; padding:8px; background:var(--context-pill-paper); }
@@ -1033,4 +1033,28 @@
 @media (forced-colors:active) {
   .inline-attachment-card,.inline-attachment-document .inline-attachment-card { background:Canvas; color:CanvasText; outline:1px solid CanvasText; mask:none; }
   .inline-attachment-controls :is(button,a) { color:ButtonText; }
+}
+
+/* Reachable controls preserve small glyphs and the owner's paper surfaces. */
+.composer-mode-pill button { min-height:32px; }
+.composer-side-tools > button { width:36px; height:36px; flex-basis:36px; }
+.composer-context-title { right:174px; }
+.composer-intent-trigger { width:36px; height:36px; }
+.composer-resize-handle.southeast { width:32px; height:32px; }
+.composer-discard-actions,.composer-footer-actions { gap:8px; flex-wrap:wrap; }
+.composer-discard-actions button,.composer-footer-actions button,.ink-editor-toolbar .ink-icon-tool { min-height:36px; }
+.ink-editor-toolbar .ink-icon-tool { min-width:36px; }
+@media (max-width:320px) {
+  .composer-mode-pill button { min-width:36px; padding-inline:8px; }
+  .composer-mode-pill button > span { display:none; }
+}
+@media (pointer:coarse) {
+  .composer-paper-top { min-height:112px; flex-basis:112px; }
+  .composer-context-title { right:16px; }
+  .composer-side-tools { top:64px; left:12px; right:12px; justify-content:flex-end; }
+  .composer-side-tools > button,.composer-intent-trigger { width:44px; height:44px; flex-basis:44px; }
+  .composer-mode-pill button,.composer-put-away-fold,.ink-editor-toolbar .ink-icon-tool,
+  .composer-discard-actions button,.composer-footer-actions button { min-height:44px; }
+  .ink-editor-toolbar .ink-icon-tool { min-width:44px; }
+  .composer-page .composer-rich-editor-shell .composer-textarea { padding-bottom:70px; }
 }

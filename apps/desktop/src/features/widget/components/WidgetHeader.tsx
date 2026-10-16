@@ -51,6 +51,7 @@ export function WidgetHeader({
             type="button"
             onClick={onToggleMenu}
             aria-label="Choose which Skribs to show"
+            disabled={closing}
             aria-expanded={menuOpen}
             title="Here, everything, or archived Skribs"
           >

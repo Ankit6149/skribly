@@ -26,6 +26,9 @@ export function NoteCloseConfirmation({
   if (!visible) return null;
 
   const trapFocus = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Escape') {
+      event.preventDefault(); event.stopPropagation(); onKeepEditing(); return;
+    }
     if (event.key !== 'Tab') return;
     const buttons = Array.from(
       event.currentTarget.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')

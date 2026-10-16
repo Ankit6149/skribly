@@ -2125,6 +2125,15 @@ html[data-skribly-window="home"] #root,
 
 /* Reference-led desktop refinement: calm canvas, legible type and softer grouping. */
 .desktop-app-v2.desktop-workspace-shell { --muted:#52594e; background:#f8f7f2; }
+.desktop-app-v2 :is(.account-consent,.desktop-setting-row label) { min-height:44px; }
+.desktop-app-v2 .desktop-settings-document p { max-width:68ch; line-height:1.6; }
+.desktop-app-v2 .note-font-settings { padding-bottom:24px; margin-bottom:24px; border-bottom:1px solid var(--line); }
+.desktop-app-v2 .note-font-settings > [role='status'] { color:var(--olive); }
+.desktop-app-v2 .desktop-settings-document :is(select,input[type='file']) { max-width:100%; min-height:40px; }
+.desktop-app-v2 .desktop-setting-row:has(input[type='file']) { align-items:start; }
+@media (pointer:coarse) {
+  .desktop-app-v2 :is(button,select,input:not([type='checkbox'])) { min-height:44px; }
+}
 .desktop-app-v2 .desktop-workspace-content { background:#f8f7f2; }
 .desktop-app-v2 .desktop-app-sidebar { padding:24px 12px 20px; background:#f0efe9; border-right:0; gap:18px; }
 .desktop-app-v2 .desktop-sidebar-brand { padding:0 10px 18px; border-bottom:0; }

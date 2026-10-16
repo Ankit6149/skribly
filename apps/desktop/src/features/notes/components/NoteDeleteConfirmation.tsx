@@ -20,6 +20,7 @@ export function NoteDeleteConfirmation({
       className="composer-delete-confirmation composer-attached-confirmation"
       role="alert"
       aria-live="assertive"
+      onKeyDown={(event) => { if (event.key === 'Escape' && !isFinishing) { event.preventDefault(); event.stopPropagation(); onCancel(); } }}
     >
       <div className="composer-delete-copy">
         <strong>Move this note to Trash?</strong>

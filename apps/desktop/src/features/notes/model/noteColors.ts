@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react';
+import { readableMutedInk } from '../../../ui/colorContrast';
 
 export const NOTE_PALETTE = [
   { id: 'yellow', background: '#f9df5b', foreground: '#171b18' },
@@ -51,11 +52,14 @@ export function isNoteColor(value: unknown): value is NoteColor {
   return typeof value === 'string' && NOTE_COLORS.some((color) => color === value);
 }
 
+const NOTE_HINTS = new Map(NOTE_PALETTE.map((paper) => [paper.id, readableMutedInk(paper.background, paper.foreground)]));
+
 export function noteColorStyle(color: NoteColor): CSSProperties {
   const paper = NOTE_PALETTE.find(({ id }) => id === color) ?? NOTE_PALETTE[0];
   return {
     '--note-paper': paper.background,
     '--note-foreground': paper.foreground,
+    '--note-placeholder': NOTE_HINTS.get(paper.id),
     '--skribli-paper': paper.background,
     '--skribli-ink': paper.foreground,
     '--skribli-muted': `color-mix(in srgb, ${paper.foreground} 85%, ${paper.background})`,

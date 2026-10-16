@@ -17,7 +17,7 @@ import {
 import { LibraryImportPanel } from './LibraryImportPanel';
 import { LibraryRichContent } from './LibraryRichContent';
 import { ReminderCalendar } from './ReminderCalendar';
-import { openNoteInSavedContext } from '../widget/lifecycle/openNoteContext';
+import { openNoteHere, openNoteInSavedContext } from '../widget/lifecycle/openNoteContext';
 import type { OpenNoteProgress } from '../widget/lifecycle/openNoteContext';
 import { OpeningJourney } from '../widget/components/OpeningJourney';
 import {
@@ -226,6 +226,7 @@ export const LibraryHost: React.FC<{
     () => filteredNotes.find((note) => note.id === selectedNoteId) ?? null,
     [filteredNotes, selectedNoteId]
   );
+  const selectedHasContext = Boolean(selectedNote?.target_process_name.trim() || selectedNote?.target_title.trim());
 
   useEffect(() => {
     setPermanentDeleteNoteId(null);
@@ -371,15 +372,17 @@ export const LibraryHost: React.FC<{
   };
 
   const openSelectedNote = async (note: SkribNote) => {
+    const hasContext = Boolean(note.target_process_name.trim() || note.target_title.trim());
     setOpeningContextId(note.id);
     setOpeningProgress({
       phase: 'preparing',
       title: 'Keeping this thought safe…',
-      detail: 'Getting ready to return to its saved place.',
+      detail: hasContext ? 'Getting ready to return to its saved place.' : 'Getting ready to open your Skrib.',
     });
     setContextMessage(null);
     try {
-      await openNoteInSavedContext(note, setOpeningProgress);
+      if (hasContext) await openNoteInSavedContext(note, setOpeningProgress);
+      else await openNoteHere(note);
       await getCurrentWindow().hide();
     } catch (reason) {
       setContextMessage(reason instanceof Error ? reason.message : String(reason));
@@ -524,7 +527,7 @@ export const LibraryHost: React.FC<{
         >
           {lifecycleError ? (
             <>
-              <strong>Lifecycle action failed</strong>
+              <strong>Note could not be updated</strong>
               <span>{lifecycleError}</span>
             </>
           ) : exportMessage?.type === 'success' ? (
@@ -556,7 +559,7 @@ export const LibraryHost: React.FC<{
           {isLoading && notes.length === 0 ? (
             <div className="library-state" role="status">
               <strong>Reading local Skribs…</strong>
-              <span>Skribli is loading the storage-backed library.</span>
+              <span>Your saved notes will appear here.</span>
             </div>
           ) : loadError ? (
             <div className="library-state error" role="alert">
@@ -581,7 +584,7 @@ export const LibraryHost: React.FC<{
             <div className="library-state">
               <strong>No matching notes</strong>
               <span>Try a different word, application name, or context title.</span>
-              <button type="button" onClick={() => setQuery('')}>
+              <button type="button" onClick={() => { setQuery(''); searchInputRef.current?.focus(); }}>
                 Clear search
               </button>
             </div>
@@ -638,16 +641,16 @@ export const LibraryHost: React.FC<{
                   {!isTrashedNote(selectedNote) && !isArchivedNote(selectedNote) && (
                     <button
                       type="button"
-                      className="library-button secondary"
+                      className="library-button primary"
                       onClick={() => void openSelectedNote(selectedNote)}
                       disabled={openingContextId !== null}
                     >
-                      {openingContextId === selectedNote.id ? 'Opening…' : 'Open app / screen'}
+                      {openingContextId === selectedNote.id ? 'Opening…' : selectedHasContext ? 'Return to app' : 'Open Skrib'}
                     </button>
                   )}
                   <button
                     type="button"
-                    className="library-button primary"
+                    className="library-button secondary"
                     onClick={() => void requestExport([selectedNote.id])}
                     disabled={isExporting}
                   >
@@ -756,7 +759,8 @@ export const LibraryHost: React.FC<{
               )}
 
               <p className="library-safety-note">
-                Skribli prefers the saved screen when it is open. Otherwise it uses the broader application home, so a note never appears missing just because a deeper tab or folder changed.
+                {selectedHasContext ? 'Return uses the saved screen when available, or the app when it isn’t. Your notes remain available here.'
+                  : 'General Skribs stay with your local notes without being linked to an app.'}
               </p>
               {contextMessage && <div className="library-inline-error" role="status">{contextMessage}</div>}
             </>

@@ -520,11 +520,18 @@ export const ContextRail: React.FC<{ contextual: boolean; previewNotes?: SkribNo
         />
       )}
 
-      <div className="ribbon-fan" aria-live="polite">
+      <span className="sr-only" role="status" aria-atomic="true">
+        {loading ? 'Loading saved Skribs' : `${ribbonNotes.length} of ${visibleNotes.length} ${scope === 'archive' ? 'archived' : 'active'} Skribs shown`}
+      </span>
+      <div className="ribbon-fan" aria-busy={loading}>
         {loading ? <div className="ribbon-empty" role="status">Gathering your Skribs…</div>
           : ribbonNotes.length === 0 ? <div className="ribbon-empty">
             {query.trim() ? 'No thoughts match your search.' : scope === 'archive' ? 'Completed thoughts will rest here.' : scope === 'context'
               ? 'No Skribs here yet. Ctrl + Shift + Space starts one.' : 'Your first thought is one shortcut away.'}
+            {!contextualDock && (query || selectedGroupKey !== null) && <button type="button" className="rail-clear-filters"
+              onClick={() => { setQuery(''); setSelectedGroupKey(null); expandedSurface.current?.querySelector<HTMLInputElement>('.global-shelf-search input')?.focus(); }}>
+              Clear search and app filter
+            </button>}
           </div> : ribbonNotes.map((note, index) => (
             <WidgetNoteCard
               key={note.id}

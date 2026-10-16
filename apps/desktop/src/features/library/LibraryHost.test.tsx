@@ -4,7 +4,8 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LibraryHost } from './LibraryHost';
 
-const mocks = vi.hoisted(() => ({ invoke: vi.fn() }));
+const mocks = vi.hoisted(() => ({ invoke: vi.fn(), openHere: vi.fn(async () => undefined), returnToApp: vi.fn(async () => '') }));
+vi.mock('../widget/lifecycle/openNoteContext', () => ({ openNoteHere: mocks.openHere, openNoteInSavedContext: mocks.returnToApp }));
 vi.mock('@tauri-apps/api/core', () => ({ invoke: mocks.invoke }));
 vi.mock('@tauri-apps/api/event', () => ({
   emit: vi.fn().mockResolvedValue(undefined),
@@ -12,6 +13,7 @@ vi.mock('@tauri-apps/api/event', () => ({
 }));
 vi.mock('@tauri-apps/api/window', () => ({ getCurrentWindow: () => ({
   onFocusChanged: vi.fn().mockResolvedValue(() => undefined),
+  hide: vi.fn().mockResolvedValue(undefined),
 }) }));
 vi.mock('../licensing/state/licenseStore', () => ({
   useLicenseStore: (select: (state: unknown) => unknown) => select({ status: { enforcementEnabled: false, canWrite: true } }),
@@ -45,6 +47,20 @@ afterEach(async () => {
 });
 
 describe('library refresh feedback', () => {
+  it('opens General locally and only offers Return for a saved application context', async () => {
+    await act(async () => root.render(<LibraryHost />));
+    const generalOpen = Array.from(container.querySelectorAll('button')).find((button) => button.textContent === 'Open Skrib')!;
+    expect(generalOpen.className).toContain('primary');
+    await act(async () => generalOpen.click());
+    expect(mocks.openHere).toHaveBeenCalledWith(savedNotes[0]);
+    expect(mocks.returnToApp).not.toHaveBeenCalled();
+    const contextual = [{ ...savedNotes[0]!, target_process_name: 'Code.exe', target_title: 'Project - Visual Studio Code' }];
+    mocks.invoke.mockImplementation((command: string) => Promise.resolve(command === 'get_all_skribs' ? contextual : { writable: true }));
+    await act(async () => refreshButton().click());
+    const returnButton = Array.from(container.querySelectorAll('button')).find((button) => button.textContent === 'Return to app')!;
+    await act(async () => returnButton.click());
+    expect(mocks.returnToApp).toHaveBeenCalledWith(contextual[0], expect.any(Function));
+  });
   it('keeps saved content visible and disables Refresh until a repeat read completes', async () => {
     await act(async () => root.render(<LibraryHost />));
     let finish!: (value: typeof savedNotes) => void;
