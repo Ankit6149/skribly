@@ -7,15 +7,11 @@
 
 ## 1. Repository posture
 
-Skribli is proprietary software. The repository is currently publicly visible for development, issue tracking, and limited technical review, but it is not open source and does not grant reuse rights.
+The owner approved an open-core transition on 17 October 2026. The Community source identified in [LICENSING.md](../../LICENSING.md) and [licensing-map.json](../../licensing-map.json) is MPL-2.0. Retained commercial areas remain proprietary; upstream licences and separate trademark rules remain effective. This supersedes the former wholly proprietary posture without retroactively relicensing every historical revision.
 
-The operational choices are:
+The current repository is publicly visible: proprietary terms do not make its commercial files or history confidential. Future commercially sensitive implementation and private operational records should use a separate private repository. The [unified operating plan](UNIFIED_OPERATING_PLAN_2026-10-17.md) proposes a staged extraction with deployment validation, pinned Community dependencies and rollback evidence; that extraction has not happened.
 
-1. **Remain publicly visible and proprietary.** This supports public issue discussion but exposes all committed source and history.
-2. **Change the repository to private.** This is recommended before adding commercially sensitive implementation, signing infrastructure, customer operations, or unreleased product differentiation.
-3. **Adopt an explicit source licence.** This requires a deliberate business and legal decision and is not implied by current visibility.
-
-Until the owner changes the GitHub visibility setting or adopts another licence, option 1 is the documented repository posture. Previous public exposure cannot be reversed; making the repository private only protects future access.
+Do not put proprietary implementations inside Community-covered roots. Preserve applicable MPL source/notice obligations when distributing combined products. Previously public exposure cannot be reversed, and reverting the source cannot recall licence grants already received by complying recipients. Repository moves or visibility changes must not be presented as erasing public history.
 
 ## 2. Authority and approvals
 

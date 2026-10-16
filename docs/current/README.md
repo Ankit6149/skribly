@@ -2,6 +2,10 @@
 
 Use this page before reading design explorations, old owner candidates, historical audits, or future proposals.
 
+## Current execution plan
+
+- [17 October unified integration, operations, legal/security and ₹10,000 budget plan](../06-planning/UNIFIED_OPERATING_PLAN_2026-10-17.md) — proposed work sequence and exit evidence; distinguishes current source from unimplemented integrations and external approvals.
+
 ## Current product
 
 - [Open-core Community / Pro / Team / Organization charter](../00-product/OPEN_CORE_CHARTER.md)
