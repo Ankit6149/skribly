@@ -839,9 +839,11 @@
   color:color-mix(in srgb,var(--note-foreground) 60%,transparent);
 }
 .composer-paper-top { min-height:66px; flex-basis:66px; }
-.composer-context-tab { width:48px; max-width:48px; height:48px; min-height:48px; padding:12px; background:var(--context-pill-paper); border:0; box-shadow:none; }
-.composer-context-app-icon { width:24px; height:24px; opacity:1; filter:var(--context-pill-icon-filter); }
-.composer-context-tab > svg { width:24px; height:24px; }
+.composer-context-tab { width:48px; max-width:48px; height:48px; min-height:48px; padding:8px; background:var(--context-pill-paper); }
+.composer-context-tab,.composer-context-tab:is(:hover,:focus-visible) { border:0; outline:0; box-shadow:none; }
+.composer-context-app-icon { width:32px; height:32px; opacity:1; filter:var(--context-pill-icon-filter); }
+.composer-context-tab > svg { width:32px; height:32px; }
+.composer-paper-top:has(.composer-context-tab:focus-visible) .composer-context-title { text-decoration:underline; text-underline-offset:4px; }
 .composer-context-title {
   position:absolute; top:25px; left:70px; right:154px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;
   font:700 14px/1.3 var(--font-ui); color:var(--note-foreground); pointer-events:none;

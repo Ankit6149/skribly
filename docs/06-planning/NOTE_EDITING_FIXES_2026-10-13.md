@@ -40,6 +40,8 @@ Older installers do not understand the new optional page coordinates; drawing eq
 
 ## Verification and remaining acceptance
 
+16 October source follow-up: the owner reports a small logo and an outlined circle in their screenshot. Increase the note header mark from 24 to 32 px inside the same 48 px circle (8 px padding). Explicitly suppress border, outline and shadow in normal, hover and keyboard-focus states. Keyboard focus is indicated by an underline on the adjacent context title and the existing place detail, rather than a ring around the circle. Circle colours, icon ink, note colours and widget marks remain unchanged. The normal border removal was already in unreleased source; the published v0.1.54 installer predates it. This remains a source-only change, with installed visual acceptance pending.
+
 Desktop: 64 test files / 404 tests pass; TypeScript, lint and production frontend build pass. The production CSS fixture checks transparent native surfaces and emitted CSS. Governance, product-truth, lifecycle, Trash and import validators pass. Impeccable's mechanical detector reports no findings on the changed editing surfaces. The pre-existing large JavaScript chunk advisory remains.
 
 This evidence is automated/source evidence, not installed Windows or visual acceptance. Owner acceptance still needs long-note wheel/touch hand scrolling, draw over text, add space, select/move ink, save/reopen, font changes, highlight changes on dark/saturated paper, and reduced-motion behaviour. No Android UI implementation or runtime acceptance is claimed by this update. Font preferences are local device settings, not account sync.
