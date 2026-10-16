@@ -65,6 +65,7 @@ export function App() {
   const [feedback, setFeedback] = useState("");
   const dialog = useRef<HTMLDialogElement>(null);
   const editor = useRef<HTMLTextAreaElement>(null);
+  const search = useRef<HTMLInputElement>(null);
   const actionLock = useRef(false);
   const loadGeneration = useRef(0);
   const draftId = draft?.note.id;
@@ -260,7 +261,7 @@ export function App() {
         note.reminder.dismissedAt === null,
     )
     .sort((a, b) => (a.reminder?.dueAt ?? 0) - (b.reminder?.dueAt ?? 0));
-  const normalizedQuery = query.toLocaleLowerCase();
+  const normalizedQuery = query.trim().toLocaleLowerCase();
   const shown = (tab === "trash" ? notes.filter((note) => note.trashedAt !== null) : tab === "reminders" ? reminderNotes : activeNotes).filter(
     (note) =>
       `${note.text} ${note.context?.label ?? ""}`
@@ -274,7 +275,6 @@ export function App() {
         <>
           <header className="library-heading">
             <div>
-              <p className="eyebrow">YOUR SKRIBS, WHEREVER YOU THINK</p>
               <h1>My Skribs<span className="heading-dot" /></h1>
               <p className="subtitle">Notes and reminders, available offline.</p>
             </div>
@@ -282,9 +282,11 @@ export function App() {
               <Plus />
             </button>
           </header>
-          <div className="search-field">
+          <div className="search-field" role="search" aria-label="Find Skribs">
             <Search aria-hidden="true" />
-            <input type="search" aria-label="Search Skribs" placeholder="Find a thought…" value={query} onChange={(event) => setQuery(event.target.value)} />
+            <input ref={search} type="search" aria-label="Search Skribs" placeholder="Find a thought…" value={query} onChange={(event) => setQuery(event.target.value)}
+              onKeyDown={(event) => { if (event.key === 'Escape') { setQuery(''); } }} />
+            {query && <button className="round-button search-clear" type="button" aria-label="Clear search" onClick={() => { setQuery(''); search.current?.focus(); }}><X size={18} aria-hidden="true" /></button>}
           </div>
           <nav className="library-tabs" aria-label="Library">
             <button aria-pressed={tab === "notes"} onClick={() => setTab("notes")}>Skribs <span>{activeNotes.length}</span></button>
@@ -292,12 +294,14 @@ export function App() {
             <button aria-pressed={tab === "trash"} onClick={() => setTab("trash")}>Trash</button>
           </nav>
           {!ready && !error && <p role="status">Opening My Skribs…</p>}
+          {ready && <p className={normalizedQuery ? 'search-result-count' : 'sr-only'} role="status" aria-atomic="true">{shown.length} {normalizedQuery ? 'matching ' : ''}{shown.length === 1 ? 'Skrib' : 'Skribs'} shown</p>}
           {ready && shown.length === 0 && (
             <div className="empty-state">
               <span className="empty-symbol">{tab === "reminders" ? <Bell /> : <FileText />}</span>
-              <h2>{query ? "No matching thoughts" : tab === "trash" ? "Nothing in Trash" : tab === "reminders" ? "No upcoming reminders" : "Start with a thought"}</h2>
-              <p>{query ? "Try a shorter word or another phrase." : tab === "trash" ? "Skribs moved here can be restored." : tab === "reminders" ? "Open a Skrib and add a time to see it here." : "A line, an idea, or a reminder for later."}</p>
-              {!query && tab === "notes" && <button className="text-button" onClick={newNote}>Write your first Skrib <Plus size={18} /></button>}
+              <h2>{normalizedQuery ? "No matching thoughts" : tab === "trash" ? "Nothing in Trash" : tab === "reminders" ? "No upcoming reminders" : "Start with a thought"}</h2>
+              <p>{normalizedQuery ? "Try a shorter word or another phrase." : tab === "trash" ? "Skribs moved here can be restored." : tab === "reminders" ? "Open a Skrib and add a time to see it here." : "A line, an idea, or a reminder for later."}</p>
+              {normalizedQuery && <button className="text-button" onClick={() => { setQuery(''); search.current?.focus(); }}>Show all results</button>}
+              {!normalizedQuery && tab === "notes" && <button className="text-button" onClick={newNote}>Write your first Skrib <Plus size={18} /></button>}
             </div>
           )}
           <section className="note-list" aria-label={tab === "trash" ? "Trashed Skribs" : tab === "reminders" ? "Upcoming reminders" : "Saved Skribs"}>
@@ -324,7 +328,7 @@ export function App() {
         <section className="editor-screen" style={{ "--note-colour": `var(--${draft.note.colour})` } as React.CSSProperties}>
           <header className="editor-heading">
             <button className="round-button" aria-label="Back to My Skribs" onClick={close} disabled={busy}><ArrowLeft /></button>
-            <span className="save-state">{busy ? "Saving…" : dirty ? "Unsaved changes" : "Saved · available offline"}</span>
+            <span className="save-state" role="status">{busy ? "Saving…" : dirty ? "Unsaved changes" : "Saved · available offline"}</span>
             {draft.original && <button className="round-button" aria-label="Move Skrib to Trash" disabled={busy || dirty} title={dirty ? "Save your changes before moving to Trash" : "Move to Trash"} onClick={() => void updateStored(draft.original!, { trashedAt: Date.now() })}><Trash2 size={19} /></button>}
             <button className="save-button" onClick={() => void persist()} disabled={busy || !dirty}><Check size={18} /> Save</button>
           </header>
@@ -351,9 +355,9 @@ export function App() {
       )}
       {error && <div className="storage-error" role="alert"><p>{error}</p>{!draft && <button className="text-button" onClick={() => void reload()}>Retry storage</button>}</div>}
       {feedback && <p className="feedback" role="status">{feedback}</p>}
-      <dialog ref={dialog} className="close-dialog" onCancel={(event) => { event.preventDefault(); if (!busy) setCloseDialog(false); }}>
+      <dialog ref={dialog} className="close-dialog" aria-labelledby="mobile-close-title" aria-describedby="mobile-close-detail" aria-busy={busy} onCancel={(event) => { event.preventDefault(); if (!busy) setCloseDialog(false); }}>
         <button className="round-button dialog-x" aria-label="Keep editing" disabled={busy} onClick={() => setCloseDialog(false)}><X size={18} /></button>
-        <h2>Keep this thought?</h2><p>Your changes haven't been saved yet.</p>
+        <h2 id="mobile-close-title">Keep this thought?</h2><p id="mobile-close-detail">Your changes haven't been saved yet.</p>
         {error && <p role="alert">{error}</p>}
         <button className="save-button" disabled={busy} onClick={() => void persist(true)}>Save and close</button>
         <button className="text-button" disabled={busy} onClick={() => { setDraft(null); setCloseDialog(false); void reload(); }}>Close without saving</button>

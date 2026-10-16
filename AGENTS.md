@@ -2,6 +2,12 @@
 
 Read `README.md`, `CONTRIBUTING.md`, `SECURITY.md`, and the relevant product/design docs before changing behavior. Preserve unrelated founder changes and existing release/security constraints.
 
+## UI/UX working standard (owner instruction, 16 October 2026)
+
+Use the installed Impeccable skill for every UI/UX task, including small fixes. Follow its context, matching reference and craft-floor guidance; upstream: https://github.com/pbakaus/impeccable. Preserve the owner's selected Soft Paper Play colours, Iconify marks, compact cards, and borderless note logo circle unless explicitly asked to change them.
+
+Evaluate the full relevant UX principle set, not only Fitts's and Hick's laws. Use the review matrix in `docs/01-design/UX_PRINCIPLES_REVIEW_2026-10-16.md`, covering the Laws of UX catalogue, Nielsen's heuristics, Gestalt grouping and accessibility. Record applicability, concrete changes, existing good behaviour, evidence and verification gaps. Do not force unrelated patterns, artificial progress or urgency into the product to claim a principle was used. Treat memory/latency/80:20 rules as design guidance, not measured product facts. Keep source/browser evidence separate from installed Windows/phone acceptance and release authorization.
+
 ## Base / Linear operating contract
 
 Linear is the attention/status projection, not a mirror of GitHub. Do not create a Linear issue for every commit, PR, GitHub issue, Dependabot update, test run, or implementation slice.

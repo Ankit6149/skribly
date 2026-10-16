@@ -29,6 +29,7 @@ button:disabled {
 }
 button:focus-visible,
 input:focus-visible,
+select:focus-visible,
 textarea:focus-visible {
   outline: 2px solid var(--olive);
   outline-offset: 3px;
@@ -116,6 +117,9 @@ h1 {
   font-size: 14px;
   color: var(--ink);
 }
+.search-field input::-webkit-search-cancel-button { display:none; }
+.search-field .search-clear { margin-right:-12px; }
+.search-result-count { margin:12px 0 0; font-size:13px; color:var(--ink); }
 .library-tabs {
   display: flex;
   gap: 14px;
@@ -325,7 +329,8 @@ h1 {
   color: var(--ink);
 }
 .note-paper textarea::placeholder {
-  color: color-mix(in srgb, var(--ink) 40%, var(--note-colour));
+  color: color-mix(in srgb, var(--ink) 82%, var(--note-colour));
+  opacity:1;
 }
 .editor-tools {
   display: flex;

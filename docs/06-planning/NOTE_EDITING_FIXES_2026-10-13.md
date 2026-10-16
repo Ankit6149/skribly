@@ -40,6 +40,8 @@ Older installers do not understand the new optional page coordinates; drawing eq
 
 ## Verification and remaining acceptance
 
+The [16 October full UX principle review](../01-design/UX_PRINCIPLES_REVIEW_2026-10-16.md) continues this register with adaptive placeholder contrast, larger note targets, safe Escape recovery, source settings/search improvements and an Android frontend follow-up. Its evidence and gaps supersede any implication below that the complete current source has only the earlier test counts. All remain unreleased.
+
 16 October source follow-up: the owner reports a small logo and an outlined circle in their screenshot. Increase the note header mark from 24 to 32 px inside the same 48 px circle (8 px padding). Explicitly suppress border, outline and shadow in normal, hover and keyboard-focus states. Keyboard focus is indicated by an underline on the adjacent context title and the existing place detail, rather than a ring around the circle. Circle colours, icon ink, note colours and widget marks remain unchanged. The normal border removal was already in unreleased source; the published v0.1.54 installer predates it. This remains a source-only change, with installed visual acceptance pending.
 
 Desktop: 64 test files / 404 tests pass; TypeScript, lint and production frontend build pass. The production CSS fixture checks transparent native surfaces and emitted CSS. Governance, product-truth, lifecycle, Trash and import validators pass. Impeccable's mechanical detector reports no findings on the changed editing surfaces. The pre-existing large JavaScript chunk advisory remains.

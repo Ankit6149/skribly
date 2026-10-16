@@ -19,6 +19,7 @@ Use this page before reading design explorations, old owner candidates, historic
 
 ## Current audit repairs
 
+- [16 October full UX principle review and unreleased changes](../01-design/UX_PRINCIPLES_REVIEW_2026-10-16.md)
 - [13 October note editing fix register (unreleased source)](../06-planning/NOTE_EDITING_FIXES_2026-10-13.md)
 - [3 October repair execution and remaining acceptance](../06-planning/AUDIT_REPAIR_EXECUTION_2026-10-03.md)
 

@@ -1,4 +1,5 @@
 import { emit, listen } from '@tauri-apps/api/event';
+import { ChevronLeft, ChevronRight } from '../../ui/icons';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { SkribNote } from '../notes/model/noteTypes';
 import {
@@ -139,7 +140,7 @@ export const ReminderCalendar: React.FC<ReminderCalendarProps> = ({ notes, onOpe
           <p>Every reminder links back to its local Skrib.</p>
         </div>
         <div className="reminder-calendar-navigation" aria-label="Calendar month">
-          <button type="button" onClick={() => changeMonth(-1)} aria-label="Previous month">←</button>
+          <button type="button" onClick={() => changeMonth(-1)} aria-label="Previous month"><ChevronLeft size={18} aria-hidden="true" /></button>
           <button
             type="button"
             onClick={() => {
@@ -150,14 +151,14 @@ export const ReminderCalendar: React.FC<ReminderCalendarProps> = ({ notes, onOpe
           >
             Today
           </button>
-          <button type="button" onClick={() => changeMonth(1)} aria-label="Next month">→</button>
+          <button type="button" onClick={() => changeMonth(1)} aria-label="Next month"><ChevronRight size={18} aria-hidden="true" /></button>
         </div>
       </header>
 
       {error && (
         <div className="library-export-message error" role="alert">
           <span>Could not read reminders: {error}</span>
-          <button type="button" onClick={() => void refresh()}>Retry</button>
+          <button type="button" disabled={isLoading} onClick={() => void refresh()}>{isLoading ? 'Checking…' : 'Retry'}</button>
         </div>
       )}
 
@@ -181,6 +182,7 @@ export const ReminderCalendar: React.FC<ReminderCalendarProps> = ({ notes, onOpe
                     key === selectedDateKey ? 'selected' : ''
                   }`}
                   aria-pressed={key === selectedDateKey}
+                  aria-current={key === todayKey ? 'date' : undefined}
                   tabIndex={key === selectedDateKey ? 0 : -1}
                   aria-label={`${day.toLocaleDateString()}${reminders.length ? `, ${reminders.length} reminders` : ''}`}
                   ref={(element) => {

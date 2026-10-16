@@ -1446,9 +1446,9 @@ export const SkribComposer: React.FC<SkribComposerProps> = ({ note, target, open
 
         <div className="composer-mode-pill" data-mode={drawingEnabled ? 'draw' : 'type'} role="group" aria-label="Note editing mode">
           <span className="composer-mode-indicator" aria-hidden="true" />
-          <button type="button" aria-pressed={!drawingEnabled} disabled={!canWrite || isFinishing || isInkLoading || isResizing}
+          <button type="button" aria-label="Type" aria-pressed={!drawingEnabled} disabled={!canWrite || isFinishing || isInkLoading || isResizing}
             onClick={() => { if (drawingEnabled) void openRoomyTool('draw'); }}><Type size={15} aria-hidden="true" /><span>Type</span></button>
-          <button type="button" aria-pressed={drawingEnabled} disabled={!canWrite || isFinishing || isInkLoading || isResizing}
+          <button type="button" aria-label="Draw" aria-pressed={drawingEnabled} disabled={!canWrite || isFinishing || isInkLoading || isResizing}
             onClick={() => { if (!drawingEnabled) void openRoomyTool('draw'); }}><PenLine size={15} aria-hidden="true" /><span>Draw</span></button>
         </div>
 
