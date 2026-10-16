@@ -2,6 +2,7 @@
 
 | Date | Decision | Status |
 |---|---|---|
+| 2026-10-17 | Owner selects individuals, then small teams, then organizations, with an independently hosted backend replacing long-term Vercel/managed Supabase dependence. Pilot server budget proposal reallocates reserve within the same ₹10,000 cap. | Direction recorded; hosting/auth choice, spend, migration and production cutover remain unapproved/unimplemented |
 | 2026-10-17 | Owner requests unified integration/operations planning with legal, privacy, security, connectivity and expansion; available new budget is ₹10,000 for the first three months. See unified operating plan. | Owner constraints recorded; work packages/provider choices remain proposals, not production or spending approval |
 | 2026-10-17 | Open-core Community source uses the scoped MPL-2.0 map; commercial backend/delivery and future proprietary Pro features remain separate. Owner confirmed original-work ownership. | Accepted source direction; public binary/sales gates remain |
 | 2026-10-17 | Community local writing requires no account/trial; explicit native feature/config, independent profile and no automatic migration. Default account-enabled configuration retained. | Source foundation; installed acceptance pending |

@@ -2,11 +2,33 @@
 
 17 October 2026. Executor: Codex; accountable product owner: Ankit Bhardwaj. Part of ARC-66, with installed Windows acceptance under ARC-13. This is an execution proposal grounded in source at `5809a34c09175dca98fca29b0ddbaabd2c1bca05`, not proof of live integrations, legal approval or release readiness. Owner constraints: useful MPL Community core, private commercial differentiation, Android first, and **₹10,000 total for the first three months** excluding the existing computer/development subscriptions identified in the budget question. No expected revenue is needed to fund this plan.
 
+Owner follow-up: the commercial product will progress **individuals -> small teams -> organizations**, using an independently hosted backend rather than Vercel or managed Supabase as the long-term platform. This direction is recorded without ordering infrastructure, changing existing deployments or selecting a final hosting/authentication vendor.
+
 ## 1. Objective and order
 
 Make the existing pieces operate as one understandable, recoverable product before adding more services. Keep shared code, identity, commercial entitlement, note data and release metadata distinct. A common brand or shared model does not mean two devices synchronize.
 
 Order: reconcile contracts and costs -> prove complete local backup/restore -> accept an exact Windows candidate -> publish accurate policies/support and establish distribution -> bounded Community beta -> validate one paid Pro offer -> Android transfer/sync -> Team pilot -> Organization capabilities. Legal review and publisher verification run alongside engineering; they cannot be promised to finish on an engineering schedule.
+
+For individuals, the paid hypothesis remains one Pro capability with a defined purchase/update contract. Small teams later add explicitly shared workspaces and seats; organizations later add procurement-led governance, identity and deployment requirements. Do not build all three feature sets now or sell unavailable team features. The free local Community app remains independent of service availability.
+
+### Design horizon: one stage ahead
+
+Owner clarification: build the individual foundation with the team model in mind, and the team foundation with organization requirements in mind. Architecture review must consider the next stage before implementing the current one. This changes the design criteria, not the public feature claims or spending limit.
+
+| Build now | Design for next stage now | Activate later after evidence/funding |
+| --- | --- | --- |
+| Individual product | Explicit personal ownership; workspace/access contracts; stable IDs and revisions; entitlement separate from identity; portable service adapters | Shared membership, invitations, roles and seat billing |
+| Small teams | Organization/workspace ownership boundary; policy/audit hooks; member lifecycle; identity-provider and deployment interfaces | SSO/provisioning, multi-workspace governance, customer retention/residency and contractual support |
+| Organizations | Tested capacity, recovery and deployment/identity options shaped by actual procurement | Further regions/isolation/dedicated deployments only when justified |
+
+Start the independently hosted API as a **modular monolith**: one deployable application and one PostgreSQL database with clear identity, workspace/access, entitlement/billing and future content-service boundaries. A defined boundary does not require a separate process, paid queue or empty placeholder subsystem. Select implementation details through the backend ADR. Split modules into services only when isolation, measured load, deployment ownership or customer contracts justify the operating cost.
+
+The initial server-side model should have a documented path from a personal workspace to explicitly shared workspaces and later organization-owned workspaces. Define ownership types and authorization context before adding hosted records; enforce relevant workspace scope server-side for every operation, query, file and background job. A client-supplied workspace/organization ID never proves membership. Establish migration/versioning conventions and negative authorization fixtures early; require real cross-tenant tests before shared access. Current account-administration roles are not workspace roles.
+
+Local Community notes remain account-independent. Workspace planning does not attach all local notes to an account, upload them or transfer them when a person joins a team. Any later transfer/sharing must be explicit, recoverable and governed by an approved format/key/ownership contract. Separate personal and shared content in both the model and user explanation.
+
+Use ordinary PostgreSQL with versioned migrations, configurable HTTPS/API/auth/storage adapters, a small versioned client contract and reproducible deployment definitions. Preserve backup portability and documented third-party dependencies; containers alone do not remove provider or operational dependencies. Record future extension points in an ADR and prove current behavior with tests rather than implementing speculative enterprise features. This is the owner's staged architecture direction, not an implemented team schema or a guarantee that no later migrations will be required.
 
 Current source licensing is already approved. The private-repository split, production infrastructure/provider changes, final legal terms, cloud-content transfer, payment activation and public publication below are proposals with their existing decision boundaries. No new spend, account signup, deployment, repository extraction, schema change or policy publication occurs through this document.
 
@@ -81,6 +103,18 @@ First implement a small reviewed release record rather than a new dashboard. Pro
 
 Keep development, synthetic-data staging and production separated by configuration, keys and resource identity. Community local beta should not require running paid service environments. Never copy production user data into tests. Inventory current hosting resources, regions, external repo/root references, permissions, billing owners and renewals privately; this pass has not inspected those accounts.
 
+### Independently hosted service direction
+
+Proposed individual-stage topology: desktop/mobile clients call a versioned HTTPS API; a small Linux VM serves the static website and TypeScript API behind a TLS reverse proxy; ordinary PostgreSQL is private to the backend. Use versioned container/deployment definitions and tested SQL migrations so the service can move providers. A separate backup destination and credentials must survive loss of the VM/account credential. Keep email delivery as an explicit provider dependency; running a mail server is not part of the lean plan. Do not install a self-hosted Supabase stack as a substitute for the owner's requested independent backend.
+
+The first VM is a **pilot deployment**, not a highly available organization platform. One machine creates a shared failure point; app/database separation, redundancy and funded operations follow measured use and customer requirements. Do not introduce Kubernetes, multi-region replication or enterprise identity for the individual launch. Choose a currently supported OS/runtime and keep database ports off the public internet; harden SSH/access, patching, secret delivery, logs, restore and abuse limits before production use.
+
+Authentication uses an established reviewed library/service that can run under our control, not custom password/session cryptography. Better Auth with PostgreSQL is one candidate to evaluate against Tauri/mobile browser login, token storage, email verification/recovery, revocation and account migration; it is not selected or implemented. Account IDs, device-trial history and entitlements must be preserved deliberately. Existing Supabase Auth identities, SQL/RLS assumptions, protected sessions and signed licence claims require a compatibility/migration ADR before replacement. Do not assume password hashes or existing sessions are portable, silently restart trials or copy signing keys into source/container images.
+
+Migration sequence: privately inventory resources/client calls and data obligations -> approve API/auth/schema/region/backup ADR -> build synthetic-data pilot and tested off-machine restore -> validate old/new client compatibility and trial/entitlement behavior -> plan lawful identity/data transfer and user communication -> bounded cutover with rollback -> verify no clients/jobs/webhooks still depend on the old services -> deliberately decommission and stop old bills. Keep existing services intact until the replacement is accepted. Hosting the website on the VM also requires reimplementing/testing the Vercel route/header/rewrite assumptions and owner-delivery behavior. No production migration is authorized by this planning text.
+
+Before a small-team pilot: introduce server-enforced workspace/tenant membership, invites/roles, sharing and revocation, scoped files, quotas and seat billing; test cross-tenant denial and offboarding. Before organizations: evaluate SSO/SCIM, audit/retention/residency, multi-workspace controls, deployment choices and service levels against actual procurement needs. Self-hosting alone does not establish enterprise security or legal readiness.
+
 Promotion: reviewed PR and compatible fixtures -> build once -> identify/hash/sign exact artifact as applicable -> install/upgrade/recovery acceptance -> verify website/legal/support match -> explicit owner release decision -> enable only that accepted channel. An installer replacement or re-sign changes artifact identity and needs the relevant verification again. Keep rollback packages and schema compatibility records; a rollback must not open a newer data schema destructively.
 
 Rollback by layer: withdraw download link; restore prior website release record; revert API/function only with schema compatibility; forward-fix irreversible migrations; preserve data/backup evidence. Test one withdrawn/corrupt/mismatched artifact scenario. Automatic updater and signed update-metadata verification remain a separate design gate. The current production-hold workflow remains unchanged.
@@ -124,14 +158,17 @@ Operational checks: verify support/security inbox delivery and reply path; test 
 | Allocation | Ceiling | Condition |
 | --- | ---: | --- |
 | One ordinary domain, first year | ₹1,500 | Check name/trademark conflict, actual checkout and renewal; no premium purchase |
-| Website/email/operational extras, all three months | ₹500 | Prefer bounded free/static options; review existing hosting bills first |
+| Pilot Linux server, up to three months | ₹3,000 | Target maximum ₹1,000/month including tax/currency allowance; verify actual region, memory and bill before ordering |
+| Off-machine backup/operational allowance | ₹500 | Small synthetic pilot only; verify storage/retention and restore cost |
 | Initial Indian CA consultation | ₹2,000 | Obtain quote; allowance is not a full legal/accounting/registration package |
-| Uncommitted reserve | ₹6,000 | Remains cash, not a requirement to spend |
+| Uncommitted reserve | ₹3,000 | Remains cash, not a requirement to spend |
 | Total | **₹10,000** | Assumes zero revenue; no new commitment exceeding available cash |
 
 Record existing project hosting/service charges before committing anything: the budget question excluded existing computer/development subscriptions, not automatically every infrastructure bill. Do not cancel a live critical resource blindly. Ledger fields: vendor/resource, purpose, owner, currency/tax, paid date, recurring/annual/usage basis, renewal/cancellation date, cap/alerts, remaining committed cost and receipt. Keep financial and identity records private.
 
-Current published comparison: ordinary Cloudflare `.com` $10.46/year; Vercel Pro starts $20/month; Supabase Pro starts $25/month. The latter pair is $45/month before taxes/overages and does not fit this lean plan comfortably. Vercel Hobby is non-commercial/personal only. A static Cloudflare route is a candidate requiring site/API verification, not a completed free migration. Community local use does not need a cloud note database.
+This budget supersedes the earlier static-only proposal's ₹500 operations / ₹6,000 reserve split following the owner's independent-server direction. Do not start the VM billing clock while only planning; the Community local beta itself does not need a cloud note database.
+
+Current published comparison: ordinary Cloudflare `.com` $10.46/year; Vercel Pro starts $20/month; Supabase Pro starts $25/month. The latter two are historical comparison/current-dependency facts, not the selected long-term route. AWS Lightsail is one pilot candidate: the published IPv4 Linux 1-GB bundle is $7/month; snapshots cost extra, and Mumbai's included transfer differs from the headline bundle. The ₹1,000 monthly target is a planning allowance, not a verified complete production quote or evidence that 1 GB fits this app/database workload. Benchmark before selecting capacity; if adequate capacity/backup/taxes exceed the cap, postpone service activation or revise the staged budget with the owner. Compare providers and region/residency requirements before choosing. No free-trial credit is assumed.
 
 Microsoft Store MSIX is the first signing/distribution route to evaluate within budget; free account creation does not eliminate publisher verification or packaging/acceptance work. Confirm commercial account/document eligibility. India is excluded from current Azure Public Trust signing jurisdictions; private trust is not a consumer substitute. Direct certificate total cost/eligibility is unknown; no purchase is budgeted. Google Play's $25 registration, paid signing, advertisements, new AI tools, company incorporation services and paid cloud sync are deferred until separately justified. No claim is made that every professional/public-launch expense fits ₹10,000.
 
@@ -149,8 +186,9 @@ Sequence uses one developer, not invented parallel staff. Durations and launch d
 | P1 | Protect and connect local data | Approved backup/restore ADR; complete rich-content snapshot and round-trip into clean profile; interrupted/corrupt/future-version/rollback tests | P0; Codex implementation, Ankit installed acceptance |
 | P2 | Prove exact Windows Community candidate | Built artifact record, profile/startup/hotkey/focus/DPI/accessibility/performance/install/upgrade/recovery acceptance | P1 plus ARC-13; Codex build/evidence, Ankit physical test |
 | P3 | Legal/support/distribution readiness | Reviewed data register/notices/terms/contact, upstream notices/provenance, verified publisher route and affordable cost; exact package acceptance | Start fact gathering alongside P1; owner + relevant professionals/providers |
+| P3a | Independent individual-service pilot | Approved backend/auth/migration ADR; portable VM/API/PostgreSQL deployment; synthetic restore/load/security and old/new client compatibility evidence; accepted cost and rollback | Design after P0; required before commercial service cutover; not required for offline Community beta |
 | P4 | Bounded Community beta | Accepted release record, accurate site/download/support, rollback drill and owner publication decision; feedback from actual users | P2 and relevant P3 requirements; no automatic launch |
-| P5 | One paid Pro experiment | Evidence of willingness to pay; separately authored module; approved seller/provider/terms; successful payment/refund/reconciliation/downgrade tests | P4 stability + separate paid gates; no collecting money early |
+| P5 | Individual paid Pro experiment | Evidence of willingness to pay; separately authored module; approved seller/provider/terms; successful payment/refund/reconciliation/downgrade tests | P4 stability, P3a where online service is used, separate paid gates; no collecting money early |
 | P6 | Android companion | Real-phone baseline, portable model adapter and explicit transfer; then separately approved encrypted-sync pilot | P1; no Android parity/notification/sync claims ahead of proof |
 | P7 | Team pilot | Validated customer use case/budget; tenant permissions/invites/sharing/offboarding, DPA and isolation/recovery tests | P5 viability + funded service operation |
 | P8 | Organization expansion | Procurement-led identity/governance/deployment/audit/support commitments and sustainable pricing | Successful Team pilot; no speculative enterprise rebuild |
@@ -168,6 +206,7 @@ Next execution proposal: **P0 reconciliation and P1 backup/restore design**, wit
 | Private commercial repository, pinned-core pipeline and release record | Proposed; not created/implemented |
 | Actual publisher/seller, launch territories/age policy, domain and contacts | Owner facts still needed; no fabricated contact, company or availability |
 | Existing subscription bills, professional quotes and direct signing cost | Unknown; inspect/quote before commitment |
+| Independent backend, VM vendor/capacity/auth solution and managed-service cutover | Owner-selected direction; topology/costs proposed, no replacement or shutdown performed |
 
 Stop conditions for a stage: data loss/unrecoverable save; unknown artifact identity; unresolved relevant security defect; missing required publisher/legal/provider acceptance; unclear supported-user/territory terms; cost beyond available cash. Keep working on independent documentation/testing while external decisions are pending. Do not mark ARC-66 complete merely because this plan or a source PR is merged.
 
@@ -185,5 +224,6 @@ Primary sources consulted 17 October 2026:
 - [Cloudflare domain pricing](https://pricing.registrar.cloudflare.com/), [Workers pricing](https://developers.cloudflare.com/workers/platform/pricing/), [Vercel pricing](https://vercel.com/pricing), [Hobby limits](https://vercel.com/docs/plans/hobby), [Supabase pricing](https://supabase.com/pricing) — advertised rates/limits, not account billing evidence.
 - [Microsoft publisher onboarding](https://learn.microsoft.com/en-us/windows/apps/publish/partner-center/open-a-developer-account?tabs=individual), [Tauri MSIX guide](https://learn.microsoft.com/en-us/windows/apps/dev-tools/winapp-cli/guides/tauri), [Azure signing eligibility](https://learn.microsoft.com/en-us/azure/artifact-signing/quickstart), [Google Play registration](https://support.google.com/googleplay/android-developer/answer/6112435?hl=en) — external verification and exact-package acceptance remain.
 - [Razorpay fees](https://razorpay.com/pricing/) and [Paddle fees](https://www.paddle.com/pricing) — advertised examples; no merchant account acceptance or professional tax determination.
+- [AWS Lightsail pricing](https://aws.amazon.com/lightsail/pricing/), [regions](https://docs.aws.amazon.com/lightsail/latest/userguide/understanding-regions-and-availability-zones-in-amazon-lightsail.html), [snapshot costs](https://docs.aws.amazon.com/lightsail/latest/userguide/amazon-lightsail-faq-snapshots.html), [PostgreSQL backup methods](https://www.postgresql.org/docs/current/backup.html), [Better Auth PostgreSQL adapter](https://better-auth.com/docs/adapters/postgresql) — candidate infrastructure and authentication research, not a capacity guarantee or selected purchase.
 
 Verification of this plan: source/document inspection, primary-source research, local link checks and repository/product-truth validators. No application code, live resource, final legal copy, public channel, credential or customer record changed. No new app/browser/phone runtime acceptance was performed.
