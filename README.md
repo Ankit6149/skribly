@@ -12,6 +12,7 @@ Skribli is a local-first contextual annotation application for Windows. The curr
 | --- | --- |
 | What is current vs historical? | [docs/README.md](docs/README.md) |
 | Current product/engineering source-of-truth index | [docs/current/README.md](docs/current/README.md) |
+| Integration, release, legal/security and budget work plan | [Unified operating plan](docs/06-planning/UNIFIED_OPERATING_PLAN_2026-10-17.md) |
 | Target repository/module structure | [docs/current/REPOSITORY_STRUCTURE.md](docs/current/REPOSITORY_STRUCTURE.md) |
 | Current Windows interaction contract | [docs/01-design/INTERACTION_SPEC.md](docs/01-design/INTERACTION_SPEC.md) |
 | Current architecture | [docs/02-engineering/ARCHITECTURE.md](docs/02-engineering/ARCHITECTURE.md) |
